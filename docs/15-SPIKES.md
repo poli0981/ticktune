@@ -50,21 +50,6 @@ audio-engine, importer, or YouTube code is written before S1/S3/S4 pass.
   restructured before any YT UI work; a tainted thumbnail canvas forces an
   ambient-background redesign in `03 §5` before P5.
 
-## S1 — YouTube error matrix & playback chain (→ `06 §2, §4`)
-
-- **Goal:** confirm real-world mapping of onError codes (esp. age-restricted vs
-  region-blocked vs embed-disabled), controls rendering at 384×216, and the
-  gesture→playVideo chain.
-- **Method:** minimal page with one `YT.Player` on youtube-nocookie; curated
-  video list (normal / deleted / embed-off / age-restricted / region-blocked-VN);
-  drive `loadVideoById` sequence; log every event; test Chromium + Firefox.
-  Also probe `/oembed` responses for each id (server-side curl is fine here).
-- **Acceptance:** every list entry maps to a documented overlay type with no
-  "unknown" bucket; queue of 3 advances hands-free after one initial gesture;
-  native controls fully visible at 384×216.
-- **Timebox:** 1 day. **Risk if failed:** overlay taxonomy in `06 §4` is
-  restructured before any YT UI work.
-
 ## S2 — Timer drift, background throttling, Wake Lock (→ `04`)
 
 - **Goal:** measure countdown accuracy with tab hidden for long periods, **with
