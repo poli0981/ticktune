@@ -1,16 +1,51 @@
 <script lang="ts">
-  import { onDestroy } from 'svelte';
+  import { onDestroy, onMount } from 'svelte';
   import TtCountdown from './components/TtCountdown.svelte';
   import TtDebugPanel from './components/TtDebugPanel.svelte';
+  import TtLegalGate from './components/TtLegalGate.svelte';
   import { TtTimerDriver } from './engine/timer/tt-timer-driver';
   import { TT_MAX_COUNTDOWN_MS, TT_MIN_COUNTDOWN_MS } from './engine/timer/tt-format';
   import type { TtTickSample } from './engine/timer/types';
+  import { installGlobalCapture, ttLog } from './engine/log/tt-log';
+  import { settings } from './state/settings.svelte';
+  import { TT_LEGAL_VERSION } from '../lib/tt-legal-const';
 
   /**
    * P1 shell. The legal gate, setup, queue and player land in later phases
    * (docs/16); this is the countdown plus the minimum needed to drive it — and
    * it doubles as the spike S2 harness under ?ttdebug=1 (docs/15 §S2).
    */
+
+  /**
+   * docs/02 §1 boot → gate → setup. `boot` must always reach one of the next two
+   * states, so a settings failure downgrades to defaults rather than hanging
+   * here (settings.load() never throws).
+   */
+  let booted = $state(false);
+  let needsGate = $state(false);
+
+  onMount(() => {
+    const uninstall = installGlobalCapture(window);
+    void settings.load(navigator.language).then((s) => {
+      needsGate = s.legalAccepted?.version !== TT_LEGAL_VERSION;
+      booted = true;
+      // Boot is async (settings load), so "is the gate showing?" is unanswerable
+      // until it completes. Publish the transition so tests — and anything else
+      // that needs to know the app settled — can wait on it instead of racing.
+      document.documentElement.dataset['ttBooted'] = needsGate ? 'gate' : 'ready';
+    });
+    return uninstall;
+  });
+
+  /**
+   * docs/02 §1 / docs/05 §1: this click is the autoplay-unlock gesture.
+   * P2 adds `audioEngine.unlock()` here — the seam, not the implementation.
+   */
+  async function acceptLegal(version: string) {
+    await settings.patch({ legalAccepted: { version, acceptedAt: Date.now() } });
+    ttLog.info('TT-USR-100', `legal accepted v${version}`);
+    needsGate = false;
+  }
 
   let hours = $state(0);
   let minutes = $state(1);
@@ -112,7 +147,11 @@
   }
 </script>
 
-<main class="grid min-h-dvh place-items-center gap-10 p-8">
+{#if booted && needsGate}
+  <TtLegalGate onaccept={acceptLegal} />
+{/if}
+
+<main class="grid min-h-dvh place-items-center gap-10 p-8" inert={booted && needsGate}>
   {#if debug}
     <TtDebugPanel
       {samples}

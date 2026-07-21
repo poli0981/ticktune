@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { gotoApp } from './_helpers';
 
 /**
  * docs/13 §3 — the countdown runs for real: format regimes, the sub-60 s
@@ -20,7 +21,7 @@ test.describe('countdown', () => {
   }
 
   test('renders H:MM:SS above an hour, with a matching ghost', async ({ page }) => {
-    await page.goto('/app/');
+    await gotoApp(page);
     await setDuration(page, 1, 30, 0);
     await expect(digits(page)).toHaveText('1:30:00');
     // The ghost is what removes width jitter — it must track the live width.
@@ -28,14 +29,14 @@ test.describe('countdown', () => {
   });
 
   test('MM:SS between 60 s and an hour', async ({ page }) => {
-    await page.goto('/app/');
+    await gotoApp(page);
     await setDuration(page, 0, 9, 41);
     await expect(digits(page)).toHaveText('09:41');
     expect(await ghost(page).textContent()).toBe('88:88');
   });
 
   test('crosses into the SS.mmm regime and turns red', async ({ page }) => {
-    await page.goto('/app/');
+    await gotoApp(page);
     await setDuration(page, 0, 0, 3);
     await page.getByRole('button', { name: 'Bắt đầu' }).click();
 
@@ -46,7 +47,7 @@ test.describe('countdown', () => {
   });
 
   test('actually counts down', async ({ page }) => {
-    await page.goto('/app/');
+    await gotoApp(page);
     await setDuration(page, 0, 0, 10);
     await page.getByRole('button', { name: 'Bắt đầu' }).click();
 
@@ -57,7 +58,7 @@ test.describe('countdown', () => {
   });
 
   test('pause freezes the value; resume continues from it', async ({ page }) => {
-    await page.goto('/app/');
+    await gotoApp(page);
     await setDuration(page, 0, 0, 30);
     await page.getByRole('button', { name: 'Bắt đầu' }).click();
     await page.waitForTimeout(500);
@@ -73,7 +74,7 @@ test.describe('countdown', () => {
   });
 
   test('reaches zero and finishes exactly once', async ({ page }) => {
-    await page.goto('/app/');
+    await gotoApp(page);
     await setDuration(page, 0, 0, 2);
     await page.getByRole('button', { name: 'Bắt đầu' }).click();
 
@@ -84,7 +85,7 @@ test.describe('countdown', () => {
   });
 
   test('Start is disabled below the 1 s minimum (docs/04 §4)', async ({ page }) => {
-    await page.goto('/app/');
+    await gotoApp(page);
     await setDuration(page, 0, 0, 0);
     await expect(page.getByRole('button', { name: 'Bắt đầu' })).toBeDisabled();
   });

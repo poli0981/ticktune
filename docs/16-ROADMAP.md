@@ -15,7 +15,7 @@ Durations are effort estimates, not calendar promises. **v1.0 target: late Q3
 | **P6 · Landing + legal** (~0.5–1 wk) | Landing VI/EN (hero uses **placeholder** capture until core is stable — per spec), legal pages from `legal/*` drafts, **VI translation of legal**, 404, FAQ | Lighthouse ≥ 95 static pages; hreflang correct |
 | **P7 · Hardening + launch** (~1 wk) | CSP Report-Only → enforce, a11y pass, perf pass, cross-browser sweep incl. WebKit, live-site smoke checklist, domain + CF checklist (`10 §11`), demo capture replaces placeholder | v1.0.0 tag; notify fan-out |
 
-## P1 exit review — 2026-07-21: **NOT complete (5 of 8 scope items)**
+## P1 exit review — 2026-07-21: **scope complete (8 of 8)**, blocked on S2
 
 ### Scope
 
@@ -24,10 +24,10 @@ Durations are effort estimates, not calendar promises. **v1.0 target: late Q3
 | 1 | Scaffold (Astro 7 + Svelte 5 + TW 4 + wrangler) | ✅ |
 | 2 | TS 7 vs ~5.9 check (`11 §4`) | ✅ pinned `~5.9` on evidence |
 | 3 | Mobile gate | ✅ enforced, 10 E2E on Chromium + WebKit |
-| 4 | **Legal gate shell** | ❌ **not started** |
+| 4 | Legal gate shell | ✅ blocks first run, persists, re-shows on version bump — 5 E2E |
 | 5 | Timer engine + countdown display | ✅ 59 unit tests, 98.9% line coverage on the core |
-| 6 | **Settings shell + Dexie** | ❌ **not started** (`TtSettings` is specified in `02 §3.1`, unimplemented) |
-| 7 | **Log engine** | ❌ **not started** (registry exists in `12 §6`, ring buffer does not) |
+| 6 | Settings shell + Dexie | ✅ `TtSettings` + clamping + additive-only upgrade — 22 unit tests |
+| 7 | Log engine | ✅ ring buffer 500, level filter, diagnostics payload, global capture — 14 unit tests |
 | 8 | CI stubs live | ✅ green on `main` |
 
 ### Stated exit criteria — all three pass, and that is the problem
@@ -44,12 +44,15 @@ under-specified criteria, not a complete phase. This is audit finding *"roadmap
 phases do not own several artifacts that earlier phases depend on"*, confirmed in
 practice. Amended criteria for P1:
 
-- [ ] Legal gate blocks first run, Accept persists across reload, and a
+- [x] Legal gate blocks first run, Accept persists across reload, and a
       `TT_LEGAL_VERSION` bump re-shows it
-- [ ] `TT_DEFAULT_SETTINGS` round-trips through Dexie; a corrupt row falls back
-      and logs TT-SYS-204
-- [ ] Log ring buffer wraps at 500; `window.onerror` is captured
+- [x] `TT_DEFAULT_SETTINGS` round-trips through Dexie; a corrupt row falls back
+      and logs TT-SYS-204 — and a malformed acceptance fails **closed**
+- [x] Log ring buffer wraps at 500; `window.onerror` is captured
 - [x] the three original criteria
+
+**Totals: 89 unit tests, 22 E2E, five gates green.** P1's deliverables are done;
+the phase is not closed, because S2 still blocks P2 (below).
 
 ### Verified beyond the original plan
 
@@ -69,10 +72,10 @@ S3 passed. S1 and S4 are partial and gate P4 and P2 respectively.
 
 ### Recommended order
 
-1. Finish items 4, 6, 7 — none depends on any spike, and the log engine is
-   wanted by everything after it.
-2. Run the S2 control before starting the audio engine.
-3. Then P2.
+1. ~~Finish items 4, 6, 7~~ — done 2026-07-21.
+2. **Run the S2 control** (case 2, keep-alive ON, 30+ min) before starting the
+   audio engine. It is the only thing between here and P2.
+3. Then P2, which opens with the silent keep-alive source (`04 §2`).
 
 ## Post-1.0 backlog (unordered)
 

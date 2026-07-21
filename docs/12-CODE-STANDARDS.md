@@ -66,6 +66,7 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-PLY-101 | Playback error on local track — skipped/removed |
 | TT-PLY-102 | Playlist exhausted before countdown (repeat off) |
 | TT-USR-001 | Track removed by user |
+| TT-USR-100 | Legal gate accepted (records the version) |
 | TT-YT-001 | oEmbed pre-check network failure — kept pending |
 | TT-YT-002 | Invalid YouTube URL / bad parameter |
 | TT-YT-003 | Rejected: link count would exceed 50 |
@@ -76,7 +77,8 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-SYS-202 | Wake Lock unavailable/denied |
 | TT-SYS-203 | Zero crossed during sleep — late finish fired |
 | TT-SYS-204 | Settings row unreadable/corrupt — reset to defaults (`02 §3.2`) |
-| TT-SYS-3xx | Captured window.onerror / unhandledrejection |
+| TT-SYS-300 | Captured `window.onerror` (error **name** only — never its message, see the rule below) |
+| TT-SYS-301 | Captured `unhandledrejection` (reason **type** only) |
 
 New codes are added here first, then used in code (review checks the reverse).
 

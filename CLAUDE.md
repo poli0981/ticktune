@@ -85,9 +85,8 @@ before S1/S3/S4 pass.**
 
 ## Current status
 
-P1 in progress (2026-07-21) — **5 of 8 scope items done**; see the P1 exit
-review in `docs/16`. Missing: legal gate shell, settings shell + Dexie, log
-engine. None of the three depends on a spike.
+P1 scope **complete (8/8)** as of 2026-07-21 — see the exit review in `docs/16`.
+89 unit tests, 22 E2E, five gates green. The phase is not closed: S2 blocks P2.
 
 🔴 **S2 case 3 failed** (`docs/04 §2`): a hidden, silent tab fired `done`
 2 m 57 s late — 355× the bound. A near-zero-gain keep-alive source during

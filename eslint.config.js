@@ -41,6 +41,18 @@ export default tseslint.config(
     },
   },
 
+  // `*.svelte.ts` runes modules are plain TypeScript — they just use $state.
+  // eslint-plugin-svelte's flat config claims them for the Svelte parser, which
+  // then fails on ordinary TS syntax (`import Dexie, { type Table }`).
+  {
+    files: ['**/*.svelte.ts', '**/*.svelte.js'],
+    languageOptions: {
+      parser: tseslint.parser,
+      globals: globals.browser,
+    },
+    rules: { 'no-undef': 'off' },
+  },
+
   {
     rules: {
       // docs/12 §4 — banned patterns.
