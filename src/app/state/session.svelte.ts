@@ -7,6 +7,7 @@ import { ttLog } from '../engine/log/tt-log';
 import { finishReport } from '../engine/timer/tt-late';
 import { TT_MAX_COUNTDOWN_MS, TT_MIN_COUNTDOWN_MS } from '../engine/timer/tt-format';
 import type { TtFinishInfo, TtFinishReport } from '../engine/timer/types';
+import { playback } from './playback.svelte';
 
 /**
  * Session state — docs/02 §1 and §3.
@@ -137,9 +138,13 @@ class SessionStore {
       const replacing = this.mode === 'single' && files.length > 0;
       const queue = replacing ? [] : this.#queue;
 
+      // Replacing in Single mode: release the outgoing track's URLs, or the
+      // ledger accumulates one cover per import (docs/05 §3).
+      if (replacing) for (const t of this.#queue) playback.releaseTrack(t.id);
+
       const result = await importFiles(
         { files, mode: this.mode, queue, allowDuplicates: false },
-        browserImportPorts(),
+        browserImportPorts(playback.makeCoverUrl),
       );
 
       // Every skip and every note gets a coded entry — docs/01 §2 principle 5.
@@ -154,9 +159,10 @@ class SessionStore {
     }
   }
 
-  /** docs/02 §6 — user removal. Revoking URLs is the audio engine's job. */
+  /** docs/02 §6 — user removal. "All removals revoke the URLs immediately." */
   removeTrack(id: string): void {
     this.#queue = this.#queue.filter((t) => t.id !== id);
+    playback.releaseTrack(id);
     ttLog.info('TT-USR-001', '', id);
   }
 

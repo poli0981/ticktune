@@ -23,10 +23,10 @@ export function urlKey(trackId: string, kind: TtUrlKind): string {
 
 export class TtUrlLedger {
   readonly #urls = new Map<string, string>();
-  readonly #create: (file: File) => string;
+  readonly #create: (blob: Blob) => string;
   readonly #revoke: (url: string) => void;
 
-  constructor(create: (file: File) => string, revoke: (url: string) => void) {
+  constructor(create: (blob: Blob) => string, revoke: (url: string) => void) {
     this.#create = create;
     this.#revoke = revoke;
   }
@@ -41,10 +41,10 @@ export class TtUrlLedger {
    * first one rather than leaking a second. That is what makes it safe to call
    * on every play without tracking whether this track has played before.
    */
-  acquire(key: string, file: File): string {
+  acquire(key: string, source: Blob): string {
     const existing = this.#urls.get(key);
     if (existing !== undefined) return existing;
-    const url = this.#create(file);
+    const url = this.#create(source);
     this.#urls.set(key, url);
     return url;
   }

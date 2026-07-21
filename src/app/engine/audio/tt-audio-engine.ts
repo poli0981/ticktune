@@ -60,6 +60,23 @@ export class TtAudioEngine {
   }
 
   /**
+   * Register an embedded cover with the ledger — docs/05 §3.
+   *
+   * Lives here rather than in the importer so cover URLs are counted against
+   * the same `queueLength + 2` bound as media URLs, and so removing a track
+   * revokes both. Idempotent per track, like every other ledger entry.
+   */
+  acquireCoverUrl(trackId: string, bytes: Uint8Array, mime: string): string {
+    const blob = new Blob([bytes as BlobPart], { type: mime });
+    return this.#ledger.acquire(urlKey(trackId, 'cover'), blob);
+  }
+
+  /** docs/02 §6 — a removed track releases its media URL and its cover. */
+  releaseTrack(trackId: string): void {
+    this.#ledger.releaseTrack(trackId);
+  }
+
+  /**
    * The autoplay-unlock gesture (docs/05 §1).
    *
    * Idempotent, and called from all three gesture sites — the gate Accept, Start,
