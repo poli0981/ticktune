@@ -189,7 +189,12 @@ prependId3v2(v24, 4, [textFrame('TIT2', VI_TITLE, 0x03), textFrame('TPE1', VI_AR
 track('vi-id3v24-utf8.mp3', 'S3: ID3v2.4, encoding byte 0x03 (UTF-8), syncsafe sizes');
 
 const v1 = join(COMMITTED, 'vi-id3v1-only.mp3');
-tone(v1, 3, 440, ['-codec:a', 'libmp3lame', '-b:a', '64k']);
+// `-id3v2_version 0` matters, and it is the mp3 muxer's actual option name
+// (`-write_id3v2` is silently ignored here). Without it ffmpeg emits an empty
+// ID3v2 tag, the file reports tagTypes ['ID3v2.4','ID3v1'], and a fixture named
+// "id3v1-only" is not ID3v1-only — so any detection rule keyed on that would
+// never fire. The S3 harness caught this by printing tagTypes.
+tone(v1, 3, 440, ['-codec:a', 'libmp3lame', '-b:a', '64k', '-id3v2_version', '0']);
 appendId3v1(v1, VI_TITLE, VI_ARTIST);
 track('vi-id3v1-only.mp3', 'S3: ID3v1 has no charset — must trigger TT-IMP-007 fallback');
 

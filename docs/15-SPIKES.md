@@ -196,5 +196,5 @@ against the P1 timer engine it ran on; S1 gates P4; S3 and S4 gate P2
 |-------|--------|------|---------------------|
 | S1 | 🟡 partial | 2026-07-21 | oEmbed half done — see `tests/manual/yt-matrix.md`. Player/onError half still needs a browser, and the region case needs Vietnam |
 | S2 | ⬜ not run | — | `04 §1–2, §6` |
-| S3 | ⬜ not run | — | `05 §4–5` |
-| S4 | ⬜ not run | — | `05 §1–2` |
+| S3 | 🟡 partial | 2026-07-21 | Tag matrix DONE — the U+FFFD rule was falsified and replaced (`05 §5`). Still to run: the 95-file batch against the real corpus, and cover-art extraction via `test/generated/vi-big-cover-final.mp3` |
+| S4 | ⬜ harness ready | — | `/spike/s4-crossfade`. Needs a human ear: no automated check can tell you whether a fade clicks |

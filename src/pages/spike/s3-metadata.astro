@@ -1,0 +1,19 @@
+---
+import TtBase from '../../layouts/TtBase.astro';
+---
+
+<TtBase title="spike/s3-metadata — TickTune">
+  <!--
+    THROWAWAY. docs/15 §Scope rule calls S1/S3/S4 throwaway harnesses; these live
+    in main rather than on a branch so they can be run against the deployed site,
+    which is where the interesting browser behaviour actually happens.
+    Delete both /spike routes before P6 (docs/16) — tracked in docs/15 §Exit.
+  -->
+  <meta slot="head" name="robots" content="noindex, nofollow" />
+  <div id="tt-spike"></div>
+  <script>
+    if (!document.documentElement.dataset.ttBlocked) {
+      import('../../app/spike/mount-s3.ts');
+    }
+  </script>
+</TtBase>

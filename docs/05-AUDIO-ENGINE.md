@@ -64,11 +64,55 @@ of a broken track. Matrix re-verified during Spike S3.
 - Cover art: first `common.picture` → `Blob` → object URL (§3 lifecycle).
 - "Composition date" (spec) does not exist as a reliable tag — `year` (release) is
   what tags carry; absent → `N/A` per the fallback rule.
-- **Vietnamese tags:** ID3v2.3/2.4 with UTF-16/UTF-8 render correctly; legacy ID3v1
-  is charset-less and Vietnamese text is frequently mojibake. Policy: prefer v2
-  frames when both exist (music-metadata does by default); if the decoded string
-  contains U+FFFD replacement chars, fall back to the file name and log
-  `TT-IMP-007`. Real-file validation is Spike S3's core.
+- **Vietnamese tags** — measured 2026-07-21 by spike S3 (`/spike/s3-metadata`,
+  Chromium, generated fixture matrix):
+
+  | Tag container | Vietnamese round-trip |
+  |---------------|-----------------------|
+  | ID3v2.3, encoding byte `0x01` (UTF-16 + BOM) | ✅ exact, diacritics intact |
+  | ID3v2.4, encoding byte `0x03` (UTF-8) | ✅ exact |
+  | Vorbis comment | ✅ exact |
+  | MP4 / iTunes atom | ✅ exact |
+  | **ID3v1** | ❌ corrupted, and **silently** — see below |
+
+  Prefer v2 frames when both exist; music-metadata already does.
+
+  ### ⚠️ The U+FFFD detection rule does not work — replaced
+
+  This section used to say: "if the decoded string contains U+FFFD replacement
+  chars, fall back to the file name and log `TT-IMP-007`". **S3 falsified that.**
+
+  `Nắng ấm xa dần — Đường về nhà` written into an ID3v1 tag comes back as
+  `N¯ng ¥m xa d§n  °Ýng vÁ nhà` — wrong, but containing **zero** U+FFFD. ID3v1
+  has no charset field, so music-metadata decodes it as ISO-8859-1, where every
+  byte 0x00–0xFF maps to *some* valid character. A replacement char is never
+  produced, the rule never fires, and the mojibake reaches the UI looking like a
+  legitimately odd title.
+
+  **Normative rule instead** — a tag is unreliable when *both* hold:
+
+  ```ts
+  const onlyV1 = tagTypes.length > 0 && tagTypes.every((t) => t === 'ID3v1');
+  const nonAscii = (v?: string) => !!v && [...v].some((c) => c.codePointAt(0)! > 0x7f);
+  const unreliable = onlyV1 && (nonAscii(title) || nonAscii(artist));
+  ```
+
+  Pure-ASCII ID3v1 is unambiguous and must be **kept** — most Western files are
+  exactly that, and discarding their titles would be a regression. Only the
+  non-ASCII case is unrecoverable, because the original encoding is recorded
+  nowhere. When `unreliable`: fall back to the file name and log `TT-IMP-007`.
+
+  Keep the U+FFFD check too — it still catches genuinely broken UTF-8 in v2
+  frames, which is a different failure with the same symptom.
+
+  Fixture caveat worth remembering: ffmpeg's mp3 muxer writes an empty ID3v2 tag
+  unless given `-id3v2_version 0`, which made the first "ID3v1-only" fixture
+  report `['ID3v2.4','ID3v1']`. A rule keyed on `tagTypes` would have silently
+  never fired against it (`scripts/make-fixtures.ts`).
+
+- **Parse cost:** 14 mixed fixtures in 254 ms (~18 ms/file) in Chromium →
+  ≈1.7 s extrapolated for the 95-file batch against the `13 §1` 10 s budget.
+  Re-confirm against the real corpus, whose files are megabytes not kilobytes.
 - Parse failure ≠ import failure: file-name title, `N/A` elsewhere (`TT-IMP-006`).
 
 ## 6. Visualizer
