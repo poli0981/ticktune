@@ -119,8 +119,16 @@ export async function importFiles(
     seen.add(key);
     totalMs += durationMs ?? 0;
 
+    // The id is minted first because the cover URL is keyed by it — docs/05 §3
+    // counts cover URLs per track, and a URL registered under the wrong key
+    // would never be revoked when the track is removed.
+    const id = ports.newId();
+    const cover = raw?.coverArt
+      ? ports.makeCoverUrl(id, raw.coverArt.bytes, raw.coverArt.mime)
+      : null;
+
     added.push({
-      id: ports.newId(),
+      id,
       source: 'local',
       status: 'ok',
       title: mapped.title,
@@ -135,6 +143,7 @@ export async function importFiles(
       ...(mapped.bitrateKbps === undefined ? {} : { bitrateKbps: mapped.bitrateKbps }),
       ...(mapped.sampleRateHz === undefined ? {} : { sampleRateHz: mapped.sampleRateHz }),
       ...(mapped.channels === undefined ? {} : { channels: mapped.channels }),
+      ...(cover === null ? {} : { coverArtUrl: cover }),
       fileSizeBytes: file.size,
       fileName: file.name,
       addedAt: ports.now(),

@@ -67,6 +67,16 @@
   >
     <h2>Thông tin bài hát</h2>
 
+    <!--
+      The embedded cover, when the file carried one (docs/05 §5). The `Ảnh bìa`
+      row below still says Có / N/A — this is the evidence for it, and it is
+      the only place in P2 the artwork is visible at all: the cover-blur
+      background and auto-theme that consume it are P5 (03 §2 Z1, 03 §5).
+    -->
+    {#if track.coverArtUrl}
+      <img class="tt-cover" src={track.coverArtUrl} alt="" data-testid="tt-cover" />
+    {/if}
+
     <dl>
       {#each rows as row (row.label)}
         <div>
@@ -109,6 +119,15 @@
     font-size: 0.95rem;
     letter-spacing: 0.04em;
     color: var(--color-tt-signal);
+  }
+  .tt-cover {
+    display: block;
+    width: 8rem;
+    height: 8rem;
+    margin: 0 auto 0.9rem;
+    object-fit: cover;
+    border: 1px solid var(--color-tt-line);
+    border-radius: 0.375rem;
   }
   dl {
     display: grid;

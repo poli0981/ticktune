@@ -21,7 +21,13 @@ async function parseWithMusicMetadata(file: File): Promise<TtRawTags | null> {
   const { parseBlob } = await import('music-metadata');
   const m = await parseBlob(file);
 
+  // docs/05 §5: the FIRST embedded picture. S3 measured covers up to 7.26 MB in
+  // a real library, so the bytes are handed straight to the ledger rather than
+  // copied around.
+  const picture = m.common.picture?.[0];
+
   return {
+    ...(picture ? { coverArt: { bytes: picture.data, mime: picture.format || 'image/jpeg' } } : {}),
     title: m.common.title ?? null,
     artist: m.common.artist ?? null,
     album: m.common.album ?? null,
@@ -68,7 +74,12 @@ function probeDurationViaElement(file: File): Promise<number | null> {
   });
 }
 
-export function browserImportPorts(): TtImportPorts {
+/**
+ * @param makeCoverUrl supplied by the playback layer, so cover URLs land in the
+ *   same ledger as media URLs and stay inside the docs/05 §3 bound. Minting
+ *   them here with a bare `URL.createObjectURL` would leak them past the canary.
+ */
+export function browserImportPorts(makeCoverUrl: TtImportPorts['makeCoverUrl']): TtImportPorts {
   const probe = document.createElement('audio');
   return {
     newId: () => crypto.randomUUID(),
@@ -76,6 +87,7 @@ export function browserImportPorts(): TtImportPorts {
     canPlay: (mime) => probe.canPlayType(mime),
     parseTags: parseWithMusicMetadata,
     probeDuration: probeDurationViaElement,
+    makeCoverUrl,
   };
 }
 

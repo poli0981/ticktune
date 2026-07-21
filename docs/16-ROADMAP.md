@@ -142,6 +142,20 @@ machine incl. `playing ⇄ paused`, Stop and Restart.
 **228 unit + component tests, 42 E2E** across chromium and the two mobile
 projects, five gates green. Engine coverage 95.8 % statements / 87.6 % branches.
 
+### Found after the review, by using it
+
+**Cover art was never extracted.** `TtTrack.coverArtUrl` was declared, the
+`02 §8` modal read it, and the URL ledger had a `cover` slot — but nothing
+between `parseBlob` and the track ever wrote it, so every file reported "no
+cover" however much art it carried. The `N/A` was honest and the feature was
+absent, which is the combination no test catches: the fallback rule worked
+perfectly.
+
+Why the suite missed it: the only fixture with embedded art is the ~5 MB one,
+and it lives in the git-ignored tree because of the 2 MB corpus-guard limit — so
+the cover path had no fixture any test could use. Fixed by generating a small
+committed `with-cover.mp3` alongside it, which is now asserted end to end.
+
 ### Not delivered, and why
 
 **The crossfade loop style** — `15 §S4b` is open, and P2 shipped `hard` with the

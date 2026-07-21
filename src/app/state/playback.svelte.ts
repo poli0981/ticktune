@@ -125,6 +125,28 @@ class PlaybackStore {
   }
 
   /**
+   * The importer's cover-art port (docs/05 §3, §5).
+   *
+   * Bound as an arrow so it can be handed to `browserImportPorts` without
+   * losing `this`, and so the driver is created on first import rather than
+   * being required up front.
+   */
+  makeCoverUrl = (trackId: string, bytes: Uint8Array, mime: string): string | null => {
+    try {
+      return this.#ensure().engine.acquireCoverUrl(trackId, bytes, mime);
+    } catch {
+      // A cover is decoration. Losing one must never fail an import that is
+      // otherwise fine (docs/02 §4 — parse problems are non-fatal).
+      return null;
+    }
+  };
+
+  /** docs/02 §6 — releases the track's media and cover URLs. */
+  releaseTrack(trackId: string): void {
+    this.#driver?.engine.releaseTrack(trackId);
+  }
+
+  /**
    * docs/02 §5 — fade, chime and flash at zero, then whatever `endAction` says.
    *
    * Returns the action rather than acting on it: restarting the countdown is

@@ -86,6 +86,13 @@ export interface TtRawTags {
   channels?: number | null;
   /** e.g. `['ID3v2.3','ID3v1']`. Drives the docs/05 §5 `onlyV1` rule. */
   tagTypes: string[];
+  /**
+   * First embedded picture — docs/05 §5. Raw bytes, not a URL: creating the
+   * object URL is impure and has to go through the ledger that owns the
+   * docs/05 §3 accounting, so the pipeline hands the bytes to a port instead of
+   * minting a URL nothing is tracking.
+   */
+  coverArt?: { bytes: Uint8Array; mime: string } | null;
 }
 
 /**
@@ -104,6 +111,12 @@ export interface TtImportPorts {
   parseTags: (file: File) => Promise<TtRawTags | null>;
   /** Fallback only, when the parse yields no duration (docs/05 §5). */
   probeDuration: (file: File) => Promise<number | null>;
+  /**
+   * Registers an embedded cover with the object-URL ledger and returns its
+   * blob URL — docs/05 §3, where cover URLs are created at import and counted
+   * against the `queueLength + 2` bound. Returns null when it cannot.
+   */
+  makeCoverUrl: (trackId: string, bytes: Uint8Array, mime: string) => string | null;
 }
 
 export interface TtImportInput {

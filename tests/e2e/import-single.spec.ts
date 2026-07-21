@@ -80,6 +80,39 @@ test.describe('single-mode import', () => {
     await expect(page.getByTestId('tt-staged')).toContainText('vi-id3v1-only');
   });
 
+  test('embedded cover art is extracted and shown (docs/05 §5)', async ({ page }) => {
+    dismissUnloadDialogs(page);
+    await gotoApp(page);
+    await page.getByTestId('tt-file-input').setInputFiles(pick('with-cover.mp3'));
+    await expect(page.getByTestId('tt-staged')).toBeVisible();
+
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await page.getByTestId('tt-nowplaying').click({ button: 'right' });
+
+    // The row said N/A for every file until P2's cover path was implemented —
+    // honest, but only because nothing ever extracted the picture.
+    const modal = page.getByTestId('tt-trackinfo');
+    await expect(modal).toContainText('Ảnh bìa');
+    await expect(modal).not.toContainText('Ảnh bìa\tN/A');
+
+    const img = page.getByTestId('tt-cover');
+    await expect(img).toBeVisible();
+    // A blob: URL from the ledger, and one that actually decoded.
+    await expect(img).toHaveAttribute('src', /^blob:/);
+    expect(await img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(0);
+  });
+
+  test('a file with no cover still reports N/A', async ({ page }) => {
+    dismissUnloadDialogs(page);
+    await gotoApp(page);
+    await page.getByTestId('tt-file-input').setInputFiles(pick('tone-5s.mp3'));
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await page.getByTestId('tt-nowplaying').click({ button: 'right' });
+
+    await expect(page.getByTestId('tt-trackinfo')).toContainText('N/A');
+    await expect(page.getByTestId('tt-cover')).toBeHidden();
+  });
+
   test('removing the staged track disables Start again', async ({ page }) => {
     dismissUnloadDialogs(page);
     await gotoApp(page);

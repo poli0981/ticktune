@@ -170,6 +170,45 @@ track('rejected.aiff', 'TT-IMP-001: outside the docs/02 §4 allow-list');
   track('corrupt.mp3', 'TT-PLY-101: imports cleanly, fails at decode');
 }
 
+// A SMALL embedded cover, committed. The ~5 MB one below lives in the ignored
+// tree because of the 2 MB guard limit, which left the cover-art path with no
+// fixture the E2E suite could use — and it went unimplemented for exactly that
+// long. 64×64 keeps this well under the limit.
+{
+  const smallPng = join(GENERATED, 'cover-small.png');
+  ff([
+    '-f',
+    'lavfi',
+    '-i',
+    'nullsrc=s=64x64,geq=random(1)*255:random(2)*255:random(3)*255',
+    '-frames:v',
+    '1',
+    smallPng,
+  ]);
+  const bare = join(GENERATED, 'cover-bare.mp3');
+  tone(bare, 5, 440, ['-codec:a', 'libmp3lame', '-b:a', '64k']);
+  ff([
+    '-i',
+    bare,
+    '-i',
+    smallPng,
+    '-map',
+    '0:a',
+    '-map',
+    '1:v',
+    '-codec',
+    'copy',
+    '-id3v2_version',
+    '3',
+    '-metadata:s:v',
+    'title=Album cover',
+    '-metadata',
+    'title=Có ảnh bìa',
+    join(COMMITTED, 'with-cover.mp3'),
+  ]);
+  track('with-cover.mp3', 'docs/05 §5: embedded cover art');
+}
+
 // ── spike S3: the Vietnamese tag matrix ─────────────────────────────────────
 // Vorbis and MP4 carry UTF-8 by specification, so ffmpeg's own metadata is the
 // honest representation for those two.

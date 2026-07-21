@@ -62,8 +62,12 @@ export interface TtAudioPorts {
   deckGain: (id: TtDeckId) => TtGainPort;
   userGain: TtGainPort;
   fadeGain: TtGainPort;
-  /** Object-URL creation, so the ledger stays testable (docs/05 §3). */
-  createUrl: (file: File) => string;
+  /**
+   * Object-URL creation, so the ledger stays testable (docs/05 §3). Takes a
+   * Blob rather than a File because embedded cover art arrives as raw bytes,
+   * not as a file the user picked.
+   */
+  createUrl: (source: Blob) => string;
   revokeUrl: (url: string) => void;
 }
 

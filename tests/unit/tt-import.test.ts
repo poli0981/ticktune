@@ -24,14 +24,17 @@ function makePorts(durations: Record<string, number | null> = {}) {
   });
   const probeDuration = vi.fn(async (): Promise<number | null> => null);
 
+  const makeCoverUrl = vi.fn((trackId: string) => `blob:cover-${trackId}`);
+
   const ports: TtImportPorts = {
     newId: () => `id-${++id}`,
     now: () => 1_700_000_000_000,
     canPlay: () => 'probably',
     parseTags,
     probeDuration,
+    makeCoverUrl,
   };
-  return { ports, parseTags, probeDuration };
+  return { ports, parseTags, probeDuration, makeCoverUrl };
 }
 
 const base = { queue: [] as TtTrack[], allowDuplicates: false };
@@ -249,6 +252,58 @@ describe('the produced track', () => {
     expect(t.addedAt).toBe(1_700_000_000_000);
     // Never created at import — docs/05 §3 creates it lazily at first play.
     expect(t.objectUrl).toBeUndefined();
+  });
+
+  it('registers embedded cover art under the track id (docs/05 §3, §5)', async () => {
+    // The gap this test exists to close: `coverArtUrl` was declared on TtTrack
+    // and read by the info modal, but nothing ever wrote it — so every track
+    // reported "no cover" no matter what the file contained.
+    const { ports, makeCoverUrl } = makePorts();
+    const bytes = new Uint8Array([1, 2, 3]);
+    const withCover: TtImportPorts = {
+      ...ports,
+      parseTags: async () => ({
+        tagTypes: ['ID3v2.3'],
+        title: 'T',
+        durationMs: 60_000,
+        coverArt: { bytes, mime: 'image/png' },
+      }),
+    };
+
+    const r = await importFiles({ ...base, files: [file('a.mp3')], mode: 'single' }, withCover);
+
+    expect(makeCoverUrl).toHaveBeenCalledWith('id-1', bytes, 'image/png');
+    // Keyed by the id the pipeline minted, so removing the track revokes it.
+    expect(r.added[0]?.coverArtUrl).toBe('blob:cover-id-1');
+  });
+
+  it('leaves coverArtUrl ABSENT when the file has no picture', async () => {
+    const { ports, makeCoverUrl } = makePorts();
+    const r = await importFiles({ ...base, files: [file('a.mp3')], mode: 'single' }, ports);
+
+    expect(makeCoverUrl).not.toHaveBeenCalled();
+    // Absent, not undefined — exactOptionalPropertyTypes, and the display rule
+    // keys on absence to render N/A.
+    expect('coverArtUrl' in r.added[0]!).toBe(false);
+  });
+
+  it('imports the track even when the cover cannot be registered', async () => {
+    // A cover is decoration; losing one must not fail an otherwise fine import.
+    const { ports } = makePorts();
+    const broken: TtImportPorts = {
+      ...ports,
+      makeCoverUrl: () => null,
+      parseTags: async () => ({
+        tagTypes: ['ID3v2.3'],
+        title: 'T',
+        durationMs: 1_000,
+        coverArt: { bytes: new Uint8Array([9]), mime: 'image/jpeg' },
+      }),
+    };
+
+    const r = await importFiles({ ...base, files: [file('a.mp3')], mode: 'single' }, broken);
+    expect(r.added).toHaveLength(1);
+    expect('coverArtUrl' in r.added[0]!).toBe(false);
   });
 
   it('reports a non-fatal parse failure as a note and still adds the track', async () => {
