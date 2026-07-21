@@ -78,19 +78,25 @@ CI/CD `docs/14` · Spikes `docs/15` · Roadmap `docs/16`.
 ## Spike scope rule
 
 **No feature code in the area a spike covers, until that spike passes**
-(`docs/15 §Scope rule`). S1 gates P4 (YouTube) · S3 + S4 gate P2 (audio) ·
+(`docs/15 §Scope rule`). S1 gates P4 (YouTube) · S3 + **S4a** gated P2 and have
+passed; **S4b** (crossfade trigger timing) is still open and gates only the
+crossfade loop style ·
 S2 measures the P1 timer engine directly, on the shipping countdown page under
 `?ttdebug=1`, because S2's own method requires "the real `tt-timer` core".
-P1 (scaffold, mobile gate, timer, countdown, settings/Dexie, log) touches no
-spike-covered area except the timer. **No audio-engine, importer or YouTube code
-before S1/S3/S4 pass.**
+**No YouTube code before S1 passes; no crossfade code before S4b does.**
 
 ## Current status
 
-P1 **complete (8/8)** and P2 **scope complete** as of 2026-07-21 — exit reviews
-for both in `docs/16`. Single mode plays local audio behind the countdown, with
-the import pipeline, the End Behavior and the late-finish Finished screen.
-**228 unit + component tests, 42 E2E, five gates green.**
+P1 **complete (8/8)** and P2 **shipped as v0.2.0** (2026-07-22, live on
+`https://ticktune.net`) — exit reviews for both in `docs/16`. Single mode plays
+local audio behind the countdown, with the import pipeline, the End Behavior and
+the late-finish Finished screen. **233 unit + component tests, 76 E2E across
+four browser projects, five gates green.**
+
+⚠️ **Firefox CI cannot test audible output** — on the Linux runner
+`AudioContext.resume()` hangs (no audio device), so the four audio-signal E2E
+tests are skipped there and Chromium alone covers them (`docs/13 §3`). Real
+Firefox audio is a manual check.
 
 🔴 **S2 failed, and its documented remedy failed too** (`docs/04 §2`). Hidden +
 silent: `done` fired 2 m 57 s late. Control run with the keep-alive oscillator
@@ -123,7 +129,7 @@ Open items, in the order they block things:
 
 1. **P2 — local audio + Single mode. Scope complete; all three exit criteria
    pass** — see the exit review in `docs/16`. 228 unit + component tests, 42
-   E2E, five gates green. What remains of P2 is the **crossfade loop style**,
+   E2E. What remains of P2 is the **crossfade loop style**,
    which `docs/15 §S4b` gates. S4 was split into **S4a**
    (graph + unlock, ✅ passed → P2's audio graph is cleared) and **S4b**
    (crossfade trigger timing, 🟡 open → gates only the crossfade loop style),
@@ -139,11 +145,13 @@ Open items, in the order they block things:
    The master stage is now **two** nodes — `userGain` then `fadeGain`
    (`docs/05 §1`). One shared `masterGain` throws `NotSupportedError` when the
    user changes volume during the end fade; do not merge them back.
-2. **Cloudflare dashboard**, all zone-side and not fixable from code: disable
-   **Web Analytics auto-injection** (it injects a beacon the CSP blocks —
-   `docs/10 §10`), set **HSTS** to `max-age=15552000` (currently `max-age=0`,
-   i.e. off), and disable **CodeQL Default setup** (`codeql.yml` is
-   `startup_failure` until then).
+2. **Cloudflare/GitHub dashboard** — one item left, zone-side and not fixable
+   from code: disable **CodeQL Default setup**, or `codeql.yml` stays
+   `startup_failure` (confirmed still failing on `main` at v0.2.0).
+   ~~Web Analytics auto-injection~~ and ~~HSTS~~ are **done** — both re-measured
+   against the live site on 2026-07-22: no beacon in the served HTML, and
+   `Strict-Transport-Security: max-age=15552000; includeSubDomains; preload`
+   (`docs/10 §11`).
 3. **Spikes still open:** **S1** player half — embed-off, age-restricted, and a
    **region-blocked case that can only be confirmed from Vietnam**
    (`tests/manual/yt-matrix.md`); **S4b** overlap timing ±150 ms and the
