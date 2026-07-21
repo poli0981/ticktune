@@ -1,0 +1,49 @@
+# ─── Local spike corpus — NEVER committed ────────────────────────────────────
+# test/ holds third-party music (~651 MB) used only for local spike work:
+#   test/test_playlist/     104 CC-BY / CC0 tracks (Free Music Archive)
+#   test/other_extension/   format samples for the docs/02 §4 allow-list checks
+# It is the corpus for docs/15 S3 (metadata) and S4 (crossfade). Committing it
+# would also contradict legal/THIRD-PARTY-NOTICES.md ("TickTune ships no
+# third-party audio").
+#
+# NOTE the leading slash: /test/ (corpus, ignored) is one character away from
+# tests/ (the committed suite dir required by docs/13 §3). Never drop it.
+/test/
+
+# Committed E2E fixtures are self-made ~5 s tones (docs/13 §3) — keep them
+# reachable even if a broad audio-extension rule is ever added below.
+!/tests/e2e/fixtures/
+
+# ─── Dependencies & build output ─────────────────────────────────────────────
+node_modules/
+dist/
+.astro/
+.wrangler/
+.output/
+
+# ─── Test & coverage artifacts ───────────────────────────────────────────────
+coverage/
+test-results/
+playwright-report/
+blob-report/
+.playwright/
+
+# ─── Environment & secrets ───────────────────────────────────────────────────
+.env
+.env.*
+!.env.example
+*.local
+
+# ─── Editors, agents & OS ────────────────────────────────────────────────────
+.idea/
+.vscode/
+# Claude Code worktree checkouts live here — full working copies, never tracked.
+.claude/worktrees/
+*.swp
+.DS_Store
+Thumbs.db
+
+# ─── Logs ────────────────────────────────────────────────────────────────────
+*.log
+npm-debug.log*
+pnpm-debug.log*
