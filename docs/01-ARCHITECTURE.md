@@ -48,11 +48,11 @@ caches 6 h, and returns JSON with CORS. Details in `06-YOUTUBE-INTEGRATION.md`.
 |--------|----------|--------------|-------|
 | Pages/layouts | `src/pages/`, `src/layouts/` | Astro | Static output only; no SSR |
 | App island | `src/app/TtApp.svelte`, entry `src/app/mount.ts` | Svelte 5 | Single mount point — see the mount note below |
-| Components | `src/app/components/Tt*.svelte` | Svelte, Motion | Presentational + local state |
+| Components | `src/app/components/Tt*.svelte` | Svelte (Motion from P5) | Presentational + local state |
 | Timer engine | `src/app/engine/timer/` | none (pure TS + Worker) | Framework-agnostic, unit-testable |
-| Audio engine | `src/app/engine/audio/` | music-metadata | Owns AudioContext + graph |
+| Audio engine | `src/app/engine/audio/` | none (pure TS + ports) | Owns AudioContext + graph, behind `tt-audio-driver.ts` |
 | YouTube engine | `src/app/engine/youtube/` | IFrame API (runtime script) | Player lifecycle + error map |
-| Importer | `src/app/engine/importer/` | music-metadata, nanoid | Validation pipeline (`02 §4`) |
+| Importer | `src/app/engine/importer/` | music-metadata (dynamically imported) | Validation pipeline (`02 §4`); ids from `crypto.randomUUID` (`02 §2`) |
 | Log | `src/app/engine/log/` | none | Ring buffer 500, code registry |
 | State | `src/app/state/*.svelte.ts` | Svelte runes | `session`, `settings`, `playback` |
 | i18n | `src/app/i18n/` | i18next | Runtime EN/VI dictionary |
@@ -125,11 +125,11 @@ ticktune/
 │   └── SECURITY.md                # private disclosure via GitHub PVR (09 §7)
 ├── public/
 │   ├── _headers                   # security headers (09-SECURITY.md §2-4)
-│   ├── fonts/dseg7/               # vendored DSEG7 Classic woff2 + OFL.txt
-│   └── audio/chime.opus           # end-behavior chime (self-made, CC0)
+│   └── fonts/dseg7/               # vendored DSEG7 Classic woff2 + OFL.txt
+│                                  # NO audio/ — the chime is synthesised at
+│                                  # runtime (05 §7); the app ships no audio file
 ├── scripts/
 │   ├── inject-csp-hash.ts         # build step, normative contract in 10 §7
-│   ├── make-chime.ts              # generates public/audio/chime.opus (05 §7)
 │   ├── make-fixtures.ts           # generates tests/e2e/fixtures/ (13 §3, 15 S3)
 │   ├── audit-corpus.mjs           # reports what the local test/ corpus covers
 │   └── guard-no-corpus.mjs        # CI + pre-commit: blocks large/audio blobs
@@ -137,7 +137,9 @@ ticktune/
 │   ├── layouts/TtBase.astro       # <head>: mobile gate inline script, meta, fonts
 │   ├── lib/
 │   │   ├── tt-gate-const.ts       # TT_GATE, inlined verbatim into the head (07 §2)
-│   │   └── tt-legal-const.ts      # TT_LEGAL_VERSION (02 §3 gate acceptance)
+│   │   ├── tt-legal-const.ts      # TT_LEGAL_VERSION (02 §3 gate acceptance)
+│   │   └── tt-domain-types.ts     # TtMode/TtLoopStyle/TtEndAction — shared by
+│   │                              # engines AND state; see the note below §4
 │   ├── i18n/static/{vi,en}.ts     # STATIC page strings — distinct from the
 │   │                              # runtime app dictionary below (08 §1 vs §2)
 │   ├── pages/
@@ -145,17 +147,23 @@ ticktune/
 │   │   ├── en/index.astro         # landing EN
 │   │   ├── app/index.astro        # mounts the app island (see §3 mount note)
 │   │   ├── legal/{eula,privacy,disclaimer,third-party}.astro  (+ /en/legal/)
+│   │   ├── spike/{s3-metadata,s4-crossfade}.astro  # throwaway harnesses (15)
 │   │   └── 404.astro              # required by not_found_handling (§5)
 │   ├── app/
 │   │   ├── mount.ts               # island entry — the load guard's import target
 │   │   ├── TtApp.svelte
-│   │   ├── components/            # TtCountdown, TtSetup, TtLegalGate, TtQueuePanel,
+│   │   ├── components/            # TtCountdown, TtSetup, TtDropZone, TtLegalGate,
+│   │   │                          # TtPlayer, TtSingleRail, TtQueuePanel,
 │   │   │                          # TtBottomBar, TtSettings, TtYtPlayer, TtOverlay,
-│   │   │                          # TtContextMenu, TtVisualizer, TtToast, TtFinished
+│   │   │                          # TtContextMenu, TtTrackInfo, TtVisualizer,
+│   │   │                          # TtToast, TtFinished, TtDebugPanel
 │   │   ├── engine/
 │   │   │   ├── timer/             # types.ts, tt-timer.ts, tt-format.ts,
-│   │   │   │                      # tt-timer.worker.ts   ← engine owns its worker
+│   │   │   │                      # tt-late.ts, tt-timer.worker.ts
+│   │   │   │                      #   ← engine owns its worker
 │   │   │   └── {audio,youtube,importer,log}/
+│   │   │                          # each: pure modules + ONE *-driver.ts holding
+│   │   │                          # every browser API (13 §1 coverage carve-out)
 │   │   ├── state/{session,settings,playback}.svelte.ts
 │   │   └── i18n/{index.ts,en.json,vi.json}   # RUNTIME dictionary (08 §2)
 │   └── styles/global.css          # Tailwind 4 entry + design tokens (03 §1)
@@ -181,7 +189,14 @@ ticktune/
                                    # (15 S3/S4). Never committed, never deployed.
 ```
 
-Two notes where this tree previously disagreed with the chapters that use it:
+Three notes where this tree previously disagreed with the chapters that use it:
+
+- **`src/lib/tt-domain-types.ts` is not a stray types file.** `TtMode`,
+  `TtLoopStyle` and `TtEndAction` are needed by both the engines and the settings
+  schema, and §3's purity rule — enforced by ESLint with no type-import escape —
+  forbids an engine importing from `src/app/state/`. `src/lib/` is outside that
+  ban, so it is the one place both sides can share a definition instead of each
+  keeping a copy. Values and ranges stay in `state/tt-settings-schema.ts`.
 
 - **The timer worker lives with its engine** (`src/app/engine/timer/tt-timer.worker.ts`),
   not in a separate `src/workers/`. §3's rule is that an engine is a

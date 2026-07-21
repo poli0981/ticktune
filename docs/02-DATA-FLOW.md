@@ -78,7 +78,7 @@ type TtSource = 'local' | 'youtube';
 type TtStatus = 'ok' | 'pending' | 'error';
 
 interface TtTrack {
-  id: string;                 // nanoid
+  id: string;                 // crypto.randomUUID()
   source: TtSource;
   status: TtStatus;
   // Display metadata — text fallback "N/A", numeric fallback "–" at render time
@@ -102,6 +102,13 @@ interface TtTrack {
 
 Rendering rule (spec): any missing **text** field renders `N/A`; any missing
 **numeric/duration** field renders `–`. Never render `undefined`/empty.
+
+`id` was specified as a nanoid until P2. `crypto.randomUUID()` is native in every
+target browser, equally opaque — so `12 §6`'s "safe to paste publicly" reasoning
+about `trackId` is unaffected — and it removes a runtime dependency, a GPL-3.0
+compatibility check and an attribution row while `legal/THIRD-PARTY-NOTICES.md`
+is the project's one release blocker. The importer takes it as an injected port
+so unit tests get deterministic ids.
 
 ## 3. Session model (D3: session-only)
 
@@ -266,29 +273,69 @@ mutually exclusive by construction rather than three overlapping booleans:
 ## 4. Import pipeline (local files)
 
 Entry points: drag-drop anywhere on Setup, or file picker (`accept` list below).
-Batch processed sequentially with a progress indicator; ends with a summary toast
-("Added 12 · Skipped 3") — every skip gets a coded log entry.
+Batch processed sequentially; ends with a summary toast ("Added 12 · Skipped 3")
+— every skip gets a coded log entry.
 
 ```
-for each File:
+0. PRE-SCAN the drop, once, before any per-file work:
+   flatten via webkitGetAsEntry, recursing directories depth-first in
+   Intl.Collator order
+   entries > TT_DROP_MAX_ENTRIES (500) ....... fail → TT-IMP-008
+   remaining capacity = cap(mode) - queue.length   (Single 1 / Playlist 95)
+   files beyond capacity ..................... fail → TT-IMP-004
+
+for each File (within capacity):
   1. Extension/MIME allow-list  ............... fail → TT-IMP-001
      .mp3 .m4a .aac .flac .wav .ogg .oga .opus .webm
      + runtime audio.canPlayType() probe (browser matrix in 05 §4)
-  2. Decode duration (metadata first, else loadedmetadata probe)
+  2. music-metadata parseBlob → tags + duration + cover art (05 §5)
+     Parse failure is non-fatal: keep track with file-name title ... TT-IMP-006
+  3. durationMs (parse first, else loadedmetadata probe — 05 §5)
      durationMs > 602_000 (10:02) ............. fail → TT-IMP-002
-  3. Aggregate checks (Playlist mode only):
+  4. Aggregate check (Playlist mode only):
      total + durationMs > 5_460_000 (91:00) ... fail → TT-IMP-003
-     queue.length ≥ 95 ........................ fail → TT-IMP-004
-  4. Dedupe key `${name}::${size}::${durationMs}`
+  5. Dedupe key `${name}::${size}::${durationMs}`
      (no full-content hashing — 95×~10 MB is too slow; heuristic is enough)
      duplicate → default skip + toast ......... log  → TT-IMP-005
      Setting "Allow duplicates" bypasses this check.
-  5. music-metadata parseBlob → tags + cover art (05 §5)
-     Parse failure is non-fatal: keep track with file-name title ... TT-IMP-006
   6. push TtTrack{status:'ok'}
 ```
 
-Single mode runs the same pipeline with `max items = 1` and no aggregate step.
+**Step 0 exists because the original ordering let unbounded work precede the
+count cap:** the duration decode ran for every dropped file before the
+`queue.length ≥ 95` check could reject any of it, so an N-file drop performed N
+sequential probes to add at most 95 tracks — and in Single mode, at most one.
+Hoisting the count cap into a pre-scan is the whole fix.
+
+**Directories are recursed, not rejected.** The pipeline consumed `File` objects
+only, so a dropped folder fell through step 1 and was logged as "unsupported
+format", which is both wrong and unhelpful — the project's own test corpus is a
+104-file folder. Two implementation hazards go with it, and both are silent
+failures rather than errors: `DataTransfer.items` is **neutered** once the drop
+handler returns or its first `await` resolves, so every `webkitGetAsEntry()`
+handle must be taken synchronously first; and `FileSystemDirectoryReader
+.readEntries()` yields **at most 100 entries per call** and must be re-called
+until it returns empty — a single call truncates that 104-file corpus to 100
+without complaint.
+
+Also settled here, all previously undefined:
+
+- **A second concurrent drop while a batch is in flight is ignored**, with a
+  toast. Single-flight; no queue, no abort.
+- **No cancel button** in v1.0 — the operation is bounded and sub-10-second
+  (S3 measured 103 files in 1 362 ms). Revisit with Playlist.
+- **No progress indicator in P2.** Single mode imports one file at a median
+  11 ms; a spinner would flash. It lands with Playlist in P3, where a 95-file
+  batch makes it meaningful.
+- **Accepted files are kept when a later file trips a limit.** The loop is
+  per-file and the summary toast reports both counts.
+
+Single mode runs the same pipeline with `max items = 1` and no total-duration
+aggregate; the **count cap applies in every mode** as part of step 0. A second
+import in Single mode **replaces** the held track rather than being rejected:
+`§1`'s `isQueueValid('single')` requires exactly one playable track, so rejecting
+it would strand a user who simply wants a different track behind a remove
+control they have not found yet.
 YouTube import pipeline is defined in `06-YOUTUBE-INTEGRATION.md §5` (cap 50,
 dedupe by `videoId`, oEmbed pre-check via `/api/yt/oembed`).
 
@@ -323,6 +370,14 @@ through these concrete paths:
 | User deletes track via UI | stop if current → advance | remove | TT-USR-001 |
 
 All removals revoke `objectUrl`/`coverArtUrl` immediately.
+
+**Single-mode carve-out.** "Auto-advance to next" has no next track when the
+queue holds exactly one. So: media stops, the track is marked `status:'error'`
+and shown as failed, TT-PLY-101 is logged — and **the countdown continues to
+zero**. It does not stop, restart or absorb the failure, because the timer and
+the media engine meet at exactly two points and this is not one of them
+(`04 §5`). A countdown that quietly died because a file failed to decode would be
+the worse bug.
 
 ## 7. Log & diagnostics
 

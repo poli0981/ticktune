@@ -6,7 +6,16 @@
  * testable without a database or a DOM.
  */
 
-type TtMode = 'single' | 'playlist' | 'youtube';
+/*
+ * `TtMode`, `TtLoopStyle` and `TtEndAction` are declared in
+ * `src/lib/tt-domain-types.ts`, not here: the P2 audio and importer engines need
+ * to name them, and the engine-purity lint zone forbids an engine importing
+ * from state at all, type-only imports included (docs/12 §3.1). Importing them
+ * back keeps exactly one definition — the arrays below still own the runtime
+ * allow-lists.
+ */
+import type { TtEndAction, TtLoopStyle, TtMode } from '../../lib/tt-domain-types';
+
 export type TtLang = 'vi' | 'en';
 
 /*
@@ -19,8 +28,6 @@ type TtBackground = 'solid' | 'gradient' | 'image' | 'slideshow' | 'cover';
 type TtSlideXfade = 'fade' | 'kenburns';
 type TtSize = 's' | 'm' | 'l';
 type TtVisualizer = 'off' | 'bars' | 'wave' | 'ring';
-type TtLoopStyle = 'hard' | 'crossfade';
-type TtEndAction = 'stay' | 'restart' | 'loop';
 
 export interface TtSettings {
   readonly schema: 1;
