@@ -26,13 +26,13 @@ latest-or-LTS everywhere, no components with known critical CVEs.
 | nanoid | 6.0.0 | MIT | Track ids |
 | @fontsource/be-vietnam-pro | 5.3.0 | OFL-1.1 (pkg MIT) | UI font, VI diacritics |
 | @fontsource/jetbrains-mono | 5.3.0 | OFL-1.1 (pkg MIT) | Mono/meta font |
-| DSEG7 Classic (vendored) | v0.46 *(GitHub API rate-limited during verification — re-verify tag at scaffold)* | OFL-1.1 | Seven-segment digits; `public/fonts/dseg7/` + OFL.txt |
+| DSEG7 Classic (vendored) | **v0.46** ✅ *verified 2026-07-21 via GitHub Releases API — latest **stable** release, published 2020-03-15. A `v0.50beta1` tag exists but is not a release; do not vendor a beta into a distributed font.* | OFL-1.1 | Seven-segment digits; `public/fonts/dseg7/` + OFL.txt |
 
 ## 3. Dev dependencies
 
 | Package | Version | Role |
 |---------|---------|------|
-| typescript | 7.0.2 — **see caveat §4** | Types |
+| typescript | **`~5.9`** (resolved 5.9.3) — TS 7 rejected, **see §4** | Types |
 | eslint | 10.7.0 | Lint (flat config) |
 | eslint-plugin-svelte | 3.22.0 | Svelte rules |
 | prettier | 3.9.5 | Format (+ svelte & tailwind plugins) |
@@ -43,13 +43,29 @@ latest-or-LTS everywhere, no components with known critical CVEs.
 | happy-dom | 20.11.0 | Test DOM |
 | @playwright/test | 1.61.1 | E2E |
 
-## 4. TypeScript 7 caveat (open action item)
+## 4. TypeScript version — ✅ RESOLVED 2026-07-21: pinned `~5.9`
 
-`latest` is now the native (Go-based) 7.0 line. Ecosystem tooling
-(svelte-check / svelte-language-tools / typescript-eslint) may still expect the
-5.x/6.x TS-in-TS line. **At scaffold:** try 7.0.2; if svelte-check or
-typescript-eslint reject the peer range or misbehave, pin `typescript@~5.9`
-(still maintained) and record the decision here. Ten-minute check, do it first.
+**Decision: `typescript@~5.9` (5.9.3).** TypeScript 7.0.2 was tried first per the
+original instruction and rejected. Probe run in an isolated scratch project
+(Node 24.18.0, pnpm 11.1.0, svelte 5.56.7, svelte-check 4.7.3, eslint 10.7.0,
+eslint-plugin-svelte 3.22.0, typescript-eslint 8.64.0) against one `.ts` and one
+`.svelte` file using the exact `12 §2` compiler flags.
+
+| Tool | TS 7.0.2 | TS 5.9.3 |
+|------|----------|----------|
+| `tsc --noEmit` | ✅ exit 0 | ✅ exit 0 |
+| **`svelte-check`** | ❌ **hard crash** — `TypeError: Cannot read properties of undefined (reading 'useCaseSensitiveFileNames')`, thrown constructing `FileMap` from `typescript.sys` | ✅ 0 errors, 0 warnings |
+| **`typescript-eslint`** | ❌ peer range is `>=4.8.4 <6.1.0` — unmet across all 8 `@typescript-eslint/*` packages | ✅ no peer issues |
+| `eslint` (flat, ts + svelte) | not reached | ✅ exit 0 |
+
+The native Go-based TS 7 does not expose the CJS `typescript.sys` shape that
+svelte-language-tools reads, so this is a crash rather than a warning — `pnpm
+check` would be permanently red. The compiler itself is fine; the ecosystem is
+not, exactly as this section anticipated.
+
+**Revisit when** svelte-check declares TS 7 support *and* typescript-eslint
+widens its peer range — both must land, since either alone still breaks
+`pnpm check` or `pnpm lint`. 5.9 remains maintained, so there is no pressure.
 
 ## 5. CVE & update process
 

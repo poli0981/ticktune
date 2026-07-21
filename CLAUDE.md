@@ -87,10 +87,12 @@ before S1/S3/S4 pass.**
 P1 in progress (2026-07-21). Repo bootstrapped: `.gitignore` first, doc suite
 landed at root, blocker-level doc gaps closed.
 
-Open items: domain purchase (`ticktune.net`); TS 7 vs ~5.9 toolchain check
-(`docs/11 §4`); island mount mechanism (`docs/01 §3` mount note); confirm
-reusable workflow filenames against `poli0981/.github`; DSEG7 tag re-verify;
-S2 silent-hidden-tab number (`docs/04 §2`).
+Resolved: TypeScript pinned `~5.9` — TS 7 crashes svelte-check (`docs/11 §4`).
+DSEG7 Classic tag confirmed **v0.46** stable (`docs/11 §2`).
+
+Open items: domain purchase (`ticktune.net`); island mount mechanism
+(`docs/01 §3` mount note); confirm reusable workflow filenames against
+`poli0981/.github`; S2 silent-hidden-tab number (`docs/04 §2`).
 
 `test/` is a **local-only, git-ignored** ~651 MB audio corpus for spikes S3/S4.
 Never commit it, never reference it from shipped code, never assume it exists in
