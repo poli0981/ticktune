@@ -100,6 +100,11 @@
   // Split by visibility. A single global max is unreadable: rAF is deliberately
   // stopped while hidden (docs/04 §2), so the hidden figure is just the worker
   // cadence and would drown out the visible one that S2's ±50 ms bound is about.
+  /** docs/03 §6 — two 120 ms pulses over Z1, suppressed by reduced motion. */
+  let flashing = $state(false);
+  /** `endAction: 'restart'` re-runs ONCE (docs/02 §3.3); 'loop' is unbounded. */
+  let restarted = false;
+
   let maxRenderGapVisibleMs = $state(0);
   let maxRenderGapHiddenMs = $state(0);
   let lastRenderAt = 0;
@@ -148,6 +153,27 @@
       phase = 'done';
       remainingMs = 0;
       doneInfo = info;
+
+      // docs/02 §5. Fires even when `done` arrived minutes late (docs/04 §2
+      // decision item 3): the End Behavior is the user's configured attention
+      // signal, and firing it on return is the useful behaviour. What must not
+      // happen is the SCREEN claiming the moment is now — that is TtFinished's
+      // job, and it is handled by the late variant.
+      const end = playback.runEndBehavior();
+      if (!end) return;
+
+      if (end.flash) {
+        flashing = true;
+        setTimeout(() => (flashing = false), 400);
+      }
+
+      // docs/02 §3.3. 'stay' is the default and needs no action.
+      if (end.action === 'restart' && !restarted) {
+        restarted = true;
+        setTimeout(() => onStart(), 400);
+      } else if (end.action === 'loop') {
+        setTimeout(() => onStart(), 400);
+      }
     },
     onLog: (code, detail) => {
       // Until the log engine lands (docs/02 §7), surface coded events where a
@@ -171,6 +197,10 @@
   function onStart(force = false) {
     session.start(force);
     if (session.state !== 'playing') return;
+
+    // The previous run's fade left fadeGain at 0; without this the next run is
+    // silent for its whole duration with nothing on screen to explain it.
+    playback.resetFade();
 
     samples = [];
     doneInfo = null;
@@ -387,6 +417,11 @@
   {#if infoOpen && playback.track}
     <TtTrackInfo track={playback.track} onclose={() => (infoOpen = false)} />
   {/if}
+
+  <!-- docs/03 §6 endFlash. Decoration, so reduced motion removes it entirely. -->
+  {#if flashing}
+    <div class="tt-flash" data-testid="tt-flash" aria-hidden="true"></div>
+  {/if}
 </main>
 
 <style>
@@ -438,4 +473,30 @@
 
   /* Buttons live with the components that own them — Setup has its own, and
      transport is entirely Z7's (docs/03 §2). The shell renders none. */
+
+  /* docs/03 §6: two 120 ms pulses of tt-signal at ≤20% over Z1, 400 ms total.
+     It never touches the digits — Z3 holds 0.000 (docs/04 §4). */
+  .tt-flash {
+    position: fixed;
+    inset: 0;
+    z-index: 20;
+    pointer-events: none;
+    background: var(--color-tt-signal);
+    animation: tt-flash-pulse 400ms steps(1, end) 1;
+  }
+  @keyframes tt-flash-pulse {
+    0%,
+    60% {
+      opacity: 0.2;
+    }
+    30%,
+    100% {
+      opacity: 0;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .tt-flash {
+      display: none;
+    }
+  }
 </style>

@@ -87,8 +87,10 @@ before S1/S3/S4 pass.**
 
 ## Current status
 
-P1 scope **complete (8/8)** as of 2026-07-21 — see the exit review in `docs/16`.
-89 unit tests, 22 E2E, five gates green. **P2 is unblocked** (S2 decided, below).
+P1 **complete (8/8)** and P2 **scope complete** as of 2026-07-21 — exit reviews
+for both in `docs/16`. Single mode plays local audio behind the countdown, with
+the import pipeline, the End Behavior and the late-finish Finished screen.
+**228 unit + component tests, 42 E2E, five gates green.**
 
 🔴 **S2 failed, and its documented remedy failed too** (`docs/04 §2`). Hidden +
 silent: `done` fired 2 m 57 s late. Control run with the keep-alive oscillator
@@ -119,7 +121,10 @@ mechanism measured — hand-mount wins (`docs/01 §3`).
 
 Open items, in the order they block things:
 
-1. **P2 — local audio + Single mode.** In progress. S4 was split into **S4a**
+1. **P2 — local audio + Single mode. Scope complete; all three exit criteria
+   pass** — see the exit review in `docs/16`. 228 unit + component tests, 42
+   E2E, five gates green. What remains of P2 is the **crossfade loop style**,
+   which `docs/15 §S4b` gates. S4 was split into **S4a**
    (graph + unlock, ✅ passed → P2's audio graph is cleared) and **S4b**
    (crossfade trigger timing, 🟡 open → gates only the crossfade loop style),
    `docs/15 §S4`. S3 passed, so the importer's metadata path is cleared.
