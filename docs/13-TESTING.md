@@ -86,6 +86,19 @@ non-empty queue must also handle the `beforeunload` guard (`02 §3`) or they han
 Browsers: CI on Chromium + Firefox every PR; WebKit added on the release branch
 (Safari audio quirks are covered mainly by Spike S3/S4 + manual pass).
 
+⚠️ **Autoplay in automation, measured 2026-07-21.** Chromium launches with
+`--autoplay-policy=no-user-gesture-required` by default; Firefox blocks autoplay
+in its automation profile and needed
+`firefoxUserPrefs: { 'media.autoplay.default': 0 }`, without which the
+`AudioContext` stayed `suspended` and every audio assertion failed for an
+environment reason. Both desktop projects are therefore **permissive**, and
+neither can catch a genuine "playback started without a gesture" regression —
+that is a unit test against a rejecting fake, plus the live checklist.
+
+**Firefox audio has never been verified outside CI.** The dev box cannot launch
+Playwright's Firefox at all (`spawn UNKNOWN`), so the real-browser gesture →
+`resume()` chain on Firefox is a **manual live-site item**, not a covered one.
+
 ## 4. YouTube — semi-manual matrix (network-dependent, not in CI)
 
 Curated list maintained in `tests/manual/yt-matrix.md` from **Spike S1**: one
