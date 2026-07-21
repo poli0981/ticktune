@@ -32,13 +32,12 @@ import { gotoApp, setDuration, stageSingle, dismissUnloadDialogs } from './_help
  * playback — is now handled and unit-tested (TT-PLY-105), which is the part
  * that mattered.
  */
-const needsAudibleOutput = ({ browserName }: { browserName: string }) => browserName === 'firefox';
 
 test.describe('single mode', () => {
   test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
 
-  test('imports a file, plays it audibly, and loops', async ({ page }) => {
-    test.skip(needsAudibleOutput, 'no audio output device on the CI runner');
+  test('imports a file, plays it audibly, and loops', async ({ page, browserName }) => {
+    test.skip(browserName === 'firefox', 'no audio output device on the CI runner');
     dismissUnloadDialogs(page);
     await gotoApp(page, '/app/?ttdebug=1');
 
@@ -75,8 +74,8 @@ test.describe('single mode', () => {
     await expect(page.getByTestId('tt-loop-count')).toHaveText('Loop ×1');
   });
 
-  test('the loop counter increments across a wrap', async ({ page }) => {
-    test.skip(needsAudibleOutput, 'no audio output device on the CI runner');
+  test('the loop counter increments across a wrap', async ({ page, browserName }) => {
+    test.skip(browserName === 'firefox', 'no audio output device on the CI runner');
     dismissUnloadDialogs(page);
     await gotoApp(page);
     await stageSingle(page);
