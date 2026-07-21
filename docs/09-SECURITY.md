@@ -88,3 +88,20 @@ Notes:
 CodeQL javascript-typescript + Dependabot weekly (`14 §2`). New deps require a
 license check against GPL-3.0 compatibility (`legal/THIRD-PARTY-NOTICES.md`
 process note).
+
+## 7. Vulnerability disclosure
+
+`.github/SECURITY.md` is the policy; GitHub **Private Vulnerability Reporting**
+is the channel. No email address appears anywhere in this project by design
+(`10 §4` leaves email obfuscation off precisely because there is nothing to
+obfuscate), so a private path had to come from somewhere — without one,
+`legal/EULA.md §8` routes every report, security included, to public issues.
+
+⚠️ PVR must be **enabled** in repo Settings → Security → Private vulnerability
+reporting, or the link in `SECURITY.md` 404s.
+
+Headline in-scope class: anything causing user media to leave the browser — hard
+invariant 1 and the central promise of `legal/PRIVACY-POLICY.md`. Explicitly out
+of scope: Cloudflare-branded edge error pages (Free-plan decision, `10 §8`),
+reachable rate limiting (intended, `10 §6`), and mobile-gate bypass via a spoofed
+viewport — the gate is a product decision, not a security control.

@@ -1,0 +1,39 @@
+name: Deploy
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      # `pnpm build` also runs scripts/inject-csp-hash.ts, which rewrites the
+      # mobile-gate hash into dist/_headers and FAILS if the site does not have
+      # exactly one distinct inline script (docs/10 §7).
+      - name: Build
+        run: pnpm build
+
+      - name: Deploy to Cloudflare Workers
+        run: pnpm wrangler deploy
+        env:
+          # Token scope must be exactly: Account → Workers Scripts: Edit, and
+          # Zone → Workers Routes: Edit (docs/14 §4). A broader token in a
+          # public repo's secrets is the single worst exposure in this project.
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}

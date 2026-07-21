@@ -8,23 +8,52 @@ permissions-inheritance bug (callers silently get `permissions: none`), **every
 caller stub declares an explicit `permissions:` block** — this is mandatory,
 matching the May 2026 portfolio-wide fix.
 
-> ⚠️ Reusable-workflow filenames below (`reusable-web-ci.yml`, etc.) follow the
-> catalog's naming style but must be **confirmed against `poli0981/.github`**
-> before committing — the July 2026 suite (13 reusable workflows) is the source
-> of truth. Adjust `uses:` paths accordingly.
+> ✅ **Catalog checked 2026-07-21.** Most filenames this chapter assumed do not
+> exist. `poli0981/.github` has `reusable-codeql.yml` and
+> `reusable-web-react.yml`, but **no** `reusable-web-ci.yml`,
+> `reusable-playwright.yml`, `reusable-audit.yml`, `reusable-cf-deploy.yml` or
+> `reusable-notify.yml`. The inventory below is what actually ships.
 
-## 1. Workflow inventory (caller stubs in `.github/workflows/`)
+## 1. Workflow inventory (`.github/workflows/`)
 
-| Stub | Trigger | Reusable target | Purpose |
-|------|---------|-----------------|---------|
-| `ci.yml` | PR + push main | `reusable-web-ci.yml` | install → lint → check → knip → unit/component tests → build |
-| `e2e.yml` | PR to main | `reusable-playwright.yml` (or job in web-ci) | Playwright chromium+firefox |
-| `codeql.yml` | push main + weekly cron | `reusable-codeql.yml` | `javascript-typescript` |
-| `audit.yml` | weekly cron + PR touching lockfile | `reusable-audit.yml` | `pnpm audit --prod`, fail ≥ high |
-| `deploy.yml` | push tag `v*` (+ manual dispatch) | `reusable-cf-deploy.yml` | build + `wrangler deploy` |
-| `notify.yml` | release published | `reusable-notify.yml` | community fan-out |
+| Stub | Trigger | Implementation | Purpose |
+|------|---------|----------------|---------|
+| `ci.yml` | PR + push main | **self-contained** | corpus guard → install → lint → check → knip → tests → build |
+| `e2e.yml` | PR to main | **self-contained** | Playwright chromium + firefox + webkit, report artifact |
+| `codeql.yml` | push main + weekly cron | caller → `reusable-codeql.yml` | `javascript-typescript` |
+| `audit.yml` | weekly cron + PR touching lockfile/package.json | **self-contained** | `pnpm audit --prod --audit-level high` |
+| `deploy.yml` | push tag `v*` (+ manual dispatch) | **self-contained** | build (incl. CSP-hash injection) + `wrangler deploy` |
+| `notify.yml` | — | **deferred** | see below |
 
-Dependabot: `.github/dependabot.yml`, npm weekly, grouped minor/patch.
+Why self-contained rather than callers:
+
+- `reusable-web-react.yml` does support pnpm + Node 24 + custom build/test
+  commands, but it has **no knip step** — and knip is build-failing here
+  (`12 §5`) — and its deploy path targets GitHub Pages, not Cloudflare Workers.
+  Using it would mean bending a workflow shared with other repos to suit this one.
+- CI green on `main` must never depend on another repository. A caller stub whose
+  target does not resolve is a red X nobody can fix from this repo.
+
+`codeql.yml` **is** a caller, because that workflow genuinely exists and fits.
+Two things `§2`'s original example got wrong: its input is a **JSON array
+string** (`'["javascript-typescript"]'`) because it runs `fromJSON()` on the
+value, and it requires repo Settings → Advanced Security → CodeQL **Default
+setup to be DISABLED**, or the advanced-setup SARIF upload is rejected.
+
+`notify.yml` is deferred: the catalog offers `announce-release.yml`,
+`notify-release-pipeline.yml` and `notify-deploy.yml`, and choosing needs their
+input contracts read. Release fan-out is a P7 concern (`16 §P7`); nothing before
+then depends on it.
+
+Dependabot: `.github/dependabot.yml`, npm + github-actions, weekly, grouped
+minor/patch — majors arrive individually so each gets its written
+breaking-change and license re-check (`11 §5`).
+
+**Corpus guard.** `ci.yml` runs `scripts/guard-no-corpus.mjs` as its **first**
+step, before install, and `.githooks/pre-commit` runs it against the index.
+`.gitignore` does nothing against `git add -f` and nothing in CI, so this is the
+actual enforcement keeping the ~651 MB `test/` corpus out of history. Enable the
+hook once per clone: `git config core.hooksPath .githooks`.
 
 ## 2. Caller stub examples (explicit permissions!)
 

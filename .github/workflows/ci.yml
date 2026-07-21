@@ -1,0 +1,53 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Explicit, never inherited. Reusable-workflow callers silently receive
+# `permissions: none` under a known GitHub inheritance bug, so every workflow in
+# this repo declares its own block (docs/14 §2-3, CLAUDE.md).
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      # Runs before install: it needs nothing but git, and if the corpus ever
+      # lands in a commit we want to know immediately, not 3 minutes later.
+      # .gitignore cannot stop `git add -f`; this can (see the script header).
+      - name: Guard against the audio corpus
+        run: node scripts/guard-no-corpus.mjs
+
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Lint (eslint + prettier)
+        run: pnpm lint
+
+      - name: Typecheck (astro check + svelte-check)
+        run: pnpm check
+
+      # docs/12 §5 makes this a build-failing gate, not advisory.
+      - name: Unused code (knip)
+        run: pnpm knip
+
+      - name: Unit + component tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm build

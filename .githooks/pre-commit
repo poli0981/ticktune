@@ -1,0 +1,5 @@
+#!/bin/sh
+# TickTune pre-commit — blocks the local audio corpus from entering history.
+# Enable once per clone:  git config core.hooksPath .githooks
+# See scripts/guard-no-corpus.mjs for what and why.
+exec node scripts/guard-no-corpus.mjs --staged
