@@ -6,11 +6,11 @@ Registrar is fine — and the zone is on the **Free** plan unless noted.
 
 ## 1. Zone & DNS
 
-1. Add site → `ticktune.com` → Free plan.
+1. Add site → `ticktune.net` → Free plan.
 2. No origin server exists; the Worker owns the hostname. DNS is created
    automatically when the custom domain is attached to the Worker (§3). Any
    leftover placeholder A/AAAA records: delete.
-3. Optional: `www` → Redirect Rule `www.ticktune.com/* → https://ticktune.com/$1`
+3. Optional: `www` → Redirect Rule `www.ticktune.net/* → https://ticktune.net/$1`
    (301). Keep the apex canonical.
 
 ## 2. TLS (SSL/TLS tab)
@@ -30,7 +30,7 @@ pnpm wrangler deploy       # uses wrangler.jsonc from 01 §5
 ```
 
 - Workers & Pages → ticktune → Settings → **Domains & Routes** → add custom
-  domain `ticktune.com` (this provisions DNS + cert).
+  domain `ticktune.net` (this provisions DNS + cert).
 - CI does this with `CLOUDFLARE_API_TOKEN` (token scope: Account.Workers Scripts
   Edit + Zone.Workers Routes Edit only) + `CLOUDFLARE_ACCOUNT_ID` secrets
   (`14 §4`).
@@ -69,8 +69,26 @@ leave defaults. Custom rules (5 free) — add one:
 ## 7. Headers
 
 `public/_headers` (authoritative set in `09 §2–4`) is honored by Workers Static
-Assets. Build step `scripts/inject-csp-hash.ts` computes the mobile-gate inline
-script hash and rewrites the CSP line before deploy — CI runs it in `build`.
+Assets. Astro copies `public/` into `dist/` verbatim, so the committed `_headers`
+carries a `'sha256-<TT_GATE_HASH>'` placeholder inside `script-src`, and the build
+step rewrites it.
+
+**`scripts/inject-csp-hash.ts` — normative contract:**
+
+| Aspect | Rule |
+|--------|------|
+| Ordering | Runs **after** `astro build`, **before** `wrangler deploy`. `pnpm build` = `astro build && tsx scripts/inject-csp-hash.ts` (`CLAUDE.md §Commands`) |
+| Input | Globs `dist/**/*.html`; extracts the text of every inline `<script>` (i.e. one without `src`) |
+| Hash | SHA-256 of the script's **exact** text content, base64 → `'sha256-…'` |
+| **Assertion** | The set of distinct hashes must have size **exactly 1** — the mobile gate (`07 §2`) is the only inline script on the site. Size 0 → the gate vanished; size > 1 → an unhashed inline script slipped in. **Either fails the build with a non-zero exit** |
+| Output | Replaces the `<TT_GATE_HASH>` placeholder in `dist/_headers`. Fails if the placeholder is absent (a stale `_headers` would silently ship a CSP that blocks the gate) |
+| Idempotence | Safe to re-run; operates on `dist/`, never mutates `public/_headers` |
+
+The size-1 assertion is what makes this coupling safe: without it, adding a second
+inline script anywhere would ship a CSP that silently blocks it in production
+only. Verified against a live enforcing CSP during P1 (`16 §P1`), not deferred to
+P7 — at that point the gate is still the only inline script, so the check is
+cheapest it will ever be.
 
 ## 8. Error pages — decision
 
@@ -100,7 +118,7 @@ keep working once loaded. (Full offline PWA is post-1.0, `16 §post`.)
 
 ## 11. Launch checklist (zone side)
 
-- [ ] Custom domain attached, cert active, `https://ticktune.com` 200
+- [ ] Custom domain attached, cert active, `https://ticktune.net` 200
 - [ ] `curl -I` shows full `_headers` set incl. final CSP (not Report-Only)
 - [ ] HSTS present · [ ] 404 route serves styled page
 - [ ] `/api/yt/oembed?id=dQw4w9WgXcQ` → 200 JSON; 61 rapid calls → 429

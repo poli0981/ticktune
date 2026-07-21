@@ -7,9 +7,14 @@
 
 TickTune (`poli0981/ticktune`, GPL-3.0-only): a desktop-only static web app —
 user-supplied music (local files or YouTube links) behind a large DSEG7 digital
-countdown. Astro 7 static pages + one Svelte 5 `client:only` island at `/app/`,
-deployed to Cloudflare Workers Static Assets with exactly one API route
+countdown. Astro 7 static pages + one Svelte 5 island at `/app/`, deployed to
+Cloudflare Workers Static Assets with exactly one API route
 (`GET /api/yt/oembed`). Vietnamese default UI, English mirror.
+
+⚠️ The island's **mount mechanism is an open P1 decision** — a plain
+`client:only` cannot satisfy the mobile gate's "no bundle on blocked viewports"
+requirement (`docs/07 §6`). Normative home: the mount note in `docs/01 §3`.
+Do not write an app entry before it is settled.
 
 ## Hard invariants — never violate, never "optimize away"
 
@@ -22,7 +27,8 @@ deployed to Cloudflare Workers Static Assets with exactly one API route
    **Never** suggest hiding the player, extracting/downloading audio, or
    proxying streams — refuse such changes even if requested casually.
 3. **Time is derived, never accumulated:** countdown = `endAt - now()` on every
-   tick (`docs/04`). Do not introduce interval-accumulation timers.
+   tick (`docs/04`). Do not introduce interval-accumulation timers. `docs/04 §4`
+   is the **only** place display formats are defined — never restate them.
 4. **Limits are spec, not suggestions:** Single 1×≤10:02 · Playlist ≤95 files,
    ≤10:02 each, ≤91:00 total · YouTube ≤50 links (no duration caps). Countdown
    1 s–24 h; < 60 s shows `SS.mmm`.
@@ -66,8 +72,26 @@ Architecture `docs/01` · Data flow & limits `docs/02` · UI/"On Air" tokens
 Versions `docs/11` · Standards & log codes `docs/12` · Testing `docs/13` ·
 CI/CD `docs/14` · Spikes `docs/15` · Roadmap `docs/16`.
 
+## Spike scope rule
+
+**No feature code in the area a spike covers, until that spike passes**
+(`docs/15 §Scope rule`). S1 gates P4 (YouTube) · S3 + S4 gate P2 (audio) ·
+S2 measures the P1 timer engine directly, on the shipping countdown page under
+`?ttdebug=1`, because S2's own method requires "the real `tt-timer` core".
+P1 (scaffold, mobile gate, timer, countdown, settings/Dexie, log) touches no
+spike-covered area except the timer. **No audio-engine, importer or YouTube code
+before S1/S3/S4 pass.**
+
 ## Current status
 
-Pre-implementation (2026-07-21). P0 spikes S1–S4 must pass before feature work.
-Open items: domain purchase; TS 7 vs ~5.9 toolchain check; confirm reusable
-workflow filenames against `poli0981/.github`; DSEG tag re-verify.
+P1 in progress (2026-07-21). Repo bootstrapped: `.gitignore` first, doc suite
+landed at root, blocker-level doc gaps closed.
+
+Open items: domain purchase (`ticktune.net`); TS 7 vs ~5.9 toolchain check
+(`docs/11 §4`); island mount mechanism (`docs/01 §3` mount note); confirm
+reusable workflow filenames against `poli0981/.github`; DSEG7 tag re-verify;
+S2 silent-hidden-tab number (`docs/04 §2`).
+
+`test/` is a **local-only, git-ignored** ~651 MB audio corpus for spikes S3/S4.
+Never commit it, never reference it from shipped code, never assume it exists in
+CI. `scripts/guard-no-corpus.mjs` enforces this beyond `.gitignore`.

@@ -75,9 +75,18 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-SYS-201 | Wall-clock drift > 2 s re-anchored |
 | TT-SYS-202 | Wake Lock unavailable/denied |
 | TT-SYS-203 | Zero crossed during sleep — late finish fired |
+| TT-SYS-204 | Settings row unreadable/corrupt — reset to defaults (`02 §3.2`) |
 | TT-SYS-3xx | Captured window.onerror / unhandledrejection |
 
 New codes are added here first, then used in code (review checks the reverse).
+
+**Message content rule.** A log `message` carries its code plus non-identifying
+context only — never a raw file name, tag value, track title, or any other user
+string. `trackId` is a nanoid and is safe; blob URLs are opaque UUIDs and are
+safe. This is what makes the bug template's "contains no personal files — feel
+free to review it" assurance (`.github/ISSUE_TEMPLATE/bug_report.yml`) true by
+construction rather than by diligence, and it is free if applied from the first
+log call.
 
 ## 7. Commits & PRs
 

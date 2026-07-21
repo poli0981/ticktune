@@ -45,6 +45,14 @@ if (blocked) document.documentElement.dataset.ttBlocked = '1';
    Fonts: DSEG7 + JetBrains Mono are loaded from the app bundle path only.
    Be Vietnam Pro subset for the gate/landing stays (few KB, needed for VI text).
 
+   > ⚠️ **This guard is incompatible with a plain `client:only` island.** Astro's
+   > `client:only` emits its own hydration bootstrap and fetches the bundle
+   > unconditionally, so the `§6` "no app-bundle request" assertion cannot pass
+   > at `/app/` as written. The mount mechanism is chosen and measured in P1 —
+   > see the **mount note in `01 §3`**, which is the normative home for that
+   > decision. Whatever wins there, `TT_GATE` in `src/lib/tt-gate-const.ts`
+   > stays the single source of the predicate.
+
 ## 4. Gate copy (bilingual, hardcoded in the static overlay — no JS i18n on mobile)
 
 > **EN** — Sorry — TickTune isn't available on mobile.
