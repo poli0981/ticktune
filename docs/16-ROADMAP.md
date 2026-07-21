@@ -8,7 +8,7 @@ Durations are effort estimates, not calendar promises. **v1.0 target: late Q3
 |-------|-------|---------------|
 | **P0 · Spikes** (~1 wk) | S1–S4 (`15-SPIKES.md`) | All four ✅; docs 04/05/06 updated |
 | **P1 · Skeleton** (~1 wk) | Scaffold (Astro 7 + Svelte 5 + TW 4 + wrangler), TS7-vs-5.9 check (`11 §4`), mobile gate, legal gate shell, timer engine + countdown display, settings shell + Dexie, log engine, CI stubs live | Countdown runs full formats; gate blocks on mobile viewport; CI green |
-| **P2 · Local audio + Single** (~1 wk) | Audio graph, import pipeline (single), metadata modal, bottom bar, loop styles, end behavior default. **Opens with the S2 decision (`04 §2`): a hidden tab finishes late and no in-page remedy was found — pick one of the three documented options before writing the End Behavior** | Single mode E2E passes; fade+chime works with tab hidden; the chosen S2 option is implemented and its wording lands on the Finished screen |
+| **P2 · Local audio + Single** (~1 wk) | Audio graph, import pipeline (single), metadata modal, bottom bar, loop styles, end behavior default, **+ the S2 late-finish variant of the Finished screen (`04 §2` option 3, decided)** | Single mode E2E passes; fade+chime works with tab hidden; a hidden run past `LATE_THRESHOLD_MS` shows the actual finish time rather than implying "now" |
 | **P3 · Playlist** (~1 wk) | Queue panel, drag-reorder, shuffle/repeat, dedupe + limits + summary toasts, context menu, crossfade | Playlist limits tests pass; 95-file batch import OK |
 | **P4 · YouTube** (~1 wk) | `/api/yt/oembed` Worker route, player rail, error overlays, YT import pipeline, offline panel | Manual yt-matrix passes; rate-limit path handled |
 | **P5 · Visuals & settings** (~1 wk) | Visualizer (3 styles), backgrounds + slideshow, auto-theme, focus mode, full settings, i18n dictionaries complete + key-diff guard | Reduced-motion + a11y milestones announced; perf budget met |
@@ -68,11 +68,12 @@ corpus guard proven against a forced add · DSEG7 vendored byte-identical.
 Audibility does not protect the timer, and the stall is in main-thread message
 processing, so no amount of worker code routes around it.
 
-P2 therefore opens with a **product decision**, not an implementation: accept and
-disclose, add out-of-page notification (needs its own spike and a privacy
-review), or re-scope the promise to "accurate while visible, best-effort while
-hidden". Option 3 changes what the Finished screen says, so it must be settled
-before the End Behavior is written.
+**Decided 2026-07-21 — option 3, re-scope the promise:** the countdown is
+accurate while visible, best-effort while hidden, and the Finished screen states
+*when* zero was actually reached when it was late by more than 2 s. Spelled out
+in `04 §2` and `03 §3.5`; P2 implements it. Out-of-page notification (option 2)
+moves to the post-1.0 backlog — it needs its own spike, a permission prompt and a
+privacy review, none of which belongs in P2.
 
 S3 passed. S1 and S4 are partial and gate P4 and P2 respectively.
 
@@ -80,15 +81,19 @@ S3 passed. S1 and S4 are partial and gate P4 and P2 respectively.
 
 1. ~~Finish items 4, 6, 7~~ — done 2026-07-21.
 2. ~~Run the S2 control~~ — done 2026-07-21; the remedy failed.
-3. **Decide the S2 question** (`04 §2`, three options). This is the only thing
-   between here and P2, and it is a call for the repo owner.
-4. Then P2.
+3. ~~Decide the S2 question~~ — decided 2026-07-21, option 3 (`04 §2`).
+4. **P2 is unblocked.** It opens with the audio graph and carries the late-finish
+   Finished screen with it.
 
 ## Post-1.0 backlog (unordered)
 
 - YouTube Data API v3 proxy on the existing Worker (duration/publish date at
   import; key server-side).
 - PWA offline for local modes (installable, cache shell; YT mode stays online).
+- **Out-of-page finish notification** (S2 option 2): a service worker has its own
+  scheduling and could fire a Notification when a backgrounded tab's countdown
+  ends. Needs its own spike, a permission prompt, and a privacy review against
+  hard invariant 1 — which is why P2 took option 3 instead (`04 §2`).
 - Loudness normalization (EBU R128-ish gain scan on local files, opt-in).
 - JP language pack (`08 §5`).
 - Countdown themes (alternate segment fonts: DSEG14, Nixie-style).

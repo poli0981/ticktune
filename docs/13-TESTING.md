@@ -57,6 +57,7 @@ issues).
 | i18n | toggle EN↔VI swaps visible strings without reload |
 | Mobile gate (`07 §6`) | mobile project: overlay visible, **zero component/framework chunks** in the network log (the ≈200 B guard chunk is expected and is not the app bundle — `01 §3`); desktop project: island mounts |
 | Offline | context.setOffline → banner; YT mode blocked panel |
+| Late finish (`04 §2`) | inject an `overshootMs` past `LATE_THRESHOLD_MS` and assert the Finished screen states the actual finish time instead of implying "now"; below the threshold assert the normal screen is unchanged |
 | 404 | unknown path serves styled 404 |
 
 Browsers: CI on Chromium + Firefox every PR; WebKit added on the release branch
@@ -88,10 +89,13 @@ After every production deploy:
 
 - [ ] Landing VI + `/en/` render; hero placeholder present (until real capture)
 - [ ] Gate appears on fresh profile; Accept persists across reload
-- [ ] Single mode with a real MP3: plays, countdown accurate vs phone stopwatch over 10 min (±1 s)
+- [ ] Single mode with a real MP3: plays, countdown accurate vs phone stopwatch over 10 min (±1 s) — **tab visible**, which is the only case that bound applies to (`04 §2`)
 - [ ] Playlist: 3 files, shuffle + repeat, right-click info modal fields
 - [ ] YouTube: 2 links play sequentially in visible player; one dead link → gone-overlay
-- [ ] `<60 s` ms display smooth; Finished + chime fires with tab hidden
+- [ ] `<60 s` ms display smooth
+- [ ] Finished + chime fire after a **hidden** run — and if it was late by more
+      than 2 s, the screen states the actual finish time rather than implying
+      "now" (`04 §2` option 3). Late is expected here, not a defect
 - [ ] Headers/CSP live (`10 §11`), `/api` 429 after burst
 - [ ] Real Android phone + touch-only iPad: gate shows, no bundle download
 - [ ] Copy Diagnostics → paste parses as JSON

@@ -124,6 +124,19 @@ collapse state derives from `mode`, so no future CSS change can silently hide it
 4. **Player** — layout above.
 5. **Finished** — "TIME'S UP" in DSEG14-style caps (rendered in UI font with glow),
    session summary (tracks played, duration), Restart / Back to setup.
+
+   **Late variant (`04 §2`, decided 2026-07-21).** When `overshootMs` exceeds
+   `LATE_THRESHOLD_MS` (2 s) the screen must **not** imply the moment is now. It
+   states when zero was actually reached and how long ago:
+
+   > **HẾT GIỜ** · *lúc 14:32 — 2 phút 57 giây trước*
+
+   The countdown itself still holds `0.000` (`04 §4`). Below the threshold the
+   normal screen renders unchanged, so the common case is untouched.
+
+   This exists because a backgrounded tab can be throttled for minutes: the
+   elapsed time stays exact, but the app cannot react until the user returns. A
+   screen that just said "TIME'S UP" would be quietly lying about *when*.
 6. **Error overlays** — YouTube typed overlays (`06 §4`), offline banner, import
    toasts.
 7. **Mobile gate** — `07-MOBILE-GATE.md` full-screen block.

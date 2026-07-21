@@ -155,29 +155,59 @@ the hidden *render* gap is only 528 ms (the flush repainted rapidly).
 That matters for the design: moving work into the worker cannot help, because
 `tick()`, the `done` event and every render run on the main thread regardless.
 
-#### Where this leaves P2 — an open product decision
+#### ✅ DECIDED 2026-07-21 — option 3: re-scope the promise
 
 The countdown is **correct but late** when the tab is hidden and throttled. The
-visibility/focus latch is what guarantees the "correct" half, and it stays: it is
-the only thing between a throttled main thread and a countdown that never
-finishes at all.
+visibility/focus latch guarantees the "correct" half and stays: it is the only
+thing between a throttled main thread and a countdown that never finishes at all.
 
-The "late" half is not fixable from inside the page with anything tried so far.
-The realistic options, none of which is obviously right:
+The "late" half is not fixable from inside the page. Three options were on the
+table — accept and disclose; notify out-of-page via a service worker; re-scope
+the promise. **Option 3 is chosen.** Option 2 stays available post-1.0 (`16
+§post`) but needs its own spike, a permission prompt and a privacy review, none
+of which belongs in P2.
 
-1. **Accept and disclose.** Keep the latch, state plainly that a backgrounded
-   tab may finish late, and lean on `04 §3`'s Wake Lock to keep the tab
-   foreground in the intended use (a countdown you are watching). Cheapest, and
-   honest — but it weakens the core promise.
-2. **Notify out-of-page.** The Notification API can fire from a service worker,
-   which has its own scheduling. Needs permission, adds a dependency the privacy
-   posture has so far avoided, and needs its own spike.
-3. **Re-scope the promise.** Document the countdown as accurate while visible,
-   best-effort while hidden — and make the Finished screen show *when* it
-   actually elapsed rather than implying it just happened.
+##### The promise, as it now stands
 
-This must be decided before P2 writes the End Behavior, because option 3 changes
-what the Finished screen says.
+> **The countdown is accurate while the tab is visible. While the tab is
+> backgrounded it is best-effort: the elapsed time is always computed correctly,
+> but the browser may not let the app react until you return.**
+
+This is not a euphemism for a bug — it is what a page can guarantee. Derived
+time (`§1`) means the number is exact whenever it is read; only the moment of
+*reacting* is at the browser's discretion. `legal/DISCLAIMER.md §6` already says
+timing is best-effort and must not be relied on where precise timing is safety-
+or business-critical, so the legal text needs no change.
+
+##### What P2 must build
+
+1. **The Finished screen must not imply "just now".** `done` already carries
+   `late` and `overshootMs` (`§7`), so the data exists. When
+   `overshootMs > LATE_THRESHOLD_MS`, the screen states the wall-clock time the
+   countdown actually reached zero and how long ago that was — e.g.
+   *"Hết giờ lúc 14:32 · 2 phút 57 giây trước"* — instead of only "TIME'S UP".
+   Below the threshold, the normal screen is shown unchanged.
+2. **`LATE_THRESHOLD_MS = 2_000`.** A judgement call, stated so it can be argued
+   with: one worker interval (200 ms) is invisible and mentioning it would be
+   noise, while anything past a couple of seconds is a real discrepancy a user
+   could notice against a wall clock. Lives beside the timer engine.
+3. **The End Behavior still runs** — fade, chime, flash — because it is the
+   user's configured attention signal and firing it on return is the useful
+   behaviour. What must not happen is the *screen* claiming the moment is now.
+4. **TT-SYS-203 already covers the event** (`12 §6`, "zero crossed during sleep —
+   late finish fired"). No new log code.
+5. **i18n:** new keys under `finished.*` for the late variant, in **both**
+   dictionaries (`08 §3`). Wording lands with the P5 dictionary work; P2 may
+   hardcode VI and file the keys.
+6. **Say it where users decide to trust it** — the landing FAQ (`16 §P6`) states
+   the visible/hidden distinction plainly rather than burying it in the EULA.
+
+##### What this does *not* change
+
+`13 §7`'s live check — "countdown accurate vs phone stopwatch over 10 min
+(±1 s)" — is a **visible-tab** test and stands as written. The ±50 ms visible
+bound in `15 §S2` stands. Only the hidden-tab bound is withdrawn, and it is
+replaced by "report honestly", which `§7`'s `overshootMs` makes testable.
 
 ## 3. Wake Lock
 

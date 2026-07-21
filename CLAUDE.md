@@ -86,7 +86,7 @@ before S1/S3/S4 pass.**
 ## Current status
 
 P1 scope **complete (8/8)** as of 2026-07-21 — see the exit review in `docs/16`.
-89 unit tests, 22 E2E, five gates green. The phase is not closed: S2 blocks P2.
+89 unit tests, 22 E2E, five gates green. **P2 is unblocked** (S2 decided, below).
 
 🔴 **S2 failed, and its documented remedy failed too** (`docs/04 §2`). Hidden +
 silent: `done` fired 2 m 57 s late. Control run with the keep-alive oscillator
@@ -96,13 +96,20 @@ and the stall is in main-thread message processing — so no worker-side code
 routes around it.
 
 **Do not build a keep-alive source into the P2 audio engine.** It was tried and
-withdrawn. P2 opens with a product decision instead — three options in
-`docs/04 §2`; option 3 changes what the Finished screen says, so it must be
-settled before the End Behavior is written.
+withdrawn.
 
-The countdown is **correct but late** when hidden: derived time means the value
-on return is exact, and the visibility/focus latch is the only reason it
-finishes at all. Keep that latch whatever is decided.
+✅ **Decided 2026-07-21 — the promise is re-scoped** (`docs/04 §2` option 3):
+
+> The countdown is accurate while the tab is visible. While backgrounded it is
+> best-effort: elapsed time is always computed correctly, but the browser may not
+> let the app react until you return.
+
+P2 therefore ships a **late variant of the Finished screen**: when
+`overshootMs > LATE_THRESHOLD_MS` (2 s) it states when zero was actually reached
+and how long ago, instead of implying "now" (`docs/03 §3.5`). The End Behavior
+still fires; only the wording changes. Keep the visibility/focus latch — it is
+the only reason a hidden countdown finishes at all, and derived time makes the
+value on return exact.
 
 Resolved: TypeScript pinned `~5.9` — TS 7 crashes svelte-check (`docs/11 §4`).
 DSEG7 Classic tag confirmed **v0.46** stable (`docs/11 §2`). Island mount
@@ -110,17 +117,21 @@ mechanism measured — hand-mount wins (`docs/01 §3`).
 
 Open items, in the order they block things:
 
-1. **Decide the S2 question** (`docs/04 §2`) — the only thing between here and P2.
-2. Cloudflare dashboard, all zone-side: disable **Web Analytics auto-injection**
-   (it injects a beacon the CSP blocks — `docs/10 §10`), set **HSTS** to
-   `max-age=15552000` (currently `max-age=0`, i.e. off), and disable **CodeQL
-   Default setup** (`codeql.yml` is `startup_failure` until then).
-3. Spikes still open: **S1** player half — embed-off, age-restricted,
-   **region-blocked needs confirming from Vietnam** (`tests/manual/yt-matrix.md`);
-   **S4** overlap-timing ±150 ms and the 0/1/2/5 s sweep (audible check passed
-   by ear).
+1. **P2 — local audio + Single mode.** Unblocked. Opens with the audio graph and
+   carries the late-finish Finished screen (`docs/04 §2`, `docs/03 §3.5`).
+   S3 passed, so the importer's metadata path is cleared; S4's audible check
+   passed by ear, its overlap timing is still unrecorded.
+2. **Cloudflare dashboard**, all zone-side and not fixable from code: disable
+   **Web Analytics auto-injection** (it injects a beacon the CSP blocks —
+   `docs/10 §10`), set **HSTS** to `max-age=15552000` (currently `max-age=0`,
+   i.e. off), and disable **CodeQL Default setup** (`codeql.yml` is
+   `startup_failure` until then).
+3. **Spikes still open:** **S1** player half — embed-off, age-restricted, and a
+   **region-blocked case that can only be confirmed from Vietnam**
+   (`tests/manual/yt-matrix.md`); **S4** overlap timing ±150 ms and the
+   0/1/2/5 s sweep.
 4. `docs/AUDIT-BACKLOG.md` — 26 open findings, 1 release blocker (generated
-   third-party notices).
+   third-party notices, `legal/THIRD-PARTY-NOTICES.md`).
 
 `test/` is a **local-only, git-ignored** ~651 MB audio corpus for spikes S3/S4.
 Never commit it, never reference it from shipped code, never assume it exists in
