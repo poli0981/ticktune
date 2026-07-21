@@ -124,7 +124,8 @@ meaningless without it.
 
 | Date | Browser | Case | keepAlive | render gap | tick gap | \|skew\| | overshoot | Verdict |
 |------|---------|------|-----------|-----------|----------|--------|-----------|---------|
-| 2026-07-21 | Chromium (headless) | 1 visible, 4 s | off | **18 ms** | 202 ms | 0.7 ms | **29 ms** | ✅ smoke — confirms the harness reports sane numbers; not a real S2 run |
+| 2026-07-21 | Chromium (headless) | 1 visible, 4 s | off | **18 ms** | 202 ms | 0.7 ms | **29 ms** | ✅ smoke — harness sanity only |
+| 2026-07-21 | Edge 151 | 2 hidden+audio, ~90 s | **on** | — | 280 ms | 1.0 ms | **28 ms** | ✅ within bounds, but hidden only 1.4 min — **below the ~5 min intensive-throttling onset**, so it does not clear the risk |
 
 Everything below case 1 is still to run — the hidden, minimised, suspended and
 clock-change cases all need a human driving a real browser window, which is
@@ -195,6 +196,6 @@ against the P1 timer engine it ran on; S1 gates P4; S3 and S4 gate P2
 | Spike | Result | Date | Findings written to |
 |-------|--------|------|---------------------|
 | S1 | 🟡 partial | 2026-07-21 | oEmbed half done — see `tests/manual/yt-matrix.md`. Player/onError half still needs a browser, and the region case needs Vietnam |
-| S2 | ⬜ not run | — | `04 §1–2, §6` |
-| S3 | 🟡 partial | 2026-07-21 | Tag matrix DONE — the U+FFFD rule was falsified and replaced (`05 §5`). Still to run: the 95-file batch against the real corpus, and cover-art extraction via `test/generated/vi-big-cover-final.mp3` |
-| S4 | ⬜ harness ready | — | `/spike/s4-crossfade`. Needs a human ear: no automated check can tell you whether a fade clicks |
+| S2 | 🟡 partial | 2026-07-21 | Case 2 (hidden+audio) ✅ 280 ms tick gap, 28 ms overshoot — but only 1.4 min hidden, below Chromium's ~5 min throttling onset. **Case 3 (hidden+silent) not run.** `04 §2` |
+| S3 | ✅ **PASS** | 2026-07-21 | Tag matrix + 103-file/598 MB real corpus in **1 362 ms** (budget 10 s); 7.26 MB cover extracted; 0 false positives from the new `onlyV1` rule. The U+FFFD rule was falsified and replaced (`05 §5`). ID3v2.2 and APEv2 found in the wild |
+| S4 | 🟡 partial | 2026-07-21 | Crossfade judged clean by ear on headphones **and** speakers (the criterion no instrument can answer). Overlap-timing ±150 ms and the 0/1/2/5 s sweep not yet recorded |

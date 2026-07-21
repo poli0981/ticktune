@@ -85,6 +85,28 @@ As a defence-in-depth latch independent of worker scheduling, `visibilitychange
 it has reached 0 (single-fire, shared with the `§6` sleep path). A late `done` is
 recoverable; a missed one is not.
 
+### S2 measurements so far (Edge 151 / Chromium 151, Windows 11)
+
+| Case | Hidden for | Tick gap hidden | Overshoot at `done` | Verdict |
+|------|-----------|-----------------|---------------------|---------|
+| 2 — hidden **with** audio | 1.4 min | **280 ms** | **28 ms** | ✅ within the ±500 ms bound |
+
+Also observed: `|skew|` ≤ 1 ms (the two clocks agree, so the `§1`
+disambiguation had nothing to correct), and **no** TT-SYS-201/202/203 — notably
+no TT-SYS-202, so the Wake Lock was granted rather than refused.
+
+⚠️ **This does not yet clear the risk this section is about.** Chromium escalates
+to *intensive* wake-up throttling roughly **five minutes** after a page is
+hidden; the run above was hidden for 1.4 minutes and ended before that
+escalation could occur. It shows the audible-hidden path is healthy at short
+range, which is the case that was never in doubt.
+
+Still required, per `15 §S2`: a **30–90 minute** run, and above all case 3 —
+hidden **and silent** (the harness's keep-alive oscillator switched off). That is
+the configuration `02 §5` TT-PLY-102 and the `endChime: false` combination put
+users in, and the one where audibility can no longer buy the throttling
+exemption.
+
 ## 3. Wake Lock
 
 `navigator.wakeLock.request('screen')` on entering `playing`; released on

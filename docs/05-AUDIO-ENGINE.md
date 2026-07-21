@@ -110,9 +110,48 @@ of a broken track. Matrix re-verified during Spike S3.
   report `['ID3v2.4','ID3v1']`. A rule keyed on `tagTypes` would have silently
   never fired against it (`scripts/make-fixtures.ts`).
 
-- **Parse cost:** 14 mixed fixtures in 254 ms (~18 ms/file) in Chromium →
-  ≈1.7 s extrapolated for the 95-file batch against the `13 §1` 10 s budget.
-  Re-confirm against the real corpus, whose files are megabytes not kilobytes.
+- **Parse cost — measured on the real corpus, S3 PASS.** 103 files / 598 MB
+  (1–15 MB each, mostly 320 kbps) in **1 362 ms** total on Edge 151, against the
+  `13 §1` budget of 10 s for 95 files. Per file: median 11 ms, p95 16 ms.
+
+  The 246 ms outlier is the *first* file — one-time engine warm-up, not size:
+  the 15 MB file with 7.26 MB of embedded art parsed in 24 ms. Excluding it,
+  102 files took 1 116 ms. Worth knowing because a naive reading blames file
+  size and starts optimising the wrong thing.
+
+  Sequential parsing, as `02 §4` specifies. No need to parallelise.
+
+- **Cover art:** extracted from 25/103 files, largest **7.26 MB** — comfortably
+  above the ~5 MB `15 §S3` asked about, on a real file rather than a synthetic
+  one. No failures.
+
+- **Tag containers found in the wild** (103-file corpus), which is wider than
+  this chapter previously assumed:
+
+  | tagTypes | Files |
+  |----------|-------|
+  | `ID3v2.3` | 46 |
+  | `ID3v2.3` + `ID3v1` | 27 |
+  | *(none at all)* | 14 |
+  | `ID3v2.4` | 12 |
+  | **`ID3v2.2`** | 2 |
+  | `ID3v2.3` + **`APEv2`** + `ID3v1` | 1 |
+  | `ID3v1` only | 1 |
+
+  **ID3v2.2** (3-character frame ids) and **APEv2** both occur and were never
+  mentioned here. music-metadata handles both transparently, so no code change
+  follows — but the `onlyV1` rule above is written against `tagTypes` and must
+  keep treating any non-ID3v1 entry as sufficient reason to trust the tag.
+
+  14 files carry **no tags at all** and 17 have no title: the file-name fallback
+  is the common path, not an edge case. It gets exercised on ~16% of a real
+  library.
+
+- **The `onlyV1` rule does not false-positive.** Across all 103 real files:
+  0 U+FFFD, 0 flagged unreliable, 0 parse errors. Non-ASCII titles round-tripped
+  correctly through ID3v2.3 in Chinese (`梦中的你`), Korean
+  (`안녕, 스타벅스`) and Cyrillic (`Маланхит`) — so the v2 path is sound for
+  non-Latin scripts generally, not just Vietnamese.
 - Parse failure ≠ import failure: file-name title, `N/A` elsewhere (`TT-IMP-006`).
 
 ## 6. Visualizer

@@ -44,8 +44,15 @@
   // cadence: below 60 s the digits repaint every rAF frame, so the number the
   // user sees is far fresher than the 200 ms authoritative tick. S2's "visible
   // tab ≤ ±50 ms" is about this; its "±500 ms at done" is about the tick gap.
-  let maxRenderGapMs = $state(0);
+  // Split by visibility. A single global max is unreadable: rAF is deliberately
+  // stopped while hidden (docs/04 §2), so the hidden figure is just the worker
+  // cadence and would drown out the visible one that S2's ±50 ms bound is about.
+  let maxRenderGapVisibleMs = $state(0);
+  let maxRenderGapHiddenMs = $state(0);
   let lastRenderAt = 0;
+  let runStartedAt = 0;
+  let hiddenMs = $state(0);
+  let lastHiddenAt = 0;
 
   const driver = new TtTimerDriver({
     onRemaining: (ms) => {
@@ -53,8 +60,20 @@
       phase = driver.phase;
       if (debug && driver.phase === 'running') {
         const t = performance.now();
-        if (lastRenderAt) maxRenderGapMs = Math.max(maxRenderGapMs, t - lastRenderAt);
+        if (lastRenderAt) {
+          const gap = t - lastRenderAt;
+          if (document.hidden) maxRenderGapHiddenMs = Math.max(maxRenderGapHiddenMs, gap);
+          else maxRenderGapVisibleMs = Math.max(maxRenderGapVisibleMs, gap);
+        }
         lastRenderAt = t;
+        // Accumulate time spent hidden — the only figure that says whether a run
+        // was long enough to reach Chromium's intensive throttling (~5 min).
+        if (document.hidden) {
+          if (lastHiddenAt) hiddenMs += t - lastHiddenAt;
+          lastHiddenAt = t;
+        } else {
+          lastHiddenAt = 0;
+        }
       }
     },
     onDone: (info) => {
@@ -80,15 +99,28 @@
     samples = [];
     doneInfo = null;
     logLines = [];
-    maxRenderGapMs = 0;
+    maxRenderGapVisibleMs = 0;
+    maxRenderGapHiddenMs = 0;
     lastRenderAt = 0;
+    hiddenMs = 0;
+    lastHiddenAt = 0;
+    runStartedAt = performance.now();
     driver.start(durationMs);
   }
 </script>
 
 <main class="grid min-h-dvh place-items-center gap-10 p-8">
   {#if debug}
-    <TtDebugPanel {samples} done={doneInfo} logs={logLines} {phase} {maxRenderGapMs} />
+    <TtDebugPanel
+      {samples}
+      done={doneInfo}
+      logs={logLines}
+      {phase}
+      {maxRenderGapVisibleMs}
+      {maxRenderGapHiddenMs}
+      {hiddenMs}
+      elapsedMs={runStartedAt ? performance.now() - runStartedAt : 0}
+    />
   {/if}
 
   <TtCountdown remainingMs={displayMs} />

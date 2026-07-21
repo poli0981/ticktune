@@ -22,11 +22,33 @@
     done: { late: boolean; overshootMs: number } | null;
     logs: string[];
     phase: string;
-    /** Worst gap between display repaints — see the note in TtApp. */
-    maxRenderGapMs: number;
+    /** Worst gap between display repaints, split by visibility — see TtApp. */
+    maxRenderGapVisibleMs: number;
+    maxRenderGapHiddenMs: number;
+    /** Cumulative time the tab spent hidden during this run. */
+    hiddenMs: number;
+    elapsedMs: number;
   }
 
-  const { samples, done, logs, phase, maxRenderGapMs }: Props = $props();
+  const {
+    samples,
+    done,
+    logs,
+    phase,
+    maxRenderGapVisibleMs,
+    maxRenderGapHiddenMs,
+    hiddenMs,
+    elapsedMs,
+  }: Props = $props();
+
+  /**
+   * Chromium escalates to *intensive* wake-up throttling roughly five minutes
+   * after a page is hidden. A run that ends before then never exercises the
+   * behaviour S2 exists to measure, however good its numbers look — so say so,
+   * loudly, rather than letting a short green run read as a pass.
+   */
+  const THROTTLE_ONSET_MS = 5 * 60_000;
+  const tooShort = $derived(hiddenMs > 0 && hiddenMs < THROTTLE_ONSET_MS + 60_000);
 
   let keepAlive = $state(false);
   let audioCtx: AudioContext | null = null;
@@ -76,7 +98,13 @@
     keepAliveAudio: keepAlive,
     phase,
     counts: { total: samples.length, visible: visible.length, hidden: hidden.length },
-    maxRenderGapMs: Math.round(maxRenderGapMs),
+    elapsedMs: Math.round(elapsedMs),
+    hiddenMs: Math.round(hiddenMs),
+    reachedIntensiveThrottling: hiddenMs >= THROTTLE_ONSET_MS,
+    maxRenderGapMs: {
+      visible: Math.round(maxRenderGapVisibleMs),
+      hidden: Math.round(maxRenderGapHiddenMs),
+    },
     maxTickGapMs: { visible: maxGap(visible), hidden: maxGap(hidden) },
     maxAbsSkewMs: { visible: maxSkew(visible), hidden: maxSkew(hidden) },
     done,
@@ -112,8 +140,20 @@
       <dd>{report.counts.visible} / {report.counts.hidden}</dd>
     </div>
     <div>
-      <dt title="display repaint staleness — S2 visible-tab bound">max render gap</dt>
-      <dd class:bad={report.maxRenderGapMs > 50}>{report.maxRenderGapMs} ms</dd>
+      <dt title="display repaint staleness while visible — S2's ±50 ms bound">
+        render gap visible
+      </dt>
+      <dd class:bad={report.maxRenderGapMs.visible > 50}>{report.maxRenderGapMs.visible} ms</dd>
+    </div>
+    <div>
+      <dt title="rAF is deliberately stopped while hidden; this is just the worker cadence">
+        render gap hidden
+      </dt>
+      <dd>{report.maxRenderGapMs.hidden} ms</dd>
+    </div>
+    <div>
+      <dt>hidden for</dt>
+      <dd class:bad={tooShort}>{(hiddenMs / 60_000).toFixed(1)} min</dd>
     </div>
     <div>
       <dt title="authoritative worker tick, ~200 ms nominal">tick gap visible</dt>
@@ -136,6 +176,15 @@
       </div>
     {/if}
   </dl>
+
+  {#if tooShort}
+    <p class="warn">
+      ⚠ Hidden for only {(hiddenMs / 60_000).toFixed(1)} min. Chromium escalates to
+      <em>intensive</em> wake-up throttling at ~5 min hidden, so this run stopped before the behaviour
+      S2 is measuring can appear. Good numbers here do not constitute a pass — run 30–90 min (docs/15
+      §S2).
+    </p>
+  {/if}
 
   {#if logs.length}
     <ul class="logs">
@@ -195,6 +244,14 @@
   }
   .bad {
     color: var(--color-tt-danger);
+  }
+  .warn {
+    margin: 0 0 0.6rem;
+    padding: 0.4rem 0.5rem;
+    color: var(--color-tt-warn);
+    border: 1px solid var(--color-tt-warn);
+    border-radius: 0.25rem;
+    line-height: 1.4;
   }
   .logs {
     margin: 0 0 0.6rem;
