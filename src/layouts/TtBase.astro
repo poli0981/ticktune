@@ -5,12 +5,15 @@ interface Props {
   title?: string;
   description?: string;
   lang?: 'vi' | 'en';
+  /** Throwaway spike pages set this — they are not product surface. */
+  noindex?: boolean;
 }
 
 const {
   title = 'TickTune',
   description = 'Đếm ngược toàn màn hình với nhạc của riêng bạn. Chạy hoàn toàn trên máy bạn.',
   lang = 'vi',
+  noindex = false,
 } = Astro.props;
 
 const repo = 'https://github.com/poli0981/ticktune';
@@ -24,6 +27,7 @@ const repo = 'https://github.com/poli0981/ticktune';
     <title>{title}</title>
     <meta name="description" content={description} />
     <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
 
     {
       /*
