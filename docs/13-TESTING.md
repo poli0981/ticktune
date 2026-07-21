@@ -18,8 +18,22 @@ that depend on YouTube's servers.
 | Crossfade math | equal-power curve endpoints/midpoint; trigger scheduling margins |
 | i18n guard | `en.json` vs `vi.json` key-set diff = ∅ (build-failing) |
 
-Coverage target: **≥ 85% lines on `src/app/engine/**`** (enforced), no global
-vanity target elsewhere.
+Coverage target: **≥ 85% lines on `src/app/engine/**`** — enforced in
+`vitest.config.ts` and wired into `pnpm test`, so it fails the run rather than
+printing a report nobody reads. No global vanity target elsewhere.
+
+**Scope carve-out.** Two file patterns inside `engine/**` are excluded:
+`*.worker.ts` and `*-driver.ts`. They are the impure boundary the pure core
+exists to keep small — they own `Worker`, `requestAnimationFrame`,
+`visibilitychange` and Wake Lock, cannot execute in Node, and "unit testing"
+them would mean mocking every browser API and then asserting the mocks. They are
+covered where they actually run: Playwright (`§3`) and spike S2, which drives
+the real driver for 30–90 minutes across hidden, minimised and suspended states
+(`15 §S2`). The threshold therefore applies to the pure core, which is what
+`01 §3`'s "engines are pure by design" reasoning meant.
+
+Measured 2026-07-21 on the timer engine: **98.9% lines, 95.5% statements**
+(`tt-format.ts` 100%, `tt-timer.ts` 98.4%).
 
 ## 2. Component (Vitest + @testing-library/svelte + happy-dom, `tests/component/`)
 

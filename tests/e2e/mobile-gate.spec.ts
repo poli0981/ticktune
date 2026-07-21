@@ -62,7 +62,9 @@ test.describe('desktop viewports', () => {
   test('gate stays hidden and the island mounts at /app/', async ({ page }) => {
     await page.goto('/app/', { waitUntil: 'networkidle' });
     await expect(page.locator('.tt-mobile-gate')).toBeHidden();
-    await expect(page.getByTestId('tt-app-root')).toBeVisible();
+    // The countdown only exists if the island bundle loaded AND hydrated, so
+    // this is the real "did the hand-mount work" assertion (docs/01 §3).
+    await expect(page.locator('.tt-countdown')).toBeVisible();
   });
 
   test('unknown path serves the styled 404', async ({ page }) => {
