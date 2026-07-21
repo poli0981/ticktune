@@ -85,6 +85,8 @@ function harness(over: { ctxState?: 'suspended' | 'running' } = {}) {
       return u;
     },
     revokeUrl: (u) => revoked.push(u),
+    // Resolves immediately, so the resume timeout is instant in tests.
+    delay: () => Promise.resolve(),
   };
 
   const logs: string[] = [];
@@ -306,6 +308,37 @@ describe('TtAudioEngine', () => {
     const h = harness({ ctxState: 'suspended' });
     h.ports.ctx.resume = vi.fn(() => Promise.reject(new Error('nope')));
     await expect(h.engine.unlock()).resolves.toBeUndefined();
+    expect(h.logs).toEqual(['TT-PLY-105']);
+  });
+
+  it('does NOT hang when resume() never settles, and reports TT-PLY-105', async () => {
+    // Measured on CI 2026-07-21: in headless Firefox with no audio output
+    // device, `resume()` neither resolves nor rejects. With a bare await, this
+    // meant play() never ran — the app sat there having "started", with no
+    // sound, no error and nothing in the log. A desktop with a disabled sound
+    // device reaches the same state.
+    const h = harness({ ctxState: 'suspended' });
+    h.ports.ctx.resume = vi.fn(() => new Promise<void>(() => {}));
+
+    h.engine.load(track(), true);
+    await h.engine.play();
+
+    expect(h.logs).toContain('TT-PLY-105');
+    // The important half: playback was still ATTEMPTED rather than abandoned.
+    expect(h.decks[0]!.plays).toBe(1);
+  });
+
+  it('reports the dead output once, not on every play', async () => {
+    const h = harness({ ctxState: 'suspended' });
+    h.ports.ctx.resume = vi.fn(() => new Promise<void>(() => {}));
+    h.engine.load(track(), true);
+
+    await h.engine.play();
+    await h.engine.play();
+    await h.engine.play();
+
+    // Repeating a fact about the machine on every play would bury the log.
+    expect(h.logs.filter((c) => c === 'TT-PLY-105')).toHaveLength(1);
   });
 
   it('logs TT-PLY-101 and stops on a media error, leaving the timer alone', () => {

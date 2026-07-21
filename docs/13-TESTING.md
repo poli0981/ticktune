@@ -86,14 +86,30 @@ non-empty queue must also handle the `beforeunload` guard (`02 §3`) or they han
 Browsers: CI on Chromium + Firefox every PR; WebKit added on the release branch
 (Safari audio quirks are covered mainly by Spike S3/S4 + manual pass).
 
-⚠️ **Autoplay in automation, measured 2026-07-21.** Chromium launches with
-`--autoplay-policy=no-user-gesture-required` by default; Firefox blocks autoplay
-in its automation profile and needed
-`firefoxUserPrefs: { 'media.autoplay.default': 0 }`, without which the
-`AudioContext` stayed `suspended` and every audio assertion failed for an
-environment reason. Both desktop projects are therefore **permissive**, and
-neither can catch a genuine "playback started without a gesture" regression —
-that is a unit test against a rejecting fake, plus the live checklist.
+⚠️ **Audio in automation — measured 2026-07-21, and the conclusion is not the
+obvious one.** On the Linux CI runner, headless Firefox's
+`AudioContext.resume()` **never settles**: it does not reject, it hangs. That is
+the signature of no audio output device, not of an autoplay policy — an autoplay
+block rejects or leaves the context suspended immediately. Two remedies were
+tried and neither helped, because both addressed the wrong cause:
+`firefoxUserPrefs: { 'media.autoplay.default': 0 }` (kept, it is still correct
+for media elements) and re-checking the gesture chain (which was already sound).
+
+Consequences, all deliberate:
+
+- **The four assertions that need AUDIBLE output are skipped on Firefox** —
+  single-mode playback, the loop counter, and the two chime tests. Everything
+  else runs there, including the whole import pipeline and the Finished screens.
+  Chromium runs all of them, and `tests/manual/p2-live-checklist.md` carries a
+  real-Firefox item.
+- **Chromium is permissive too** (`--autoplay-policy=no-user-gesture-required`
+  by default), so neither desktop project can catch a genuine "playback started
+  without a gesture" regression. That is a unit test against a rejecting fake.
+- **The environment exposed a real product bug**, which is the part worth
+  keeping: a hung `resume()` meant `play()` was awaited forever, so the app sat
+  there having "started" with no sound, no error and no log. Any desktop with a
+  disabled sound device reaches the same state. Now bounded by a timeout and
+  reported as **TT-PLY-105** (`12 §6`), with playback still attempted.
 
 **Firefox audio has never been verified outside CI.** The dev box cannot launch
 Playwright's Firefox at all (`spawn UNKNOWN`), so the real-browser gesture →

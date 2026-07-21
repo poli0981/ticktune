@@ -14,10 +14,20 @@ import type { TtAudioEvents, TtAudioPorts, TtDeckId, TtPlaybackStatus } from './
  * loop style, which is what the second deck is otherwise for, is behind
  * docs/15 §S4b.
  */
+/**
+ * How long to wait for `resume()` before deciding the audio output is unusable.
+ * Generous: a real context resumes in single-digit milliseconds, so anything
+ * near this is not "slow", it is "never".
+ */
+const RESUME_TIMEOUT_MS = 3_000;
+
 export class TtAudioEngine {
   readonly #ports: TtAudioPorts;
   readonly #events: TtAudioEvents;
   readonly #ledger: TtUrlLedger;
+
+  /** Set once `resume()` has proved unusable; stops retrying on every play. */
+  #audioOutputDead = false;
 
   #deck: TtDeckId = 0;
   #track: TtTrack | null = null;
@@ -84,13 +94,40 @@ export class TtAudioEngine {
    * a returning user would otherwise reach playback with a suspended context and
    * nothing would notice until nothing played.
    */
+  /**
+   * Read through a method, not inline: `ctx.state` is a getter whose value
+   * changes when `resume()` succeeds, but TypeScript narrows it at the early
+   * return above and then insists the later comparison is unreachable.
+   */
+  #isRunning(): boolean {
+    return this.#ports.ctx.state === 'running';
+  }
+
   async unlock(): Promise<void> {
-    if (this.#ports.ctx.state === 'running') return;
+    if (this.#isRunning()) return;
+    if (this.#audioOutputDead) return;
+
     try {
-      await this.#ports.ctx.resume();
+      // ⚠️ `resume()` can HANG rather than reject. Measured on CI 2026-07-21:
+      // in headless Firefox with no audio output device, it never settles — so
+      // a bare `await` here means `play()` never runs, and the app sits there
+      // having "started" with no sound, no error and no log entry. A machine
+      // with a disabled or absent sound device reaches the same state.
+      //
+      // The race is the whole fix: past the timeout we report it and carry on.
+      await Promise.race([
+        this.#ports.ctx.resume(),
+        this.#ports.delay(RESUME_TIMEOUT_MS).then(() => {
+          throw new Error('resume-timeout');
+        }),
+      ]);
     } catch {
-      // Not fatal here: `play()` guards again and reports TT-PLY-100 if the
-      // context is still not running when it actually matters.
+      if (!this.#isRunning()) {
+        // Once per session: this is a property of the machine, and repeating it
+        // on every play would bury the rest of the log.
+        this.#audioOutputDead = true;
+        this.#events.onLog('TT-PLY-105');
+      }
     }
   }
 
