@@ -1,3 +1,9 @@
+import type { TtMode } from '../../lib/tt-domain-types';
+import { browserImportPorts, filesFromDataTransfer } from '../engine/importer/tt-import-driver';
+import { importFiles } from '../engine/importer/tt-import';
+import { isReady, matchQueueLengthMs } from '../engine/importer/tt-queue-rules';
+import type { TtImportResult, TtTrack } from '../engine/importer/types';
+import { ttLog } from '../engine/log/tt-log';
 import { finishReport } from '../engine/timer/tt-late';
 import { TT_MAX_COUNTDOWN_MS, TT_MIN_COUNTDOWN_MS } from '../engine/timer/tt-format';
 import type { TtFinishInfo, TtFinishReport } from '../engine/timer/types';
@@ -36,9 +42,38 @@ class SessionStore {
   #state = $state<TtAppState>('boot');
   #countdownMs = $state(90_000);
   #finish = $state<TtFinishReport | null>(null);
+  #queue = $state<TtTrack[]>([]);
+  #importing = $state(false);
+  #lastImport = $state<TtImportResult | null>(null);
+
+  /**
+   * P2 forces the effective mode to `single` without writing `lastMode`
+   * (docs/03 §3). `TT_DEFAULT_SETTINGS.lastMode` is 'playlist', so a fresh
+   * profile would otherwise land on a tab this phase has not built — and
+   * clobbering the stored value would mean P3 has to repair it rather than
+   * simply unlocking the tab.
+   */
+  readonly mode: TtMode = 'single';
 
   get state(): TtAppState {
     return this.#state;
+  }
+
+  get queue(): TtTrack[] {
+    return this.#queue;
+  }
+
+  get importing(): boolean {
+    return this.#importing;
+  }
+
+  /** The last batch's outcome, for the summary toast (docs/02 §4). */
+  get lastImport(): TtImportResult | null {
+    return this.#lastImport;
+  }
+
+  get track(): TtTrack | null {
+    return this.#queue[0] ?? null;
   }
 
   get countdownMs(): number {
@@ -60,7 +95,78 @@ class SessionStore {
    * specified way back to edit it.
    */
   get canStart(): boolean {
+    return isReady(this.mode, this.#queue, this.#countdownMs);
+  }
+
+  /** True when only the countdown is out of range — for the input's own hint. */
+  get countdownInRange(): boolean {
     return this.#countdownMs >= TT_MIN_COUNTDOWN_MS && this.#countdownMs <= TT_MAX_COUNTDOWN_MS;
+  }
+
+  /** docs/03 §3 — null when the button must be disabled. */
+  get matchableMs(): number | null {
+    return matchQueueLengthMs(this.#queue);
+  }
+
+  // ── import (docs/02 §4) ────────────────────────────────────────────────────
+
+  /**
+   * Single-flight. A second drop while a batch is in flight is IGNORED with a
+   * toast rather than queued or aborted (docs/02 §4) — the operation is bounded
+   * and sub-second, so the simplest defined behaviour is the right one.
+   */
+  async importDropped(dt: DataTransfer): Promise<void> {
+    if (this.#importing) return;
+    const { files, dropped } = await filesFromDataTransfer(dt);
+    await this.#runImport(files, dropped);
+  }
+
+  async importPicked(list: FileList | null): Promise<void> {
+    if (this.#importing || !list) return;
+    await this.#runImport(Array.from(list), 0);
+  }
+
+  async #runImport(files: File[], droppedByCap: number): Promise<void> {
+    this.#importing = true;
+    try {
+      if (droppedByCap > 0) ttLog.warn('TT-IMP-008', `${droppedByCap} entries over the scan cap`);
+
+      // docs/02 §4: a second import in Single mode REPLACES the held track,
+      // because isQueueValid('single') requires exactly one — rejecting it
+      // would strand a user who simply wants a different track.
+      const replacing = this.mode === 'single' && files.length > 0;
+      const queue = replacing ? [] : this.#queue;
+
+      const result = await importFiles(
+        { files, mode: this.mode, queue, allowDuplicates: false },
+        browserImportPorts(),
+      );
+
+      // Every skip and every note gets a coded entry — docs/01 §2 principle 5.
+      // The message carries no file name: docs/12 §6 makes the diagnostics
+      // payload safe to paste publicly by construction, not by remembering.
+      for (const s of [...result.skipped, ...result.notes]) ttLog.warn(s.code, '');
+
+      if (result.added.length > 0) this.#queue = [...queue, ...result.added];
+      this.#lastImport = result;
+    } finally {
+      this.#importing = false;
+    }
+  }
+
+  /** docs/02 §6 — user removal. Revoking URLs is the audio engine's job. */
+  removeTrack(id: string): void {
+    this.#queue = this.#queue.filter((t) => t.id !== id);
+    ttLog.info('TT-USR-001', '', id);
+  }
+
+  dismissImport(): void {
+    this.#lastImport = null;
+  }
+
+  /** docs/02 §6 — a track that failed to decode is marked, not silently dropped. */
+  markTrackError(id: string): void {
+    this.#queue = this.#queue.map((t) => (t.id === id ? { ...t, status: 'error' as const } : t));
   }
 
   /** boot → gate | setup. Boot must always reach one of them (docs/02 §1). */
@@ -73,8 +179,14 @@ class SessionStore {
     if (this.#state === 'gate') this.#state = 'setup';
   }
 
-  start(): void {
-    if (!this.canStart) return;
+  /**
+   * @param force the `?ttdebug=1` timer-only Start (docs/15 §S2). Spike S2's
+   *   cases 4–7 are still unrun and its silent case is audio-free by
+   *   definition, so the harness needs a way past the queue predicate. Gated
+   *   by the flag, exactly like the debug panel, and it collects nothing.
+   */
+  start(force = false): void {
+    if (!force && !this.canStart) return;
     this.#finish = null;
     this.#state = 'playing';
   }

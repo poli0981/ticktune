@@ -1,11 +1,14 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import TtBottomBar from './components/TtBottomBar.svelte';
   import TtCountdown from './components/TtCountdown.svelte';
   import TtDebugPanel from './components/TtDebugPanel.svelte';
   import TtFinished from './components/TtFinished.svelte';
   import TtLegalGate from './components/TtLegalGate.svelte';
+  import TtSetup from './components/TtSetup.svelte';
+  import TtSingleRail from './components/TtSingleRail.svelte';
+  import TtTrackInfo from './components/TtTrackInfo.svelte';
   import { TtTimerDriver } from './engine/timer/tt-timer-driver';
-  import { TT_MAX_COUNTDOWN_MS, TT_MIN_COUNTDOWN_MS } from './engine/timer/tt-format';
   import type { TtTickSample } from './engine/timer/types';
   import { installGlobalCapture, ttLog } from './engine/log/tt-log';
   import { playback } from './state/playback.svelte';
@@ -66,9 +69,9 @@
   let phase = $state<'idle' | 'running' | 'paused' | 'done'>('idle');
 
   const durationMs = $derived((hours * 3600 + minutes * 60 + seconds) * 1000);
-  const valid = $derived(durationMs >= TT_MIN_COUNTDOWN_MS && durationMs <= TT_MAX_COUNTDOWN_MS);
-  // The session store owns the state machine (docs/02 §1); the inputs feed it so
-  // `canStart` and the Finished screen agree with what is on screen.
+  // The session store owns the state machine AND the Start predicate (docs/02
+  // §1); the inputs feed it, so `canStart` and what is on screen cannot
+  // disagree. The range check lives in `isReady`, not here.
   $effect(() => {
     session.countdownMs = durationMs;
   });
@@ -156,10 +159,19 @@
     ...(debug ? { onSample: (s: TtTickSample) => samples.push(s) } : {}),
   });
 
-  onDestroy(() => driver.dispose());
+  onDestroy(() => {
+    driver.dispose();
+    playback.dispose();
+  });
 
-  function onStart() {
-    session.start();
+  /**
+   * @param force the ?ttdebug=1 timer-only Start (docs/15 §S2) — runs the
+   *   countdown with no track, which is what the spike's silent cases need.
+   */
+  function onStart(force = false) {
+    session.start(force);
+    if (session.state !== 'playing') return;
+
     samples = [];
     doneInfo = null;
     logLines = [];
@@ -171,15 +183,110 @@
     lastHiddenAt = 0;
     runStartedAt = performance.now();
     nowMs = runStartedAt;
+
     driver.start(durationMs);
+
+    const track = session.track;
+    if (!force && track) {
+      // Unlock first and unawaited — this call is still inside the click's task
+      // and WebKit stops counting the gesture at the first yield (docs/05 §1).
+      void playback.unlock();
+      void playback.load(track).then(() => playback.play());
+    }
+  }
+
+  function onPause() {
+    session.pause();
+    driver.pause();
+    playback.pause();
+  }
+
+  function onResume() {
+    session.resume();
+    driver.resume();
+    void playback.play();
+  }
+
+  /** docs/02 §1's Stop edge: playing/paused → setup, run discarded. */
+  function onStop() {
+    session.stop();
+    driver.reset();
+    playback.stop();
+  }
+
+  // ── media position + bottom-bar wake (docs/03 §2 Z7) ──────────────────────
+  let wakeToken = $state(0);
+  let infoOpen = $state(false);
+  /** Peak Analyser RMS, sampled for the ?ttdebug=1 panel only. */
+  let peakRms = $state(0);
+
+  $effect(() => {
+    if (session.state !== 'playing') return;
+    // 10 Hz: `timeupdate` alone fires at ~4 Hz, which is visibly steppy on a
+    // progress bar. This reads the element rather than accumulating anything.
+    const id = setInterval(() => {
+      playback.tick();
+      if (debug) peakRms = Math.max(peakRms, playback.peakRms);
+    }, 100);
+    return () => clearInterval(id);
+  });
+
+  function onActivity() {
+    wakeToken += 1;
+  }
+
+  /**
+   * docs/02 §3 — warn before leaving with work in progress.
+   *
+   * This matters more here than in most apps: the queue is session-only by
+   * design (D3), the files live in RAM and nothing is persisted, so a reload is
+   * not "reload" — it is "throw the queue away". Object URLs are revoked on
+   * `pagehide` regardless, which is the audio driver's job.
+   */
+  function onBeforeUnload(e: BeforeUnloadEvent) {
+    const busy =
+      session.queue.length > 0 || session.state === 'playing' || session.state === 'paused';
+    if (!busy) return;
+    e.preventDefault();
+  }
+
+  /**
+   * docs/03 §7 hotkeys — the P2 subset. `F`/`H`/`]` arrive with Focus mode and
+   * the collapsible rail in P5. Inert while typing, so the countdown inputs
+   * still take a literal space.
+   */
+  function onKeydown(e: KeyboardEvent) {
+    onActivity();
+    const el = e.target as HTMLElement | null;
+    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+    if (infoOpen) return;
+
+    if (e.key === ' ' && (session.state === 'playing' || session.state === 'paused')) {
+      e.preventDefault();
+      if (session.state === 'playing') onPause();
+      else onResume();
+    } else if (e.key === 'm' || e.key === 'M') {
+      void settings.patch({ muted: !settings.current.muted }).then(() => playback.applyVolume());
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+      e.preventDefault();
+      const delta = e.key === 'ArrowUp' ? 0.05 : -0.05;
+      const volume = Math.min(1, Math.max(0, settings.current.volume + delta));
+      void settings.patch({ volume }).then(() => playback.applyVolume());
+    }
   }
 </script>
+
+<svelte:window onkeydown={onKeydown} onpointermove={onActivity} onbeforeunload={onBeforeUnload} />
 
 {#if booted && needsGate}
   <TtLegalGate onaccept={acceptLegal} />
 {/if}
 
-<main class="grid min-h-dvh place-items-center gap-10 p-8" inert={booted && needsGate}>
+<main
+  class="tt-main"
+  class:tt-player={session.state === 'playing' || session.state === 'paused'}
+  inert={booted && needsGate}
+>
   {#if debug}
     <TtDebugPanel
       {samples}
@@ -190,10 +297,54 @@
       {maxRenderGapHiddenMs}
       {hiddenMs}
       elapsedMs={runStartedAt && nowMs ? nowMs - runStartedAt : 0}
+      {peakRms}
+      liveUrls={playback.liveUrls}
     />
   {/if}
 
-  <TtCountdown remainingMs={displayMs} />
+  <!--
+    docs/03 §2 Z5 — tally light + wordmark. The dot is STATIC in P2: the
+    beat-reactive pulse needs the Analyser loop that ships with the visualizer
+    in P5 (docs/05 §6), and a fake pulse would be worse than none.
+  -->
+  <header class="tt-brand">
+    <span
+      class="tt-tally"
+      class:tt-live={session.state === 'playing'}
+      data-testid="tt-tally"
+      aria-hidden="true"
+    ></span>
+    <span class="tt-wordmark">TickTune</span>
+  </header>
+
+  <section class="tt-stage">
+    <TtCountdown remainingMs={displayMs} glowIntensity={settings.current.glowIntensity} />
+
+    {#if session.state === 'playing' || session.state === 'paused'}
+      <TtSingleRail
+        track={playback.track}
+        loops={playback.loops}
+        crossfadeAvailable={false}
+        oninfo={() => (infoOpen = true)}
+      />
+    {/if}
+  </section>
+
+  {#if session.state === 'setup'}
+    <TtSetup
+      {hours}
+      {minutes}
+      {seconds}
+      onchange={(h, m, s) => {
+        hours = h;
+        minutes = m;
+        seconds = s;
+      }}
+      onstart={() => onStart()}
+      {debug}
+      ondebugstart={() => onStart(true)}
+    />
+  {/if}
 
   <!--
     docs/03 §3.5. The screen replaces the setup controls rather than sitting
@@ -211,100 +362,80 @@
       onback={() => {
         session.backToSetup();
         driver.reset();
+        playback.stop();
       }}
     />
   {/if}
 
-  <div class="flex flex-col items-center gap-4">
-    {#if session.state !== 'finished' && (phase === 'idle' || phase === 'done')}
-      <div class="flex items-end gap-2 font-mono text-sm">
-        <label class="flex flex-col gap-1">
-          <span class="text-tt-muted text-xs">giờ</span>
-          <input
-            type="number"
-            min="0"
-            max="24"
-            bind:value={hours}
-            class="border-tt-line bg-tt-surface w-16 rounded border px-2 py-1 text-center"
-          />
-        </label>
-        <label class="flex flex-col gap-1">
-          <span class="text-tt-muted text-xs">phút</span>
-          <input
-            type="number"
-            min="0"
-            max="59"
-            bind:value={minutes}
-            class="border-tt-line bg-tt-surface w-16 rounded border px-2 py-1 text-center"
-          />
-        </label>
-        <label class="flex flex-col gap-1">
-          <span class="text-tt-muted text-xs">giây</span>
-          <input
-            type="number"
-            min="0"
-            max="59"
-            bind:value={seconds}
-            class="border-tt-line bg-tt-surface w-16 rounded border px-2 py-1 text-center"
-          />
-        </label>
-      </div>
-    {/if}
+  {#if session.state === 'playing' || session.state === 'paused'}
+    <TtBottomBar
+      track={playback.track}
+      positionMs={playback.positionMs}
+      durationMs={playback.durationMs}
+      playing={session.state === 'playing'}
+      volume={settings.current.volume}
+      muted={settings.current.muted}
+      onplaypause={() => (session.state === 'playing' ? onPause() : onResume())}
+      onstop={onStop}
+      onvolume={(v) => void settings.patch({ volume: v }).then(() => playback.applyVolume())}
+      onmute={() =>
+        void settings.patch({ muted: !settings.current.muted }).then(() => playback.applyVolume())}
+      {wakeToken}
+    />
+  {/if}
 
-    {#if session.state !== 'finished'}
-      <div class="flex gap-3">
-        {#if phase === 'running'}
-          <button
-            class="tt-btn"
-            onclick={() => {
-              session.pause();
-              driver.pause();
-            }}>Tạm dừng</button
-          >
-        {:else if phase === 'paused'}
-          <button
-            class="tt-btn"
-            onclick={() => {
-              session.resume();
-              driver.resume();
-            }}>Tiếp tục</button
-          >
-        {:else}
-          <!-- docs/04 §4: 1 s – 24 h. Disabled rather than clamped, so the user
-               sees that the value is out of range instead of it silently changing. -->
-          <button class="tt-btn" disabled={!valid} onclick={onStart}>Bắt đầu</button>
-        {/if}
-
-        {#if phase !== 'idle'}
-          <!-- docs/02 §1's Stop edge: playing/paused → setup. -->
-          <button
-            class="tt-btn"
-            onclick={() => {
-              session.stop();
-              driver.reset();
-            }}>Đặt lại</button
-          >
-        {/if}
-      </div>
-    {/if}
-  </div>
+  {#if infoOpen && playback.track}
+    <TtTrackInfo track={playback.track} onclose={() => (infoOpen = false)} />
+  {/if}
 </main>
 
 <style>
-  .tt-btn {
-    border: 1px solid var(--color-tt-line);
-    background: var(--color-tt-surface);
-    color: var(--color-tt-signal);
-    border-radius: 0.375rem;
-    padding: 0.5rem 1.25rem;
-    font-weight: 500;
-    transition: border-color var(--duration-tt-fast) var(--ease-tt);
+  .tt-main {
+    display: grid;
+    align-content: center;
+    justify-items: center;
+    gap: 1.75rem;
+    min-height: 100dvh;
+    padding: 2rem;
   }
-  .tt-btn:hover:not(:disabled) {
-    border-color: var(--color-tt-signal);
+  /* The bottom bar is fixed, so the player screen reserves room for it. */
+  .tt-player {
+    padding-bottom: 5rem;
   }
-  .tt-btn:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
+
+  .tt-brand {
+    position: absolute;
+    top: 1.1rem;
+    left: 1.25rem;
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
   }
+  .tt-tally {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--color-tt-muted);
+  }
+  .tt-live {
+    background: var(--color-tt-danger);
+    box-shadow: 0 0 8px var(--color-tt-danger);
+  }
+  .tt-wordmark {
+    font-size: 0.78rem;
+    letter-spacing: 0.16em;
+    color: var(--color-tt-muted);
+  }
+
+  /* docs/03 §2: Z3 countdown with Z4 to its right. */
+  .tt-stage {
+    display: flex;
+    gap: 2.5rem;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+  }
+
+  /* Buttons live with the components that own them — Setup has its own, and
+     transport is entirely Z7's (docs/03 §2). The shell renders none. */
 </style>

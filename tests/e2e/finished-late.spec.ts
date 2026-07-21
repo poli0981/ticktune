@@ -1,5 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
-import { acceptLegalGate } from './_helpers';
+import { acceptLegalGate, dismissUnloadDialogs, setDuration, stageSingle } from './_helpers';
 
 /**
  * docs/13 §3 "Late finish" — P2 exit criterion 3.
@@ -22,13 +22,14 @@ test.describe('finished screen', () => {
   test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
 
   async function runCountdown(page: Page, seconds: number, fastForwardMs: number) {
+    dismissUnloadDialogs(page);
     await page.clock.install();
     await page.goto('/app/');
     await acceptLegalGate(page);
 
-    await page.getByLabel('giờ').fill('0');
-    await page.getByLabel('phút').fill('0');
-    await page.getByLabel('giây').fill(String(seconds));
+    // From P2, Start needs a playable track (docs/02 §1).
+    await stageSingle(page);
+    await setDuration(page, 0, 0, seconds);
     await page.getByRole('button', { name: 'Bắt đầu' }).click();
     await page.clock.fastForward(fastForwardMs);
 
