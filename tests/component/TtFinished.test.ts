@@ -16,6 +16,21 @@ afterEach(cleanup);
 
 const ZERO_AT = new Date('2026-07-21T14:32:07+07:00').getTime();
 
+/**
+ * The component formats in the VIEWER's timezone, which is correct behaviour —
+ * so the expected string has to be derived, not hardcoded. Hardcoding "14:32"
+ * passed on a UTC+7 dev box and failed in CI, which runs UTC, and the failure
+ * was the test's fault rather than the component's.
+ *
+ * Deriving it keeps the real assertion intact: the screen shows the clock time
+ * of `zeroAtEpoch` — the instant the countdown actually reached zero — and not
+ * the current time, which is the whole point of the late variant.
+ */
+const EXPECTED_CLOCK = new Intl.DateTimeFormat('vi-VN', {
+  hour: '2-digit',
+  minute: '2-digit',
+}).format(new Date(ZERO_AT));
+
 function report(over: Partial<TtFinishReport> = {}): TtFinishReport {
   return {
     variant: 'normal',
@@ -55,8 +70,7 @@ describe('late variant', () => {
     render(TtFinished, { report: late, onrestart: vi.fn(), onback: vi.fn() });
 
     const el = screen.getByTestId('tt-finished-late');
-    // 14:32 local — the docs/03 §3.5 example, from a real epoch.
-    expect(el.textContent).toMatch(/14:32/);
+    expect(el.textContent).toContain(EXPECTED_CLOCK);
     expect(el.textContent).toMatch(/2 phút/);
     expect(el.textContent).toMatch(/57 giây/);
     expect(el.textContent).toMatch(/trước/);
@@ -70,7 +84,13 @@ describe('late variant', () => {
     // if the countdown ended just now. "trước" (ago) must be present and the
     // when-clause must carry a specific time, not a relative nothing.
     expect(text).toContain('trước');
-    expect(text).toMatch(/lúc\s*14:32/);
+    expect(text).toMatch(new RegExp(`lúc\\s*${EXPECTED_CLOCK}`));
+    // And that time must be the instant zero was reached, not the present one.
+    const nowClock = new Intl.DateTimeFormat('vi-VN', {
+      hour: '2-digit',
+      minute: '2-digit',
+    }).format(new Date());
+    if (nowClock !== EXPECTED_CLOCK) expect(text).not.toContain(nowClock);
   });
 
   it('explains why, without blaming the countdown', () => {
