@@ -85,8 +85,14 @@ before S1/S3/S4 pass.**
 
 ## Current status
 
-P1 in progress (2026-07-21). Repo bootstrapped: `.gitignore` first, doc suite
-landed at root, blocker-level doc gaps closed.
+P1 in progress (2026-07-21) — **5 of 8 scope items done**; see the P1 exit
+review in `docs/16`. Missing: legal gate shell, settings shell + Dexie, log
+engine. None of the three depends on a spike.
+
+🔴 **S2 case 3 failed** (`docs/04 §2`): a hidden, silent tab fired `done`
+2 m 57 s late — 355× the bound. A near-zero-gain keep-alive source during
+silent-but-running states is now an **engine invariant**, and it blocks P2. The
+control run proving the keep-alive actually works has not been done yet.
 
 Resolved: TypeScript pinned `~5.9` — TS 7 crashes svelte-check (`docs/11 §4`).
 DSEG7 Classic tag confirmed **v0.46** stable (`docs/11 §2`). Island mount
