@@ -18,5 +18,12 @@
 *.jpg   binary
 *.ico   binary
 
+# Vendored third-party files: stored exactly as released, no EOL normalisation.
+# The woff2 is already covered by the binary rule above, but the licence text is
+# not — and `* text=auto eol=lf` silently rewrote its CRLF endings, so the bytes
+# shipped no longer matched what upstream published.
+# See public/fonts/dseg7/PROVENANCE.md.
+public/fonts/dseg7/** -text
+
 # Generated — collapse in PR diffs.
 pnpm-lock.yaml linguist-generated=true -diff
