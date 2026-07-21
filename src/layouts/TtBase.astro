@@ -1,0 +1,91 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title?: string;
+  description?: string;
+  lang?: 'vi' | 'en';
+}
+
+const {
+  title = 'TickTune',
+  description = 'Đếm ngược toàn màn hình với nhạc của riêng bạn. Chạy hoàn toàn trên máy bạn.',
+  lang = 'vi',
+} = Astro.props;
+
+const repo = 'https://github.com/poli0981/ticktune';
+---
+
+<!doctype html>
+<html {lang}>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
+
+    {
+      /*
+      Mobile gate — docs/07 §2/§3.1. MUST stay `is:inline` and MUST run before
+      the parser reaches any module script, so the attribute is set before first
+      paint: no flash, no layout shift.
+
+      This is the ONLY inline script on the entire site, and it must be
+      byte-identical on every page — scripts/inject-csp-hash.ts asserts exactly
+      one distinct hash and fails the build otherwise (docs/10 §7). Do not
+      parameterise it, and do not add a second inline script anywhere.
+
+      Kept in sync by hand with ttIsBlocked() in src/lib/tt-gate-const.ts, which
+      is the source of truth for the criteria (TT_GATE: minWidth 1024,
+      blockCoarseOnly). Evaluated once, deliberately: resizing a desktop window
+      below 1024 px mid-session must not eject the user.
+    */
+    }
+    <script is:inline>
+      if (
+        window.innerWidth < 1024 ||
+        (matchMedia('(pointer: coarse)').matches && !matchMedia('(hover: hover)').matches)
+      ) {
+        document.documentElement.dataset.ttBlocked = '1';
+      }
+    </script>
+  </head>
+
+  <body>
+    <slot />
+
+    {
+      /*
+      Always rendered, hidden by default; CSS in global.css reveals it when
+      data-tt-blocked is present and visually hides everything else. The page's
+      real HTML deliberately STAYS in the DOM underneath — that is the SEO
+      mitigation in docs/07 §5. Never swap it out, and never UA-sniff crawlers.
+    */
+    }
+    <div class="tt-mobile-gate fixed inset-0 z-50 flex-col items-center justify-center gap-6 p-8">
+      <div class="flex items-center gap-2">
+        <span class="bg-tt-muted inline-block size-2.5 rounded-full" aria-hidden="true"></span>
+        <span class="text-tt-text text-lg font-semibold tracking-wide">TickTune</span>
+      </div>
+
+      {/* Bilingual and hardcoded — no JS i18n runs on mobile (docs/07 §4). */}
+      <p lang="vi" class="text-tt-text max-w-sm text-center text-balance">
+        Xin lỗi — TickTune không hỗ trợ thiết bị di động.<br />
+        Vui lòng mở bằng trình duyệt trên máy tính.
+      </p>
+      <p lang="en" class="text-tt-muted max-w-sm text-center text-sm text-balance">
+        Sorry — TickTune isn't available on mobile.<br />
+        Please use a desktop browser and try again.
+      </p>
+
+      <a
+        href={repo}
+        rel="noopener noreferrer"
+        class="text-tt-signal font-mono text-xs underline underline-offset-4"
+      >
+        github.com/poli0981/ticktune
+      </a>
+    </div>
+  </body>
+</html>

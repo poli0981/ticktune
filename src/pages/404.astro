@@ -1,0 +1,19 @@
+---
+// Required: wrangler.jsonc sets not_found_handling "404-page", which serves
+// dist/404.html for unknown paths. That is the whole 404 story (docs/10 §3, §8)
+// — no Cloudflare zone feature involved.
+import TtBase from '../layouts/TtBase.astro';
+---
+
+<TtBase title="404 — Không tìm thấy kênh · TickTune">
+  <main class="grid min-h-dvh place-items-center p-8">
+    <div class="flex flex-col items-center gap-4 text-center">
+      <p class="font-digit text-tt-danger text-6xl tabular-nums">404</p>
+      <p class="text-tt-text text-lg">Không tìm thấy kênh</p>
+      <p class="text-tt-muted text-sm">Channel not found</p>
+      <a href="/" class="text-tt-signal mt-2 font-mono text-xs underline underline-offset-4">
+        ← Về trang chủ
+      </a>
+    </div>
+  </main>
+</TtBase>

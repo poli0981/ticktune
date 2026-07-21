@@ -1,6 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const PORT = 4321;
+// Deliberately NOT 4321 (astro dev's default). A dev server left running on that
+// port was once silently reused here, and the suite measured dev-mode module
+// paths instead of the built bundles — which is precisely what the mobile-gate
+// assertion is about. Own port, own server, never reused.
+const PORT = 4329;
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -20,7 +24,7 @@ export default defineConfig({
     // about which bundles the browser actually requests (docs/07 §6).
     command: `pnpm astro preview --port ${PORT}`,
     port: PORT,
-    reuseExistingServer: !process.env.CI,
+    reuseExistingServer: false,
     timeout: 120_000,
   },
 

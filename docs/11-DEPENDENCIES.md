@@ -35,7 +35,7 @@ latest-or-LTS everywhere, no components with known critical CVEs.
 | typescript | **`~5.9`** (resolved 5.9.3) — TS 7 rejected, **see §4** | Types |
 | eslint | 10.7.0 | Lint (flat config) |
 | eslint-plugin-svelte | 3.22.0 | Svelte rules |
-| prettier | 3.9.5 | Format (+ svelte & tailwind plugins) |
+| prettier | 3.9.5 | Format. **Plugins must be `prettier-plugin-svelte@^4` and `prettier-plugin-tailwindcss@^0.8`** — the 3.x/0.6.x pair crashes on every `.svelte` file with `TypeError: getVisitorKeys is not a function` (the Tailwind plugin wraps the Svelte one and the older pair mis-negotiates prettier 3.9's embedded-language API). Also `prettier-plugin-astro` for `.astro`. |
 | knip | 6.27.0 | Dead/unused code gate (spec requirement) |
 | svelte-check | 4.7.3 | Template type-checking |
 | vitest | 4.1.10 | Unit/component runner |

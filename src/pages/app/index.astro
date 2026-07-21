@@ -1,0 +1,27 @@
+---
+import TtBase from '../../layouts/TtBase.astro';
+---
+
+<TtBase title="TickTune">
+  <div id="tt-app"></div>
+
+  {
+    /*
+    The docs/07 §3.2 load guard, and the whole mount mechanism (docs/01 §3).
+
+    A MODULE script, not `is:inline`: the site must keep exactly one inline
+    script — the gate in TtBase.astro — or scripts/inject-csp-hash.ts fails the
+    build (docs/10 §7). On a blocked viewport the browser fetches this ~200 B
+    chunk, evaluates the `if`, and stops. No component, framework or engine
+    bundle is ever requested.
+
+    Reads the attribute the gate already set rather than re-testing the media
+    queries, so the overlay and the loader decide once, together.
+  */
+  }
+  <script>
+    if (!document.documentElement.dataset.ttBlocked) {
+      import('../../app/mount.ts');
+    }
+  </script>
+</TtBase>
