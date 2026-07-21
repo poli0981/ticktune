@@ -63,32 +63,52 @@ to engine events through the state layer. This keeps the timer/audio/importer fu
 unit-testable in Node (Vitest) without a DOM. Enforced by the ESLint
 `no-restricted-imports` zone rule (`12 §3.1`), not by convention.
 
-### Mount note — ⚠️ open decision, resolved in P1 before the app entry is written
+### Mount decision — ✅ RESOLVED 2026-07-21: hand-mount behind the gate guard
 
-This doc and `CLAUDE.md` originally specified `<TtApp client:only="svelte" />`,
-while `07 §3.2` specifies a manual load guard
-(`if (!document.documentElement.dataset.ttBlocked) import('./app/mount')`).
-**These are mutually exclusive.** Astro's `client:only` emits its own hydration
-bootstrap and fetches the island bundle unconditionally; there is no supported
-hook to wrap that fetch in a runtime `if`. As written, the "no app-bundle
-request on a blocked viewport" assertion in `07 §6` / `13 §3` — a **P1 exit
-criterion** — cannot pass.
+**`src/pages/app/index.astro` hand-mounts `src/app/mount.ts` behind the `07 §3.2`
+guard. No Astro client directive is used for the app island.**
 
-Candidates, in preference order:
+Earlier revisions specified `<TtApp client:only="svelte" />` while `07 §3.2`
+specified a manual load guard. Those are mutually exclusive: `client:only` emits
+its own hydration bootstrap and fetches the island bundle unconditionally, so the
+"no app-bundle request on a blocked viewport" assertion in `07 §6` / `13 §3` — a
+**P1 exit criterion** — could not pass. Three candidates were built and measured
+against the **built** output (static server over `dist/`, Playwright, Pixel 7 vs
+1440×900, counting every `.js` request):
 
-1. **Custom `client:desktop` directive** registered via `addClientDirective()` in
-   an `astro:config:setup` hook, wrapping the load in the exact `07 §2`
-   predicate and keeping `src/lib/tt-gate-const.ts` the single source of truth.
-2. Hand-mount `src/app/mount.ts` behind the `07 §3.2` guard and drop
-   `client:only` from this chapter.
-3. `client:media="(min-width: 1024px)"` — **last resort.** It cannot express
-   `07 §2`'s *coarse AND NOT hover* clause, and as a live `matchMedia` listener
-   it contradicts `07 §2`'s deliberate "evaluated once at load; resizing a
-   desktop window below 1024 px does not eject the user".
+| Variant | Mobile: component chunks fetched | Mobile: mounted? | Desktop: mounted? | SSRs the component? |
+|---------|----------------------------------|------------------|-------------------|---------------------|
+| `client:only` + head guard | **2** (`TtProbe.*.js`, `client.svelte.*.js`) | **yes** ❌ | yes | no |
+| custom `client:desktop` directive | 0 | no | yes | **yes** ⚠️ |
+| **hand-mount (chosen)** | **0** (1 ≈200 B guard chunk) | no | yes | no |
 
-The winner is measured (build, serve `dist/`, load `/app/` in a mobile Playwright
-project with a network log) and written back into this section, `04 §4`-style —
-one normative answer, referenced from `07 §3`, `13 §3` and `CLAUDE.md`.
+`client:only` is eliminated on the measurement: it fetched the island and
+hydrated it on a blocked viewport.
+
+The custom directive passed the bundle test — `addClientDirective` hands the
+directive a `load()` thunk, and never calling it means never importing the
+component. It was still rejected: Astro **server-renders** the component and only
+defers hydration (confirmed — the component's markup was present in the built
+HTML, unlike the other two). That would put `TtApp` through SSR, so every module
+touching `AudioContext`, Dexie or `Worker` would need a server guard forever, and
+the app shell would be baked into `/app/`'s HTML only to be thrown away. The
+original `client:only` intent was *no SSR*; hand-mounting preserves it exactly.
+
+`client:media="(min-width: 1024px)"` was not built. It cannot express `07 §2`'s
+*coarse AND NOT hover* clause, and as a live `matchMedia` listener it contradicts
+`07 §2`'s deliberate "evaluated once at load".
+
+Consequences to hold onto:
+
+- `src/app/mount.ts` is the island entry and calls Svelte's `mount()` directly.
+  `TtApp.svelte` is never referenced from an `.astro` template.
+- The one remaining mobile request is the page's own guard chunk. It is
+  deliberately a module script, **not** a second `is:inline` script: the CSP
+  hash injector asserts exactly one distinct inline script site-wide
+  (`10 §7`), and that one is the gate in `TtBase.astro`.
+- `src/lib/tt-gate-const.ts` stays the single source of the predicate; the guard
+  reads the `data-tt-blocked` attribute the gate already set rather than
+  re-evaluating media queries, so the overlay and the loader cannot disagree.
 
 ## 4. Directory tree (target)
 

@@ -45,13 +45,20 @@ if (blocked) document.documentElement.dataset.ttBlocked = '1';
    Fonts: DSEG7 + JetBrains Mono are loaded from the app bundle path only.
    Be Vietnam Pro subset for the gate/landing stays (few KB, needed for VI text).
 
-   > ⚠️ **This guard is incompatible with a plain `client:only` island.** Astro's
-   > `client:only` emits its own hydration bootstrap and fetches the bundle
-   > unconditionally, so the `§6` "no app-bundle request" assertion cannot pass
-   > at `/app/` as written. The mount mechanism is chosen and measured in P1 —
-   > see the **mount note in `01 §3`**, which is the normative home for that
-   > decision. Whatever wins there, `TT_GATE` in `src/lib/tt-gate-const.ts`
-   > stays the single source of the predicate.
+   > ✅ **This guard is the chosen mechanism** (measured 2026-07-21, `01 §3`).
+   > A plain `client:only` island was tried and rejected: it fetched the island
+   > and hydrated it on a blocked viewport. `src/pages/app/index.astro`
+   > therefore hand-mounts `src/app/mount.ts` through exactly the guard above —
+   > no Astro client directive is involved.
+   >
+   > The guard is a **module** script, not a second `is:inline` one, so the
+   > site keeps exactly one inline script (the gate in `TtBase.astro`) and the
+   > CSP hash assertion in `10 §7` holds. On a blocked viewport the browser
+   > therefore fetches one ≈200 B chunk that evaluates the `if` and stops —
+   > zero component or framework bundles.
+   >
+   > It reads `data-tt-blocked` rather than re-evaluating the media queries, so
+   > the overlay and the loader decide once, together.
 
 ## 4. Gate copy (bilingual, hardcoded in the static overlay — no JS i18n on mobile)
 

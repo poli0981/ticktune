@@ -16,6 +16,10 @@ export default defineConfig({
   // criterion and Astro cannot emit absolute ones without it (docs/08 §1).
   site: 'https://ticktune.net',
 
+  // The app island is NOT mounted with an Astro client directive — see the
+  // measured mount decision in docs/01 §3. src/pages/app/index.astro hand-mounts
+  // src/app/mount.ts behind the docs/07 §3.2 guard, which is the only variant
+  // that both skips SSR and fetches nothing on a blocked viewport.
   integrations: [svelte()],
 
   vite: {

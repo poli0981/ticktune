@@ -11,10 +11,11 @@ countdown. Astro 7 static pages + one Svelte 5 island at `/app/`, deployed to
 Cloudflare Workers Static Assets with exactly one API route
 (`GET /api/yt/oembed`). Vietnamese default UI, English mirror.
 
-⚠️ The island's **mount mechanism is an open P1 decision** — a plain
-`client:only` cannot satisfy the mobile gate's "no bundle on blocked viewports"
-requirement (`docs/07 §6`). Normative home: the mount note in `docs/01 §3`.
-Do not write an app entry before it is settled.
+The island is **hand-mounted**, not mounted with an Astro client directive:
+`src/pages/app/index.astro` imports `src/app/mount.ts` behind the `docs/07 §3.2`
+gate guard. `client:only` was measured and rejected — it fetches and hydrates the
+island even on a blocked viewport. Do not "simplify" this back to a directive;
+the reasoning and the numbers are in `docs/01 §3`.
 
 ## Hard invariants — never violate, never "optimize away"
 
@@ -88,11 +89,12 @@ P1 in progress (2026-07-21). Repo bootstrapped: `.gitignore` first, doc suite
 landed at root, blocker-level doc gaps closed.
 
 Resolved: TypeScript pinned `~5.9` — TS 7 crashes svelte-check (`docs/11 §4`).
-DSEG7 Classic tag confirmed **v0.46** stable (`docs/11 §2`).
+DSEG7 Classic tag confirmed **v0.46** stable (`docs/11 §2`). Island mount
+mechanism measured — hand-mount wins (`docs/01 §3`).
 
-Open items: domain purchase (`ticktune.net`); island mount mechanism
-(`docs/01 §3` mount note); confirm reusable workflow filenames against
-`poli0981/.github`; S2 silent-hidden-tab number (`docs/04 §2`).
+Open items: domain purchase (`ticktune.net`); confirm reusable workflow
+filenames against `poli0981/.github`; S2 silent-hidden-tab number
+(`docs/04 §2`).
 
 `test/` is a **local-only, git-ignored** ~651 MB audio corpus for spikes S3/S4.
 Never commit it, never reference it from shipped code, never assume it exists in

@@ -41,7 +41,7 @@ issues).
 | Playlist limits | 11-min file rejected with toast; duplicate skipped; totals footer math |
 | Hotkeys | Space/M/F/H/] behave; disabled while typing |
 | i18n | toggle EN↔VI swaps visible strings without reload |
-| Mobile gate (`07 §6`) | mobile project: overlay visible, **no app-bundle request** in network log; desktop project: island mounts |
+| Mobile gate (`07 §6`) | mobile project: overlay visible, **zero component/framework chunks** in the network log (the ≈200 B guard chunk is expected and is not the app bundle — `01 §3`); desktop project: island mounts |
 | Offline | context.setOffline → banner; YT mode blocked panel |
 | 404 | unknown path serves styled 404 |
 
