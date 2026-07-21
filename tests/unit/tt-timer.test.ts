@@ -25,6 +25,8 @@ function harness(startWall = 1_000_000, startMono = 0) {
     timer,
     logs,
     done,
+    /** The wall clock a caller would read, for the §2 reconstruction check. */
+    wallNow: () => wall,
     /** Real time passing: both clocks advance together. */
     advance(ms: number) {
       wall += ms;
@@ -264,6 +266,49 @@ describe('clock jump vs throttling gap (docs/04 §1) — the disambiguation', ()
     h.timer.start(600_000);
     h.timer.tick();
     expect(h.logs).toHaveLength(0);
+  });
+});
+
+describe('overshoot reconstruction (docs/04 §2)', () => {
+  /**
+   * The Finished screen does not receive the instant zero was reached — it
+   * subtracts `overshootMs` from the wall clock read at the top of the done
+   * handler (tt-late.ts). That is only exact if `overshootMs` is measured
+   * against the deadline with the same clock, so pin the property here: if
+   * anyone later makes `done` asynchronous, or measures the overshoot from
+   * somewhere else, this fails rather than the screen quietly reporting a wrong
+   * finish time in the one case it exists for.
+   */
+  it('now − overshootMs equals the original deadline, on a throttled finish', () => {
+    const h = harness();
+    const deadline = h.wallNow() + 60_000;
+    h.timer.start(60_000);
+    expect(h.timer.state.endAtEpoch).toBe(deadline);
+
+    // Hidden and throttled straight past zero — the S2 shape.
+    h.throttleGap(60_000 + 177_509);
+    h.timer.tick(true);
+
+    const { overshootMs } = h.done.mock.calls[0]![0] as { overshootMs: number };
+    expect(overshootMs).toBe(177_509);
+    // Read as the handler would, synchronously after the fire.
+    expect(h.wallNow() - overshootMs).toBe(deadline);
+  });
+
+  it('holds on the ordinary visible path too', () => {
+    const h = harness();
+    const deadline = h.wallNow() + 5_000;
+    h.timer.start(5_000);
+    h.advance(5_000 + 202); // one worker interval late
+    h.timer.tick(false);
+
+    const { late, overshootMs } = h.done.mock.calls[0]![0] as {
+      late: boolean;
+      overshootMs: number;
+    };
+    expect(late).toBe(false);
+    expect(overshootMs).toBe(202);
+    expect(h.wallNow() - overshootMs).toBe(deadline);
   });
 });
 

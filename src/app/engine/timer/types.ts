@@ -58,10 +58,38 @@ export interface TtTimerHooks {
    * docs/15 §S2 bounds at ±500 ms for a hidden tab with audio, and asks us to
    * simply measure for the silent and YouTube cases.
    */
-  onDone?: (info: { late: boolean; overshootMs: number }) => void;
+  onDone?: (info: TtFinishInfo) => void;
   onLog?: (code: TtTimerLogCode, detail: Readonly<Record<string, number>>) => void;
   /** Attached only by the S2 harness. See TtTickSample. */
   onSample?: (sample: TtTickSample) => void;
+}
+
+/**
+ * What `done` carries. `overshootMs` is how far past the deadline it actually
+ * fired; `late` says the visibility/focus latch got there before the worker.
+ * They are different questions — see tt-late.ts.
+ */
+export interface TtFinishInfo {
+  late: boolean;
+  overshootMs: number;
+}
+
+/** Whole units of a duration — docs/03 §3.5's "2 phút 57 giây trước". */
+export interface TtSplitDuration {
+  h: number;
+  m: number;
+  s: number;
+}
+
+/** What the Finished screen renders from — docs/04 §2, see tt-late.ts. */
+export interface TtFinishReport {
+  /** `late` ⇒ state when zero was reached; `normal` ⇒ the unchanged screen. */
+  variant: 'normal' | 'late';
+  overshootMs: number;
+  /** Wall clock at which the countdown actually reached zero. Derived. */
+  zeroAtEpoch: number;
+  /** Diagnostics only: the latch fired this, not the worker. Never the trigger. */
+  firedByLatch: boolean;
 }
 
 /** docs/04 §4 — the single source of truth for display formats. */
