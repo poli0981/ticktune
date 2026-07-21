@@ -2,18 +2,21 @@
   import { onDestroy, onMount } from 'svelte';
   import TtCountdown from './components/TtCountdown.svelte';
   import TtDebugPanel from './components/TtDebugPanel.svelte';
+  import TtFinished from './components/TtFinished.svelte';
   import TtLegalGate from './components/TtLegalGate.svelte';
   import { TtTimerDriver } from './engine/timer/tt-timer-driver';
   import { TT_MAX_COUNTDOWN_MS, TT_MIN_COUNTDOWN_MS } from './engine/timer/tt-format';
   import type { TtTickSample } from './engine/timer/types';
   import { installGlobalCapture, ttLog } from './engine/log/tt-log';
+  import { session } from './state/session.svelte';
   import { settings } from './state/settings.svelte';
   import { TT_LEGAL_VERSION } from '../lib/tt-legal-const';
 
   /**
-   * P1 shell. The legal gate, setup, queue and player land in later phases
-   * (docs/16); this is the countdown plus the minimum needed to drive it — and
-   * it doubles as the spike S2 harness under ?ttdebug=1 (docs/15 §S2).
+   * The app shell. Setup, the queue and the player screens land in P2's later
+   * slices (docs/16); today this is the countdown, the legal gate and the
+   * Finished screen — and it doubles as the spike S2 harness under ?ttdebug=1
+   * (docs/15 §S2).
    */
 
   /**
@@ -22,29 +25,31 @@
    * here (settings.load() never throws).
    */
   let booted = $state(false);
-  let needsGate = $state(false);
+  const needsGate = $derived(session.state === 'gate');
 
   onMount(() => {
     const uninstall = installGlobalCapture(window);
     void settings.load(navigator.language).then((s) => {
-      needsGate = s.legalAccepted?.version !== TT_LEGAL_VERSION;
+      const gate = s.legalAccepted?.version !== TT_LEGAL_VERSION;
+      session.booted(gate);
       booted = true;
       // Boot is async (settings load), so "is the gate showing?" is unanswerable
       // until it completes. Publish the transition so tests — and anything else
       // that needs to know the app settled — can wait on it instead of racing.
-      document.documentElement.dataset['ttBooted'] = needsGate ? 'gate' : 'ready';
+      document.documentElement.dataset['ttBooted'] = gate ? 'gate' : 'ready';
     });
     return uninstall;
   });
 
   /**
    * docs/02 §1 / docs/05 §1: this click is the autoplay-unlock gesture.
-   * P2 adds `audioEngine.unlock()` here — the seam, not the implementation.
+   * P2's audio slice adds `audioEngine.unlock()` here — and it must run
+   * SYNCHRONOUSLY, before the await below, or WebKit does not count it.
    */
   async function acceptLegal(version: string) {
+    session.gateAccepted();
     await settings.patch({ legalAccepted: { version, acceptedAt: Date.now() } });
     ttLog.info('TT-USR-100', `legal accepted v${version}`);
-    needsGate = false;
   }
 
   let hours = $state(0);
@@ -53,10 +58,14 @@
 
   let remainingMs = $state(90_000);
   let phase = $state<'idle' | 'running' | 'paused' | 'done'>('idle');
-  let notice = $state('');
 
   const durationMs = $derived((hours * 3600 + minutes * 60 + seconds) * 1000);
   const valid = $derived(durationMs >= TT_MIN_COUNTDOWN_MS && durationMs <= TT_MAX_COUNTDOWN_MS);
+  // The session store owns the state machine (docs/02 §1); the inputs feed it so
+  // `canStart` and the Finished screen agree with what is on screen.
+  $effect(() => {
+    session.countdownMs = durationMs;
+  });
 
   /**
    * While idle the digits preview whatever the inputs currently say, so the
@@ -122,10 +131,14 @@
       }
     },
     onDone: (info) => {
+      // FIRST, before anything else in this handler: the Finished screen
+      // reconstructs the instant zero was reached from the wall clock read here
+      // minus the overshoot (docs/04 §2), and the case it exists for is exactly
+      // the one where this thread has been stalled.
+      session.finished(info);
       phase = 'done';
       remainingMs = 0;
       doneInfo = info;
-      notice = info.late ? "Time's up (recovered after suspend)" : "Time's up";
     },
     onLog: (code, detail) => {
       // Until the log engine lands (docs/02 §7), surface coded events where a
@@ -140,7 +153,7 @@
   onDestroy(() => driver.dispose());
 
   function onStart() {
-    notice = '';
+    session.start();
     samples = [];
     doneInfo = null;
     logLines = [];
@@ -176,8 +189,28 @@
 
   <TtCountdown remainingMs={displayMs} />
 
+  <!--
+    docs/03 §3.5. The screen replaces the setup controls rather than sitting
+    beside them: "Chạy lại" and "Về thiết lập" are the only two moves from here
+    (docs/02 §1), and leaving Bắt đầu visible would offer a third that means the
+    same as one of them.
+  -->
+  {#if session.state === 'finished' && session.finish}
+    <TtFinished
+      report={session.finish}
+      onrestart={() => {
+        session.restart();
+        onStart();
+      }}
+      onback={() => {
+        session.backToSetup();
+        driver.reset();
+      }}
+    />
+  {/if}
+
   <div class="flex flex-col items-center gap-4">
-    {#if phase === 'idle' || phase === 'done'}
+    {#if session.state !== 'finished' && (phase === 'idle' || phase === 'done')}
       <div class="flex items-end gap-2 font-mono text-sm">
         <label class="flex flex-col gap-1">
           <span class="text-tt-muted text-xs">giờ</span>
@@ -212,29 +245,42 @@
       </div>
     {/if}
 
-    <div class="flex gap-3">
-      {#if phase === 'running'}
-        <button class="tt-btn" onclick={() => driver.pause()}>Tạm dừng</button>
-      {:else if phase === 'paused'}
-        <button class="tt-btn" onclick={() => driver.resume()}>Tiếp tục</button>
-      {:else}
-        <!-- docs/04 §4: 1 s – 24 h. Disabled rather than clamped, so the user
-             sees that the value is out of range instead of it silently changing. -->
-        <button class="tt-btn" disabled={!valid} onclick={onStart}>Bắt đầu</button>
-      {/if}
+    {#if session.state !== 'finished'}
+      <div class="flex gap-3">
+        {#if phase === 'running'}
+          <button
+            class="tt-btn"
+            onclick={() => {
+              session.pause();
+              driver.pause();
+            }}>Tạm dừng</button
+          >
+        {:else if phase === 'paused'}
+          <button
+            class="tt-btn"
+            onclick={() => {
+              session.resume();
+              driver.resume();
+            }}>Tiếp tục</button
+          >
+        {:else}
+          <!-- docs/04 §4: 1 s – 24 h. Disabled rather than clamped, so the user
+               sees that the value is out of range instead of it silently changing. -->
+          <button class="tt-btn" disabled={!valid} onclick={onStart}>Bắt đầu</button>
+        {/if}
 
-      {#if phase !== 'idle'}
-        <button
-          class="tt-btn"
-          onclick={() => {
-            notice = '';
-            driver.reset();
-          }}>Đặt lại</button
-        >
-      {/if}
-    </div>
-
-    <p class="text-tt-muted h-5 font-mono text-xs" data-testid="tt-notice">{notice}</p>
+        {#if phase !== 'idle'}
+          <!-- docs/02 §1's Stop edge: playing/paused → setup. -->
+          <button
+            class="tt-btn"
+            onclick={() => {
+              session.stop();
+              driver.reset();
+            }}>Đặt lại</button
+          >
+        {/if}
+      </div>
+    {/if}
   </div>
 </main>
 

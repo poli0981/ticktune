@@ -73,15 +73,37 @@ test.describe('countdown', () => {
     expect(Number(await digits(page).textContent())).toBeLessThan(Number(frozen));
   });
 
-  test('reaches zero and finishes exactly once', async ({ page }) => {
+  test('reaches zero and shows the Finished screen exactly once', async ({ page }) => {
     await gotoApp(page);
     await setDuration(page, 0, 0, 2);
     await page.getByRole('button', { name: 'Bắt đầu' }).click();
 
-    await expect(page.getByTestId('tt-notice')).toHaveText(/Time's up/, { timeout: 8_000 });
+    // The P1 `tt-notice` paragraph was replaced by the real screen (docs/03
+    // §3.5). A short, visible run is never late, so this is the normal variant.
+    const finished = page.getByTestId('tt-finished');
+    await expect(finished).toBeVisible({ timeout: 8_000 });
+    await expect(finished).toHaveAttribute('data-variant', 'normal');
+    await expect(page.getByTestId('tt-finished-late')).toBeHidden();
     await expect(digits(page)).toHaveText('00.000');
-    // Back to the start controls — the run is over, not merely paused.
+
+    // Exactly one screen, and the setup controls are gone until the user
+    // chooses one of the two edges out of `finished` (docs/02 §1).
+    await expect(finished).toHaveCount(1);
+    await expect(page.getByRole('button', { name: 'Bắt đầu' })).toBeHidden();
+
+    await page.getByTestId('tt-finished-back').click();
     await expect(page.getByRole('button', { name: 'Bắt đầu' })).toBeVisible();
+  });
+
+  test('Stop from a running countdown returns to setup (docs/02 §1)', async ({ page }) => {
+    await gotoApp(page);
+    await setDuration(page, 0, 1, 0);
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await expect(page.getByRole('button', { name: 'Tạm dừng' })).toBeVisible();
+
+    await page.getByRole('button', { name: 'Đặt lại' }).click();
+    await expect(page.getByRole('button', { name: 'Bắt đầu' })).toBeVisible();
+    await expect(page.getByTestId('tt-finished')).toBeHidden();
   });
 
   test('Start is disabled below the 1 s minimum (docs/04 §4)', async ({ page }) => {
