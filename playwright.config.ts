@@ -30,7 +30,24 @@ export default defineConfig({
 
   projects: [
     { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'firefox', use: { ...devices['Desktop Firefox'] } },
+
+    // Firefox blocks autoplay in its automation profile, and unlike Chromium
+    // there is no default flag switching it off — so without this pref the
+    // AudioContext stays `suspended` even though the gate-Accept click IS a
+    // real user gesture, and every audio assertion fails for an environment
+    // reason rather than a product one. Measured on CI 2026-07-21 (docs/13 §3).
+    //
+    // ⚠️ This makes Firefox as permissive as Chromium already is by default, so
+    // NEITHER desktop project can catch a genuine "playback started without a
+    // gesture" regression. That property is unit-tested against a rejecting
+    // fake (docs/05 §8) and verified by hand on the live site.
+    {
+      name: 'firefox',
+      use: {
+        ...devices['Desktop Firefox'],
+        launchOptions: { firefoxUserPrefs: { 'media.autoplay.default': 0 } },
+      },
+    },
 
     // docs/07 §6 / docs/13 §3: on a blocked viewport the overlay must show AND
     // the app bundle must never be requested. Both a small viewport and a

@@ -35,6 +35,19 @@ Run at `https://ticktune.net/app/` on a **desktop** browser, fresh profile.
       finishing at all.
 - [ ] The fade and chime happened too — you may hear the chime on return.
 
+## Firefox — the one gap CI cannot close
+
+CI proves Firefox works only with autoplay blocking **switched off** in the test
+profile (`13 §3`). Whether a real Firefox unlocks the `AudioContext` on the
+gate-Accept click has never been observed anywhere.
+
+- [ ] **In a real Firefox, fresh profile:** accept the gate, import a track,
+      press Start. Sound comes out.
+- [ ] If it does **not**: the bottom bar's play button is the designed recovery
+      (it re-tries the unlock). Check whether pressing it starts playback, and
+      whether the console carries `TT-PLY-100`. That distinguishes "the gesture
+      did not count" from something worse.
+
 ## Worth checking while you are there
 
 - [ ] `?ttdebug=1` still shows the S2 panel, and **"Chỉ đồng hồ (S2)"** starts a
