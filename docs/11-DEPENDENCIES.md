@@ -19,11 +19,10 @@ latest-or-LTS everywhere, no components with known critical CVEs.
 | svelte | 5.56.7 | MIT | App island, runes |
 | @astrojs/svelte | 9.0.1 | MIT | Integration |
 | tailwindcss / @tailwindcss/vite | 4.3.3 | MIT | Styling, `@theme` tokens |
-| motion | 12.42.2 | MIT | Imperative FX (chosen over GSAP for license — D7) |
-| music-metadata | 11.14.0 | MIT | `parseBlob` tag/cover extraction |
+| motion | 12.42.2 | MIT | Imperative FX (chosen over GSAP for license — D7). **Not installed as of P2** — P2's motion (4 s bottom-bar auto-hide, toasts, `endFlash`) is CSS transitions only; Motion lands with the P5 visuals that need imperative control |
+| music-metadata | 11.14.0 | MIT | `parseBlob` tag/cover extraction. **Production dependency**, dynamically imported at first import action so it stays off the boot chunk (`13 §5` budget) |
 | dexie | 4.4.4 | Apache-2.0 | Settings persistence (Apache-2.0 → GPL-3.0 compatible, one-way) |
-| i18next | 26.3.6 | MIT | App runtime i18n |
-| nanoid | 6.0.0 | MIT | Track ids |
+| i18next | 26.3.6 | MIT | App runtime i18n. **Not installed until P5** — `04 §2` item 5 authorises hardcoded VI + filed keys for P2 (`08 §3.1`) |
 | @fontsource/be-vietnam-pro | 5.3.0 | OFL-1.1 (pkg MIT) | UI font, VI diacritics |
 | @fontsource/jetbrains-mono | 5.3.0 | OFL-1.1 (pkg MIT) | Mono/meta font |
 | DSEG7 Classic (vendored) | **v0.46** ✅ *verified 2026-07-21 via GitHub Releases API — latest **stable** release, published 2020-03-15. A `v0.50beta1` tag exists but is not a release; do not vendor a beta into a distributed font.* | OFL-1.1 | Seven-segment digits; `public/fonts/dseg7/` + OFL.txt |
@@ -39,7 +38,7 @@ latest-or-LTS everywhere, no components with known critical CVEs.
 | knip | 6.27.0 | Dead/unused code gate (spec requirement) |
 | svelte-check | 4.7.3 | Template type-checking |
 | vitest | 4.1.10 | Unit/component runner |
-| @testing-library/svelte | 5.4.2 | Component tests |
+| @testing-library/svelte | 5.4.2 | Component tests. ⚠️ Requires `resolve.conditions: ['browser']` in `vitest.config.ts` — without it `import { mount } from 'svelte'` resolves to Svelte 5's **server** build and every component test dies with `mount(...) is not available on the server`. Measured 2026-07-21 against the P1 config, before the tier had any tests in it |
 | happy-dom | 20.11.0 | Test DOM |
 | @playwright/test | 1.61.1 | E2E |
 | @vitest/coverage-v8 | 4.1.10 | Coverage provider — the docs/13 §1 threshold is enforced, so it must exist |
@@ -79,8 +78,18 @@ widens its peer range — both must land, since either alone still breaks
   `javascript-typescript` + Dependabot weekly grouped PRs (`14 §2`).
 - **Policy:** patch/minor updates auto-PR'd; majors get a short written check in
   the PR (breaking changes + license re-check). Security releases jump the queue.
-- Licenses of any new dependency are checked for GPL-3.0 compatibility before
-  merge and appended to `legal/THIRD-PARTY-NOTICES.md`.
+- Licenses of any new dependency are checked for GPL-3.0 compatibility **and for
+  attribution/notice obligations** before merge, and appended to
+  `legal/THIRD-PARTY-NOTICES.md`.
+
+  **Scope: distributed code.** The notice obligation attaches to what ships in
+  the built output. Dev-only tooling that is never bundled — the test runners,
+  linters, formatters, `ffmpeg-static`, Testing Library — carries none, and
+  `legal/THIRD-PARTY-NOTICES.md` already says so in one paragraph rather than
+  one row each. The **compatibility** check still applies to everything, because
+  a tool with a viral license can still constrain how the repo is licensed. State
+  which of the two applies when adding a dependency; "dev-only, no notice row" is
+  a claim a reviewer should be able to check, not a shrug.
 
 ## 6. Deliberately absent
 

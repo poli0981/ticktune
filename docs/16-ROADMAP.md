@@ -8,7 +8,7 @@ Durations are effort estimates, not calendar promises. **v1.0 target: late Q3
 |-------|-------|---------------|
 | **P0 · Spikes** (~1 wk) | S1–S4 (`15-SPIKES.md`) | All four ✅; docs 04/05/06 updated |
 | **P1 · Skeleton** (~1 wk) | Scaffold (Astro 7 + Svelte 5 + TW 4 + wrangler), TS7-vs-5.9 check (`11 §4`), mobile gate, legal gate shell, timer engine + countdown display, settings shell + Dexie, log engine, CI stubs live | Countdown runs full formats; gate blocks on mobile viewport; CI green |
-| **P2 · Local audio + Single** (~1 wk) | Audio graph, import pipeline (single), metadata modal, bottom bar, loop styles, end behavior default, **+ the S2 late-finish variant of the Finished screen (`04 §2` option 3, decided)** | Single mode E2E passes; fade+chime works with tab hidden; a hidden run past `LATE_THRESHOLD_MS` shows the actual finish time rather than implying "now" |
+| **P2 · Local audio + Single** (~1 wk) | Audio graph, import pipeline (single), metadata modal, bottom bar, loop styles, end behavior default, **+ the S2 late-finish variant of the Finished screen (`04 §2` option 3, decided)** — scope notes below | Single mode E2E passes; fade+chime works with tab hidden; a hidden run past `LATE_THRESHOLD_MS` shows the actual finish time rather than implying "now" |
 | **P3 · Playlist** (~1 wk) | Queue panel, drag-reorder, shuffle/repeat, dedupe + limits + summary toasts, context menu, crossfade | Playlist limits tests pass; 95-file batch import OK |
 | **P4 · YouTube** (~1 wk) | `/api/yt/oembed` Worker route, player rail, error overlays, YT import pipeline, offline panel | Manual yt-matrix passes; rate-limit path handled |
 | **P5 · Visuals & settings** (~1 wk) | Visualizer (3 styles), backgrounds + slideshow, auto-theme, focus mode, full settings, i18n dictionaries complete + key-diff guard | Reduced-motion + a11y milestones announced; perf budget met |
@@ -84,6 +84,28 @@ S3 passed. S1 and S4 are partial and gate P4 and P2 respectively.
 3. ~~Decide the S2 question~~ — decided 2026-07-21, option 3 (`04 §2`).
 4. **P2 is unblocked.** It opens with the audio graph and carries the late-finish
    Finished screen with it.
+
+## P2 scope notes — set 2026-07-21, before the phase started
+
+Recorded here because P1's exit review found that a phase whose criteria can be
+met while deliverables go missing has under-specified criteria. These are
+**deferrals, not omissions**, and each is stated in the chapter that owns it.
+
+| Item | Position |
+|------|----------|
+| **Crossfade loop style** | Not shipped. `15 §S4b` is still open and the toggle renders disabled; a stored `'crossfade'` falls back to `hard` with a notice (`05 §2`) |
+| Mode tabs | All three render; Playlist/YouTube disabled, effective mode forced to `single`, `lastMode` untouched (`03 §3`) |
+| `endAction` restart/loop | Engine-complete and unit-tested, but with **no UI** until the P5 settings panel. A clamped-valid stored value must still behave (`02 §3.3`) |
+| Z5 tally | Static two-state dot; the beat pulse ships with the visualizer in P5 (`03 §1`, `05 §6`) |
+| Import progress indicator | Deferred to P3, where a 95-file batch makes it meaningful; Single mode imports one file at a median 11 ms (`02 §4`) |
+| i18n | Hardcoded VI; keys filed in `08 §3.1` for P5 (`04 §2` item 5) |
+| Motion | Not installed — P2's motion is CSS transitions only (`11 §2`) |
+| Pulled in from later phases | Import toasts, `TtContextMenu`, Z7 volume/mute, the `beforeunload` guard, countdown `aria-live` milestones — each unblocks a P2 exit criterion or a P2-scope deliverable, per the standing rule below |
+
+Also **filed against P6**: `04 §2` item 6 — the landing FAQ must state the
+visible-vs-hidden countdown distinction plainly, rather than leaving it in the
+EULA. It is the one item of the six the S2 decision demanded that lives outside
+the app, and it belongs with the P6 landing copy.
 
 ## Post-1.0 backlog (unordered)
 

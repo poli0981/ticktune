@@ -149,6 +149,27 @@ track('tone-5s.wav', 'allow-list container');
 tone(join(COMMITTED, 'rejected.aiff'), 2, 440, ['-codec:a', 'pcm_s16be']);
 track('rejected.aiff', 'TT-IMP-001: outside the docs/02 §4 allow-list');
 
+// A file that PASSES every import check and then fails at DECODE — the only way
+// to reach docs/02 §6's TT-PLY-101 path from a test. Header intact (so the
+// extension probe, `parseBlob` and the duration read all behave exactly as they
+// would on a healthy file), frame data replaced with a deterministic byte ramp.
+//
+// The shape matters and was measured 2026-07-21 in Chromium, because the obvious
+// corruptions do NOT fail: a *truncated* mp3 still fires `loadedmetadata` with
+// the original 5 s duration, and clobbering the first 512 bytes leaves it
+// playable too. Only garbled frame data produces
+// `MEDIA_ERR_SRC_NOT_SUPPORTED` (code 4). A fixture that quietly played would
+// make every TT-PLY-101 assertion vacuous, which is the failure mode this
+// comment exists to prevent.
+{
+  const source = join(GENERATED, 'corrupt-source.mp3');
+  tone(source, 5, 440, ['-codec:a', 'libmp3lame', '-b:a', '96k']);
+  const bytes = readFileSync(source);
+  for (let i = 512; i < bytes.length; i++) bytes[i] = (i * 37) % 256;
+  writeFileSync(join(COMMITTED, 'corrupt.mp3'), bytes);
+  track('corrupt.mp3', 'TT-PLY-101: imports cleanly, fails at decode');
+}
+
 // ── spike S3: the Vietnamese tag matrix ─────────────────────────────────────
 // Vorbis and MP4 carry UTF-8 by specification, so ffmpeg's own metadata is the
 // honest representation for those two.

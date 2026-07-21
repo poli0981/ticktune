@@ -19,7 +19,8 @@ risk-retiring purpose while letting the measured code survive:
 | S1 | **P4** (YouTube) | throwaway `spike/s1-yt` |
 | S2 | **P2** (audio) — but runs *on* the P1 timer engine | the shipping countdown page under `?ttdebug=1` |
 | S3 | **P2** (audio/import) | throwaway `spike/s3-metadata` |
-| S4 | **P2** (audio) | throwaway `spike/s4-crossfade` |
+| **S4a** | **P2** (audio graph + unlock) — ✅ passed | throwaway `spike/s4-crossfade` |
+| **S4b** | **the crossfade loop style only** (P2 §Z4 toggle, P3 inter-track) | same harness, after the upgrade in §S4 |
 
 P1 (scaffold, mobile gate, timer engine, countdown display, settings/Dexie, log)
 touches no area a spike covers except the timer, which S2 measures directly. No
@@ -72,6 +73,13 @@ audio-engine, importer, or YouTube code is written before S1/S3/S4 pass.
   | **tick gap** (visible / hidden) | Worst gap between *authoritative* worker ticks, ~200 ms nominal. Bounds how late `done` can fire | hidden: **≤ ±500 ms** with audio |
   | **max \|skew\|** | Largest `dWall − dMono`. Non-zero means the wall clock moved (`04 §1`) | ~0 unless the clock is changed |
   | **overshoot at done** | How far past the deadline the finish actually fired | the real acceptance figure |
+
+  ⚠️ **From P2, Start requires a track** (`02 §1` `isReady`), which would kill
+  this apparatus — cases 4–7 are still unrun. So a **timer-only Start** stays
+  available under `?ttdebug=1`, bypassing the queue predicate. Case 3 is
+  audio-free by definition, so this is not a shortcut around the measurement; it
+  is what keeps the measurement possible. Unreachable without the flag, exactly
+  like the panel itself, and it collects nothing.
 
   The **keep-alive audio** checkbox is the apparatus for case 3: an inaudible
   ~0-gain oscillator that makes the tab count as playing audio. Running case 3
@@ -169,6 +177,32 @@ exactly why they were never going to be automated.
 
 ## S4 — Crossfade + AudioContext unlock (→ `05 §1–2`)
 
+### ⚠️ Split into S4a / S4b — 2026-07-21
+
+S4 was one spike gating all of `05 §1–2`, and it stalled half-measured: the
+crossfade was judged clean by ear, but overlap timing and the 0/1/2/5 s sweep
+were never recorded. Taken literally that blocks the entire P2 audio graph on a
+number that only the *crossfade* depends on, which is why `16` and this chapter
+appeared to contradict each other. Split along what each half actually gates:
+
+| Half | Covers | State | Gates |
+|------|--------|-------|-------|
+| **S4a** | the `05 §1` graph, `createMediaElementSource` reuse, gesture `resume()`, equal-power curve shape, no audible click | ✅ **passed** — measured 2026-07-21, clean by ear on headphones and speakers | P2's audio graph, Single mode, End Behavior |
+| **S4b** | `timeupdate` trigger accuracy (±150 ms), the 0/1/2/5 s sweep, `element.duration` revision on real VBR MP3s | 🟡 **open** | the crossfade loop style only (`03 §2` Z4 toggle) and P3's inter-track crossfade |
+
+P2 therefore ships `singleLoopStyle: 'hard'` and renders the crossfade toggle
+disabled (`05 §2`). Nothing else in P2 depends on S4b.
+
+⚠️ **Closing S4b is not "run the existing harness".** `TtS4Crossfade.svelte`
+computes its overlap metric from `gain[i].gain.value` — the automation values it
+scheduled itself, so the measurement cannot disagree with the schedule and cannot
+fail. It also triggers the fade from a hard-coded `setTimeout(1200)` rather than
+from `timeupdate`, and never reads `element.duration` at all, which is the one
+quantity S4b exists to interrogate. Before the sweep is worth running the harness
+needs: per-deck `AnalyserNode`s for an independent overlap metric, a real
+`duration − currentTime ≤ fade + margin` trigger, and `duration` logged at
+`loadedmetadata` and on every `durationchange`.
+
 - **Goal:** prove the A/B element crossfade sounds clean (no click/gap), the
   gate-click `resume()` reliably unlocks autoplay, and `timeupdate` scheduling
   margins hold.
@@ -201,4 +235,5 @@ against the P1 timer engine it ran on; S1 gates P4; S3 and S4 gate P2
 | S1 | 🟡 partial | 2026-07-21 | oEmbed half done — see `tests/manual/yt-matrix.md`. Player/onError half still needs a browser, and the region case needs Vietnam |
 | S2 | 🔴 **FAIL — and the contingency failed too** | 2026-07-21 | Hidden+silent: `done` **2m 57s late**. Control run with keep-alive **ON**: still **52.4 s late**, 105× the bound. The audibility exemption does not protect the timer, so `15 §S2`'s contingency is **withdrawn, not adopted**. The stall is in main-thread message processing, so a worker cannot route around it. P2 needs a product decision, not a code fix (`04 §2`) |
 | S3 | ✅ **PASS** | 2026-07-21 | Tag matrix + 103-file/598 MB real corpus in **1 362 ms** (budget 10 s); 7.26 MB cover extracted; 0 false positives from the new `onlyV1` rule. The U+FFFD rule was falsified and replaced (`05 §5`). ID3v2.2 and APEv2 found in the wild |
-| S4 | 🟡 partial | 2026-07-21 | Crossfade judged clean by ear on headphones **and** speakers (the criterion no instrument can answer). Overlap-timing ±150 ms and the 0/1/2/5 s sweep not yet recorded |
+| **S4a** | ✅ **PASS** | 2026-07-21 | Crossfade judged clean by ear on headphones **and** speakers (the criterion no instrument can answer); graph, `createMediaElementSource` reuse and gesture `resume()` all exercised. Gates released for P2's audio graph |
+| **S4b** | 🟡 open | — | Overlap-timing ±150 ms and the 0/1/2/5 s sweep still unrecorded, and the harness needs the fixes in §S4 before the numbers would mean anything. Gates the crossfade loop style only |

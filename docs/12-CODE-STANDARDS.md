@@ -59,12 +59,15 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-IMP-001 | Rejected: unsupported format / canPlayType negative |
 | TT-IMP-002 | Rejected: track > 10:02 |
 | TT-IMP-003 | Rejected: playlist total would exceed 91:00 |
-| TT-IMP-004 | Rejected: playlist count would exceed 95 |
+| TT-IMP-004 | Rejected: the mode's queue count cap would be exceeded (Single 1 / Playlist 95) |
 | TT-IMP-005 | Skipped: duplicate (local key or videoId) |
 | TT-IMP-006 | Metadata parse failed — imported with file-name title |
 | TT-IMP-007 | Tag mojibake detected — file-name fallback |
+| TT-IMP-008 | Rejected: dropped entry count exceeded the pre-scan cap (`02 §4` step 0) |
+| TT-PLY-100 | Playback blocked by the autoplay policy — awaiting a user gesture |
 | TT-PLY-101 | Playback error on local track — skipped/removed |
 | TT-PLY-102 | Playlist exhausted before countdown (repeat off) |
+| TT-PLY-103 | End-behavior chime could not be scheduled (AudioContext not running) |
 | TT-USR-001 | Track removed by user |
 | TT-USR-100 | Legal gate accepted (records the version) |
 | TT-YT-001 | oEmbed pre-check network failure — kept pending |
@@ -82,10 +85,16 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 
 New codes are added here first, then used in code (review checks the reverse).
 
+TT-IMP-004 was worded "playlist count would exceed 95" until P2. Single mode has
+a count cap too — exactly one track (`02 §1`) — and reusing a playlist-scoped
+code for it without saying so here would be the code-before-registration
+violation this section exists to prevent. The cap value stays per-mode; only the
+code's scope widened.
+
 **Message content rule.** A log `message` carries its code plus non-identifying
 context only — never a raw file name, tag value, track title, or any other user
-string. `trackId` is a nanoid and is safe; blob URLs are opaque UUIDs and are
-safe. This is what makes the bug template's "contains no personal files — feel
+string. `trackId` is an opaque generated id (`crypto.randomUUID`, `02 §2`) and is
+safe; blob URLs are opaque UUIDs and are safe. This is what makes the bug template's "contains no personal files — feel
 free to review it" assurance (`.github/ISSUE_TEMPLATE/bug_report.yml`) true by
 construction rather than by diligence, and it is free if applied from the first
 log call.

@@ -48,7 +48,8 @@ light, faint scanlines. Distinct from the portfolio's other systems (RepoLens
 - **Tally light**: 10 px dot, top-left next to the wordmark. Idle: `tt-muted`.
   Playing: `tt-danger`, pulsing to the beat (Analyser energy) in local modes;
   steady in YouTube mode. This is the beat-reactive element that survives even
-  when the visualizer is off.
+  when the visualizer is off. **The pulse ships with the visualizer in P5**
+  (`05 §6`); P2 ships the two-state dot, steady in both states.
 - Fonts are **self-hosted** (privacy §09): `@fontsource/be-vietnam-pro`,
   `@fontsource/jetbrains-mono`; DSEG7 Classic vendored in `public/fonts/dseg7/`
   with its OFL license file. DSEG covers digits + `:` `.` `-` only — exactly what
@@ -69,7 +70,7 @@ light, faint scanlines. Distinct from the portfolio's other systems (RepoLens
 │              (DSEG7, clamp(96px, 18vw, 280px))    │ right  │ │
 │              < 60 s → 42.183  in tt-danger        │ rail   │ │
 │                                                   └────────┘ │
-│ Z7 ─ Song Title — Artist ─ 03:12 / 06:40 ─ ▂▂▂▂▂▂▂▂▂▂▂▂▂──  │
+│ Z7 ─ Song Title — Artist ─ 3:12 / 6:40 ─ ▂▂▂▂▂▂▂▂▂▂▂▂▂▂──  │
 └──────────────────────────────────────────────────────────────┘
 ```
 
@@ -81,15 +82,29 @@ light, faint scanlines. Distinct from the portfolio's other systems (RepoLens
 | Z4 | **Right rail — mode dependent** (below) | Collapsible (`]` hotkey); auto-collapses in Focus mode — **except in YouTube mode**, see the carve-out below |
 | Z5 | Tally light + wordmark | Always visible except Focus mode |
 | Z6 | Settings ⚙, language, fullscreen | Icon buttons, 40 px hit area |
-| Z7 | Bottom bar: Title — Artist — elapsed/duration + thin progress | **Auto-hide** after 4 s idle; reappears on mouse move/any key; transport controls (⏮ ⏯ ⏭ 🔊) fade in with it |
+| Z7 | Bottom bar: Title — Artist — elapsed/duration + thin progress | **Auto-hide** after 4 s idle; reappears on mouse move/any key; transport controls (⏮ ⏯ ⏭ 🔊) fade in with it. ⏮/⏭ are **disabled in Single mode** — there is nowhere to go |
+
+**Z7 media position format:** `M:SS` below ten minutes, `MM:SS` at or above it —
+minutes are not zero-padded. This is a **media position, not a countdown**:
+`04 §4` owns countdown formats and nothing here restates them. (The diagram above
+read `03:12` until P2, which contradicted the very rule it illustrates.)
 
 ### Z4 right rail by mode
 
 | Mode | Rail content |
 |------|--------------|
-| Single | Mode badge, loop counter ("Loop ×7"), loop-style toggle (hard / crossfade) |
+| Single | Mode badge, loop counter ("Loop ×7"), loop-style toggle (hard / crossfade), **now-playing card** |
 | Playlist | Queue list: drag-to-reorder, now-playing highlight, per-row duration, right-click → context menu (`02 §8`), shuffle/repeat toggles, totals footer "12 tracks · 48:31 / 91:00" |
 | YouTube | **Embedded player 384×216** (ToS ≥ 200×200, controls fully visible, nothing may overlap it) + queue list beneath + loop/shuffle toggles |
+
+The Single rail's **now-playing card** is the `contextmenu` target for the track
+info modal (`02 §8`). It exists because that modal is P2 scope while the Playlist
+queue rows that would otherwise host it are P3 — without it the modal would have
+no trigger for a whole phase.
+
+**"Loop ×N"** is the current playthrough index: ×1 on the first pass, incremented
+on each wrap. Because `element.loop = true` emits no `ended` event, the wrap is
+detected from a `currentTime` regression (`05 §2`), not from an event.
 
 ### ⚠️ YouTube visibility carve-out (ToS, non-negotiable)
 
@@ -119,8 +134,23 @@ collapse state derives from `mode`, so no future CSS change can silently hide it
    Accept. Accept = autoplay-unlock gesture (`02 §1`). Re-shown if legal version
    bumps.
 3. **Setup** — mode tabs (Playlist default), countdown input `H:MM:SS` + presets
-   (5/10/15/25/30/45/60/90) + "Match queue length" button, drop zone / link
-   textarea, live limits meter, Start.
+   **in minutes** (5/10/15/25/30/45/60/90) + "Match queue length" button, drop
+   zone / link textarea, live limits meter, Start.
+
+   **"Match queue length"** sets the countdown to
+   `clamp(ceil(Σ durationMs / 1000) · 1000, 1 s, 24 h)`. It is **disabled** when
+   the queue is empty, when any queued track's `durationMs` is `null`, and in
+   YouTube mode (where durations stay `null` until player backfill, `06 §5`).
+   It is **one-shot**: it does not re-compute when the queue changes afterwards,
+   because a user who then edits the countdown by hand must not have that
+   silently overwritten.
+
+   **Mode tabs during P2.** All three render; Playlist and YouTube are
+   `aria-disabled` with a "P3"/"P4" hint and the effective mode is forced to
+   `single`. `lastMode` is written only when the user picks an **enabled** tab —
+   so a profile carrying the `TT_DEFAULT_SETTINGS.lastMode = 'playlist'` default
+   (`02 §3.1`) keeps its real preference and P3 unlocks a tab instead of
+   repairing a value P2 clobbered.
 4. **Player** — layout above.
 5. **Finished** — "TIME'S UP" in DSEG14-style caps (rendered in UI font with glow),
    session summary (tracks played, duration), Restart / Back to setup.
@@ -131,8 +161,24 @@ collapse state derives from `mode`, so no future CSS change can silently hide it
 
    > **HẾT GIỜ** · *lúc 14:32 — 2 phút 57 giây trước*
 
+   **This chapter owns that wording.** `04 §2` item 1 quotes a paraphrase and
+   defers here; the two disagreed on lead-in and separator until P2, and a UI
+   string belongs in the UI spec.
+
    The countdown itself still holds `0.000` (`04 §4`). Below the threshold the
    normal screen renders unchanged, so the common case is untouched.
+
+   The trigger is **`overshootMs > LATE_THRESHOLD_MS` alone** — never the `late`
+   flag on the timer's `done` payload. They are different questions: `late` means
+   the visibility/focus latch fired the event rather than the worker, which
+   routinely happens with a sub-second overshoot on a tab the user simply clicked
+   back to. Keying the screen on it would announce a discrepancy that does not
+   exist.
+
+   The relative phrase ("2 phút 57 giây trước") recomputes at 1 Hz from the
+   stored zero instant — derived, never accumulated (`04 §1`) — so it does not
+   go stale while the user reads it. The absolute clock time is the primary
+   element; the relative phrase supports it.
 
    This exists because a backgrounded tab can be throttled for minutes: the
    elapsed time stays exact, but the app cannot react until the user returns. A
@@ -175,6 +221,14 @@ truth. Do not restate a default here; it will drift.
 | Hotkeys | Read-only reference list | — |
 | Diagnostics | Log viewer · Copy Diagnostics · clear log | — |
 | About | Version, license, GitHub, third-party notices | — |
+
+**`endFlash`, defined.** The setting existed in `02 §3.1` with no visual
+specified anywhere, which is how a shipped affordance gets invented at
+implementation time. It is: **two 120 ms opacity pulses of `tt-signal` over Z1,
+peaking at 20% opacity, 400 ms in total**, fired at zero alongside the chime. It
+never touches the digits — Z3 holds `0.000` (`04 §4`) — and it is **suppressed
+entirely** under `prefers-reduced-motion` (`§8`), where it is decoration, not
+content. Default OFF (`02 §3.1`).
 
 Two controls listed in earlier revisions are gone, not forgotten:
 **"behavior when playlist ends early (silence / loop)"** was redundant with

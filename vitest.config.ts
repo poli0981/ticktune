@@ -3,6 +3,12 @@ import { svelte } from '@sveltejs/vite-plugin-svelte';
 
 export default defineConfig({
   plugins: [svelte()],
+  // Without this, `import { mount } from 'svelte'` resolves to svelte's SERVER
+  // build and every component test dies with `mount(...) is not available on
+  // the server` — Svelte 5 ships client/server halves behind export conditions
+  // and Node's default resolution picks the server one. Measured 2026-07-21
+  // against the P1 config; docs/13 §2's whole component tier depends on it.
+  resolve: { conditions: ['browser'] },
   test: {
     globals: true,
     environment: 'happy-dom',

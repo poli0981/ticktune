@@ -6,7 +6,8 @@ separate verifier instructed to refute it. **48 findings survived**; this file
 tracks all of them.
 
 - ✅ **22 closed** during the bootstrap — table at the end
-- ⬜ **26 open**
+- ✅ **3 closed + 1 partially resolved** during P2 slice S1 (2026-07-21)
+- ⬜ **23 open**
 
 Severity is the *verified* severity. Several findings were downgraded when the
 verifier showed the original claim overreached; where that happened, the
@@ -51,42 +52,6 @@ Narrowed to a single item, severity low-to-medium: no doc plans any observation 
 
 ```
 docs/15-SPIKES.md S1 method: "Also probe `/oembed` responses for each id (server-side curl is fine here)." · docs/06-YOUTUBE-INTEGRATION.md §3: "→ edge fetch https://www.youtube.com/oembed?... → 200 {title, author_name, thumbnail_url} (cached 6 h, caches.default)" — asserted behavior, no validation step. · docs/16-ROADMAP.md: `/api/yt/oembed` Worker route first appears in P4; header enforcement in P7.
-```
-
-</details>
-
----
-
-### 🟠 high · 'Match queue length' button has no defined behavior although a component test asserts it
-
-**Owner phase:** P3 (playlist) · **Lens:** spec-completeness
-
-Narrowed: "Match queue length" (03 §3.3, restated 04 §4, test-mandated in 13 §2) needs one sentence of spec, but only for three edge questions — not for the base computation. The base sum is already implied by the 03 §2 Playlist totals footer ("12 tracks · 48:31 / 91:00"). Undefined and actually blocking the 13 §2 TtSetup test: (a) what the button does in YouTube mode, where 06 §5 step 5 leaves durationMs null for every track until player backfill and 06 §89 removes all duration limits — disabled, or sums only known durations?; (b) whether it is disabled/hidden when the queue is empty or durations are partially unknown (a 0 ms result would violate the 1 s floor in 04 §4); (c) whether it re-computes when the queue changes after the click. The auditor's 24 h-overflow concern should be dropped as unreachable given the 91:00 / 10:02 caps in README "Hard limits" and 02 §4. Severity medium, not high.
-
-**Recommendation.** Add a short subsection to 03 §3 defining the formula (e.g. `ceil(Σ durationMs / 1000) s`, clamped to [1 s, 24 h]), the disabled condition (`queue.length === 0 || any durationMs === null`), and explicit YouTube-mode behavior.
-
-<details><summary>Evidence</summary>
-
-```
-03 §3.3: 'countdown input `H:MM:SS` + presets (5/10/15/25/30/45/60/90) + "Match queue length" button'. 13 §2: 'TtSetup (limits meter, preset buttons, Match-queue-length)'. 06 §5: '5. durationMs stays null → rendered "–" until backfill (§2)'. 04 §4: 'Countdown input range: 1 s – 24 h.'
-```
-
-</details>
-
----
-
-### 🟠 high · Countdown input parsing, preset units, and out-of-range handling are unspecified
-
-**Owner phase:** P1/P2 (setup) · **Lens:** spec-completeness
-
-Narrowed to low severity: 03-UI-SPEC.md §3.3 lists the Setup countdown presets as "5/10/15/25/30/45/60/90" without stating the unit. Minutes is unambiguously inferable but never written. Fix is a one-word edit to that line (e.g. "presets in minutes (5/10/…/90)"). All other parts of the original finding — input format, out-of-range/Start gating, inclusivity of the 24 h bound, and the absent log code — are already resolved by 03 §3.3, 02 §1, the suite's inclusive-range convention, and the registry's consistent scope (item-discard and runtime errors only, never bounded UI controls).
-
-**Recommendation.** Specify the input widget type, the accepted grammar with examples, inclusive/exclusive bounds, the clamp-vs-reject rule, and register a log code (e.g. TT-USR-002) for rejected countdown input.
-
-<details><summary>Evidence</summary>
-
-```
-03 §3.3: 'countdown input `H:MM:SS` + presets (5/10/15/25/30/45/60/90)'. 04 §4: 'Countdown input range: 1 s – 24 h. Presets + `Match queue length` in Setup.' 12 §6 registry contains no TT-USR/TT-IMP code for countdown-input validation.
 ```
 
 </details>
@@ -276,24 +241,6 @@ Low-severity documentation-completeness gap, not a GPL compliance failure. Three
 
 ---
 
-### 🟡 medium · The self-made chime ships as Opus, a codec the same doc flags as unreliable in Safari, with no fallback
-
-**Owner phase:** P2 (audio) · **Lens:** technical-risk
-
-Narrow to the codec choice alone and drop the second sub-point. Confirmed: the sole first-party audio asset is specified only as `public/audio/chime.opus` (05 §7, 01 §4 line 72, THIRD-PARTY-NOTICES line 41) in a codec 05 §4 marks ⚠️ for Safari, while README D3 / 01 §6 / CLAUDE.md treat Safari as a supported target; the `canPlayType()` guard covers imported user files only; no log code exists for chime playback failure, so the failure is silent in violation of 01 §2 principle 5; and no spike or CI job exercises opus *playback* before the release branch (S3 = parseBlob metadata, S4 = mp3+flac, WebKit deferred, and the E2E assertion is only "chime request observed"). Fix is a doc-level edit before P2: have `scripts/make-chime.ts` emit a second widely-supported encoding (m4a/AAC or mp3 — the chime is short, so size is negligible), specify source-element selection or a `canPlayType()` pick, add a log code for chime playback failure, and update the three other places that name the filename. DROP the `−6 dB` / `createMediaElementSource` sub-point: "a separate one-shot element ... bypassing `masterGain`" reads coherently as a plain HTMLMediaElement outside the graph, and the linear-vs-dB conversion is an implementation line, not a design defect worth a doc change at this altitude.
-
-**Recommendation.** Have `scripts/make-chime.ts` emit both `chime.opus` and `chime.m4a` (AAC, universally supported per the same matrix) and select via `canPlayType()`, or simply ship AAC/MP3 only — the file is two notes, the size argument is negligible. Alternatively synthesize the chime with two `OscillatorNode`s and an envelope, which removes the asset, the codec question, and the CC0 provenance note entirely. State explicitly in 05 §7 whether the chime element is routed through the AudioContext. Minimal test: add the chime file to S4's fixture set and play it on WebKit if reachable — otherwise this is a five-minute doc fix that removes the risk without testing.
-
-<details><summary>Evidence</summary>
-
-```
-docs/05-AUDIO-ENGINE.md §4: "| Opus (.opus/.ogg/.webm) | ✅ | ✅ | ⚠️ caf-only historically |" · docs/05-AUDIO-ENGINE.md §7: "`public/audio/chime.opus` — a self-made two-note synth chime ... Played through a separate one-shot element at fixed −6 dB, bypassing `masterGain`" · docs/15-SPIKES.md S4 method: "fade durations 0 / 1 / 2 / 5 s across mp3+flac fixtures" — opus playback untested.
-```
-
-</details>
-
----
-
 ### 🟡 medium · Countdown rendering cost at rAF is never spiked, yet the signature visual stacks three blurred text-shadows, a ghost layer, scanlines and a canvas on the same frames
 
 **Owner phase:** P5 (visuals) · **Lens:** technical-risk
@@ -316,9 +263,25 @@ docs/04-TIMER-ENGINE.md §4: "| **< 60 s** | `SS.mmm` | every rAF frame | `42.18
 
 ---
 
-### 🟡 medium · Import pipeline has no cancel, no concurrency rule, no directory handling, and no partial-batch policy
+### 🟡 medium · Import pipeline has no cancel, no concurrency rule, no directory handling, and no partial-batch policy — **partially resolved**
 
 **Owner phase:** P3 (playlist) · **Lens:** spec-completeness
+
+> ✅ **Both halves P2 owns are resolved (2026-07-21, P2 slice S1).** `02 §4` now
+> opens with a **step 0 pre-scan** that flattens dropped directories via
+> `webkitGetAsEntry` (depth-first, `Intl.Collator` order, capped at 500 entries →
+> the newly registered TT-IMP-008) and **hoists the count cap ahead of** the
+> duration/metadata work, which is the ordering defect. The same edit settles the
+> concurrent-drop rule (single-flight, ignored with a toast), the cancel button
+> (none in v1.0, with the reason), the partial-batch policy (accepted files are
+> kept), and adds the two silent-failure hazards the implementation must handle —
+> `DataTransfer.items` neutering after the first `await`, and
+> `readEntries()`'s 100-entry chunking, which truncates this project's own
+> 104-file corpus.
+>
+> **Left open against P3:** the import progress indicator (deferred with the
+> reason recorded — Single mode imports one file at a median 11 ms) and any
+> Playlist-specific recursion niceties.
 
 02 §4 leaves two real gaps, both fixable with a sentence each before P2/P3 implementation. (1) Dropped directories are unhandled: the pipeline consumes `File` objects only, so a folder dropped on the Setup drop zone (03 §3) falls through step 1's extension allow-list and is logged as TT-IMP-001 "unsupported format". The doc should either specify recursion via `webkitGetAsEntry`/`getAsFileSystemHandle` or state an explicit reject-with-distinct-code policy. This matters concretely because the project's own test corpus is a 104-file folder. (2) Step ordering lets unbounded work precede the count cap: step 2's duration decode runs for every dropped File before step 3's `queue.length >= 95 -> TT-IMP-004` check can reject it, so an N-file drop performs N sequential loadedmetadata probes. Hoisting a pre-loop count check ahead of step 2 fixes it. NOT part of the finding: the parseBlob blow-up (parseBlob is step 5, already gated behind step 3), the partial-batch ambiguity (the `for each File` loop plus the "Added 12 - Skipped 3" summary toast make partial-add explicit), and the missing cancel button (nicety on a bounded sub-10-second operation). A third, lesser item is worth one sentence for symmetry: 06 §5 specifies "4 concurrent" oEmbed checks for the YouTube importer while 02 §4 says only "sequentially" and never states what a second drop during an in-flight batch does (queue / reject / abort).
 
@@ -515,6 +478,15 @@ legal/PRIVACY-POLICY.md §2: "stored locally via IndexedDB/localStorage on your 
 </details>
 
 ---
+
+## Closed during P2 slice S1 (2026-07-21)
+
+| Severity | Finding | Where it was closed |
+|----------|---------|---------------------|
+| 🟡 medium | The self-made chime ships as Opus, a codec the same doc flags as unreliable in Safari, with no fallback | docs/05 §7 rewritten — the chime is **synthesised at runtime** with two OscillatorNodes, so the asset, the codec question, the CC0 provenance note and `scripts/make-chime.ts` are all deleted rather than fixed. Failure is no longer silent: **TT-PLY-103** registered in docs/12 §6. Also removes a `scripts/guard-no-corpus.mjs` conflict nobody had noticed — the guard rejects any tracked audio outside `tests/e2e/fixtures/`, so shipping the asset would have required widening it |
+| 🟠 high | 'Match queue length' button has no defined behavior although a component test asserts it | docs/03 §3 — formula `clamp(ceil(Σ durationMs / 1000)·1000, 1 s, 24 h)`, the disabled conditions (empty queue / any unknown duration / YouTube mode), and the one-shot rule |
+| 🟠 high | Countdown input parsing, preset units, and out-of-range handling are unspecified | docs/03 §3 — presets stated as **minutes** (the narrowed finding's whole remit) |
+| 🟡 medium | Import pipeline: directory handling and step ordering | docs/02 §4 step 0 — see the partially-resolved entry above; the progress-indicator half stays open against P3 |
 
 ## Closed during the 2026-07-21 bootstrap
 

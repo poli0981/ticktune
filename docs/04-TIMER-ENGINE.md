@@ -184,13 +184,30 @@ or business-critical, so the legal text needs no change.
 1. **The Finished screen must not imply "just now".** `done` already carries
    `late` and `overshootMs` (`§7`), so the data exists. When
    `overshootMs > LATE_THRESHOLD_MS`, the screen states the wall-clock time the
-   countdown actually reached zero and how long ago that was — e.g.
-   *"Hết giờ lúc 14:32 · 2 phút 57 giây trước"* — instead of only "TIME'S UP".
-   Below the threshold, the normal screen is shown unchanged.
+   countdown actually reached zero and how long ago that was, instead of only
+   "TIME'S UP". Below the threshold, the normal screen is shown unchanged.
+   **`03 §3.5` owns the exact wording** — this is a paraphrase and defers there.
+
+   The instant zero was reached is **derived, not carried**: it is
+   `now − overshootMs`, read as the first statement of the `done` handler.
+   `overshootMs` is itself `now() − endAtEpoch` captured before the deadline is
+   cleared (`§1`), and `done` propagates synchronously through the driver, so the
+   reconstruction is exact to the tick. Adding a `zeroAtEpoch` field to the
+   payload would change an interface, two whole-object test assertions and the
+   debug panel's props to carry a number already implied by two it carries.
 2. **`LATE_THRESHOLD_MS = 2_000`.** A judgement call, stated so it can be argued
    with: one worker interval (200 ms) is invisible and mentioning it would be
    noise, while anything past a couple of seconds is a real discrepancy a user
-   could notice against a wall clock. Lives beside the timer engine.
+   could notice against a wall clock. Lives beside the timer engine, in
+   `src/app/engine/timer/tt-late.ts`, with the rest of the late-finish
+   arithmetic — which is deliberately **string-free**, so the wording stays in
+   the component and P5 can translate it without touching an engine
+   (`12 §3.3`).
+
+   The threshold is compared against `overshootMs` **only**. The `late` flag in
+   the same payload answers a different question — "did the visibility latch fire
+   this rather than the worker?" — and a latched `done` with a 300 ms overshoot
+   must render the *normal* screen.
 3. **The End Behavior still runs** — fade, chime, flash — because it is the
    user's configured attention signal and firing it on return is the useful
    behaviour. What must not happen is the *screen* claiming the moment is now.
@@ -261,7 +278,7 @@ unit-testable (Vitest fake timers for the timer; no audio needed).
 | System sleep/suspend across zero | On wake, first tick sees `remaining ≤ 0` → immediate `done` (single-fire latch) + `TT-SYS-203` log |
 | Pause during `< 60 s` | Frozen `SS.mmm` value displayed; rAF loop idles |
 | Countdown longer than total media (Single/Playlist) | Media loops per mode rules (`02 §5`); timer unaffected |
-| `done` while media between crossfades | Fade applies to master gain — always correct regardless of A/B element state (`05 §2`) |
+| `done` while media between crossfades | Fade applies to the master stage — `fadeGain`, downstream of both deck gains — so it is always correct regardless of A/B element state (`05 §1`) |
 
 ## 7. Test hooks
 
@@ -275,6 +292,13 @@ against an implementation that cannot tell them apart.
 Unit suite covers: derived remaining under simulated throttle gaps; pause/resume
 exactness (±0 ms); single-fire `done` across every path that can emit it (worker,
 `visibilitychange` latch, `focus` latch); `TT-SYS-201` fires on skew and **not**
-on a same-sized throttling gap; `TT-SYS-203` on sleep-across-zero; and the format
+on a same-sized throttling gap; `TT-SYS-203` on sleep-across-zero; the format
 truth table at the `§4` boundaries 3 600 000 / 3 599 999 / 60 000 / 59 999 / 0,
-asserting the ghost string alongside the value.
+asserting the ghost string alongside the value; and the `§2` reconstruction
+property — inside `onDone`, `now() − overshootMs` equals the deadline the run
+started with.
+
+Note the injection hooks live on the **core**, `TtTimer`. The driver constructs
+its own instance and exposes no clock passthrough, so a test that needs a
+controlled clock drives `tick(late)` on the core directly; the driver's three
+`done` paths are covered by Playwright and spike S2, per `13 §1`'s carve-out.

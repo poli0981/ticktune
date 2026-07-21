@@ -37,7 +37,9 @@ the reasoning and the numbers are in `docs/01 §3`.
 6. **Mobile blocked site-wide** via the inline head gate (`docs/07`). Do not add
    mobile layouts; do not remove the gate.
 7. **No GSAP** (license conflict with GPL-3.0 — use Motion). New deps require a
-   GPL-compat license check + entry in `legal/THIRD-PARTY-NOTICES.md`.
+   GPL-compat license check; **distributed** deps also require an entry in
+   `legal/THIRD-PARTY-NOTICES.md`. Dev-only tooling is covered by that file's
+   dev-tooling paragraph and gets no row (`docs/11 §5`).
 8. **Security:** `{@html}` is banned; CSP in `docs/09 §4` is authoritative — any
    new origin requires updating CSP + privacy policy in the same PR.
 
@@ -117,10 +119,21 @@ mechanism measured — hand-mount wins (`docs/01 §3`).
 
 Open items, in the order they block things:
 
-1. **P2 — local audio + Single mode.** Unblocked. Opens with the audio graph and
-   carries the late-finish Finished screen (`docs/04 §2`, `docs/03 §3.5`).
-   S3 passed, so the importer's metadata path is cleared; S4's audible check
-   passed by ear, its overlap timing is still unrecorded.
+1. **P2 — local audio + Single mode.** In progress. S4 was split into **S4a**
+   (graph + unlock, ✅ passed → P2's audio graph is cleared) and **S4b**
+   (crossfade trigger timing, 🟡 open → gates only the crossfade loop style),
+   `docs/15 §S4`. S3 passed, so the importer's metadata path is cleared.
+
+   Four P2 decisions are settled and should not be re-litigated:
+   **crossfade deferred** (ship `singleLoopStyle: 'hard'`) · **the chime is
+   synthesised with `OscillatorNode`s** — no `public/audio/`, no asset, closes
+   the 🟡 audit finding (`docs/05 §7`) · **`crypto.randomUUID()` for track ids**,
+   not nanoid (`docs/02 §2`) · **hardcoded VI** with keys filed in
+   `docs/08 §3.1`.
+
+   The master stage is now **two** nodes — `userGain` then `fadeGain`
+   (`docs/05 §1`). One shared `masterGain` throws `NotSupportedError` when the
+   user changes volume during the end fade; do not merge them back.
 2. **Cloudflare dashboard**, all zone-side and not fixable from code: disable
    **Web Analytics auto-injection** (it injects a beacon the CSP blocks —
    `docs/10 §10`), set **HSTS** to `max-age=15552000` (currently `max-age=0`,
@@ -128,10 +141,14 @@ Open items, in the order they block things:
    `startup_failure` until then).
 3. **Spikes still open:** **S1** player half — embed-off, age-restricted, and a
    **region-blocked case that can only be confirmed from Vietnam**
-   (`tests/manual/yt-matrix.md`); **S4** overlap timing ±150 ms and the
-   0/1/2/5 s sweep.
-4. `docs/AUDIT-BACKLOG.md` — 26 open findings, 1 release blocker (generated
-   third-party notices, `legal/THIRD-PARTY-NOTICES.md`).
+   (`tests/manual/yt-matrix.md`); **S4b** overlap timing ±150 ms and the
+   0/1/2/5 s sweep — and note the harness cannot produce a valid number until it
+   is fixed (its overlap metric reads back its own scheduled `gain.value`, so it
+   cannot fail; `docs/15 §S4`).
+4. `docs/AUDIT-BACKLOG.md` — 23 open findings, 1 release blocker (generated
+   third-party notices, `legal/THIRD-PARTY-NOTICES.md`). P2's S1 slice closed
+   the chime-codec finding, both countdown-preset findings, and the two halves of
+   the import-pipeline finding that P2 owns.
 
 `test/` is a **local-only, git-ignored** ~651 MB audio corpus for spikes S3/S4.
 Never commit it, never reference it from shipped code, never assume it exists in
