@@ -13,6 +13,16 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      # TypeScript 7 is rejected on evidence, not preference: svelte-check 4.7.3
+      # crashes against it and typescript-eslint declares peer `<6.1.0`, so
+      # `pnpm check` and `pnpm lint` both break. Full measurements in docs/11 §4.
+      # CI already catches this (Dependabot proposed it once and the lint gate
+      # failed), but re-proposing it every week is noise. Unpin deliberately when
+      # svelte-check supports TS 7 AND typescript-eslint widens its range —
+      # either alone is not enough.
+      - dependency-name: 'typescript'
+        update-types: ['version-update:semver-major']
     commit-message:
       prefix: chore
       include: scope

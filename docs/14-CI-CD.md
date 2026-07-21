@@ -55,6 +55,21 @@ step, before install, and `.githooks/pre-commit` runs it against the index.
 actual enforcement keeping the ~651 MB `test/` corpus out of history. Enable the
 hook once per clone: `git config core.hooksPath .githooks`.
 
+### First live run — 2026-07-21
+
+Both notable results were the system behaving correctly:
+
+- **CodeQL: `startup_failure`.** Expected. The advanced-setup workflow is
+  rejected while repo Settings → Advanced Security → **CodeQL "Default setup"**
+  is enabled; the reusable workflow's own header documents this. One-off repo
+  setting, not a code fix.
+- **Dependabot immediately proposed `typescript 5.9.3 → 7.0.2`, and `ci.yml`
+  failed it** on exactly the documented breakage (`typescript-estree` blowing up
+  against the TS 7 runtime). The `11 §4` decision is therefore enforced by CI,
+  not just written down. A major-version `ignore` for `typescript` was added to
+  `dependabot.yml` so the same PR does not reappear weekly — the ignore is the
+  noise fix; the gate is the actual protection, and it stays.
+
 ## 2. Caller stub examples (explicit permissions!)
 
 ```yaml
