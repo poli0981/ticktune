@@ -88,10 +88,21 @@ before S1/S3/S4 pass.**
 P1 scope **complete (8/8)** as of 2026-07-21 — see the exit review in `docs/16`.
 89 unit tests, 22 E2E, five gates green. The phase is not closed: S2 blocks P2.
 
-🔴 **S2 case 3 failed** (`docs/04 §2`): a hidden, silent tab fired `done`
-2 m 57 s late — 355× the bound. A near-zero-gain keep-alive source during
-silent-but-running states is now an **engine invariant**, and it blocks P2. The
-control run proving the keep-alive actually works has not been done yet.
+🔴 **S2 failed, and its documented remedy failed too** (`docs/04 §2`). Hidden +
+silent: `done` fired 2 m 57 s late. Control run with the keep-alive oscillator
+**ON**: still **52.4 s late**, 105× the ±500 ms bound, again fired by the
+visibility latch rather than the worker. Audibility does not protect the timer,
+and the stall is in main-thread message processing — so no worker-side code
+routes around it.
+
+**Do not build a keep-alive source into the P2 audio engine.** It was tried and
+withdrawn. P2 opens with a product decision instead — three options in
+`docs/04 §2`; option 3 changes what the Finished screen says, so it must be
+settled before the End Behavior is written.
+
+The countdown is **correct but late** when hidden: derived time means the value
+on return is exact, and the visibility/focus latch is the only reason it
+finishes at all. Keep that latch whatever is decided.
 
 Resolved: TypeScript pinned `~5.9` — TS 7 crashes svelte-check (`docs/11 §4`).
 DSEG7 Classic tag confirmed **v0.46** stable (`docs/11 §2`). Island mount

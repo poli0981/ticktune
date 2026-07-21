@@ -85,6 +85,7 @@
   let maxRenderGapVisibleMs = $state(0);
   let maxRenderGapHiddenMs = $state(0);
   let lastRenderAt = 0;
+  let lastRenderHidden = false;
   let runStartedAt = $state(0);
   let hiddenMs = $state(0);
   let lastHiddenAt = 0;
@@ -98,10 +99,17 @@
         const t = performance.now();
         if (lastRenderAt) {
           const gap = t - lastRenderAt;
-          if (document.hidden) maxRenderGapHiddenMs = Math.max(maxRenderGapHiddenMs, gap);
+          // Attribute by EITHER endpoint, same as the tick-gap split: a stall
+          // that accrued while hidden and was only observed after the tab came
+          // back would otherwise be filed under "visible". The 2026-07-21
+          // control run showed exactly that — a 30.9 s "visible" render gap
+          // that was really the tail of a hidden stall.
+          if (document.hidden || lastRenderHidden)
+            maxRenderGapHiddenMs = Math.max(maxRenderGapHiddenMs, gap);
           else maxRenderGapVisibleMs = Math.max(maxRenderGapVisibleMs, gap);
         }
         lastRenderAt = t;
+        lastRenderHidden = document.hidden;
         nowMs = t;
         // Accumulate time spent hidden — the only figure that says whether a run
         // was long enough to reach Chromium's intensive throttling (~5 min).
@@ -139,6 +147,7 @@
     maxRenderGapVisibleMs = 0;
     maxRenderGapHiddenMs = 0;
     lastRenderAt = 0;
+    lastRenderHidden = false;
     hiddenMs = 0;
     lastHiddenAt = 0;
     runStartedAt = performance.now();

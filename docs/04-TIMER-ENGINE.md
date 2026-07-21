@@ -119,30 +119,65 @@ timeliness is the point: a countdown that announces "Time's up" three minutes
 after the fact has failed, and the End Behavior — fade, chime, Finished screen
 (`02 §5`) — fires three minutes late with it.
 
-#### Consequence: the keep-alive is now an engine invariant, not a contingency
+#### 🔴 The control run: the keep-alive does NOT fix it
 
-`15 §S2`'s contingency is promoted to a requirement. **Whenever the app is in a
-running-but-silent state, the audio engine must keep an inaudible, near-zero-gain
-looping source alive** so the tab counts as audible and keeps its throttling
-exemption. The states that need it are already enumerated: `02 §5` TT-PLY-102
-(repeat off, playlist exhausted), the `endChime: false` + `endFadeMs: 0`
-combination (`02 §3.3`), and YouTube mode, where audio comes from a cross-origin
-iframe and there is no page-owned element at all.
+Case 2 was repeated with the keep-alive oscillator **ON**, hidden for 17.8 min:
 
-This moves ownership of the silent-but-running state into the audio engine, so it
-**must be settled before P2 begins** — it is a P2 design input, not a later
-optimisation.
+| Run | keep-alive | Hidden | Worst tick gap | Overshoot at `done` |
+|-----|-----------|--------|----------------|---------------------|
+| case 3 | off | 24.9 min | 13.3 min | 2 m 57 s |
+| **case 2 control** | **ON** | 17.8 min | 12.0 min | **52.4 s — 105× the bound** |
 
-⚠️ **Not yet proven: that the keep-alive actually fixes it.** Two variables
-changed between the passing and failing runs — audio on→off *and* 1.4→24.9 min
-hidden. The failure is established; the remedy is not. The control run is
-**case 2 repeated for 30+ minutes with keep-alive ON**. If that also degrades,
-the exemption is not what we think it is and the design needs rethinking rather
-than a keep-alive bolted on.
+`done` was again fired by the **visibility latch**, not the worker
+(`late: true`, TT-SYS-203). So the audibility exemption is not what `§2`
+assumed: keeping the tab "playing" did not keep the timer alive.
 
-Keep the visibility/focus latch regardless. Even with a working keep-alive it is
-the only thing standing between a throttled worker and a countdown that never
-finishes.
+The overshoot did fall from 177 s to 52 s, but the two runs were hidden for
+different durations, so that difference is not attributable — and 52 s is a
+failure by any reading of a countdown's job.
+
+**Therefore `15 §S2`'s contingency is withdrawn, not promoted.** Do not build a
+keep-alive source into the P2 audio engine on the theory that it protects the
+timer. It does not.
+
+#### What the numbers actually say about where the stall is
+
+The reported 12-minute tick gap cannot be plain wall time: 5 490 samples ×
+200 ms already fills 97 % of the 18.9-minute run, and 18.3 min of ticking plus a
+12-minute stall exceeds the elapsed time.
+
+The consistent reading is that **the worker kept posting on schedule and the main
+thread stopped processing its messages.** They queued and then flushed in a
+burst — the first message of the burst carries the whole stall as its `dWall`,
+the rest ~0, which is why the sample count still matches elapsed time, and why
+the hidden *render* gap is only 528 ms (the flush repainted rapidly).
+
+That matters for the design: moving work into the worker cannot help, because
+`tick()`, the `done` event and every render run on the main thread regardless.
+
+#### Where this leaves P2 — an open product decision
+
+The countdown is **correct but late** when the tab is hidden and throttled. The
+visibility/focus latch is what guarantees the "correct" half, and it stays: it is
+the only thing between a throttled main thread and a countdown that never
+finishes at all.
+
+The "late" half is not fixable from inside the page with anything tried so far.
+The realistic options, none of which is obviously right:
+
+1. **Accept and disclose.** Keep the latch, state plainly that a backgrounded
+   tab may finish late, and lean on `04 §3`'s Wake Lock to keep the tab
+   foreground in the intended use (a countdown you are watching). Cheapest, and
+   honest — but it weakens the core promise.
+2. **Notify out-of-page.** The Notification API can fire from a service worker,
+   which has its own scheduling. Needs permission, adds a dependency the privacy
+   posture has so far avoided, and needs its own spike.
+3. **Re-scope the promise.** Document the countdown as accurate while visible,
+   best-effort while hidden — and make the Finished screen show *when* it
+   actually elapsed rather than implying it just happened.
+
+This must be decided before P2 writes the End Behavior, because option 3 changes
+what the Finished screen says.
 
 ## 3. Wake Lock
 
