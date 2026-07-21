@@ -17,16 +17,17 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro build && node scripts/inject-csp-hash.ts",
     "preview": "astro preview",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
-    "check": "astro check && svelte-check --tsconfig ./tsconfig.json",
+    "check": "astro check && svelte-check --tsconfig ./tsconfig.json && tsc -p tsconfig.worker.json",
     "knip": "knip --no-config-hints",
     "test": "vitest run --coverage",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
-    "guard": "node scripts/guard-no-corpus.mjs"
+    "guard": "node scripts/guard-no-corpus.mjs",
+    "verify:csp": "node scripts/verify-csp.mjs"
   },
   "dependencies": {
     "@astrojs/svelte": "9.0.1",
@@ -35,6 +36,7 @@
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.4",
+    "@cloudflare/workers-types": "^5.20260719.1",
     "@eslint/js": "^10.0.1",
     "@playwright/test": "1.61.1",
     "@sveltejs/vite-plugin-svelte": "^7.2.0",

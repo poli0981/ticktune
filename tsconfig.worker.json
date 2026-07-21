@@ -1,0 +1,26 @@
+{
+  // The Worker runs on workerd, not in a browser and not in Node. Its globals
+  // (ExecutionContext, caches.default, the CF-flavoured Request/Response)
+  // genuinely conflict with the DOM lib the app is checked against, so it gets
+  // its own program rather than polluting the root one.
+  // Checked by `pnpm check` alongside astro check and svelte-check.
+  "compilerOptions": {
+    "target": "ES2022",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2022"],
+    "types": ["@cloudflare/workers-types"],
+
+    // Same flag set as the app (docs/12 §2) — the edge endpoint is the one
+    // piece of server code we ship, so it does not get a looser bar.
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "verbatimModuleSyntax": true,
+
+    "noEmit": true,
+    "skipLibCheck": true
+  },
+  "include": ["worker/**/*.ts"]
+}

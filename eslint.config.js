@@ -107,11 +107,18 @@ export default tseslint.config(
   },
 
   // The Cloudflare Worker runs on workerd: a fetch/Request/Response global set,
-  // not Node's and not the browser's.
+  // not Node's and not the browser's. Types come from tsconfig.worker.json.
   {
     files: ['worker/**/*.ts'],
     languageOptions: { globals: { ...globals.serviceworker, ...globals.worker } },
     rules: { 'no-console': 'off', 'no-undef': 'off' },
+  },
+
+  // Drives a browser, so its page.evaluate() bodies legitimately reference
+  // document/window even though the file itself runs under Node.
+  {
+    files: ['scripts/verify-csp.mjs'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
   },
 
   // Tests run under vitest globals (see vitest.config.ts `globals: true`).

@@ -58,6 +58,12 @@ leave defaults. Custom rules (5 free) — add one:
   `http.request.uri.path starts_with "/api/" and http.request.method ne "GET"`
   → Block.
 
+  Note this blocks **HEAD** too, since `HEAD ne "GET"`. That is intended — the
+  client only ever issues GET (`06 §5`) and nothing needs to probe the endpoint
+  — but it is worth knowing before someone debugs it with `curl -I` and reads
+  the result as an outage. `worker/index.ts` mirrors the rule in code so local
+  `wrangler dev` behaves like production rather than diverging from it.
+
 ## 6. Rate limiting (Free plan includes 1 rule)
 
 - Rule "api-oembed-guard": match `http.request.uri.path starts_with "/api/"`,
@@ -118,9 +124,34 @@ keep working once loaded. (Full offline PWA is post-1.0, `16 §post`.)
 
 ## 11. Launch checklist (zone side)
 
+Zone-side, still to do:
+
 - [ ] Custom domain attached, cert active, `https://ticktune.net` 200
-- [ ] `curl -I` shows full `_headers` set incl. final CSP (not Report-Only)
-- [ ] HSTS present · [ ] 404 route serves styled page
-- [ ] `/api/yt/oembed?id=dQw4w9WgXcQ` → 200 JSON; 61 rapid calls → 429
+- [ ] HSTS present
+- [ ] 61 rapid calls to `/api/*` → 429
 - [ ] Bot Fight Mode on · [ ] rate-limit rule active
 - [ ] `www` redirect (if configured) works
+
+Everything domain-independent was verified locally against `wrangler dev` on
+2026-07-21, so only the zone configuration above remains unproven:
+
+- ✅ Full `_headers` set served, **CSP enforcing** (not Report-Only) — the
+  injected `sha256-` matches what the browser computes, confirmed by loading the
+  site in Chromium and asserting zero policy violations across `/`, `/app/` and
+  a 404, on both desktop and mobile viewports. Repeatable:
+  `pnpm build && pnpm exec wrangler dev --port 8788 --local` then
+  `pnpm verify:csp`.
+- ✅ The mobile gate still fires and the island still stays unloaded **with the
+  CSP on** — a policy that blocked the inline gate would have shown up as the
+  overlay silently not appearing.
+- ✅ DSEG7 loads under `font-src 'self'`.
+- ✅ `/api/yt/oembed?id=dQw4w9WgXcQ` → 200 JSON with
+  `Cache-Control: public, max-age=21600` and CORS; `?id=xxx` and a missing `id`
+  → 400 `invalid_id`; non-GET → 405.
+- ✅ Unknown path → the styled 404 via `not_found_handling`.
+- ✅ The `§7` one-inline-script assertion fails the build when violated — proven
+  by adding a second inline script and watching `pnpm build` exit 1.
+
+This deliberately pulls a P7 item forward (`14 §5`). In P1 the gate is the only
+inline script on the site, so the check is as cheap as it will ever be, and a
+broken hash coupling discovered at launch would be a launch slip.
