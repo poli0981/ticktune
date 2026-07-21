@@ -1,0 +1,135 @@
+import { TtAudioDriver } from '../engine/audio/tt-audio-driver';
+import type { TtPlaybackStatus } from '../engine/audio/types';
+import { ttLog } from '../engine/log/tt-log';
+import type { TtTrack } from '../engine/importer/types';
+import { settings } from './settings.svelte';
+
+/**
+ * Playback state — the one-way seam of docs/12 §3.3.
+ *
+ * Components never see the driver: they read runes here and call actions here,
+ * and the driver's events flow back in. That is what keeps `AudioContext` out of
+ * every component (docs/12 §3.2) and what makes the whole audio path swappable
+ * behind one module.
+ *
+ * The driver is created LAZILY, on the first action that needs it. Constructing
+ * an `AudioContext` at module load would create a suspended context on every
+ * page view including ones that never play anything, and — more practically —
+ * would run in any test that imports this module.
+ */
+class PlaybackStore {
+  #driver: TtAudioDriver | null = null;
+
+  #status = $state<TtPlaybackStatus>('idle');
+  #loops = $state(1);
+  #track = $state<TtTrack | null>(null);
+  #positionMs = $state(0);
+  #durationMs = $state<number | null>(null);
+
+  get status(): TtPlaybackStatus {
+    return this.#status;
+  }
+  get loops(): number {
+    return this.#loops;
+  }
+  get track(): TtTrack | null {
+    return this.#track;
+  }
+  get positionMs(): number {
+    return this.#positionMs;
+  }
+  get durationMs(): number | null {
+    return this.#durationMs;
+  }
+  /** docs/09 §5's leak canary, for the ?ttdebug=1 panel. */
+  get liveUrls(): number {
+    return this.#driver?.engine.liveUrls ?? 0;
+  }
+  get peakRms(): number {
+    return this.#driver?.peakRms ?? 0;
+  }
+
+  #ensure(): TtAudioDriver {
+    this.#driver ??= new TtAudioDriver({
+      onLog: (code, detail) => {
+        // docs/12 §6: the message carries the code and non-identifying context
+        // only — never a file name. `trackId` is opaque and safe.
+        ttLog.warn(
+          code,
+          '',
+          typeof detail?.['trackId'] === 'string' ? detail['trackId'] : undefined,
+        );
+      },
+      onLoop: (n) => {
+        this.#loops = n;
+      },
+      onStatus: (s) => {
+        this.#status = s;
+      },
+    });
+    return this.#driver;
+  }
+
+  /**
+   * The autoplay-unlock gesture. Called from all three sites docs/05 §1 names:
+   * the gate Accept, Start, and the play button.
+   *
+   * Returns the promise rather than awaiting internally so a caller inside a
+   * gesture handler can fire it synchronously and await later — WebKit counts
+   * the gesture only if `resume()` is reached before the task yields.
+   */
+  unlock(): Promise<void> {
+    return this.#ensure().unlock();
+  }
+
+  async load(track: TtTrack): Promise<void> {
+    const driver = this.#ensure();
+    this.#track = track;
+    this.#loops = 1;
+    this.#positionMs = 0;
+    this.#durationMs = track.durationMs;
+    // P2 ships the hard loop only; `crossfade` is gated on docs/15 §S4b and
+    // falls back with a notice rather than silently (docs/05 §2).
+    driver.engine.load(track, true);
+    driver.engine.setVolume(settings.current.volume, settings.current.muted);
+    driver.refresh();
+  }
+
+  async play(): Promise<void> {
+    const driver = this.#ensure();
+    await driver.engine.play();
+    driver.refresh();
+  }
+
+  pause(): void {
+    this.#driver?.engine.pause();
+    this.#driver?.refresh();
+  }
+
+  stop(): void {
+    this.#driver?.engine.stop();
+    this.#driver?.resetFade();
+    this.#driver?.refresh();
+    this.#loops = 1;
+    this.#positionMs = 0;
+  }
+
+  applyVolume(): void {
+    this.#driver?.engine.setVolume(settings.current.volume, settings.current.muted);
+  }
+
+  /** Called from the player's rAF/position tick. */
+  syncPosition(positionMs: number, durationMs: number | null): void {
+    this.#positionMs = positionMs;
+    this.#durationMs = durationMs;
+  }
+
+  dispose(): void {
+    this.#driver?.dispose();
+    this.#driver = null;
+    this.#track = null;
+    this.#status = 'idle';
+  }
+}
+
+export const playback = new PlaybackStore();

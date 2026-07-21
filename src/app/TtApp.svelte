@@ -8,6 +8,7 @@
   import { TT_MAX_COUNTDOWN_MS, TT_MIN_COUNTDOWN_MS } from './engine/timer/tt-format';
   import type { TtTickSample } from './engine/timer/types';
   import { installGlobalCapture, ttLog } from './engine/log/tt-log';
+  import { playback } from './state/playback.svelte';
   import { session } from './state/session.svelte';
   import { settings } from './state/settings.svelte';
   import { TT_LEGAL_VERSION } from '../lib/tt-legal-const';
@@ -43,10 +44,15 @@
 
   /**
    * docs/02 §1 / docs/05 §1: this click is the autoplay-unlock gesture.
-   * P2's audio slice adds `audioEngine.unlock()` here — and it must run
-   * SYNCHRONOUSLY, before the await below, or WebKit does not count it.
+   *
+   * `unlock()` is fired FIRST and deliberately not awaited: WebKit only counts
+   * a `resume()` reached before the gesture task yields, and the `await` below
+   * yields. It is one of three unlock sites — the gate only renders when the
+   * stored legal version differs, so a returning user reaches playback without
+   * ever passing through here (docs/05 §1).
    */
   async function acceptLegal(version: string) {
+    void playback.unlock();
     session.gateAccepted();
     await settings.patch({ legalAccepted: { version, acceptedAt: Date.now() } });
     ttLog.info('TT-USR-100', `legal accepted v${version}`);
