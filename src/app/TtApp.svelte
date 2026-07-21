@@ -50,9 +50,10 @@
   let maxRenderGapVisibleMs = $state(0);
   let maxRenderGapHiddenMs = $state(0);
   let lastRenderAt = 0;
-  let runStartedAt = 0;
+  let runStartedAt = $state(0);
   let hiddenMs = $state(0);
   let lastHiddenAt = 0;
+  let nowMs = $state(0);
 
   const driver = new TtTimerDriver({
     onRemaining: (ms) => {
@@ -66,6 +67,7 @@
           else maxRenderGapVisibleMs = Math.max(maxRenderGapVisibleMs, gap);
         }
         lastRenderAt = t;
+        nowMs = t;
         // Accumulate time spent hidden — the only figure that says whether a run
         // was long enough to reach Chromium's intensive throttling (~5 min).
         if (document.hidden) {
@@ -105,6 +107,7 @@
     hiddenMs = 0;
     lastHiddenAt = 0;
     runStartedAt = performance.now();
+    nowMs = runStartedAt;
     driver.start(durationMs);
   }
 </script>
@@ -119,7 +122,7 @@
       {maxRenderGapVisibleMs}
       {maxRenderGapHiddenMs}
       {hiddenMs}
-      elapsedMs={runStartedAt ? performance.now() - runStartedAt : 0}
+      elapsedMs={runStartedAt && nowMs ? nowMs - runStartedAt : 0}
     />
   {/if}
 

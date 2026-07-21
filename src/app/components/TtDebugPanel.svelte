@@ -73,9 +73,17 @@
     }
   }
 
-  // Split by visibility: the whole point is comparing hidden against visible.
-  const visible = $derived(samples.filter((s) => !s.hidden));
-  const hidden = $derived(samples.filter((s) => s.hidden));
+  /**
+   * Split by visibility — but attribute a gap to "hidden" if EITHER end of it
+   * was hidden. A sample carries the visibility at the moment its tick landed,
+   * so a 6-minute stall that accrued while hidden and was only reported after
+   * the tab came back would otherwise be filed under "visible" and make the
+   * visible column look catastrophic for no reason. Observed exactly that in the
+   * 2026-07-21 case-3 run: 395 s labelled visible.
+   */
+  const spanHidden = $derived(samples.map((s, i) => s.hidden || (i > 0 && samples[i - 1]!.hidden)));
+  const visible = $derived(samples.filter((_, i) => !spanHidden[i]));
+  const hidden = $derived(samples.filter((_, i) => spanHidden[i]));
 
   /**
    * Worst gap between AUTHORITATIVE ticks (the 200 ms worker). This is not

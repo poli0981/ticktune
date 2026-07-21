@@ -8,7 +8,7 @@ Durations are effort estimates, not calendar promises. **v1.0 target: late Q3
 |-------|-------|---------------|
 | **P0 · Spikes** (~1 wk) | S1–S4 (`15-SPIKES.md`) | All four ✅; docs 04/05/06 updated |
 | **P1 · Skeleton** (~1 wk) | Scaffold (Astro 7 + Svelte 5 + TW 4 + wrangler), TS7-vs-5.9 check (`11 §4`), mobile gate, legal gate shell, timer engine + countdown display, settings shell + Dexie, log engine, CI stubs live | Countdown runs full formats; gate blocks on mobile viewport; CI green |
-| **P2 · Local audio + Single** (~1 wk) | Audio graph, import pipeline (single), metadata modal, bottom bar, loop styles, end behavior default | Single mode E2E passes; fade+chime works with tab hidden |
+| **P2 · Local audio + Single** (~1 wk) | Audio graph **incl. the silent keep-alive source (`04 §2`, blocking input from S2)**, import pipeline (single), metadata modal, bottom bar, loop styles, end behavior default | Single mode E2E passes; fade+chime works with tab hidden; **a 30-min hidden+silent run stays inside ±500 ms** |
 | **P3 · Playlist** (~1 wk) | Queue panel, drag-reorder, shuffle/repeat, dedupe + limits + summary toasts, context menu, crossfade | Playlist limits tests pass; 95-file batch import OK |
 | **P4 · YouTube** (~1 wk) | `/api/yt/oembed` Worker route, player rail, error overlays, YT import pipeline, offline panel | Manual yt-matrix passes; rate-limit path handled |
 | **P5 · Visuals & settings** (~1 wk) | Visualizer (3 styles), backgrounds + slideshow, auto-theme, focus mode, full settings, i18n dictionaries complete + key-diff guard | Reduced-motion + a11y milestones announced; perf budget met |

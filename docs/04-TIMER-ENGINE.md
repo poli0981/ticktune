@@ -85,27 +85,64 @@ As a defence-in-depth latch independent of worker scheduling, `visibilitychange
 it has reached 0 (single-fire, shared with the `§6` sleep path). A late `done` is
 recoverable; a missed one is not.
 
-### S2 measurements so far (Edge 151 / Chromium 151, Windows 11)
+### 🔴 S2 measurements — the silent hidden tab FAILS (Edge 151, Windows 11)
 
-| Case | Hidden for | Tick gap hidden | Overshoot at `done` | Verdict |
-|------|-----------|-----------------|---------------------|---------|
-| 2 — hidden **with** audio | 1.4 min | **280 ms** | **28 ms** | ✅ within the ±500 ms bound |
+| Case | Hidden for | Worst tick gap | Overshoot at `done` | Verdict |
+|------|-----------|----------------|---------------------|---------|
+| 2 — hidden **with** audio | 1.4 min | 280 ms | 28 ms | ✅ but too short to reach throttling |
+| **3 — hidden and SILENT** | **24.9 min** | **13 min 19 s** | **2 min 57 s** | 🔴 **FAIL — 355× over the ±500 ms bound** |
 
-Also observed: `|skew|` ≤ 1 ms (the two clocks agree, so the `§1`
-disambiguation had nothing to correct), and **no** TT-SYS-201/202/203 — notably
-no TT-SYS-202, so the Wake Lock was granted rather than refused.
+Case 3 is the measurement this section was written to obtain, and it is bad. A
+200 ms worker interval stretched to **798 786 ms** — 3 994× nominal. The mean
+hidden interval was only 428 ms, so the worker is not uniformly dead: it runs
+fine, then freezes hard for minutes. That is the signature of Chromium's
+*intensive* wake-up throttling, which the run confirms it reached.
 
-⚠️ **This does not yet clear the risk this section is about.** Chromium escalates
-to *intensive* wake-up throttling roughly **five minutes** after a page is
-hidden; the run above was hidden for 1.4 minutes and ended before that
-escalation could occur. It shows the audible-hidden path is healthy at short
-range, which is the case that was never in doubt.
+`|skew|` stayed ≤ 1.7 ms throughout, so this is genuinely lost wall-clock time,
+not a clock-jump artefact the `§1` rule should have caught.
 
-Still required, per `15 §S2`: a **30–90 minute** run, and above all case 3 —
-hidden **and silent** (the harness's keep-alive oscillator switched off). That is
-the configuration `02 §5` TT-PLY-102 and the `endChime: false` combination put
-users in, and the one where audibility can no longer buy the throttling
-exemption.
+**The Wake Lock was granted** — no TT-SYS-202 — and the screen stayed awake
+anyway. Wake Lock keeps the display on; it does nothing for timer throttling.
+Do not reach for it as a fix.
+
+#### What held, and what did not
+
+The countdown **completed correctly**. `done` fired with `late: true` and logged
+TT-SYS-203, and because time is derived rather than accumulated, the value on
+return was exact — not 3 minutes wrong, just 3 minutes *late*. The
+`visibilitychange`/`focus` latch is what caught it; without that, the worker
+would still have been asleep and the user would have found a countdown sitting
+at ~3 minutes remaining, never finishing.
+
+So the correctness design held. **Timeliness did not**, and for this product
+timeliness is the point: a countdown that announces "Time's up" three minutes
+after the fact has failed, and the End Behavior — fade, chime, Finished screen
+(`02 §5`) — fires three minutes late with it.
+
+#### Consequence: the keep-alive is now an engine invariant, not a contingency
+
+`15 §S2`'s contingency is promoted to a requirement. **Whenever the app is in a
+running-but-silent state, the audio engine must keep an inaudible, near-zero-gain
+looping source alive** so the tab counts as audible and keeps its throttling
+exemption. The states that need it are already enumerated: `02 §5` TT-PLY-102
+(repeat off, playlist exhausted), the `endChime: false` + `endFadeMs: 0`
+combination (`02 §3.3`), and YouTube mode, where audio comes from a cross-origin
+iframe and there is no page-owned element at all.
+
+This moves ownership of the silent-but-running state into the audio engine, so it
+**must be settled before P2 begins** — it is a P2 design input, not a later
+optimisation.
+
+⚠️ **Not yet proven: that the keep-alive actually fixes it.** Two variables
+changed between the passing and failing runs — audio on→off *and* 1.4→24.9 min
+hidden. The failure is established; the remedy is not. The control run is
+**case 2 repeated for 30+ minutes with keep-alive ON**. If that also degrades,
+the exemption is not what we think it is and the design needs rethinking rather
+than a keep-alive bolted on.
+
+Keep the visibility/focus latch regardless. Even with a working keep-alive it is
+the only thing standing between a throttled worker and a countdown that never
+finishes.
 
 ## 3. Wake Lock
 
