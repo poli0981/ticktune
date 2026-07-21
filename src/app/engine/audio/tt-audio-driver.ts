@@ -1,5 +1,7 @@
 import { TtAudioEngine } from './tt-audio-engine';
 import { restoreFadeGain } from './tt-audio-graph';
+import type { TtChimePlan } from './tt-chime';
+import { planEndBehavior, runEndBehavior, type TtEndConfig } from './tt-end-behavior';
 import type { TtAudioEvents, TtAudioPorts, TtDeckId, TtGainPort, TtMediaPort } from './types';
 
 /**
@@ -24,7 +26,9 @@ export class TtAudioDriver {
   readonly #userGain: GainNode;
   readonly #fadeGain: GainNode;
   readonly #analyser: AnalyserNode;
+  readonly #chimeGain: GainNode;
   readonly #engine: TtAudioEngine;
+  readonly #events: TtAudioEvents;
   // The type argument is load-bearing: `getByteTimeDomainData` takes a
   // `Uint8Array<ArrayBuffer>`, and a bare `Uint8Array` widens to
   // `ArrayBufferLike`, which admits SharedArrayBuffer and does not satisfy it.
@@ -32,11 +36,18 @@ export class TtAudioDriver {
   #disposed = false;
 
   constructor(events: TtAudioEvents) {
+    this.#events = events;
     // docs/05 §1: created at boot, resumed only on a gesture. Constructing it
     // suspended is correct and expected — `unlock()` is what changes that.
     this.#ctx = new AudioContext();
     this.#userGain = this.#ctx.createGain();
     this.#fadeGain = this.#ctx.createGain();
+    // docs/05 §7: straight to destination, bypassing BOTH userGain and
+    // fadeGain — the fade is running when the chime fires, and routing the
+    // attention signal through it would fade the signal out too.
+    this.#chimeGain = this.#ctx.createGain();
+    this.#chimeGain.gain.value = 0;
+    this.#chimeGain.connect(this.#ctx.destination);
     this.#analyser = this.#ctx.createAnalyser();
     this.#analyser.fftSize = FFT_SIZE;
     // Backed by an explicit ArrayBuffer: `getByteTimeDomainData` is typed
@@ -177,6 +188,66 @@ export class TtAudioDriver {
   /** Re-arm the fade stage after a run — Restart and Back both need it. */
   resetFade(): void {
     restoreFadeGain(this.#ports());
+  }
+
+  /**
+   * docs/02 §5 — the End Behavior, committed to the audio clock in one
+   * synchronous block so it survives the main thread stalling right after
+   * (docs/04 §2). Returns the plan so the caller can act on `endAction`.
+   */
+  runEndBehavior(cfg: TtEndConfig, muted: boolean): ReturnType<typeof planEndBehavior> {
+    const plan = planEndBehavior(cfg, muted, this.#ctx.currentTime);
+    runEndBehavior(plan, this.#ports(), {
+      scheduleChime: (chime) => this.#scheduleChime(chime),
+      onLog: (code) => this.#events.onLog(code),
+    });
+
+    // The seam docs/13 §3 asserts instead of "a chime file was requested" —
+    // there is no request to observe now, and "it ran" is the stronger claim.
+    document.documentElement.dataset['ttChimeSched'] = plan.chime
+      ? String(Math.round(plan.chime.endsAtS * 1000))
+      : '';
+
+    const fadeEndsMs = plan.fadeMs;
+    window.setTimeout(() => {
+      document.documentElement.dataset['ttFadeDone'] = String(Date.now());
+    }, fadeEndsMs);
+
+    return plan;
+  }
+
+  /**
+   * Two oscillators with a decaying envelope, scheduled and forgotten.
+   *
+   * `onended` on the last note is what increments the count, so the seam
+   * asserts the chime actually SOUNDED rather than that it was scheduled — a
+   * suspended context schedules happily and plays nothing.
+   */
+  #scheduleChime(plan: TtChimePlan): void {
+    plan.notes.forEach((note, i) => {
+      const osc = this.#ctx.createOscillator();
+      const env = this.#ctx.createGain();
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(note.hz, note.startS);
+
+      env.gain.setValueAtTime(0, note.startS);
+      env.gain.linearRampToValueAtTime(note.peak, note.startS + 0.01);
+      // exponentialRamp cannot reach 0, so decay to a floor and stop.
+      env.gain.exponentialRampToValueAtTime(0.0001, note.stopS);
+
+      osc.connect(env).connect(this.#chimeGain);
+      this.#chimeGain.gain.setValueAtTime(1, note.startS);
+
+      osc.start(note.startS);
+      osc.stop(note.stopS);
+
+      if (i === plan.notes.length - 1) {
+        osc.onended = () => {
+          const el = document.documentElement;
+          el.dataset['ttChimeCount'] = String(Number(el.dataset['ttChimeCount'] ?? 0) + 1);
+        };
+      }
+    });
   }
 
   /** Publishes the status seam after any engine call that can change it. */

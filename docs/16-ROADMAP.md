@@ -107,6 +107,57 @@ visible-vs-hidden countdown distinction plainly, rather than leaving it in the
 EULA. It is the one item of the six the S2 decision demanded that lives outside
 the app, and it belongs with the P6 landing copy.
 
+## P2 exit review — 2026-07-21
+
+Written to the standard P1's own review demanded: **each criterion names the
+artifact that satisfies it**, because a phase whose criteria can be met while
+deliverables go missing has under-specified criteria.
+
+| Criterion | Satisfied by | Result |
+|-----------|--------------|--------|
+| Single mode E2E passes | `tests/e2e/single-mode.spec.ts` + `import-single.spec.ts` | ✅ asserts `dataset.ttAudio === 'running'` **and** peak Analyser RMS > 0 — without both, the flow passes identically on a silently-suspended context |
+| fade + chime work with the tab hidden | `tests/e2e/end-behavior.spec.ts` "fade and chime survive a hidden run" | ✅ with the caveat below |
+| a hidden run past `LATE_THRESHOLD_MS` shows the actual finish time | `tests/e2e/finished-late.spec.ts` (both branches) + `tests/component/TtFinished.test.ts` + `tests/unit/tt-late.test.ts` | ✅ |
+
+**Read criterion 2 precisely, or a future reader will re-litigate it as a bug.**
+It is satisfied in the sense `04 §2` left available: the fade and chime are
+committed to the audio clock in one synchronous block at `done`, so they execute
+correctly whenever `done` fires and need no further main-thread frame. They can
+still fire **minutes late** on a hidden, throttled tab. That is the re-scoped
+promise, not a defect — and it is exactly why criterion 3 exists.
+
+The E2E fronts a second page so `document.hidden` is genuinely true, but it
+cannot reproduce Chromium's *intensive* throttling: Playwright launches with
+`--disable-renderer-backgrounding`, and the stall needs ~5 minutes of real
+backgrounding. The minutes-late case stays the manual `13 §7` item.
+
+### Scope delivered
+
+Audio graph (`05 §1`, split master stage) · import pipeline with the `02 §4`
+step-0 pre-scan · metadata modal (`02 §8`) · bottom bar (`03 §2` Z7, now also
+owning Stop) · hard loop + loop counter · End Behavior incl. `endFlash` and all
+three `endAction` values · the late-finish Finished screen · the `02 §1` state
+machine incl. `playing ⇄ paused`, Stop and Restart.
+
+**228 unit + component tests, 42 E2E** across chromium and the two mobile
+projects, five gates green. Engine coverage 95.8 % statements / 87.6 % branches.
+
+### Not delivered, and why
+
+**The crossfade loop style** — `15 §S4b` is open, and P2 shipped `hard` with the
+toggle disabled (`05 §2`). Everything else in the P2 scope notes above is a
+stated deferral with an owner phase.
+
+### What the phase changed in the docs
+
+Three audit findings closed and one partly resolved; `15 §S4` split into S4a/S4b;
+`03 §2` gained the Z7 Stop control and the position format; `03 §6` finally
+defines `endFlash`; `05 §1` records why the master stage is two nodes. Three
+behaviours were established by measurement rather than assumption — `page.clock`
+moves both clocks in step, the component-test tier needed
+`resolve.conditions: ['browser']` to work at all, and a truncated MP3 does not
+fail to decode (a garbled one does).
+
 ## Post-1.0 backlog (unordered)
 
 - YouTube Data API v3 proxy on the existing Worker (duration/publish date at

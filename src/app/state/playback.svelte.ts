@@ -1,3 +1,4 @@
+import type { TtEndAction } from '../../lib/tt-domain-types';
 import { TtAudioDriver } from '../engine/audio/tt-audio-driver';
 import type { TtPlaybackStatus } from '../engine/audio/types';
 import { ttLog } from '../engine/log/tt-log';
@@ -116,6 +117,36 @@ class PlaybackStore {
 
   applyVolume(): void {
     this.#driver?.engine.setVolume(settings.current.volume, settings.current.muted);
+  }
+
+  /** Re-arm the fade stage before a run — see runEndBehavior. */
+  resetFade(): void {
+    this.#driver?.resetFade();
+  }
+
+  /**
+   * docs/02 §5 — fade, chime and flash at zero, then whatever `endAction` says.
+   *
+   * Returns the action rather than acting on it: restarting the countdown is
+   * the session's business, and docs/12 §3.3 keeps the data flowing one way.
+   * Returns null when there is nothing playing — the ?ttdebug=1 timer-only run.
+   */
+  runEndBehavior(): { flash: boolean; action: TtEndAction } | null {
+    if (!this.#driver) return null;
+    const s = settings.current;
+    const plan = this.#driver.runEndBehavior(
+      {
+        endFadeMs: s.endFadeMs,
+        endChime: s.endChime,
+        endFlash: s.endFlash,
+        endAction: s.endAction,
+      },
+      s.muted,
+    );
+    // The media element is paused after the fade has actually finished, not
+    // before it — pausing first would cut the fade off at its first sample.
+    setTimeout(() => this.#driver?.engine.pause(), plan.fadeMs);
+    return { flash: plan.flash, action: plan.action };
   }
 
   /**
