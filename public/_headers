@@ -1,8 +1,22 @@
-# Security + caching headers — docs/09 §2-4 is authoritative.
+# Security headers — docs/09 §2/§4 is authoritative.
 # Honoured by Cloudflare Workers Static Assets. Astro copies public/ into dist/
 # verbatim, then scripts/inject-csp-hash.ts rewrites <TT_GATE_HASH> below.
 #
-# Rules are applied most-specific-last, so the /* block comes first.
+# ⚠️ There is deliberately NO Cache-Control on the `/*` rule. Cloudflare
+# APPENDS header values when several rules match a path rather than letting the
+# most specific one win, so `/*` plus `/_astro/*` emitted
+#
+#   Cache-Control: public, max-age=0, must-revalidate, public, max-age=31536000, immutable
+#
+# — two conflicting max-age values in one header, where implementations
+# generally honour the first. Every hashed bundle and the pinned font was
+# therefore uncacheable: the exact opposite of docs/09 §3. Only surfaced by
+# checking the live site.
+#
+# HTML needs no rule of its own: the Workers Static Assets default is already
+# `public, max-age=0, must-revalidate`, which is what docs/09 §3 asks for.
+# Setting it in the Worker is not an option either — a matching asset is served
+# BEFORE the Worker runs, so worker/index.ts never sees these requests.
 
 /*
   Content-Security-Policy: default-src 'self'; script-src 'self' 'sha256-<TT_GATE_HASH>' https://www.youtube.com https://www.youtube-nocookie.com; frame-src https://www.youtube-nocookie.com https://www.youtube.com; img-src 'self' data: blob: https://i.ytimg.com; media-src 'self' blob:; style-src 'self' 'unsafe-inline'; font-src 'self'; connect-src 'self'; worker-src 'self' blob:; frame-ancestors 'none'; base-uri 'self'; form-action 'none'; object-src 'none'; upgrade-insecure-requests
@@ -11,13 +25,12 @@
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), midi=()
   Cross-Origin-Opener-Policy: same-origin
   X-Frame-Options: DENY
-  Cache-Control: public, max-age=0, must-revalidate
 
-# Hashed filenames — safe to cache forever (docs/09 §3).
+# Only these two rules set Cache-Control, and they do not overlap each other.
+# No `/*` cache rule exists, so nothing can be appended to them (see the note
+# at the top of this file).
 /_astro/*
   Cache-Control: public, max-age=31536000, immutable
 
-# Not content-hashed, but the vendored font is pinned to a release and only
-# changes when PROVENANCE.md does (docs/09 §3).
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable

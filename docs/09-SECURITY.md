@@ -38,10 +38,28 @@ attacks, GDPR data-subject tooling (nothing to export/delete server-side).
 
 ```
 /_astro/*      Cache-Control: public, max-age=31536000, immutable   (hashed assets)
-/fonts/*       Cache-Control: public, max-age=31536000, immutable
+/fonts/*       Cache-Control: public, max-age=31536000, immutable   (pinned release)
 /api/*         Cache-Control: public, max-age=21600                 (set by Worker)
-/* (html)      Cache-Control: public, max-age=0, must-revalidate
+html           Cache-Control: public, max-age=0, must-revalidate    (platform default)
 ```
+
+⚠️ **Do not add a `Cache-Control` line to the `/*` rule in `public/_headers`.**
+Cloudflare *appends* header values when several rules match a path instead of
+letting the most specific one win, so `/*` + `/_astro/*` shipped
+`public, max-age=0, must-revalidate, public, max-age=31536000, immutable` —
+two conflicting `max-age` values in one header, of which implementations
+generally honour the first. Every content-hashed bundle and the vendored font
+was uncacheable in production as a result.
+
+HTML needs no rule: the Workers Static Assets default is already
+`public, max-age=0, must-revalidate`. Nor can this be fixed in the Worker — a
+matching asset is served **before** the Worker is invoked, so `worker/index.ts`
+never sees those requests. `/api/*` is different precisely because no asset
+matches it.
+
+Found on the live site on 2026-07-21; `wrangler dev` against `/` alone did not
+reveal it, because only one rule matched there. Verified fixed by re-checking a
+hashed asset, the font and an HTML route separately.
 
 ## 4. Content-Security-Policy (authoritative)
 

@@ -99,8 +99,12 @@ export default {
       return oembed(id, ctx);
     }
 
-    // Everything else is a static asset. not_found_handling: "404-page" in
-    // wrangler.jsonc serves dist/404.html for unknown paths (docs/10 §3).
+    // Everything else is a static asset. Note these mostly do NOT reach this
+    // handler: Workers Static Assets serves a matching asset before invoking
+    // the Worker, so `_headers` — not code here — governs asset responses
+    // (which is why Cache-Control lives there, see public/_headers).
+    // This call covers the paths with no matching asset, where
+    // not_found_handling: "404-page" serves dist/404.html (docs/10 §3).
     return env.ASSETS.fetch(request);
   },
 };
