@@ -20,7 +20,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # Runs before install: it needs nothing but git, and if the corpus ever
       # lands in a commit we want to know immediately, not 3 minutes later.
