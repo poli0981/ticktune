@@ -39,9 +39,26 @@ call it. The static-assets Worker exposes:
 GET /api/yt/oembed?id=<videoId>
   → edge fetch https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=<id>&format=json
   → 200 {title, author_name, thumbnail_url}   (cached 6 h, caches.default)
-  → 404/400 passthrough {error:"unavailable"}  (cached 15 min)
-  → input validated: ^[A-Za-z0-9_-]{11}$ else 400
+  → upstream not-ok passthrough {error:"unavailable"}  (cached 15 min)
+  → input fails ^[A-Za-z0-9_-]{11}$      → 400 {error:"invalid_id"}   (uncached)
+  → upstream unreachable                 → 502 {error:"upstream_unreachable"} (uncached)
+  → method is not GET                    → 405 {error:"method_not_allowed"}
 ```
+
+⚠️ **The status code alone is not enough to classify the failure — read the
+`error` field.** Measured against the live endpoint on 2026-07-21: YouTube's
+oEmbed answers a well-formed but non-existent video id with **HTTP 400**, not
+404. So a deleted video and a malformed id both surface as 400, and only the
+body tells them apart:
+
+| Response | Meaning | Client action |
+|----------|---------|---------------|
+| `400 {"error":"invalid_id"}` | Our own regex rejected the shape — never reached YouTube | `yt.err.invalid`, TT-YT-002 |
+| `400 {"error":"unavailable"}` | YouTube says there is no such video: deleted, private, or never existed | `yt.err.gone`, **TT-YT-100** |
+| `502 {"error":"upstream_unreachable"}` | Edge could not reach YouTube | keep `status:'pending'`, TT-YT-001 |
+
+This is why the Worker emits distinct `error` values rather than a single
+`"unavailable"` for everything non-2xx.
 
 - Thumbnails render directly from `https://i.ytimg.com/vi/<id>/hqdefault.jpg`.
 - Duration and publish date are **not** available without the Data API v3 —
@@ -57,8 +74,9 @@ inside the player area — a routed page would break the running countdown.
 
 | Signal | Meaning | Overlay (i18n key) | Action | Log |
 |--------|---------|--------------------|--------|-----|
-| URL regex fails / oEmbed 400 | Invalid link | `yt.err.invalid` | rejected at import | TT-YT-002 |
-| oEmbed 404/401 at import | Deleted / private | `yt.err.gone` | rejected at import | TT-YT-100 |
+| URL regex fails, or `400 {"error":"invalid_id"}` | Invalid link | `yt.err.invalid` | rejected at import | TT-YT-002 |
+| **Any non-2xx carrying `{"error":"unavailable"}`** — in practice a **400**, see `§3` | Deleted / private / no such video | `yt.err.gone` | rejected at import | TT-YT-100 |
+| `502 {"error":"upstream_unreachable"}` | Edge could not reach YouTube | none — keep the track | TT-YT-001 |
 | `onError 2` | Bad parameter | `yt.err.invalid` | skip after 5 s | TT-YT-002 |
 | `onError 5` | HTML5 player failure | `yt.err.player` | retry once → skip | TT-YT-005 |
 | `onError 100` | Removed/private mid-session | `yt.err.gone` | stop → 3 s → next (`02 §6`) | TT-YT-100 |
