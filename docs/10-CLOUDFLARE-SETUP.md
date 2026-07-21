@@ -157,9 +157,11 @@ script — the mobile gate — matching what `pnpm build` emits, and
 
 Zone-side, still to do:
 
-- [ ] **Disable Cloudflare Web Analytics auto-injection** (`§10` — it is
-      currently injecting a beacon that the CSP blocks)
-- [ ] **HSTS** — not present on the live site as of 2026-07-21 (`§2`)
+- [x] **Cloudflare Web Analytics auto-injection disabled** — re-measured
+      2026-07-22 against the live `/`: **zero** occurrences of
+      `cloudflareinsights` or `beacon.min.js` in the served HTML (`§10`)
+- [x] **HSTS** — live as of 2026-07-22:
+      `max-age=15552000; includeSubDomains; preload`, exactly what `§2` asks for
 - [x] Custom domain attached, cert active, `https://ticktune.net` 200
 - [ ] 61 rapid calls to `/api/*` → 429
 - [ ] Bot Fight Mode on · [ ] rate-limit rule active
