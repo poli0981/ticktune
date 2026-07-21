@@ -45,6 +45,37 @@ function harness(startWall = 1_000_000, startMono = 0) {
   };
 }
 
+describe('tick samples (spike S2 instrumentation, docs/15 §S2)', () => {
+  it('emits both clock deltas per tick so hidden/visible runs can be compared', () => {
+    const samples: Array<{ dWallMs: number; dMonoMs: number; skewMs: number }> = [];
+    let wall = 1_000_000;
+    let mono = 0;
+    const timer = new TtTimer({
+      now: () => wall,
+      mono: () => mono,
+      onSample: (s) => samples.push(s),
+    });
+
+    timer.start(60_000);
+    timer.tick(); // primes the clocks — nothing to diff yet
+    wall += 200;
+    mono += 200;
+    timer.tick();
+    wall += 5_000; // clock jump: wall only
+    timer.tick();
+
+    expect(samples).toHaveLength(2);
+    expect(samples[0]).toMatchObject({ dWallMs: 200, dMonoMs: 200, skewMs: 0 });
+    expect(samples[1]?.skewMs).toBe(5_000);
+  });
+
+  it('costs nothing when no sampler is attached', () => {
+    const h = harness();
+    h.timer.start(1_000);
+    expect(() => h.timer.tick()).not.toThrow();
+  });
+});
+
 describe('derived time (CLAUDE.md invariant 3)', () => {
   it('is computed from the deadline, so a huge tick gap is still correct', () => {
     const h = harness();
@@ -126,7 +157,7 @@ describe('single-fire done (docs/04 §6)', () => {
 
     h.timer.tick(true); // the visibility/focus latch
 
-    expect(h.done).toHaveBeenCalledWith({ late: true });
+    expect(h.done).toHaveBeenCalledWith({ late: true, overshootMs: 599_000 });
     expect(h.logs.map((l) => l.code)).toContain('TT-SYS-203');
   });
 
@@ -135,8 +166,19 @@ describe('single-fire done (docs/04 §6)', () => {
     h.timer.start(1_000);
     h.advance(1_000);
     h.timer.tick();
-    expect(h.done).toHaveBeenCalledWith({ late: false });
+    expect(h.done).toHaveBeenCalledWith({ late: false, overshootMs: 0 });
     expect(h.logs.map((l) => l.code)).not.toContain('TT-SYS-203');
+  });
+
+  it('reports how far past the deadline it fired — the number S2 bounds', () => {
+    // docs/15 §S2 caps hidden-tab-with-audio overshoot at ±500 ms and asks for a
+    // measured figure in the silent and YouTube cases. That measurement is only
+    // meaningful if overshootMs is the real lateness, so pin it.
+    const h = harness();
+    h.timer.start(10_000);
+    h.throttleGap(10_350); // tick arrived 350 ms after zero
+    h.timer.tick();
+    expect(h.done.mock.calls[0]?.[0]?.overshootMs).toBe(350);
   });
 
   it('a restart re-arms the latch', () => {

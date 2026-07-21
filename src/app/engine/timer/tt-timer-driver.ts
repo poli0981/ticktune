@@ -1,5 +1,5 @@
 import { TtTimer } from './tt-timer';
-import type { TtTimerLogCode } from './types';
+import type { TtTickSample, TtTimerLogCode } from './types';
 
 /**
  * Browser wiring for the timer core — docs/04 §2-3.
@@ -18,8 +18,10 @@ import type { TtTimerLogCode } from './types';
 
 export interface TtTimerDriverOptions {
   onRemaining: (remainingMs: number) => void;
-  onDone: (info: { late: boolean }) => void;
+  onDone: (info: { late: boolean; overshootMs: number }) => void;
   onLog?: (code: TtTimerLogCode | 'TT-SYS-202', detail?: Record<string, number>) => void;
+  /** Spike S2 only — see TtTickSample and docs/15 §S2. */
+  onSample?: (sample: TtTickSample) => void;
 }
 
 export class TtTimerDriver {
@@ -42,6 +44,7 @@ export class TtTimerDriver {
         opts.onDone(info);
       },
       onLog: (code, detail) => opts.onLog?.(code, detail),
+      ...(opts.onSample ? { onSample: opts.onSample } : {}),
     });
 
     document.addEventListener('visibilitychange', this.#onVisibility);

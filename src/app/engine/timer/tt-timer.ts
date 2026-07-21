@@ -113,10 +113,19 @@ export class TtTimer {
   tick(late = false): number {
     if (this.#phase !== 'running') return this.remainingMs;
 
-    this.#detectClockJump();
+    const measured = this.#detectClockJump();
 
     const remaining = this.remainingMs;
     this.#hooks.onTick?.(remaining);
+
+    if (this.#hooks.onSample && measured) {
+      this.#hooks.onSample({
+        ...measured,
+        remainingMs: remaining,
+        late,
+        hidden: typeof document !== 'undefined' ? document.hidden : false,
+      });
+    }
 
     if (remaining <= 0) this.#fireDone(late);
     return remaining;
@@ -133,14 +142,17 @@ export class TtTimer {
    * the deadline, so a user who set their clock forward five minutes still gets
    * the countdown they asked for, and the digits do not jump.
    */
-  #detectClockJump(): void {
+  #detectClockJump(): { wallMs: number; dWallMs: number; dMonoMs: number; skewMs: number } | null {
     const wall = this.#now();
     const mono = this.#mono();
+    let measured: { wallMs: number; dWallMs: number; dMonoMs: number; skewMs: number } | null =
+      null;
 
     if (this.#prevWall !== null && this.#prevMono !== null) {
       const dWall = wall - this.#prevWall;
       const dMono = mono - this.#prevMono;
       const skew = dWall - dMono;
+      measured = { wallMs: wall, dWallMs: dWall, dMonoMs: dMono, skewMs: skew };
 
       if (Math.abs(skew) > DRIFT_THRESHOLD_MS && this.#endAtEpoch !== null) {
         this.#endAtEpoch += skew;
@@ -150,15 +162,20 @@ export class TtTimer {
 
     this.#prevWall = wall;
     this.#prevMono = mono;
+    return measured;
   }
 
   /** Single-fire latch shared by every path that can reach zero (docs/04 §6). */
   #fireDone(late: boolean): void {
     if (this.#doneFired) return;
     this.#doneFired = true;
+    // How late we actually were. With a visible tab this is one tick interval;
+    // under throttling it is the number spike S2 is trying to establish
+    // (docs/15 §S2). Captured before endAtEpoch is cleared.
+    const overshootMs = this.#endAtEpoch === null ? 0 : this.#now() - this.#endAtEpoch;
     this.#phase = 'done';
     this.#endAtEpoch = null;
-    if (late) this.#hooks.onLog?.('TT-SYS-203', {});
-    this.#hooks.onDone?.({ late });
+    if (late) this.#hooks.onLog?.('TT-SYS-203', { overshootMs: Math.round(overshootMs) });
+    this.#hooks.onDone?.({ late, overshootMs });
   }
 }

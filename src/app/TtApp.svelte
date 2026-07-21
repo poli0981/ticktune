@@ -1,8 +1,10 @@
 <script lang="ts">
   import { onDestroy } from 'svelte';
   import TtCountdown from './components/TtCountdown.svelte';
+  import TtDebugPanel from './components/TtDebugPanel.svelte';
   import { TtTimerDriver } from './engine/timer/tt-timer-driver';
   import { TT_MAX_COUNTDOWN_MS, TT_MIN_COUNTDOWN_MS } from './engine/timer/tt-format';
+  import type { TtTickSample } from './engine/timer/types';
 
   /**
    * P1 shell. The legal gate, setup, queue and player land in later phases
@@ -32,34 +34,63 @@
   const debug =
     typeof location !== 'undefined' && new URLSearchParams(location.search).has('ttdebug');
 
+  // Spike S2 state (docs/15 §S2). Only populated under ?ttdebug=1; a 90-minute
+  // run at 200 ms would otherwise accumulate ~27k objects for nothing.
+  let samples = $state<TtTickSample[]>([]);
+  let doneInfo = $state<{ late: boolean; overshootMs: number } | null>(null);
+  let logLines = $state<string[]>([]);
+
+  // Display staleness, which is a DIFFERENT quantity from the worker tick
+  // cadence: below 60 s the digits repaint every rAF frame, so the number the
+  // user sees is far fresher than the 200 ms authoritative tick. S2's "visible
+  // tab ≤ ±50 ms" is about this; its "±500 ms at done" is about the tick gap.
+  let maxRenderGapMs = $state(0);
+  let lastRenderAt = 0;
+
   const driver = new TtTimerDriver({
     onRemaining: (ms) => {
       remainingMs = ms;
       phase = driver.phase;
+      if (debug && driver.phase === 'running') {
+        const t = performance.now();
+        if (lastRenderAt) maxRenderGapMs = Math.max(maxRenderGapMs, t - lastRenderAt);
+        lastRenderAt = t;
+      }
     },
-    onDone: ({ late }) => {
+    onDone: (info) => {
       phase = 'done';
       remainingMs = 0;
-      notice = late ? "Time's up (recovered after suspend)" : "Time's up";
+      doneInfo = info;
+      notice = info.late ? "Time's up (recovered after suspend)" : "Time's up";
     },
     onLog: (code, detail) => {
       // Until the log engine lands (docs/02 §7), surface coded events where a
       // human can see them. console.warn is allowed by docs/12 §4 precisely
       // because it feeds the diagnostics buffer.
       console.warn(`[${code}]`, detail ?? {});
-      if (debug) notice = `${code} ${JSON.stringify(detail ?? {})}`;
+      if (debug) logLines = [...logLines, `${code} ${JSON.stringify(detail ?? {})}`];
     },
+    ...(debug ? { onSample: (s: TtTickSample) => samples.push(s) } : {}),
   });
 
   onDestroy(() => driver.dispose());
 
   function onStart() {
     notice = '';
+    samples = [];
+    doneInfo = null;
+    logLines = [];
+    maxRenderGapMs = 0;
+    lastRenderAt = 0;
     driver.start(durationMs);
   }
 </script>
 
 <main class="grid min-h-dvh place-items-center gap-10 p-8">
+  {#if debug}
+    <TtDebugPanel {samples} done={doneInfo} logs={logLines} {phase} {maxRenderGapMs} />
+  {/if}
+
   <TtCountdown remainingMs={displayMs} />
 
   <div class="flex flex-col items-center gap-4">

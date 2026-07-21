@@ -71,12 +71,34 @@ audio-engine, importer, or YouTube code is written before S1/S3/S4 pass.
   and without audio playing**; verify Worker `done` fires while hidden; verify
   Wake Lock reacquisition; verify the drift rule (`04 §1`) distinguishes a
   wall-clock jump from a throttling gap.
+- **How to run:** open **`https://ticktune.net/app/?ttdebug=1`** (or a local
+  `astro preview`). A panel appears top-right; it is absent without the flag and
+  collects nothing, because a 90-minute run at 200 ms would otherwise accumulate
+  ~27 000 sample objects for no reason. Set a duration, press Bắt đầu, drive the
+  browser through the case you are testing, then **copy JSON report** and paste
+  the result into the table below.
+
+  The panel reports four numbers, and the distinction between the first two
+  matters:
+
+  | Metric | Meaning | S2 bound |
+  |--------|---------|----------|
+  | **max render gap** | Worst delay between display repaints. Below 60 s the digits repaint per rAF frame, so this is what the user actually perceives | **≤ ±50 ms**, visible tab |
+  | **tick gap** (visible / hidden) | Worst gap between *authoritative* worker ticks, ~200 ms nominal. Bounds how late `done` can fire | hidden: **≤ ±500 ms** with audio |
+  | **max \|skew\|** | Largest `dWall − dMono`. Non-zero means the wall clock moved (`04 §1`) | ~0 unless the clock is changed |
+  | **overshoot at done** | How far past the deadline the finish actually fired | the real acceptance figure |
+
+  The **keep-alive audio** checkbox is the apparatus for case 3: an inaudible
+  ~0-gain oscillator that makes the tab count as playing audio. Running case 3
+  once with it on and once off, then diffing, *is* the measurement. It is
+  deliberately a raw oscillator and not the audio engine — the scope rule keeps
+  audio-engine code behind S3/S4, and this is instrumentation.
+
 - **Method:** the real `tt-timer` core — the shipping countdown page under
   `?ttdebug=1`, **not** a throwaway harness (this spike's own goal requires the
   real core, so writing it twice is waste; see the scope note under "Exit").
-  30-min and 90-min runs in Chromium + Firefox on Windows 11 (i7-14700KF box);
-  log every tick's `Date.now()` **and** `performance.now()` delta + drift
-  histogram. Matrix:
+  30-min and 90-min runs in Chromium + Firefox on Windows 11 (i7-14700KF box).
+  Matrix:
 
   | # | Tab state | Audio | Why |
   |---|-----------|-------|-----|
@@ -109,6 +131,19 @@ audio-engine, importer, or YouTube code is written before S1/S3/S4 pass.
   engine invariant in `04`. That moves ownership of the silent-but-running state
   into the audio engine and **must be settled before P2** starts.
 - **Timebox:** 1 day (long runs can run unattended).
+
+### S2 results
+
+Paste one row per run. `keepAlive` records the oscillator state, since case 3 is
+meaningless without it.
+
+| Date | Browser | Case | keepAlive | render gap | tick gap | \|skew\| | overshoot | Verdict |
+|------|---------|------|-----------|-----------|----------|--------|-----------|---------|
+| 2026-07-21 | Chromium (headless) | 1 visible, 4 s | off | **18 ms** | 202 ms | 0.7 ms | **29 ms** | ✅ smoke — confirms the harness reports sane numbers; not a real S2 run |
+
+Everything below case 1 is still to run — the hidden, minimised, suspended and
+clock-change cases all need a human driving a real browser window, which is
+exactly why they were never going to be automated.
 
 ## S3 — music-metadata coverage & Vietnamese tags (→ `05 §4–5`)
 
