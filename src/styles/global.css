@@ -1,5 +1,25 @@
 @import 'tailwindcss';
 
+/* DSEG7 Classic — vendored, self-hosted, OFL 1.1. Provenance, hashes and the
+   Reserved Font Name constraint: public/fonts/dseg7/PROVENANCE.md.
+
+   `font-display: block` rather than `swap`: the countdown is the product, and
+   swapping a proportional fallback for a seven-segment face mid-run would
+   visibly reflow the digits. The file is 5 KB and same-origin, so the block
+   period is imperceptible — and `unicode-range` keeps it from ever being
+   fetched for prose.
+
+   DSEG7 covers digits, `:`, `.` and `-` only (docs/03 §1), which is exactly the
+   countdown's alphabet. Everything else falls through to --font-ui. */
+@font-face {
+  font-family: 'DSEG7 Classic';
+  src: url('/fonts/dseg7/DSEG7Classic-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+  unicode-range: U+0030-0039, U+002D, U+002E, U+003A;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    TickTune "On Air" design tokens — docs/03 §1 is authoritative.
    Identity: a late-night broadcast studio. Glowing seven-segment clock on a dark
