@@ -68,6 +68,7 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-PLY-101 | Playback error on local track — skipped/removed |
 | TT-PLY-102 | Playlist exhausted before countdown (repeat off) |
 | TT-PLY-103 | End-behavior chime could not be scheduled (AudioContext not running) |
+| TT-PLY-105 | `AudioContext.resume()` did not complete — no usable audio output; playback continues unreported rather than hanging |
 | TT-USR-001 | Track removed by user |
 | TT-USR-100 | Legal gate accepted (records the version) |
 | TT-YT-001 | oEmbed pre-check network failure — kept pending |

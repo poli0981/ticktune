@@ -178,10 +178,14 @@ export class TtAudioDriver {
       deckGain: (id: TtDeckId) => this.#gainPort(this.#deckGains[id]!),
       userGain: this.#gainPort(this.#userGain),
       fadeGain: this.#gainPort(this.#fadeGain),
-      createUrl: (file) => URL.createObjectURL(file),
+      createUrl: (source) => URL.createObjectURL(source),
       revokeUrl: (url) => {
         URL.revokeObjectURL(url);
       },
+      delay: (ms) =>
+        new Promise((resolve) => {
+          window.setTimeout(resolve, ms);
+        }),
     };
   }
 

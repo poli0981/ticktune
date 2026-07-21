@@ -18,7 +18,8 @@ export type TtDeckId = 0 | 1;
 type TtAudioLogCode =
   | 'TT-PLY-100' // playback blocked by the autoplay policy
   | 'TT-PLY-101' // playback error on a local track
-  | 'TT-PLY-103'; // chime could not be scheduled
+  | 'TT-PLY-103' // chime could not be scheduled
+  | 'TT-PLY-105'; // resume() never completed — no usable audio output
 
 /** A gain node, as far as the engine is concerned. */
 export interface TtGainPort {
@@ -69,6 +70,12 @@ export interface TtAudioPorts {
    */
   createUrl: (source: Blob) => string;
   revokeUrl: (url: string) => void;
+  /**
+   * A timer, injected so the engine stays free of globals and its timeouts are
+   * drivable from a unit test. Needed because `AudioContext.resume()` can hang
+   * forever rather than rejecting — see `TtAudioEngine.unlock`.
+   */
+  delay: (ms: number) => Promise<void>;
 }
 
 /** What the engine reports outward. State flows engine → state → components. */

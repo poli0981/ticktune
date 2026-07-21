@@ -11,10 +11,34 @@ import { gotoApp, setDuration, stageSingle, dismissUnloadDialogs } from './_help
  * output DEVICE but leaves the graph running, so the RMS assertion is valid
  * there.
  */
+
+/**
+ * ⚠️ Firefox is skipped for the assertions that require AUDIBLE output.
+ *
+ * Measured on CI 2026-07-21: in headless Firefox on the Linux runner,
+ * `AudioContext.resume()` never settles — it does not reject, it hangs — which
+ * is the signature of no audio output device. The context therefore stays
+ * `suspended`, nothing sounds, and the loop counter never advances. A real
+ * Firefox plays fine; this is the runner, not the browser and not the app.
+ *
+ * What is NOT skipped, and still runs on Firefox: the gate, the whole import
+ * pipeline including cover art, the countdown, the Finished screens, the
+ * fallback rules, and the muted case below (which asserts a chime does NOT
+ * sound and so needs no output).
+ *
+ * The compensating checks: Chromium runs every one of these, and
+ * `tests/manual/p2-live-checklist.md` has a real-Firefox item. The product
+ * behaviour this environment exposed — a hung `resume()` silently preventing
+ * playback — is now handled and unit-tested (TT-PLY-105), which is the part
+ * that mattered.
+ */
+const needsAudibleOutput = ({ browserName }: { browserName: string }) => browserName === 'firefox';
+
 test.describe('single mode', () => {
   test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
 
   test('imports a file, plays it audibly, and loops', async ({ page }) => {
+    test.skip(needsAudibleOutput, 'no audio output device on the CI runner');
     dismissUnloadDialogs(page);
     await gotoApp(page, '/app/?ttdebug=1');
 
@@ -52,6 +76,7 @@ test.describe('single mode', () => {
   });
 
   test('the loop counter increments across a wrap', async ({ page }) => {
+    test.skip(needsAudibleOutput, 'no audio output device on the CI runner');
     dismissUnloadDialogs(page);
     await gotoApp(page);
     await stageSingle(page);
