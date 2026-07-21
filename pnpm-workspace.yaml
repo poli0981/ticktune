@@ -3,8 +3,15 @@
 #   esbuild  — Vite/Astro's bundler; the whole build is dead without it
 #   workerd  — the Cloudflare Workers runtime used by `wrangler dev` (docs/10 §3)
 #   sharp    — Astro's image pipeline
+#   ffmpeg-static — its postinstall DOWNLOADS a prebuilt ffmpeg binary, which is
+#     a heavier trust decision than the three above, so it gets called out.
+#     Accepted because it is dev-only (generates tests/e2e/fixtures via
+#     scripts/make-fixtures.ts), never imported by shipped code and never
+#     distributed — so the GPL terms of the binary it fetches impose nothing on
+#     our output (docs/11 §5). Pin and checksum it before ever running in CI.
 allowBuilds:
   esbuild: true
+  ffmpeg-static: true
   sharp: true
   workerd: true
 

@@ -42,6 +42,9 @@ latest-or-LTS everywhere, no components with known critical CVEs.
 | @testing-library/svelte | 5.4.2 | Component tests |
 | happy-dom | 20.11.0 | Test DOM |
 | @playwright/test | 1.61.1 | E2E |
+| @vitest/coverage-v8 | 4.1.10 | Coverage provider — the docs/13 §1 threshold is enforced, so it must exist |
+| ffmpeg-static | 5.3.0 | **Dev-only fixture generation** (`scripts/make-fixtures.ts`). Its postinstall downloads a prebuilt ffmpeg (GPL); never imported by shipped code and never distributed, so no notice obligation follows (`§5`). Requires an explicit `allowBuilds` entry in `pnpm-workspace.yaml` — pnpm blocks postinstall scripts by default and we keep that guard. |
+| @cloudflare/workers-types | 5.x | Worker globals. Kept in a separate program (`tsconfig.worker.json`) because it conflicts with the DOM lib |
 
 ## 4. TypeScript version — ✅ RESOLVED 2026-07-21: pinned `~5.9`
 
