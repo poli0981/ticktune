@@ -102,8 +102,15 @@
   // cadence and would drown out the visible one that S2's ±50 ms bound is about.
   /** docs/03 §6 — two 120 ms pulses over Z1, suppressed by reduced motion. */
   let flashing = $state(false);
-  /** `endAction: 'restart'` re-runs ONCE (docs/02 §3.3); 'loop' is unbounded. */
-  let restarted = false;
+  /**
+   * `endAction: 'restart'` re-runs ONCE (docs/02 §3.3); 'loop' is unbounded.
+   *
+   * Reset by every USER-initiated start, not just set once: "once" means once
+   * per run the user asked for, not once per page load. Without the reset, a
+   * user who runs, goes back to setup and starts again silently gets no
+   * auto-restart the second time.
+   */
+  let autoRestarted = false;
 
   let maxRenderGapVisibleMs = $state(0);
   let maxRenderGapHiddenMs = $state(0);
@@ -168,11 +175,11 @@
       }
 
       // docs/02 §3.3. 'stay' is the default and needs no action.
-      if (end.action === 'restart' && !restarted) {
-        restarted = true;
-        setTimeout(() => onStart(), 400);
+      if (end.action === 'restart' && !autoRestarted) {
+        autoRestarted = true;
+        setTimeout(() => onStart(false, true), 400);
       } else if (end.action === 'loop') {
-        setTimeout(() => onStart(), 400);
+        setTimeout(() => onStart(false, true), 400);
       }
     },
     onLog: (code, detail) => {
@@ -193,10 +200,13 @@
   /**
    * @param force the ?ttdebug=1 timer-only Start (docs/15 §S2) — runs the
    *   countdown with no track, which is what the spike's silent cases need.
+   * @param auto this start came from `endAction`, not from the user. Only a
+   *   user-initiated start re-arms the once-only restart.
    */
-  function onStart(force = false) {
+  function onStart(force = false, auto = false) {
     session.start(force);
     if (session.state !== 'playing') return;
+    if (!auto) autoRestarted = false;
 
     // The previous run's fade left fadeGain at 0; without this the next run is
     // silent for its whole duration with nothing on screen to explain it.
