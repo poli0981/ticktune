@@ -11,8 +11,6 @@ import { gotoApp, setDuration, stageSingle, dismissUnloadDialogs } from './_help
  * schedules happily while playing nothing.
  */
 /** See the note in single-mode.spec.ts — the CI runner has no audio output. */
-const needsAudibleOutput = ({ browserName }: { browserName: string }) => browserName === 'firefox';
-
 test.describe('end behavior', () => {
   test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
 
@@ -27,8 +25,8 @@ test.describe('end behavior', () => {
   const chimeCount = (page: Page) =>
     page.evaluate(() => Number(document.documentElement.dataset['ttChimeCount'] ?? 0));
 
-  test('the fade completes and the chime sounds exactly once', async ({ page }) => {
-    test.skip(needsAudibleOutput, 'the chime cannot sound without an output device');
+  test('the fade completes and the chime sounds exactly once', async ({ page, browserName }) => {
+    test.skip(browserName === 'firefox', 'the chime cannot sound without an output device');
     await runToZero(page);
     await expect(page.getByTestId('tt-finished')).toBeVisible({ timeout: 10_000 });
 
@@ -77,8 +75,8 @@ test.describe('end behavior', () => {
    * So this asserts the OUTCOME — the fade finished and the chime ran — and
    * never which path fired it.
    */
-  test('fade and chime survive a hidden run', async ({ page, context }) => {
-    test.skip(needsAudibleOutput, 'the chime cannot sound without an output device');
+  test('fade and chime survive a hidden run', async ({ page, context, browserName }) => {
+    test.skip(browserName === 'firefox', 'the chime cannot sound without an output device');
     await runToZero(page, 3);
 
     const other = await context.newPage();
