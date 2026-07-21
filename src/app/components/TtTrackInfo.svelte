@@ -1,0 +1,145 @@
+<script lang="ts">
+  import { trackInfoRows } from '../engine/importer/tt-track-display';
+  import type { TtTrack } from '../engine/importer/types';
+
+  /**
+   * docs/02 §8 — the track metadata modal.
+   *
+   * Every field comes from `trackInfoRows`, which is pure and unit-tested, so
+   * this component decides nothing: it renders rows, traps focus, and returns
+   * focus to whatever opened it (docs/03 §8).
+   */
+
+  interface Props {
+    track: TtTrack;
+    onclose: () => void;
+  }
+
+  const { track, onclose }: Props = $props();
+
+  const rows = $derived(trackInfoRows(track));
+
+  let dialog: HTMLDivElement;
+  let closeButton: HTMLButtonElement;
+
+  $effect(() => {
+    // Remembered before focus moves, so Esc can put it back where it was —
+    // otherwise focus lands on <body> and a keyboard user loses their place.
+    const opener = document.activeElement as HTMLElement | null;
+    closeButton?.focus();
+    return () => opener?.focus?.();
+  });
+
+  function onKeydown(e: KeyboardEvent) {
+    if (e.key === 'Escape') {
+      e.stopPropagation();
+      onclose();
+      return;
+    }
+    if (e.key !== 'Tab') return;
+
+    // Focus trap. The modal has few controls, so querying on each Tab is
+    // cheaper than maintaining a list and cannot go stale.
+    const focusable = dialog.querySelectorAll<HTMLElement>('button, [href], [tabindex]');
+    if (focusable.length === 0) return;
+    const first = focusable[0]!;
+    const last = focusable[focusable.length - 1]!;
+    if (e.shiftKey && document.activeElement === first) {
+      e.preventDefault();
+      last.focus();
+    } else if (!e.shiftKey && document.activeElement === last) {
+      e.preventDefault();
+      first.focus();
+    }
+  }
+</script>
+
+<svelte:window on:keydown={onKeydown} />
+
+<div class="tt-backdrop" data-testid="tt-trackinfo-backdrop">
+  <div
+    bind:this={dialog}
+    class="tt-modal"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Thông tin bài hát"
+    data-testid="tt-trackinfo"
+  >
+    <h2>Thông tin bài hát</h2>
+
+    <dl>
+      {#each rows as row (row.label)}
+        <div>
+          <dt>{row.label}</dt>
+          <dd>{row.value}</dd>
+        </div>
+      {/each}
+    </dl>
+
+    <button
+      bind:this={closeButton}
+      class="tt-close"
+      data-testid="tt-trackinfo-close"
+      onclick={onclose}>Đóng</button
+    >
+  </div>
+</div>
+
+<style>
+  .tt-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 30;
+    display: grid;
+    place-items: center;
+    padding: 2rem;
+    background: color-mix(in srgb, var(--color-tt-void) 75%, transparent);
+  }
+  .tt-modal {
+    width: min(30rem, 100%);
+    max-height: 80vh;
+    overflow-y: auto;
+    padding: 1.1rem 1.25rem;
+    background: var(--color-tt-surface);
+    border: 1px solid var(--color-tt-line);
+    border-radius: 0.5rem;
+  }
+  h2 {
+    margin-bottom: 0.75rem;
+    font-size: 0.95rem;
+    letter-spacing: 0.04em;
+    color: var(--color-tt-signal);
+  }
+  dl {
+    display: grid;
+    gap: 0.3rem;
+    margin: 0 0 1rem;
+    font-size: 0.78rem;
+  }
+  dl > div {
+    display: flex;
+    gap: 1rem;
+    justify-content: space-between;
+    border-bottom: 1px solid color-mix(in srgb, var(--color-tt-line) 60%, transparent);
+    padding-bottom: 0.2rem;
+  }
+  dt {
+    color: var(--color-tt-muted);
+    white-space: nowrap;
+  }
+  dd {
+    margin: 0;
+    overflow-wrap: anywhere;
+    text-align: right;
+  }
+  .tt-close {
+    padding: 0.35rem 1rem;
+    color: var(--color-tt-signal);
+    background: transparent;
+    border: 1px solid var(--color-tt-line);
+    border-radius: 0.25rem;
+  }
+  .tt-close:hover {
+    border-color: var(--color-tt-signal);
+  }
+</style>

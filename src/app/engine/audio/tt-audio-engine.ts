@@ -45,6 +45,20 @@ export class TtAudioEngine {
     return this.#ledger.size;
   }
 
+  /** Media position for Z7 (docs/03 §2). Not a countdown — docs/04 §4 owns those. */
+  get positionMs(): number {
+    return Math.round(this.#ports.deck(this.#deck).currentTimeS * 1000);
+  }
+
+  /**
+   * The element's own duration, which can differ from the tag's and can be
+   * revised mid-playback on a VBR MP3 (docs/05 §2). Null until it settles.
+   */
+  get durationMs(): number | null {
+    const d = this.#ports.deck(this.#deck).durationS;
+    return Number.isFinite(d) && d > 0 ? Math.round(d * 1000) : null;
+  }
+
   /**
    * The autoplay-unlock gesture (docs/05 §1).
    *

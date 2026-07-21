@@ -89,6 +89,12 @@ minutes are not zero-padded. This is a **media position, not a countdown**:
 `04 §4` owns countdown formats and nothing here restates them. (The diagram above
 read `03:12` until P2, which contradicted the very rule it illustrates.)
 
+**Z7 owns Stop (⏹) as well.** `02 §1`'s `playing/paused → setup` edge needs a
+control and no chapter gave it one. It goes here rather than in a second row
+beside the countdown, because a duplicate row would put two buttons with the
+same accessible name on screen at once — an ambiguity for a screen reader, not
+just for a test. Transport lives in one place.
+
 ### Z4 right rail by mode
 
 | Mode | Rail content |

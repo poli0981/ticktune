@@ -28,6 +28,10 @@
     /** Cumulative time the tab spent hidden during this run. */
     hiddenMs: number;
     elapsedMs: number;
+    /** Peak Analyser RMS — proves the graph carries signal (docs/13 §3). */
+    peakRms: number;
+    /** Live object URLs — the docs/09 §5 leak canary. */
+    liveUrls: number;
   }
 
   const {
@@ -39,6 +43,8 @@
     maxRenderGapHiddenMs,
     hiddenMs,
     elapsedMs,
+    peakRms,
+    liveUrls,
   }: Props = $props();
 
   /**
@@ -174,6 +180,16 @@
     <div>
       <dt>max |skew|</dt>
       <dd>{Math.max(report.maxAbsSkewMs.visible, report.maxAbsSkewMs.hidden)} ms</dd>
+    </div>
+    <div>
+      <dt title="non-zero proves the graph carries signal, not just that nothing threw">
+        peak RMS
+      </dt>
+      <dd data-testid="tt-peak-rms">{peakRms.toFixed(4)}</dd>
+    </div>
+    <div>
+      <dt title="docs/05 §3: at most queueLength + 2">live object URLs</dt>
+      <dd data-testid="tt-live-urls">{liveUrls}</dd>
     </div>
     {#if done}
       <div>

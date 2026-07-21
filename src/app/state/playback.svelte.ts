@@ -118,10 +118,18 @@ class PlaybackStore {
     this.#driver?.engine.setVolume(settings.current.volume, settings.current.muted);
   }
 
-  /** Called from the player's rAF/position tick. */
-  syncPosition(positionMs: number, durationMs: number | null): void {
-    this.#positionMs = positionMs;
-    this.#durationMs = durationMs;
+  /**
+   * Pull the media position from the element — called from the player's tick.
+   *
+   * Pull rather than push because `timeupdate` fires at only ~4 Hz, which is
+   * visibly steppy on a progress bar, and because the element is the only thing
+   * that knows the truth after a VBR duration revision (docs/05 §2).
+   */
+  tick(): void {
+    const engine = this.#driver?.engine;
+    if (!engine) return;
+    this.#positionMs = engine.positionMs;
+    this.#durationMs = engine.durationMs ?? this.#track?.durationMs ?? null;
   }
 
   dispose(): void {
