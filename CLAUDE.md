@@ -108,9 +108,19 @@ Resolved: TypeScript pinned `~5.9` — TS 7 crashes svelte-check (`docs/11 §4`)
 DSEG7 Classic tag confirmed **v0.46** stable (`docs/11 §2`). Island mount
 mechanism measured — hand-mount wins (`docs/01 §3`).
 
-Open items: domain purchase (`ticktune.net`); confirm reusable workflow
-filenames against `poli0981/.github`; S2 silent-hidden-tab number
-(`docs/04 §2`).
+Open items, in the order they block things:
+
+1. **Decide the S2 question** (`docs/04 §2`) — the only thing between here and P2.
+2. Cloudflare dashboard, all zone-side: disable **Web Analytics auto-injection**
+   (it injects a beacon the CSP blocks — `docs/10 §10`), set **HSTS** to
+   `max-age=15552000` (currently `max-age=0`, i.e. off), and disable **CodeQL
+   Default setup** (`codeql.yml` is `startup_failure` until then).
+3. Spikes still open: **S1** player half — embed-off, age-restricted,
+   **region-blocked needs confirming from Vietnam** (`tests/manual/yt-matrix.md`);
+   **S4** overlap-timing ±150 ms and the 0/1/2/5 s sweep (audible check passed
+   by ear).
+4. `docs/AUDIT-BACKLOG.md` — 26 open findings, 1 release blocker (generated
+   third-party notices).
 
 `test/` is a **local-only, git-ignored** ~651 MB audio corpus for spikes S3/S4.
 Never commit it, never reference it from shipped code, never assume it exists in
