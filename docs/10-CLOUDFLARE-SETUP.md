@@ -122,12 +122,45 @@ keep working once loaded. (Full offline PWA is post-1.0, `16 §post`.)
   `script-src`/`connect-src` and disclosed in the Privacy Policy — default is
   **off**; decide before launch.
 
+### ⚠️ Automatic beacon injection — turn it OFF (observed live, 2026-07-21)
+
+On the first dashboard deploy, Cloudflare **injected its analytics beacon into
+every HTML response at the edge**, without any change to this repository. The
+live page carried a second inline `<script>` (the `__CF$cv$params` bootstrap)
+which loads `https://static.cloudflareinsights.com/beacon.min.js`.
+
+That contradicts three things we assert:
+
+- hard invariant 1 in `CLAUDE.md` — "no telemetry, no analytics";
+- `legal/PRIVACY-POLICY.md §1` — "No analytics, tracking pixels, fingerprinting,
+  or advertising";
+- this very section, which says the default is off.
+
+**The CSP blocked both halves** — the inline bootstrap failed the
+`script-src` hash check and `static.cloudflareinsights.com` is not an allowed
+origin — so nothing was loaded and no data was sent. This is the clearest
+possible demonstration that the `09 §4` policy earns its keep: a third party
+added a script to our pages and the policy refused it, on a page nobody had
+re-tested since deploy.
+
+Blocking it is not the same as not shipping it, though. The injection must be
+disabled at the source: **Cloudflare dashboard → the zone → Analytics & Logs →
+Web Analytics → disable automatic setup** (and check Workers → ticktune →
+Settings for a per-project toggle). Do **not** "fix" this by adding the beacon
+origin to the CSP.
+
+Re-verify after disabling: the live HTML should contain exactly **one** inline
+script — the mobile gate — matching what `pnpm build` emits, and
+`pnpm verify:csp` against the live origin should report zero violations.
+
 ## 11. Launch checklist (zone side)
 
 Zone-side, still to do:
 
-- [ ] Custom domain attached, cert active, `https://ticktune.net` 200
-- [ ] HSTS present
+- [ ] **Disable Cloudflare Web Analytics auto-injection** (`§10` — it is
+      currently injecting a beacon that the CSP blocks)
+- [ ] **HSTS** — not present on the live site as of 2026-07-21 (`§2`)
+- [x] Custom domain attached, cert active, `https://ticktune.net` 200
 - [ ] 61 rapid calls to `/api/*` → 429
 - [ ] Bot Fight Mode on · [ ] rate-limit rule active
 - [ ] `www` redirect (if configured) works
