@@ -1,0 +1,17 @@
+{
+  // Normative copy lives in docs/01 §5.
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "ticktune",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-01",
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    // Serves dist/404.html for unknown paths — this is the whole 404 story,
+    // no zone feature needed (docs/10 §3).
+    "not_found_handling": "404-page",
+  },
+  "observability": {
+    "enabled": true,
+  },
+}

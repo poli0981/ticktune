@@ -1,0 +1,60 @@
+{
+  "name": "ticktune",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "license": "GPL-3.0-only",
+  "description": "Desktop-only countdown with your own music behind it. 100% client-side.",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/poli0981/ticktune.git"
+  },
+  "homepage": "https://ticktune.net",
+  "bugs": "https://github.com/poli0981/ticktune/issues",
+  "packageManager": "pnpm@11.15.1",
+  "engines": {
+    "node": ">=24 <25"
+  },
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "lint": "eslint . && prettier --check .",
+    "format": "prettier --write .",
+    "check": "astro check && svelte-check --tsconfig ./tsconfig.json",
+    "knip": "knip --no-config-hints",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:e2e": "playwright test",
+    "guard": "node scripts/guard-no-corpus.mjs"
+  },
+  "dependencies": {
+    "@astrojs/svelte": "9.0.1",
+    "astro": "7.1.3",
+    "svelte": "5.56.7"
+  },
+  "devDependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "1.61.1",
+    "@sveltejs/vite-plugin-svelte": "^7.2.0",
+    "@tailwindcss/vite": "4.3.3",
+    "@types/node": "^24.0.0",
+    "eslint": "10.7.0",
+    "eslint-plugin-svelte": "3.22.0",
+    "globals": "^17.7.0",
+    "happy-dom": "20.11.0",
+    "knip": "6.27.0",
+    "prettier": "3.9.5",
+    "prettier-plugin-astro": "^0.14.1",
+    "prettier-plugin-svelte": "^3.4.0",
+    "prettier-plugin-tailwindcss": "^0.6.0",
+    "svelte-check": "4.7.3",
+    "svelte-eslint-parser": "^1.8.0",
+    "tailwindcss": "4.3.3",
+    "typescript": "~5.9",
+    "typescript-eslint": "^8.64.0",
+    "vitest": "4.1.10",
+    "wrangler": "4.112.0"
+  }
+}

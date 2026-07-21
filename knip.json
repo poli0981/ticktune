@@ -1,0 +1,25 @@
+{
+  "$schema": "https://unpkg.com/knip@6/schema.json",
+  "entry": [
+    "src/pages/**/*.astro",
+    "src/app/mount.ts",
+    "src/app/engine/timer/tt-timer.worker.ts",
+    "worker/index.ts",
+    "scripts/*.{ts,mjs}",
+    "tests/**/*.{test,spec}.ts"
+  ],
+  "project": ["src/**/*.{ts,svelte,astro}", "worker/**/*.ts", "scripts/**/*.{ts,mjs}"],
+  "ignore": ["dist/**", ".astro/**", "test/**"],
+  "ignoreDependencies": [
+    "@astrojs/check",
+    "prettier-plugin-astro",
+    "prettier-plugin-svelte",
+    "prettier-plugin-tailwindcss",
+    "tailwindcss",
+    "wrangler"
+  ],
+  "ignoreBinaries": ["wrangler", "playwright"],
+  "astro": {
+    "entry": ["astro.config.mjs", "src/pages/**/*.astro"]
+  }
+}

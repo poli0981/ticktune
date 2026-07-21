@@ -1,0 +1,16 @@
+# Hand-authored prose with deliberate line breaks, wide comparison tables and
+# ASCII diagrams (docs/01 §1, docs/03 §2). Prettier's markdown printer reflows
+# all three. docs/12 §8 scopes Prettier to code style, not documentation.
+*.md
+.github/ISSUE_TEMPLATE/
+
+dist/
+.astro/
+.wrangler/
+node_modules/
+coverage/
+playwright-report/
+test-results/
+pnpm-lock.yaml
+# Local spike corpus — audio, never formatted, never committed.
+test/

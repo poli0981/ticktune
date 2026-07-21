@@ -1,0 +1,22 @@
+# Windows dev box, Linux CI — normalise in the repo, check out native.
+* text=auto eol=lf
+
+# Binary assets: never munged, never diffed as text.
+*.woff2 binary
+*.woff  binary
+*.ttf   binary
+*.otf   binary
+*.mp3   binary
+*.flac  binary
+*.opus  binary
+*.ogg   binary
+*.oga   binary
+*.m4a   binary
+*.wav   binary
+*.webm  binary
+*.png   binary
+*.jpg   binary
+*.ico   binary
+
+# Generated — collapse in PR diffs.
+pnpm-lock.yaml linguist-generated=true -diff

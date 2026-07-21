@@ -1,0 +1,74 @@
+@import 'tailwindcss';
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   TickTune "On Air" design tokens — docs/03 §1 is authoritative.
+   Identity: a late-night broadcast studio. Glowing seven-segment clock on a dark
+   stage, pulsing tally light, faint scanlines.
+   ──────────────────────────────────────────────────────────────────────────── */
+@theme {
+  --color-tt-void: #08090c; /* page background */
+  --color-tt-surface: #10131a; /* panels, rails */
+  --color-tt-line: #1d2330; /* borders, dividers */
+  --color-tt-signal: #4fd1ff; /* primary accent — signal cyan */
+  --color-tt-warn: #ffb454; /* secondary accent, warnings */
+  --color-tt-danger: #ff5d5d; /* countdown < 60 s, destructive */
+  --color-tt-text: #e7ebf2;
+  --color-tt-muted: #8a93a3;
+
+  --font-digit: 'DSEG7 Classic', 'JetBrains Mono', monospace;
+  --font-ui: 'Be Vietnam Pro', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Motion tokens — docs/03 §8 */
+  --ease-tt: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --duration-tt-fast: 150ms;
+  --duration-tt-base: 250ms;
+  --duration-tt-slow: 400ms;
+}
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  background: var(--color-tt-void);
+  color: var(--color-tt-text);
+  font-family: var(--font-ui);
+}
+
+/* Visible focus ring — docs/03 §8 requires 2 px offset in signal cyan. */
+:focus-visible {
+  outline: 2px solid var(--color-tt-signal);
+  outline-offset: 2px;
+}
+
+/* ── Mobile gate (docs/07 §3.1) ──────────────────────────────────────────────
+   The overlay is always in the DOM but hidden. The head script sets
+   data-tt-blocked before first paint, so there is no flash and no layout shift.
+   Landing/legal HTML deliberately STAYS in the DOM underneath — it is only
+   visually hidden, which keeps the content crawlable (docs/07 §5). */
+.tt-mobile-gate {
+  display: none;
+}
+
+html[data-tt-blocked] .tt-mobile-gate {
+  display: flex;
+}
+
+html[data-tt-blocked] body > *:not(.tt-mobile-gate) {
+  visibility: hidden;
+}
+
+/* Decoration is suppressed at render time; the stored preference survives
+   (docs/02 §3.1, docs/03 §8). The countdown is content, not decoration, and
+   keeps updating. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
