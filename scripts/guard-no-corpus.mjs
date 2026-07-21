@@ -11,6 +11,15 @@
  *   default    inspect every tracked file     (CI, docs/14 §1 ci.yml)
  *
  * Exit 0 clean, 1 on any violation.
+ *
+ * ⚠️ Gotcha worth knowing if you TEST this guard: `git add -f` writes the blob
+ * into .git/objects immediately, and blocking the commit does not remove it.
+ * The object is unreachable, so it is never pushed (`git push` sends only
+ * reachable objects) and never enters history — but it does sit in the local
+ * object store until gc, and auto-gc will happily pack 30 MB of it. After
+ * deliberately staging corpus files, reclaim the space with:
+ *
+ *   git reflog expire --expire-unreachable=now --all && git gc --prune=now
  */
 import { execFileSync } from 'node:child_process';
 

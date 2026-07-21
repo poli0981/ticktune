@@ -55,6 +55,13 @@ step, before install, and `.githooks/pre-commit` runs it against the index.
 actual enforcement keeping the ~651 MB `test/` corpus out of history. Enable the
 hook once per clone: `git config core.hooksPath .githooks`.
 
+⚠️ If you deliberately test the guard: `git add -f` writes the blob into
+`.git/objects` before any hook runs, and blocking the commit does not remove it.
+The object stays unreachable — never pushed, never in history — but auto-gc will
+pack it, which is how a 14 KB repo briefly grew a 31 MB local pack during this
+guard's own verification. Reclaim with
+`git reflog expire --expire-unreachable=now --all && git gc --prune=now`.
+
 ### First live run — 2026-07-21
 
 Both notable results were the system behaving correctly:
