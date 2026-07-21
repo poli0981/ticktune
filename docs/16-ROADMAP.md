@@ -107,7 +107,33 @@ visible-vs-hidden countdown distinction plainly, rather than leaving it in the
 EULA. It is the one item of the six the S2 decision demanded that lives outside
 the app, and it belongs with the P6 landing copy.
 
-## P2 exit review — 2026-07-21
+## P2 exit review — 2026-07-21 · **released as v0.2.0 on 2026-07-22**
+
+Tagged `v0.2.0` from a rebase-merged `main` (the repo keeps a strictly linear
+history — rebase, never squash). `deploy.yml` ran in 43 s. Verified by fetching
+the served bundle rather than by trusting the green tick: `/app/` returns 200,
+the CSP is enforcing with the inline-gate hash, and the shipped island contains
+strings that exist only in this release.
+
+### What P3 inherits
+
+Worth knowing before starting Playlist, because more of it is already done than
+the phase description suggests:
+
+- **The playlist caps are already implemented and unit-tested** — 95 files,
+  91:00 total, the TT-IMP-003/004 boundaries, dedupe, and the aggregate check
+  all live in `tt-import.ts` and `tt-queue-rules.ts`. P3 is mostly the queue UI
+  plus playback order.
+- `TT_QUEUE_CAP` already carries all three modes; `isQueueValid` already has the
+  playlist branch.
+- The A/B deck pair, the URL ledger and the `queueLength + 2` bound were built
+  for a queue, not for one track — `TtUrlLedger` is property-tested against
+  random add/remove across twelve tracks.
+- Still missing for P3, and deliberately: the shuffle order itself (`02 §5`
+  Fisher-Yates, reshuffle on wrap), the queue mutation rules during playback
+  (an open audit finding), the import progress indicator, and the crossfade
+  between tracks — which `15 §S4b` gates exactly as it gates the Single-mode
+  loop style.
 
 Written to the standard P1's own review demanded: **each criterion names the
 artifact that satisfies it**, because a phase whose criteria can be met while
