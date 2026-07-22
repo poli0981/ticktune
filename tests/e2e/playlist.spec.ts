@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { dismissUnloadDialogs, gotoApp, setDuration, stagePlaylist } from './_helpers';
+import {
+  dismissUnloadDialogs,
+  gotoApp,
+  setDuration,
+  stageManyTracks,
+  stagePlaylist,
+} from './_helpers';
 
 /**
  * docs/13 §3 — Playlist mode, P3 slice 1.
@@ -174,6 +180,86 @@ test.describe('playlist mode', () => {
       .click({ button: 'right' });
     await expect(page.getByRole('dialog')).toBeVisible();
     await expect(page.getByRole('dialog')).toContainText('tone-5s.wav');
+  });
+
+  /**
+   * Reported from the live app on 2026-07-22 with a 24-track queue: rows past
+   * about the sixteenth painted BELOW the panel's border, over the bottom bar
+   * and off the screen. Every existing test used three tracks, so nothing ever
+   * exceeded `max-height: 60vh` and the clipping was never exercised.
+   *
+   * Asserted as geometry rather than as a screenshot: what makes it a bug is
+   * that the rail leaves the viewport and covers Z7, and that is measurable.
+   */
+  test('a long queue scrolls inside the rail instead of overflowing it', async ({ page }) => {
+    dismissUnloadDialogs(page);
+    await gotoApp(page);
+    await stageManyTracks(page, 24);
+    await setDuration(page, 0, 1, 0);
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+
+    const panel = page.getByTestId('tt-queue-panel');
+    await expect(panel).toBeVisible();
+
+    const viewport = page.viewportSize();
+    const box = await panel.boundingBox();
+    expect(box).not.toBeNull();
+    // The panel fits on screen. Before the fix its height was the full content
+    // height and this bottom edge sat far past the viewport.
+    expect(box!.y + box!.height).toBeLessThanOrEqual(viewport!.height);
+
+    // The rows stay INSIDE the panel. This is the assertion that matches what
+    // the bug looked like: the rail's own box was correctly capped at 60vh, so
+    // the check above passed while the list painted straight through the
+    // border, over Z7 and off the screen.
+    const rowsBox = await page.locator('.tt-rows').boundingBox();
+    expect(rowsBox!.y + rowsBox!.height).toBeLessThanOrEqual(box!.y + box!.height);
+
+    // And it is the ROW LIST that scrolls — a panel that fits only because the
+    // rows were clipped away would satisfy the checks above while hiding tracks
+    // the user cannot reach.
+    const scrolls = await page.locator('.tt-rows').evaluate((el) => ({
+      scrollHeight: el.scrollHeight,
+      clientHeight: el.clientHeight,
+    }));
+    expect(scrolls.scrollHeight).toBeGreaterThan(scrolls.clientHeight);
+
+    // The last row is reachable by scrolling, so nothing is lost.
+    const last = page.getByTestId('tt-queue-row').last();
+    await last.scrollIntoViewIfNeeded();
+    const lastBox = await last.boundingBox();
+    expect(lastBox!.y + lastBox!.height).toBeLessThanOrEqual(viewport!.height);
+  });
+
+  /**
+   * The same 24-track queue on Setup, where the panel stacks above the countdown
+   * inputs and Start rather than owning its own column.
+   *
+   * At the rail's 60vh a long queue added ~430 px to a screen that was already
+   * tall, and Start ended up far past the fold. The `setup` variant caps it, and
+   * Start stays reachable — which is the property worth pinning, not the pixel.
+   */
+  test('on Setup the panel is capped so Start stays reachable', async ({ page }) => {
+    dismissUnloadDialogs(page);
+    await gotoApp(page);
+    await stageManyTracks(page, 24);
+
+    const panel = page.getByTestId('tt-queue-panel');
+    await expect(panel).toHaveAttribute('data-tt-variant', 'setup');
+
+    const box = await panel.boundingBox();
+    // Well under the rail's 60vh (432 px at this viewport). A regression back to
+    // the shared height would sail past this.
+    expect(box!.height).toBeLessThanOrEqual(280);
+
+    // Rows still stay inside, and still scroll.
+    const rowsBox = await page.locator('.tt-rows').boundingBox();
+    expect(rowsBox!.y + rowsBox!.height).toBeLessThanOrEqual(box!.y + box!.height);
+
+    const start = page.getByRole('button', { name: 'Bắt đầu' });
+    await start.scrollIntoViewIfNeeded();
+    await expect(start).toBeInViewport();
+    await expect(start).toBeEnabled();
   });
 
   test('switching to Single mode keeps the queue and explains why Start is off', async ({

@@ -99,6 +99,7 @@
     <!-- Same component as the Z4 rail: one now-playing highlight, one totals
          footer, one place for either to be wrong (docs/03 §2). -->
     <TtQueuePanel
+      variant="setup"
       tracks={session.queue}
       currentId={session.currentId}
       shuffle={settings.current.shuffle}
