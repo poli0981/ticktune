@@ -83,6 +83,16 @@ export interface TtAudioEvents {
   onLog: (code: TtAudioLogCode, detail?: Record<string, number | string>) => void;
   /** A wrap was detected on the hard loop — docs/03 §2's "Loop ×N". */
   onLoop: (count: number) => void;
+  /**
+   * The current track played to its end — docs/02 §5's playlist advance.
+   *
+   * Fires only when the deck was loaded with `loop: false`, because
+   * `element.loop = true` emits no `ended` at all (docs/05 §2). That is not a
+   * limitation to work around here: it is exactly why Single mode needs no mode
+   * check on this path, and why the loop counter is derived from a `currentTime`
+   * regression instead.
+   */
+  onEnded: () => void;
   onStatus: (status: TtPlaybackStatus) => void;
 }
 

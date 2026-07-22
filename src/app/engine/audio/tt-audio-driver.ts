@@ -70,6 +70,11 @@ export class TtAudioDriver {
 
       el.addEventListener('timeupdate', () => this.#engine.onTimeUpdate());
       el.addEventListener('error', () => this.#engine.onMediaError());
+      // Playlist advance (docs/02 §5). Forwarded only — every decision about
+      // what plays next lives in the engine and the play-order module, because
+      // this file is excluded from the coverage gate by name (docs/13 §1) and
+      // logic parked here would be silently untested.
+      el.addEventListener('ended', () => this.#engine.onEnded());
 
       this.#elements[id] = el;
       this.#deckGains[id] = gain;

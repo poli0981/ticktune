@@ -5,9 +5,11 @@
   import TtDebugPanel from './components/TtDebugPanel.svelte';
   import TtFinished from './components/TtFinished.svelte';
   import TtLegalGate from './components/TtLegalGate.svelte';
+  import TtQueuePanel from './components/TtQueuePanel.svelte';
   import TtSetup from './components/TtSetup.svelte';
   import TtSingleRail from './components/TtSingleRail.svelte';
   import TtTrackInfo from './components/TtTrackInfo.svelte';
+  import type { TtTrack } from './engine/importer/types';
   import { TtTimerDriver } from './engine/timer/tt-timer-driver';
   import type { TtTickSample } from './engine/timer/types';
   import { installGlobalCapture, ttLog } from './engine/log/tt-log';
@@ -33,7 +35,16 @@
 
   onMount(() => {
     const uninstall = installGlobalCapture(window);
+
+    // docs/02 §5 — a track that plays to its end advances the queue. Wired here
+    // rather than inside the playback store because "what plays next" is the
+    // session's question, and docs/12 §3.3 keeps data flowing one way.
+    playback.onEnded = onTrackEnded;
+
     void settings.load(navigator.language).then((s) => {
+      // docs/03 §3: P3 unlocks Playlist, so the remembered mode is finally
+      // honoured. P2 deliberately never wrote over it for exactly this moment.
+      session.adoptMode(s.lastMode);
       const gate = s.legalAccepted?.version !== TT_LEGAL_VERSION;
       session.booted(gate);
       booted = true;
@@ -226,13 +237,55 @@
 
     driver.start(durationMs);
 
-    const track = session.track;
+    const track = session.current;
     if (!force && track) {
       // Unlock first and unawaited — this call is still inside the click's task
       // and WebKit stops counting the gesture at the first yield (docs/05 §1).
       void playback.unlock();
-      void playback.load(track).then(() => playback.play());
+      void playback.load(track, session.mode === 'single').then(() => playback.play());
     }
+  }
+
+  /**
+   * A track reached its end — docs/02 §5.
+   *
+   * Only reachable in Playlist mode: Single loads with `element.loop = true`,
+   * which emits no `ended` at all (docs/05 §2). Exhaustion is not an error and
+   * must not touch the timer — the countdown runs on in silence (docs/02 §5.1
+   * rule 6, docs/04 §5).
+   */
+  function onTrackEnded() {
+    if (session.state !== 'playing') return;
+    const outcome = session.advance();
+    if (outcome === 'exhausted') {
+      playback.stop();
+      return;
+    }
+    playTrack();
+  }
+
+  /** Load and play whatever the cursor now points at. */
+  function playTrack() {
+    const track = session.current;
+    if (!track) return;
+    void playback.load(track, session.mode === 'single').then(() => playback.play());
+  }
+
+  /** docs/03 §2 Z7 — ⏭. Advancing past the end wraps or falls silent, as configured. */
+  function onNext() {
+    if (session.advance() === 'exhausted') playback.stop();
+    else playTrack();
+  }
+
+  /** ⏮. Inert at the first track: prevInOrder does not wrap (docs/02 §5.1). */
+  function onPrev() {
+    if (session.prev()) playTrack();
+  }
+
+  /** Double-click a queue row. */
+  function onJump(id: string) {
+    if (!session.jumpTo(id)) return;
+    if (session.state === 'playing' || session.state === 'paused') playTrack();
   }
 
   function onPause() {
@@ -256,7 +309,14 @@
 
   // ── media position + bottom-bar wake (docs/03 §2 Z7) ──────────────────────
   let wakeToken = $state(0);
-  let infoOpen = $state(false);
+  /**
+   * The track whose info modal is open — the TRACK, not a boolean.
+   *
+   * A boolean plus `playback.track` was fine while Single mode had one track;
+   * with a queue it would show row 1's metadata however far down the user
+   * right-clicked, and the modal would look like it worked (docs/02 §8).
+   */
+  let infoTrack = $state<TtTrack | null>(null);
   /** Peak Analyser RMS, sampled for the ?ttdebug=1 panel only. */
   let peakRms = $state(0);
 
@@ -299,7 +359,7 @@
     onActivity();
     const el = e.target as HTMLElement | null;
     if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
-    if (infoOpen) return;
+    if (infoTrack) return;
 
     if (e.key === ' ' && (session.state === 'playing' || session.state === 'paused')) {
       e.preventDefault();
@@ -312,6 +372,14 @@
       const delta = e.key === 'ArrowUp' ? 0.05 : -0.05;
       const volume = Math.min(1, Math.max(0, settings.current.volume + delta));
       void settings.patch({ volume }).then(() => playback.applyVolume());
+    } else if (e.key === 'ArrowLeft' && session.canPrev) {
+      // docs/03 §7 `←/→` prev/next. Inert in Single mode — there is nowhere to
+      // go, which is the same reason Z7 disables the buttons there.
+      e.preventDefault();
+      onPrev();
+    } else if (e.key === 'ArrowRight' && session.canNext) {
+      e.preventDefault();
+      onNext();
     }
   }
 </script>
@@ -361,12 +429,27 @@
     <TtCountdown remainingMs={displayMs} glowIntensity={settings.current.glowIntensity} />
 
     {#if session.state === 'playing' || session.state === 'paused'}
-      <TtSingleRail
-        track={playback.track}
-        loops={playback.loops}
-        crossfadeAvailable={false}
-        oninfo={() => (infoOpen = true)}
-      />
+      {#if session.mode === 'single'}
+        <TtSingleRail
+          track={playback.track}
+          loops={playback.loops}
+          crossfadeAvailable={false}
+          oninfo={() => (infoTrack = playback.track)}
+        />
+      {:else}
+        <TtQueuePanel
+          tracks={session.queue}
+          currentId={session.currentId}
+          shuffle={settings.current.shuffle}
+          repeat={settings.current.repeatPlaylist}
+          exhausted={session.exhausted}
+          onremove={(id) => session.removeTrack(id)}
+          onjump={onJump}
+          onshuffle={(on) => session.setShuffle(on)}
+          onrepeat={(on) => session.setRepeat(on)}
+          oninfo={(t) => (infoTrack = t)}
+        />
+      {/if}
     {/if}
   </section>
 
@@ -383,6 +466,7 @@
       onstart={() => onStart()}
       {debug}
       ondebugstart={() => onStart(true)}
+      oninfo={(t) => (infoTrack = t)}
     />
   {/if}
 
@@ -420,12 +504,16 @@
       onvolume={(v) => void settings.patch({ volume: v }).then(() => playback.applyVolume())}
       onmute={() =>
         void settings.patch({ muted: !settings.current.muted }).then(() => playback.applyVolume())}
+      onprev={onPrev}
+      onnext={onNext}
+      canPrev={session.canPrev}
+      canNext={session.canNext}
       {wakeToken}
     />
   {/if}
 
-  {#if infoOpen && playback.track}
-    <TtTrackInfo track={playback.track} onclose={() => (infoOpen = false)} />
+  {#if infoTrack}
+    <TtTrackInfo track={infoTrack} onclose={() => (infoTrack = null)} />
   {/if}
 
   <!-- docs/03 §6 endFlash. Decoration, so reduced motion removes it entirely. -->

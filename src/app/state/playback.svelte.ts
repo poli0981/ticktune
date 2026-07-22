@@ -27,6 +27,12 @@ class PlaybackStore {
   #positionMs = $state(0);
   #durationMs = $state<number | null>(null);
 
+  /** TT-SYS-205 is a property of the build, so it is reported once per session. */
+  #loopStyleReported = false;
+
+  /** Set by the app shell so a finished track can advance the queue. */
+  onEnded: (() => void) | null = null;
+
   get status(): TtPlaybackStatus {
     return this.#status;
   }
@@ -64,11 +70,29 @@ class PlaybackStore {
       onLoop: (n) => {
         this.#loops = n;
       },
+      onEnded: () => this.onEnded?.(),
       onStatus: (s) => {
         this.#status = s;
       },
     });
     return this.#driver;
+  }
+
+  /**
+   * docs/05 §2 — the Single-mode loop style, honoured rather than assumed.
+   *
+   * Through P2 nothing read `singleLoopStyle` at all: this call passed a literal
+   * `true`, so a stored `'crossfade'` fell back to hard **silently** — the exact
+   * behaviour docs/05 §2 forbids, and indistinguishable from correctness because
+   * the fallback is what a listener hears either way. TT-SYS-205 is the notice
+   * the doc always promised; `15 §S4b` is what it is waiting on.
+   */
+  #hardLoopForSingle(): boolean {
+    if (settings.current.singleLoopStyle === 'crossfade' && !this.#loopStyleReported) {
+      this.#loopStyleReported = true;
+      ttLog.warn('TT-SYS-205', 'singleLoopStyle=crossfade unavailable, using hard');
+    }
+    return true;
   }
 
   /**
@@ -83,15 +107,19 @@ class PlaybackStore {
     return this.#ensure().unlock();
   }
 
-  async load(track: TtTrack): Promise<void> {
+  /**
+   * @param loop true in Single mode only. A playlist track loads with
+   *   `loop: false` **so that `ended` fires at all** — `element.loop = true`
+   *   emits no `ended` event (docs/05 §2), which is why Single mode needs no
+   *   mode check on the advance path.
+   */
+  async load(track: TtTrack, loop: boolean): Promise<void> {
     const driver = this.#ensure();
     this.#track = track;
     this.#loops = 1;
     this.#positionMs = 0;
     this.#durationMs = track.durationMs;
-    // P2 ships the hard loop only; `crossfade` is gated on docs/15 §S4b and
-    // falls back with a notice rather than silently (docs/05 §2).
-    driver.engine.load(track, true);
+    driver.engine.load(track, loop && this.#hardLoopForSingle());
     driver.engine.setVolume(settings.current.volume, settings.current.muted);
     driver.refresh();
   }

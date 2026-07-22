@@ -66,7 +66,12 @@ export async function importFiles(
   }
 
   const seen = new Set(queue.map(keyOf));
-  let totalMs = queue.reduce((sum, t) => sum + (t.durationMs ?? 0), 0);
+  // Seeded from PLAYABLE tracks, matching the capacity check above. The two
+  // disagreed until P3: an errored track freed a count slot while still
+  // spending its duration against the 91:00 cap, so a playlist could refuse an
+  // import to protect budget it was not actually using. Single mode never had
+  // two tracks, so nothing could reach it.
+  let totalMs = queue.filter(isPlayable).reduce((sum, t) => sum + (t.durationMs ?? 0), 0);
 
   for (const file of accepted) {
     // ── step 1: allow-list × live probe ─────────────────────────────────────

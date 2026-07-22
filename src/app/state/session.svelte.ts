@@ -1,13 +1,22 @@
 import type { TtMode } from '../../lib/tt-domain-types';
 import { browserImportPorts, filesFromDataTransfer } from '../engine/importer/tt-import-driver';
 import { importFiles } from '../engine/importer/tt-import';
-import { isReady, matchQueueLengthMs } from '../engine/importer/tt-queue-rules';
+import { isPlayable, isReady, matchQueueLengthMs } from '../engine/importer/tt-queue-rules';
 import type { TtImportResult, TtTrack } from '../engine/importer/types';
 import { ttLog } from '../engine/log/tt-log';
+import {
+  nextInOrder,
+  pinFirst,
+  prevInOrder,
+  reconcile,
+  shuffleIds,
+  withoutImmediateRepeat,
+} from '../engine/queue/tt-play-order';
 import { finishReport } from '../engine/timer/tt-late';
 import { TT_MAX_COUNTDOWN_MS, TT_MIN_COUNTDOWN_MS } from '../engine/timer/tt-format';
 import type { TtFinishInfo, TtFinishReport } from '../engine/timer/types';
 import { playback } from './playback.svelte';
+import { settings } from './settings.svelte';
 
 /**
  * Session state — docs/02 §1 and §3.
@@ -18,6 +27,13 @@ import { playback } from './playback.svelte';
  * the module that owns the queue is kept structurally unable to persist it.
  * Preferences live in settings.svelte.ts, which is the only module that talks to
  * IndexedDB.
+ *
+ * P3 imports that store — for `shuffle`, `repeatPlaylist`, `allowDuplicates` and
+ * `lastMode` — and the guarantee above still holds, but for a sharper reason
+ * than "no import": `patch()` takes a `Partial<TtSettings>`, and `TtSettings`
+ * has no field a queue could be written to. The queue is unpersistable by type,
+ * not by import hygiene. Reading `settings.current` touches no database at all —
+ * the Dexie handle is created lazily inside load/patch/reset.
  *
  * The state machine is docs/02 §1's, minus the parts that need a queue:
  *
@@ -39,6 +55,9 @@ import { playback } from './playback.svelte';
  */
 type TtAppState = 'boot' | 'gate' | 'setup' | 'playing' | 'paused' | 'finished';
 
+/** What `advance()` did, so the caller can load, wrap or fall silent. */
+type TtAdvance = 'advanced' | 'wrapped' | 'exhausted';
+
 class SessionStore {
   #state = $state<TtAppState>('boot');
   #countdownMs = $state(90_000);
@@ -48,13 +67,34 @@ class SessionStore {
   #lastImport = $state<TtImportResult | null>(null);
 
   /**
-   * P2 forces the effective mode to `single` without writing `lastMode`
-   * (docs/03 §3). `TT_DEFAULT_SETTINGS.lastMode` is 'playlist', so a fresh
-   * profile would otherwise land on a tab this phase has not built — and
-   * clobbering the stored value would mean P3 has to repair it rather than
-   * simply unlocking the tab.
+   * P2 pinned this to `single` because Playlist was not built. P3 unlocks it and
+   * `adoptMode` seats the remembered value at boot — `lastMode` was never
+   * clobbered precisely so that this would be an unlock rather than a repair
+   * (docs/03 §3).
    */
-  readonly mode: TtMode = 'single';
+  #mode = $state<TtMode>('single');
+
+  /**
+   * The playback cursor — a TRACK ID, never an index. docs/02 §5.1 turns on
+   * this: "does the now-playing track stay current when rows move" stops being
+   * a question the moment the cursor names a track instead of a position.
+   */
+  #currentId = $state<string | null>(null);
+
+  /**
+   * The stored Fisher-Yates permutation, or **null when Shuffle is off** — in
+   * which case playback order is not stored at all, it is simply the queue
+   * array. That is what makes a drag change the next track for free (docs/02
+   * §5.1 rule 1) instead of needing a remap.
+   */
+  #shuffled = $state<string[] | null>(null);
+
+  /** docs/02 §5.1 rule 6 — the order ran out and Repeat is off. */
+  #exhausted = $state(false);
+
+  get mode(): TtMode {
+    return this.#mode;
+  }
 
   get state(): TtAppState {
     return this.#state;
@@ -73,8 +113,47 @@ class SessionStore {
     return this.#lastImport;
   }
 
-  get track(): TtTrack | null {
-    return this.#queue[0] ?? null;
+  /** docs/02 §5.1 rule 6 — bottom bar shows "Playlist ended"; timer runs on. */
+  get exhausted(): boolean {
+    return this.#exhausted;
+  }
+
+  /**
+   * The track the player is on.
+   *
+   * Before Start there is no cursor yet, so this falls back to the first
+   * playable track — which is what the Single-mode staged row has always shown.
+   * The final `#queue[0]` keeps an errored single track visible rather than
+   * making it vanish from Setup the moment it fails (docs/02 §1: an errored
+   * track is *shown* struck-through, not hidden).
+   */
+  get current(): TtTrack | null {
+    const seated =
+      this.#currentId === null ? null : (this.#queue.find((t) => t.id === this.#currentId) ?? null);
+    return seated ?? this.#queue.find(isPlayable) ?? this.#queue[0] ?? null;
+  }
+
+  /**
+   * The raw cursor, for the queue panel's highlight.
+   *
+   * Distinct from `current` on purpose: `current` falls back so Setup always has
+   * something to show, whereas nothing should be highlighted before Start.
+   */
+  get currentId(): string | null {
+    return this.#currentId;
+  }
+
+  /** Playback order: the stored permutation, else the queue's own order. */
+  get order(): readonly string[] {
+    return this.#shuffled ?? this.#playableIds();
+  }
+
+  get canPrev(): boolean {
+    return this.#mode !== 'single' && prevInOrder(this.order, this.#currentId) !== null;
+  }
+
+  get canNext(): boolean {
+    return this.#mode !== 'single' && this.order.length > 1;
   }
 
   get countdownMs(): number {
@@ -96,7 +175,7 @@ class SessionStore {
    * specified way back to edit it.
    */
   get canStart(): boolean {
-    return isReady(this.mode, this.#queue, this.#countdownMs);
+    return isReady(this.#mode, this.#queue, this.#countdownMs);
   }
 
   /** True when only the countdown is out of range — for the input's own hint. */
@@ -107,6 +186,135 @@ class SessionStore {
   /** docs/03 §3 — null when the button must be disabled. */
   get matchableMs(): number | null {
     return matchQueueLengthMs(this.#queue);
+  }
+
+  // ── mode (docs/02 §1, docs/03 §3) ─────────────────────────────────────────
+
+  /**
+   * Boot: adopt the remembered mode.
+   *
+   * A stored mode this build has not shipped falls back to Playlist rather than
+   * being written over — the same reasoning that kept P2 from clobbering
+   * `lastMode`: the profile keeps its real preference and the phase that ships
+   * the mode only has to unlock a tab.
+   */
+  adoptMode(lastMode: TtMode): void {
+    this.#mode = lastMode === 'youtube' ? 'playlist' : lastMode;
+  }
+
+  /**
+   * A user picked an enabled tab. Only this path writes `lastMode` (docs/03 §3).
+   *
+   * The queue is **not** touched, including Playlist → Single with 95 tracks
+   * staged: docs/02 §1 makes readiness a predicate, so an invalid queue simply
+   * re-disables Start with its reason on screen. Truncating would discard the
+   * user's work silently; refusing the tab would strand them mid-decision.
+   */
+  setMode(mode: TtMode): void {
+    if (mode === this.#mode) return;
+    this.#mode = mode;
+    this.#syncOrder();
+    void settings.patch({ lastMode: mode });
+  }
+
+  // ── playback order (docs/02 §5.1) ─────────────────────────────────────────
+
+  #playableIds(): string[] {
+    return this.#queue.filter(isPlayable).map((t) => t.id);
+  }
+
+  /**
+   * Reconcile, never regenerate — docs/02 §5.1 rule 5.
+   *
+   * Called after every queue mutation. A no-op when Shuffle is off, because
+   * there is nothing stored to drift.
+   */
+  #syncOrder(): void {
+    if (this.#shuffled !== null) this.#shuffled = reconcile(this.#shuffled, this.#playableIds());
+  }
+
+  /** Seat the cursor at the head of a freshly built order. Start and Restart. */
+  #seat(): void {
+    this.#exhausted = false;
+    const ids = this.#playableIds();
+    this.#shuffled = settings.current.shuffle ? shuffleIds(ids, Math.random) : null;
+    this.#currentId = (this.#shuffled ?? ids)[0] ?? null;
+  }
+
+  /**
+   * docs/02 §5.1 rule 2 — takes effect **immediately**, and the current track
+   * keeps playing.
+   *
+   * "At the next wrap" was rejected in the spec: a toggle that appears to do
+   * nothing reads as broken. Pinning `#currentId` first is what makes "immediate"
+   * mean "reorder the future", not "cut off the present".
+   */
+  setShuffle(on: boolean): void {
+    this.#shuffled = on
+      ? pinFirst(shuffleIds(this.#playableIds(), Math.random), this.#currentId)
+      : null;
+    void settings.patch({ shuffle: on });
+  }
+
+  setRepeat(on: boolean): void {
+    if (on) this.#exhausted = false;
+    void settings.patch({ repeatPlaylist: on });
+  }
+
+  /**
+   * Advance to the next track — docs/02 §5 / §5.1 rule 6.
+   *
+   * Returns what happened rather than acting on it: loading media is the
+   * player's business and docs/12 §3.3 keeps data flowing one way.
+   */
+  advance(): TtAdvance {
+    // docs/02 §6's Single-mode carve-out: "auto-advance to next" has no next
+    // when the queue holds exactly one. Media stops; the countdown continues,
+    // because the timer and the media engine meet at two points and this is not
+    // one of them (docs/04 §5).
+    if (this.#mode === 'single') {
+      this.#exhausted = true;
+      return 'exhausted';
+    }
+
+    const next = nextInOrder(this.order, this.#currentId);
+    if (next !== null) {
+      this.#currentId = next;
+      return 'advanced';
+    }
+
+    if (this.order.length === 0 || !settings.current.repeatPlaylist) {
+      this.#exhausted = true;
+      // docs/02 §5: silence, the countdown continues, and the bottom bar says so.
+      if (this.order.length > 0) ttLog.warn('TT-PLY-102', '');
+      return 'exhausted';
+    }
+
+    // Wrap. docs/02 §5's "reshuffle on wrap, no immediate repeat" is a property
+    // of SHUFFLE, so an unshuffled playlist simply returns to its own head.
+    const ids = this.#playableIds();
+    if (this.#shuffled !== null) {
+      this.#shuffled = withoutImmediateRepeat(shuffleIds(ids, Math.random), this.#currentId);
+    }
+    this.#currentId = (this.#shuffled ?? ids)[0] ?? null;
+    return 'wrapped';
+  }
+
+  /** ⏮. False when there is nowhere to go — it does not wrap (docs/02 §5.1). */
+  prev(): boolean {
+    const target = prevInOrder(this.order, this.#currentId);
+    if (target === null) return false;
+    this.#currentId = target;
+    this.#exhausted = false;
+    return true;
+  }
+
+  /** Double-click a queue row. Ignores ids that are not playable. */
+  jumpTo(id: string): boolean {
+    if (!this.order.includes(id)) return false;
+    this.#currentId = id;
+    this.#exhausted = false;
+    return true;
   }
 
   // ── import (docs/02 §4) ────────────────────────────────────────────────────
@@ -135,7 +343,12 @@ class SessionStore {
       // docs/02 §4: a second import in Single mode REPLACES the held track,
       // because isQueueValid('single') requires exactly one — rejecting it
       // would strand a user who simply wants a different track.
-      const replacing = this.mode === 'single' && files.length > 0;
+      //
+      // ⚠️ This branch WIPES the queue and revokes every URL in it. It is
+      // guarded on `#mode === 'single'` and must stay that way: reaching it
+      // with a playlist staged would silently destroy up to 95 imported tracks.
+      // Both branches are pinned by store tests for exactly that reason.
+      const replacing = this.#mode === 'single' && files.length > 0;
       const queue = replacing ? [] : this.#queue;
 
       // Replacing in Single mode: release the outgoing track's URLs, or the
@@ -143,7 +356,16 @@ class SessionStore {
       if (replacing) for (const t of this.#queue) playback.releaseTrack(t.id);
 
       const result = await importFiles(
-        { files, mode: this.mode, queue, allowDuplicates: false },
+        {
+          files,
+          mode: this.#mode,
+          queue,
+          // Read from settings, not a literal. This call site passed `false`
+          // through all of P2 while the setting was declared, defaulted,
+          // clamped, persisted and honoured by the engine — so the toggle would
+          // have shipped doing nothing, and no engine test could have caught it.
+          allowDuplicates: settings.current.allowDuplicates,
+        },
         browserImportPorts(playback.makeCoverUrl),
       );
 
@@ -152,16 +374,33 @@ class SessionStore {
       // payload safe to paste publicly by construction, not by remembering.
       for (const s of [...result.skipped, ...result.notes]) ttLog.warn(s.code, '');
 
+      if (replacing) {
+        // The cursor named a track that no longer exists. Nothing to reconcile.
+        this.#currentId = null;
+        this.#shuffled = null;
+      }
       if (result.added.length > 0) this.#queue = [...queue, ...result.added];
+      // docs/02 §5.1 rule 5 — new ids join the END of a stored permutation, so
+      // importing during a shuffled run cannot reshuffle the unplayed remainder.
+      this.#syncOrder();
       this.#lastImport = result;
     } finally {
       this.#importing = false;
     }
   }
 
-  /** docs/02 §6 — user removal. "All removals revoke the URLs immediately." */
+  /** docs/02 §6 — user removal. All removals release the track's URLs at once. */
   removeTrack(id: string): void {
+    // docs/02 §6 "stop if current → advance", and §5.1 rule 5. Advance FIRST,
+    // while the id is still in the order: afterwards `nextInOrder` could only
+    // restart from the top, which is a different track than the one after it.
+    if (this.#currentId === id) this.advance();
+
     this.#queue = this.#queue.filter((t) => t.id !== id);
+    // Advancing had nowhere to go — a one-track queue, or the last one left.
+    if (this.#currentId === id) this.#currentId = null;
+    this.#syncOrder();
+
     playback.releaseTrack(id);
     ttLog.info('TT-USR-001', '', id);
   }
@@ -172,7 +411,14 @@ class SessionStore {
 
   /** docs/02 §6 — a track that failed to decode is marked, not silently dropped. */
   markTrackError(id: string): void {
+    // Same ordering as removeTrack, and for the same reason: marking it first
+    // drops it out of `order` (isPlayable), after which the cursor is stranded
+    // and can only restart from the top.
+    if (this.#currentId === id) this.advance();
+
     this.#queue = this.#queue.map((t) => (t.id === id ? { ...t, status: 'error' as const } : t));
+    if (this.#currentId === id) this.#currentId = null;
+    this.#syncOrder();
   }
 
   /** boot → gate | setup. Boot must always reach one of them (docs/02 §1). */
@@ -194,6 +440,7 @@ class SessionStore {
   start(force = false): void {
     if (!force && !this.canStart) return;
     this.#finish = null;
+    this.#seat();
     this.#state = 'playing';
   }
 
@@ -209,6 +456,9 @@ class SessionStore {
   stop(): void {
     if (this.#state === 'playing' || this.#state === 'paused') {
       this.#finish = null;
+      // The queue survives — Stop discards the RUN, not the user's work. The
+      // cursor does not, because the next Start re-seats it anyway.
+      this.#exhausted = false;
       this.#state = 'setup';
     }
   }

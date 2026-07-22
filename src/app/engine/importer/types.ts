@@ -35,8 +35,14 @@ export interface TtTrack {
   // ── local only ────────────────────────────────────────────────────────────
   /** Session RAM, and the sole owner of the bytes. Never persisted (D3). */
   file?: File;
-  /** Created lazily on play, revoked on remove/replace (docs/05 §3). */
-  objectUrl?: string;
+  /*
+   * `objectUrl` was declared here from the first revision and nothing ever
+   * wrote or read it — the media URL lives in the ledger under
+   * `media:<trackId>` (docs/05 §3), which is what "revoked on removal" actually
+   * operates on. Removed in P3 rather than left as a trap: a field that only
+   * ever holds `undefined` is the shape of the coverArtUrl bug, which survived
+   * a whole phase because every path around it behaved correctly.
+   */
   codec?: string;
   bitrateKbps?: number;
   sampleRateHz?: number;
@@ -45,7 +51,7 @@ export interface TtTrack {
   fileName?: string;
   coverArtUrl?: string;
 
-  // ── YouTube only ──────────────────────────────────────────────────────────
+  // ── YouTube only — declared here, WRITTEN by P4's importer (docs/06 §5) ────
   videoId?: string;
   thumbnailUrl?: string;
   sourceUrl?: string;

@@ -207,6 +207,20 @@ export class TtAudioEngine {
     this.#prevTimeS = current;
   }
 
+  /**
+   * The element's `ended` event — docs/02 §5's playlist advance.
+   *
+   * Reported, not resolved: which track comes next is the playback order's
+   * business (docs/02 §5.1) and this engine holds no queue. Guarded on a live
+   * track so a stray `ended` from a deck being re-`src`'d cannot advance the
+   * playlist by one for free.
+   */
+  onEnded(): void {
+    if (this.#track === null) return;
+    this.#setStatus('idle');
+    this.#events.onEnded();
+  }
+
   /** The element's `error` event — docs/02 §6, TT-PLY-101. */
   onMediaError(): void {
     if (this.#track) this.#fail('TT-PLY-101', this.#track.id);

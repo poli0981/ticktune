@@ -32,6 +32,18 @@ export async function gotoApp(page: Page, path = '/app/'): Promise<void> {
 }
 
 /**
+ * Open the app on Setup **in Single mode**.
+ *
+ * For specs that drive the file input directly rather than through
+ * `stageSingle`. Since P3 a fresh profile boots into Playlist (docs/02 §1's
+ * first-run default), so "Single" has to be asked for.
+ */
+export async function gotoSingleMode(page: Page, path = '/app/'): Promise<void> {
+  await gotoApp(page, path);
+  await page.getByTestId('tt-tab-single').click();
+}
+
+/**
  * Stage a Single-mode track so Start is enabled.
  *
  * From P2, `isReady` requires a playable track (docs/02 §1), so every test that
@@ -40,8 +52,29 @@ export async function gotoApp(page: Page, path = '/app/'): Promise<void> {
  * nothing about it.
  */
 export async function stageSingle(page: Page, fixture = 'tone-5s.mp3'): Promise<void> {
+  // Select the mode explicitly rather than relying on the default. P3 unlocked
+  // the Playlist tab and `TT_DEFAULT_SETTINGS.lastMode` is 'playlist' (docs/02
+  // §1's stated first-run default), so a fresh profile now lands there. A helper
+  // named `stageSingle` should never have depended on which tab happened to be
+  // selected — that it did is why this line is a one-time fix and not a habit.
+  await page.getByTestId('tt-tab-single').click();
   await page.getByTestId('tt-file-input').setInputFiles(`tests/e2e/fixtures/${fixture}`);
   await expect(page.getByTestId('tt-staged')).toBeVisible();
+}
+
+/**
+ * Stage several tracks in Playlist mode.
+ *
+ * Uses the picker rather than `dropFiles` because the input carries `multiple`
+ * in this mode, and because a synthetic drop cannot exercise the picker path at
+ * all. Waits on the row count, not on the panel: the panel renders empty too.
+ */
+export async function stagePlaylist(page: Page, fixtures: string[]): Promise<void> {
+  await page.getByTestId('tt-tab-playlist').click();
+  await page
+    .getByTestId('tt-file-input')
+    .setInputFiles(fixtures.map((f) => `tests/e2e/fixtures/${f}`));
+  await expect(page.getByTestId('tt-queue-row')).toHaveCount(fixtures.length);
 }
 
 /** Set the countdown inputs. They keep the P1 labels deliberately. */
