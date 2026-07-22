@@ -224,3 +224,39 @@ Stated plainly on the landing FAQ so it never reads as a bug.
 - Privacy Policy discloses: entering YouTube mode loads Google's player, which may
   set cookies/collect data per Google's privacy policy; local modes contact no
   third party (`legal/PRIVACY-POLICY.md §4`).
+
+## 8. Offline — specified in P4, because nothing else did
+
+`docs/10 §9` carried the whole design in one sentence (*"`navigator.onLine` + a
+failed-fetch probe drive a banner; entering YouTube mode while offline shows a
+blocking panel (`yt.err.offline`); local modes keep working once loaded"*), and
+this chapter did not mention offline at all. Everything below is decided here so
+the first implementation does not become the spec by default.
+
+**Trigger: `navigator.onLine` plus the `online`/`offline` events. No probe.**
+
+`docs/10 §9` suggested a failed-fetch probe as well, and P4 deliberately does
+not add one. The only same-origin endpoint worth probing is `/api/yt/oembed` —
+which is the exact path the 60 req/min rule guards (`§6`), so a polling probe is
+a self-inflicted 429. And a real signal already exists: an import that cannot
+reach the edge returns `upstream_unreachable` and keeps its track as `pending`
+(`§5`). `navigator.onLine` is a *hint* and is used as one; the import result is
+the authority.
+
+| Where | Behaviour |
+|-------|-----------|
+| Any mode, offline | A banner on Setup. Not dismissible — it clears itself when the browser reports a connection, because a dismissed banner would have to reappear anyway |
+| **Local modes** | Nothing else. Files are in RAM (`02 §3`) and playback never touches the network, so an offline Playlist run is fully supported |
+| **YouTube mode, offline** | Start is **blocked**, with the reason stated. Not "allowed and then failing": every track would report `onError 150` five seconds apart while the countdown ran, which is the worst version of this |
+| Reconnect mid-session | The banner clears. Tracks left `pending` are not auto-re-checked — see below |
+
+**The banner may not overlap the player rect.** `03 §2`'s carve-out and `§1.2`
+apply to it exactly as they apply to any other overlay: it renders in the Setup
+column, never over Z4.
+
+⬜ **Not implemented, and stated rather than implied:** a `pending` track is not
+re-checked on reconnect or on Start. `02 §1` promises "re-checked on Start", and
+that promise is currently unkept — `session.start()` is synchronous by design
+(making it async would break the autoplay gesture chain `05 §1` depends on), so
+the re-check needs a shape nobody has designed. Until then a `pending` track is
+simply attempted, and fails like any other if it was never going to work.

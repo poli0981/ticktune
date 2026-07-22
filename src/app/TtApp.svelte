@@ -38,6 +38,16 @@
   onMount(() => {
     const uninstall = installGlobalCapture(window);
 
+    // docs/06 §8 — events, not a poll. A timer probing /api would be a
+    // self-inflicted 429 against the very rule §6 asks us to respect.
+    const setOnline = () => {
+      session.setOnline(navigator.onLine);
+      yt.setOnline(navigator.onLine);
+    };
+    setOnline();
+    window.addEventListener('online', setOnline);
+    window.addEventListener('offline', setOnline);
+
     // docs/02 §5 — a track that plays to its end advances the queue. Wired here
     // rather than inside the playback store because "what plays next" is the
     // session's question, and docs/12 §3.3 keeps data flowing one way.
@@ -59,7 +69,11 @@
       // that needs to know the app settled — can wait on it instead of racing.
       document.documentElement.dataset['ttBooted'] = gate ? 'gate' : 'ready';
     });
-    return uninstall;
+    return () => {
+      window.removeEventListener('online', setOnline);
+      window.removeEventListener('offline', setOnline);
+      uninstall();
+    };
   });
 
   /**

@@ -113,6 +113,14 @@ class SessionStore {
   /** docs/02 §5.1 rule 6 — the order ran out and Repeat is off. */
   #exhausted = $state(false);
 
+  /**
+   * docs/06 §8. A HINT, not the authority — the browser reports `true` for a
+   * captive portal too. The authority is what an import actually got back, and
+   * that is why there is no polling probe: the only endpoint worth probing is
+   * the one the rate limit guards.
+   */
+  #online = $state(true);
+
   get mode(): TtMode {
     return this.#mode;
   }
@@ -208,7 +216,20 @@ class SessionStore {
    * specified way back to edit it.
    */
   get canStart(): boolean {
+    // docs/06 §8 — YouTube mode needs the network. Blocking here beats letting
+    // Start succeed and then reporting onError 150 on every track, five seconds
+    // apart, while the countdown runs.
+    if (this.#mode === 'youtube' && !this.#online) return false;
     return isReady(this.#mode, this.#queue, this.#countdownMs);
+  }
+
+  /** docs/06 §8 — `navigator.onLine`, used as the hint it is. */
+  get online(): boolean {
+    return this.#online;
+  }
+
+  setOnline(online: boolean): void {
+    this.#online = online;
   }
 
   /** True when only the countdown is out of range — for the input's own hint. */
