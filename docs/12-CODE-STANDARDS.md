@@ -81,6 +81,7 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-SYS-202 | Wake Lock unavailable/denied |
 | TT-SYS-203 | Zero crossed during sleep — late finish fired |
 | TT-SYS-204 | Settings row unreadable/corrupt — reset to defaults (`02 §3.2`) |
+| TT-SYS-205 | A stored setting names a capability this build does not ship — fell back to the shipped value (first use: `singleLoopStyle: 'crossfade'` → `hard` while `15 §S4b` is open, `05 §2`) |
 | TT-SYS-300 | Captured `window.onerror` (error **name** only — never its message, see the rule below) |
 | TT-SYS-301 | Captured `unhandledrejection` (reason **type** only) |
 

@@ -88,17 +88,24 @@ interface TtTrack {
   durationMs: number | null;  // null until known (YT: filled after cue)
   // Local only
   file?: File;                // session RAM; the sole owner of the bytes
-  objectUrl?: string;         // created lazily on play, revoked on remove/replace
   codec?: string; bitrateKbps?: number; sampleRateHz?: number;
   channels?: number; fileSizeBytes?: number; fileName?: string;
   coverArtUrl?: string;       // blob: URL from embedded picture, revoked on remove
-  // YouTube only
+  // YouTube only — declared here, WRITTEN by P4's importer (06 §5)
   videoId?: string;
   thumbnailUrl?: string;      // https://i.ytimg.com/vi/<id>/hqdefault.jpg
   sourceUrl?: string;         // original pasted URL
   addedAt: number;            // Date.now()
 }
 ```
+
+**`objectUrl` was removed from this interface in P3, not forgotten.** It had been
+declared since the first revision and nothing ever wrote or read it: the media
+URL lives in the object-URL ledger under the key `media:<trackId>` (`05 §3`),
+which is what `§6`'s "revoke on removal" actually operates on. A field that
+exists only to be `undefined` is the shape of this project's two escaped bugs —
+`coverArtUrl` was declared, rendered and never written for a whole phase — so it
+is deleted rather than left as a trap for whoever builds preloading.
 
 Rendering rule (spec): any missing **text** field renders `N/A`; any missing
 **numeric/duration** field renders `–`. Never render `undefined`/empty.
@@ -281,7 +288,8 @@ Batch processed sequentially; ends with a summary toast ("Added 12 · Skipped 3"
    flatten via webkitGetAsEntry, recursing directories depth-first in
    Intl.Collator order
    entries > TT_DROP_MAX_ENTRIES (500) ....... fail → TT-IMP-008
-   remaining capacity = cap(mode) - queue.length   (Single 1 / Playlist 95)
+   remaining capacity = cap(mode) - playable(queue).length
+                                                  (Single 1 / Playlist 95)
    files beyond capacity ..................... fail → TT-IMP-004
 
 for each File (within capacity):
@@ -294,6 +302,9 @@ for each File (within capacity):
      durationMs > 602_000 (10:02) ............. fail → TT-IMP-002
   4. Aggregate check (Playlist mode only):
      total + durationMs > 5_460_000 (91:00) ... fail → TT-IMP-003
+     `total` is seeded from playable(queue) — the SAME filter step 0 uses.
+     Until P3 the two disagreed: an errored track freed a count slot but
+     still spent its duration, which Single mode could never reach.
   5. Dedupe key `${name}::${size}::${durationMs}`
      (no full-content hashing — 95×~10 MB is too slow; heuristic is enough)
      duplicate → default skip + toast ......... log  → TT-IMP-005
@@ -356,6 +367,60 @@ playing:
     optional flash / silence / auto-restart / countdown loop
 ```
 
+### 5.1 Queue mutation during playback (decided 2026-07-22, P3)
+
+`§3` named "playback order state" and stopped there, so the relationship between
+the queue array the user drags in the `03 §2` Z4 rail and the Fisher–Yates order
+above was undefined — an open 🟠 audit finding owned by P3. Three things in
+particular had no answer: whether a drag regenerates, remaps or invalidates the
+current shuffle cycle; whether toggling Shuffle mid-playback takes effect now or
+at the next wrap; and whether the now-playing track stays current when rows move.
+
+Whatever the first drag implementation did would have become the spec, so it is
+written here first.
+
+**Two orders, not one.**
+
+| | Display order | Playback order |
+|---|---|---|
+| What it is | the `queue: TtTrack[]` array — what the rail shows and the user drags | a sequence of **track ids** |
+| Shuffle OFF | — | **derived** from the queue array; no permutation is stored |
+| Shuffle ON | — | a stored Fisher–Yates permutation of the playable ids |
+
+**The cursor is `currentId: string`, not an index.** That single choice is what
+makes rules 1–3 fall out rather than needing their own machinery.
+
+1. **Drag-reorder.** Shuffle OFF: the next track changes immediately, because the
+   playback order *is* the array. Shuffle ON: the drag moves the row only; the
+   stored permutation is untouched. There is no "remap" case — remapping a
+   permutation the user cannot see would change what plays next for no visible
+   reason.
+2. **Toggling Shuffle mid-playback takes effect immediately**, and the current
+   track keeps playing. ON: build a fresh permutation with `currentId` pinned
+   first. OFF: fall back to array order and continue from `currentId`'s position.
+   "Takes effect at the next wrap" was rejected — a toggle that appears to do
+   nothing reads as broken.
+3. **The now-playing track always stays current** when any row moves, including
+   itself. This is free: the cursor names a track, not a position.
+4. **"No immediate repeat" (`§5`), defined.** After generating the new permutation
+   on a wrap: if `next[0] === lastPlayedId` **and** `length ≥ 2`, swap `next[0]`
+   with `next[1]`. Deterministic given the RNG, and therefore a unit test rather
+   than a judgement call. At `length === 1` it is a no-op — a one-track playlist
+   repeating itself is not a defect.
+5. **Add / remove during playback reconciles, never regenerates.** Ids no longer
+   in the queue are dropped from the stored permutation; ids not yet in it are
+   appended. Regenerating on every import would reshuffle the unplayed remainder
+   behind the user's back. Removing the current track advances first, then
+   removes (`§6`, TT-USR-001).
+6. **Exhaustion with Repeat OFF** is `§5`'s documented outcome and nothing more:
+   media stops, **the countdown continues**, TT-PLY-102 is logged, and the bottom
+   bar shows "Playlist ended". The timer and the media engine meet at exactly two
+   points and this is not one of them (`04 §5`).
+
+Only tracks passing `isPlayable` (`§1`) enter the playback order, so a track that
+fails to decode mid-run (TT-PLY-101) is skipped by the next advance rather than
+needing a special case.
+
 ## 6. Removal & failure paths (spec: "deleted from source")
 
 With session-only storage, local `File` bytes live in RAM — they cannot vanish
@@ -369,7 +434,8 @@ through these concrete paths:
 | YouTube embed blocked / age / region at play time | overlay (typed) → auto-skip after 5 s | — | TT-YT-101/150 |
 | User deletes track via UI | stop if current → advance | remove | TT-USR-001 |
 
-All removals revoke `objectUrl`/`coverArtUrl` immediately.
+All removals release the track's ledger entries — its media URL and its cover —
+immediately (`05 §3`, `TtUrlLedger.releaseTrack`).
 
 **Single-mode carve-out.** "Auto-advance to next" has no next track when the
 queue holds exactly one. So: media stops, the track is marked `status:'error'`
@@ -392,8 +458,20 @@ the worse bug.
 
 ## 8. Right-click metadata modal (spec)
 
-`contextmenu` on a queue row → `preventDefault` → `TtContextMenu` → "Track info"
-opens a modal listing every known field: Title, Artist, Album, Year, Genre, Track #,
+`contextmenu` on a queue row → `preventDefault` → `TtContextMenu`. The menu's
+items, named here because `13 §2`'s TtQueuePanel test and `13 §6`'s keyboard-only
+journey both need something concrete to target:
+
+| Item | Effect |
+|------|--------|
+| **Track info** | the modal below |
+| **Move up** / **Move down** | reorder by one row — the keyboard-reachable equivalent of a drag (`03 §7` binds `Alt+↑/↓`). Disabled at the ends |
+| **Remove** | `§6` user removal, TT-USR-001 |
+
+Move up/down operate on the **display order** only; `§5.1` rule 1 governs what
+that does to playback.
+
+"Track info" opens a modal listing every known field: Title, Artist, Album, Year, Genre, Track #,
 Duration, Codec/Container, Bitrate, Sample rate, Channels, File size, File name,
 Source, Added at, Cover art — and for YouTube: Channel, Video ID, URL, Thumbnail,
 Status. Missing values follow the `N/A` / `–` rule. Modal is fully keyboard

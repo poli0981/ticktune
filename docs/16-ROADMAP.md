@@ -9,7 +9,7 @@ Durations are effort estimates, not calendar promises. **v1.0 target: late Q3
 | **P0 · Spikes** (~1 wk) | S1–S4 (`15-SPIKES.md`) | All four ✅; docs 04/05/06 updated |
 | **P1 · Skeleton** (~1 wk) | Scaffold (Astro 7 + Svelte 5 + TW 4 + wrangler), TS7-vs-5.9 check (`11 §4`), mobile gate, legal gate shell, timer engine + countdown display, settings shell + Dexie, log engine, CI stubs live | Countdown runs full formats; gate blocks on mobile viewport; CI green |
 | **P2 · Local audio + Single** (~1 wk) | Audio graph, import pipeline (single), metadata modal, bottom bar, loop styles, end behavior default, **+ the S2 late-finish variant of the Finished screen (`04 §2` option 3, decided)** — scope notes below | Single mode E2E passes; fade+chime works with tab hidden; a hidden run past `LATE_THRESHOLD_MS` shows the actual finish time rather than implying "now" |
-| **P3 · Playlist** (~1 wk) | Queue panel, drag-reorder, shuffle/repeat, dedupe + limits + summary toasts, context menu, crossfade | Playlist limits tests pass; 95-file batch import OK |
+| **P3 · Playlist** (~1 wk) | Queue panel, drag-reorder, shuffle/repeat, dedupe + limits + summary toasts, context menu, import progress · ~~crossfade~~ (`15 §S4b`, see below) | Playlist limits tests pass; 95-file batch import OK — amended in the scope notes below |
 | **P4 · YouTube** (~1 wk) | `/api/yt/oembed` Worker route, player rail, error overlays, YT import pipeline, offline panel | Manual yt-matrix passes; rate-limit path handled |
 | **P5 · Visuals & settings** (~1 wk) | Visualizer (3 styles), backgrounds + slideshow, auto-theme, focus mode, full settings, i18n dictionaries complete + key-diff guard | Reduced-motion + a11y milestones announced; perf budget met |
 | **P6 · Landing + legal** (~0.5–1 wk) | Landing VI/EN (hero uses **placeholder** capture until core is stable — per spec), legal pages from `legal/*` drafts, **VI translation of legal**, 404, FAQ | Lighthouse ≥ 95 static pages; hreflang correct |
@@ -100,7 +100,7 @@ met while deliverables go missing has under-specified criteria. These are
 | Import progress indicator | Deferred to P3, where a 95-file batch makes it meaningful; Single mode imports one file at a median 11 ms (`02 §4`) |
 | i18n | Hardcoded VI; keys filed in `08 §3.1` for P5 (`04 §2` item 5) |
 | Motion | Not installed — P2's motion is CSS transitions only (`11 §2`) |
-| Pulled in from later phases | Import toasts, `TtContextMenu`, Z7 volume/mute, the `beforeunload` guard, countdown `aria-live` milestones — each unblocks a P2 exit criterion or a P2-scope deliverable, per the standing rule below |
+| Pulled in from later phases | Import toasts, Z7 volume/mute, the `beforeunload` guard, countdown `aria-live` milestones — each unblocks a P2 exit criterion or a P2-scope deliverable, per the standing rule below.<br>⚠️ `TtContextMenu` was listed here too and **was never built**: `TtSingleRail` short-circuits `contextmenu` straight to the info modal, so P2 needed no menu. Corrected 2026-07-22; it is P3 scope, green-field |
 
 Also **filed against P6**: `04 §2` item 6 — the landing FAQ must state the
 visible-vs-hidden countdown distinction plainly, rather than leaving it in the
@@ -197,6 +197,52 @@ behaviours were established by measurement rather than assumption — `page.cloc
 moves both clocks in step, the component-test tier needed
 `resolve.conditions: ['browser']` to work at all, and a truncated MP3 does not
 fail to decode (a garbled one does).
+
+## P3 scope notes — set 2026-07-22, before the phase started
+
+Written before any P3 code, for the reason P1's exit review established: a phase
+whose criteria can be satisfied while deliverables go missing has under-specified
+criteria, not a complete phase. These are **deferrals with owners**, not
+omissions.
+
+### The phase ships in two slices
+
+Slice 1 is "a playlist that plays": the `02 §5.1` spec decision, a dynamic mode,
+the pure play-order engine, `ended`-driven advance, a readable queue panel, and
+⏮/⏭. Slice 2 is the manipulation layer: drag-reorder, `TtContextMenu`, the import
+progress indicator, and the 95-file batch E2E. Slice 1 is independently testable
+on the live site, which is the whole reason for the split.
+
+| Item | Position |
+|------|----------|
+| **Inter-track crossfade** | **Not shipped, and not startable.** `15 §S4b` gates "the crossfade loop style **and P3's inter-track crossfade**" and is still open — and its harness cannot produce a valid number until the fixes in `15 §S4` land. P3 advances on the media element's `ended` event, which is a different mechanism from S4b's scheduled pre-trigger and is therefore **not** gated. The roadmap row above listed crossfade in P3 scope until 2026-07-22; `15`, `05 §2` and CLAUDE.md always agreed it could not be, so the row was the outlier |
+| Drag-reorder + `TtContextMenu` + import progress | Slice 2. `02 §5.1` and `02 §8` define their behaviour first so the implementation cannot become the spec by default |
+| 95-file batch E2E | Slice 2, and it needs work the helper does not do today: `tests/e2e/_helpers.ts` base64-inlines every fixture byte across CDP, and 95 copies of one fixture share a dedupe key (`name::size::duration`), so that test would measure **dedupe**, not capacity. It needs N distinct files synthesised in-page |
+| TT-IMP-003 (91:00) from E2E | Deferred: the only long fixture, `over-limit-11min.mp3`, exists to be rejected by TT-IMP-002. Reaching the aggregate cap needs a ~10:00 *legal* fixture that does not exist. The boundary keeps its exact-value unit coverage meanwhile |
+| i18n | Still hardcoded VI, as in P2. There are no dictionaries and no key-diff guard yet — `13 §1` puts both in P5, and introducing a catalogue for one panel is the worst of both |
+| Keyboard reorder | `Alt+↑/↓`, specified in `03 §7` and mirrored as context-menu items in `02 §8`, so slice 2 and `13 §6`'s keyboard-only journey have a fixed target |
+
+### Amended exit criteria
+
+The stated pair ("Playlist limits tests pass; 95-file batch import OK") repeats
+P1's mistake: **both were already satisfiable before P3 began.** The limits live
+in `tt-import.ts`/`tt-queue-rules.ts` and were unit-tested in P2, and neither
+criterion mentions playback order, the cursor, advance, or the queue panel — the
+things P3 actually builds. Each criterion below names the artifact that satisfies
+it:
+
+- [ ] Three tracks play **in sequence** — asserted by peak Analyser RMS > 0 after
+      an advance, not by absence of an error (`tests/e2e/playlist.spec.ts`)
+- [ ] Shuffle produces a full permutation with no lost or repeated track, and the
+      wrap obeys `02 §5.1` rule 4 (`tests/unit/tt-play-order.test.ts`)
+- [ ] Toggling Shuffle mid-run keeps the current track current, and removing the
+      playing track advances rather than stopping (store tests)
+- [ ] Repeat OFF at exhaustion logs TT-PLY-102, stops media, and **leaves the
+      countdown running** (`02 §5.1` rule 6)
+- [ ] `allowDuplicates` reaches the importer from settings — a store-level test,
+      because the engine has always been correct and the call site has always
+      passed a literal `false`
+- [ ] Playlist limits tests pass; 95-file batch import OK *(slice 2)*
 
 ## Post-1.0 backlog (unordered)
 
