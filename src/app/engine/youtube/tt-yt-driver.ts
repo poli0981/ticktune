@@ -1,4 +1,4 @@
-import { ytCauseFromUpstream, type TtYtCause } from '../../../lib/tt-yt-cause';
+import { ytCauseFromResponse } from '../../../lib/tt-yt-cause';
 import type { TtYtLookup, TtYtMeta, TtYtPorts } from './types';
 
 /**
@@ -41,9 +41,10 @@ async function lookup(videoId: string): Promise<TtYtLookup> {
   }
 
   if (!res.ok) {
-    // The status is the signal (docs/06 §3). The body is not consulted at all,
-    // so an HTML block page cannot break this branch.
-    return { ok: false, cause: causeFor(res.status) };
+    // The decision — including "is this status even ours to read" — lives in the
+    // pure module, where it is unit-tested. See its note: a static 404 page once
+    // made three good videos look deleted.
+    return { ok: false, cause: ytCauseFromResponse(res.status, res.headers.get('content-type')) };
   }
 
   try {
@@ -61,14 +62,6 @@ async function lookup(videoId: string): Promise<TtYtLookup> {
     // honest bucket rather than a guess.
     return { ok: false, cause: 'unavailable' };
   }
-}
-
-function causeFor(status: number): TtYtCause {
-  // 502 is ours, not YouTube's — the Worker emits it when the edge could not
-  // reach oEmbed at all, and it is the one status that must not be read as a
-  // property of the video.
-  if (status === 502) return 'upstream_unreachable';
-  return ytCauseFromUpstream(status);
 }
 
 export function browserYtPorts(onProgress?: TtYtPorts['onProgress']): TtYtPorts {

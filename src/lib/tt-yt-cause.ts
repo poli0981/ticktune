@@ -86,3 +86,33 @@ export function ytCauseFromUpstream(status: number): TtYtCause {
 export function ytCauseIsTransient(cause: TtYtCause): boolean {
   return cause === 'upstream_unreachable' || cause === 'rate_limited';
 }
+
+/**
+ * Classify a failed response — the status, but **only if it is ours**.
+ *
+ * Found by using the app, not by reading it: under `astro preview` the Worker
+ * does not run, so `/api/yt/oembed` fell through to the static 404 page. A 404
+ * maps to `not_found`, so three known-good videos were all reported as
+ * *"deleted or private"* — their owners blamed for a route that was not there.
+ *
+ * It is not a dev-only wrinkle. A misrouted deploy, a captive portal, a
+ * corporate proxy or a Cloudflare challenge each answers with **HTML on some
+ * status**, and every one of those would arrive as a confident wrong sentence
+ * about the user's video — the precise failure spike S1 spent a day removing.
+ *
+ * Our Worker always answers `application/json`; nothing else in the chain does.
+ * So the content type is what earns a status the right to be read as a cause.
+ * Anything else is transient, and the track survives as `pending` rather than
+ * being rejected for a reason we invented.
+ *
+ * @param contentType the raw header, or null when absent.
+ */
+export function ytCauseFromResponse(status: number, contentType: string | null): TtYtCause {
+  if (!(contentType ?? '').includes('application/json')) {
+    return status === 429 ? 'rate_limited' : 'upstream_unreachable';
+  }
+  // 502 is ours, not YouTube's: the Worker emits it when the edge could not
+  // reach oEmbed at all, so it must not be read as a property of the video.
+  if (status === 502) return 'upstream_unreachable';
+  return ytCauseFromUpstream(status);
+}
