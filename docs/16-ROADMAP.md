@@ -244,6 +244,65 @@ it:
       passed a literal `false`
 - [ ] Playlist limits tests pass; 95-file batch import OK *(slice 2)*
 
+## P3 slice 1 review — 2026-07-22: **a playlist plays**
+
+Not a phase exit: slice 2 (drag-reorder, `TtContextMenu`, import progress, the
+95-file E2E) is still open. What is done is everything needed to run a queue,
+which is the point at which it can be tested by using it.
+
+| Criterion | Satisfied by | Result |
+|-----------|--------------|--------|
+| Three tracks play in sequence | `tests/e2e/playlist.spec.ts` | ✅ peak Analyser RMS > 0 **both before and after** the advance — an advance that moved the highlight while loading a dead deck passes on the highlight alone |
+| Shuffle is a full permutation; the wrap obeys rule 4 | `tests/unit/tt-play-order.test.ts` | ✅ 27 cases, incl. the length-1 and length-2 boundaries where the swap rule can and cannot act |
+| Shuffle mid-run keeps the current track; removing it advances | `tests/unit/session-queue.test.ts` | ✅ |
+| Repeat OFF logs TT-PLY-102, stops media, **leaves the countdown running** | store test + E2E | ✅ |
+| `allowDuplicates` reaches the importer from settings | store test | ✅ — and verified by mutation, see below |
+| Playlist limits; 95-file batch | — | ⬜ slice 2 |
+
+**295 unit + component, 53 E2E** on the projects this box can launch. Engine
+coverage 95.0 % statements / 87.8 % branches.
+
+### What the slice actually changed
+
+`02 §5.1` was written **before** any UI, which is the whole reason the awkward
+cases have answers: with the cursor naming a track id rather than an index,
+"does a drag remap the shuffle cycle" and "does the now-playing track survive a
+reorder" stop being questions. Shuffle-off stores no permutation at all.
+
+Three things were declared and never written, all found by grepping for the
+**write** rather than the read:
+
+- `allowDuplicates` was a literal `false` at the only call site, while the
+  setting was declared, defaulted, clamped, persisted and correctly honoured by
+  the engine. A P5 toggle would have shipped doing nothing and passed every test.
+- `singleLoopStyle` was read by nobody; `05 §2`'s promise of a fallback "with a
+  notice rather than silently" described behaviour no code implemented.
+- `TtTrack.objectUrl` had never held a value. Deleted.
+
+Plus one latent inconsistency P3 made reachable: the count cap filtered
+`isPlayable` while the 91:00 aggregate beside it did not, so an errored track
+freed a slot while still spending its duration. Unreachable in Single mode.
+
+### The discipline worth repeating
+
+**Store tests were checked by mutation.** Restoring the `allowDuplicates`
+literal fails exactly one test; moving the queue filter ahead of the advance in
+`removeTrack` fails exactly one other. Without that check this tier would have
+been decoration — and decoration is precisely what let two bugs reach the live
+site through 233 passing tests.
+
+**Four Firefox skips were written and then removed.** They asserted a highlight,
+a disabled control and a bar title — no Analyser — so "no audio output device"
+was a false reason. `13 §3` now says skip per assertion, not per file.
+
+### Known-absent, and stated as such
+
+`tests/manual/p3-live-checklist.md` carries a **"known-absent — do not report"**
+table, so a live pass does not spend the reviewer's attention on drag-reorder,
+the context menu, the progress bar or crossfade. That table is the P2 lesson
+applied: the reviewer's time is the scarce resource, and an unfiltered checklist
+spends it on absences that were deliberate.
+
 ## Post-1.0 backlog (unordered)
 
 - YouTube Data API v3 proxy on the existing Worker (duration/publish date at
