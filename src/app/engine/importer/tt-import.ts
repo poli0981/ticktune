@@ -73,7 +73,13 @@ export async function importFiles(
   // two tracks, so nothing could reach it.
   let totalMs = queue.filter(isPlayable).reduce((sum, t) => sum + (t.durationMs ?? 0), 0);
 
-  for (const file of accepted) {
+  for (const [index, file] of accepted.entries()) {
+    // Reported at the TOP, counting files already finished, because every
+    // rejection below leaves via `continue` — a call at the bottom would skip
+    // exactly the files a user most wants to see the bar move past. The final
+    // `done === total` is emitted after the loop.
+    ports.onProgress?.(index, accepted.length);
+
     // ── step 1: allow-list × live probe ─────────────────────────────────────
     if (!isAccepted(file.name, ports.canPlay)) {
       skipped.push({ code: 'TT-IMP-001', fileName: file.name });
@@ -155,5 +161,6 @@ export async function importFiles(
     });
   }
 
+  ports.onProgress?.(accepted.length, accepted.length);
   return { added, skipped, notes };
 }

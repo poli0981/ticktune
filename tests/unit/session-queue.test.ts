@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import type { TtImportResult, TtTrack } from '../../src/app/engine/importer/types';
+import type { TtImportPorts, TtImportResult, TtTrack } from '../../src/app/engine/importer/types';
 import { nextInOrder } from '../../src/app/engine/queue/tt-play-order';
 // Type-only, so these do NOT pin a module instance: each test re-imports the
 // stores after `vi.resetModules()` to get its own copy of the singletons.
@@ -25,8 +25,11 @@ import type * as SettingsMod from '../../src/app/state/settings.svelte';
 const importFiles = vi.fn<() => Promise<TtImportResult>>();
 
 vi.mock('../../src/app/engine/importer/tt-import', () => ({
-  importFiles: (input: unknown) => {
+  importFiles: (input: unknown, ports: unknown) => {
     lastInput = input as ImportInput;
+    // Captured so a test can drive the progress port the way the real pipeline
+    // would, without running the pipeline.
+    lastPorts = ports as TtImportPorts;
     return importFiles();
   },
 }));
@@ -46,6 +49,7 @@ interface ImportInput {
 }
 
 let lastInput: ImportInput | null = null;
+let lastPorts: TtImportPorts | null = null;
 
 let session: typeof SessionMod.session;
 let settings: typeof SettingsMod.settings;
@@ -73,6 +77,7 @@ beforeEach(async () => {
   vi.resetModules();
   vi.clearAllMocks();
   lastInput = null;
+  lastPorts = null;
   ({ session } = await import('../../src/app/state/session.svelte'));
   ({ settings } = await import('../../src/app/state/settings.svelte'));
   ({ playback } = await import('../../src/app/state/playback.svelte'));
@@ -252,6 +257,61 @@ describe('queue mutation while playing — docs/02 §5.1', () => {
     // must not be silently rewritten mid-run.
     expect(session.order.slice(0, 3)).toEqual(before);
     expect(session.order).toHaveLength(4);
+  });
+});
+
+describe('import progress — docs/02 §4', () => {
+  /**
+   * The requirement is not "show a bar while importing", it is "do not flash a
+   * bar at someone importing one file". P2 deferred the indicator for exactly
+   * that reason, so a version without a threshold would be the thing the
+   * deferral was avoiding — and would pass any test that only checked the bar
+   * eventually appears.
+   */
+  it('stays hidden for an import that finishes quickly', async () => {
+    let release: (r: TtImportResult) => void = () => undefined;
+    importFiles.mockReturnValueOnce(
+      new Promise<TtImportResult>((resolve) => {
+        release = resolve;
+      }),
+    );
+    session.setMode('playlist');
+    const run = session.importPicked(files(1) as unknown as FileList);
+
+    // Mid-flight, before the threshold.
+    expect(session.progress).toBeNull();
+    release(result([track('a')]));
+    await run;
+    expect(session.progress).toBeNull();
+  });
+
+  it('appears once the batch outlasts the threshold, and reports live counts', async () => {
+    vi.useFakeTimers();
+    try {
+      let release: (r: TtImportResult) => void = () => undefined;
+      importFiles.mockReturnValueOnce(
+        new Promise<TtImportResult>((resolve) => {
+          release = resolve;
+        }),
+      );
+      session.setMode('playlist');
+      const run = session.importPicked(files(95) as unknown as FileList);
+
+      expect(session.progress).toBeNull();
+      vi.advanceTimersByTime(400);
+      expect(session.progress).toEqual({ done: 0, total: 95 });
+
+      // The pipeline reports through the injected port.
+      lastPorts?.onProgress?.(42, 95);
+      expect(session.progress).toEqual({ done: 42, total: 95 });
+
+      release(result([]));
+      await run;
+      // Cleared when the batch ends, so a finished import leaves no bar behind.
+      expect(session.progress).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
   });
 });
 

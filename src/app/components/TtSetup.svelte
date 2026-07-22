@@ -114,6 +114,24 @@
     />
   {/if}
 
+  <!--
+    docs/02 §4's progress indicator, deferred out of P2 and landed here.
+
+    The store decides whether it is worth showing at all (PROGRESS_DELAY_MS), so
+    a one-file import renders nothing rather than flashing — which is the exact
+    reason P2 chose to defer it instead of shipping a spinner.
+  -->
+  {#if session.progress}
+    <div class="tt-progress" data-testid="tt-import-progress">
+      <progress
+        max={session.progress.total}
+        value={session.progress.done}
+        aria-label="Đang nhập tệp"
+      ></progress>
+      <span>Đang nhập {session.progress.done}/{session.progress.total}</span>
+    </div>
+  {/if}
+
   {#if session.lastImport}
     <TtToast result={session.lastImport} ondismiss={() => session.dismissImport()} />
   {/if}
@@ -265,6 +283,19 @@
     background: transparent;
     border: 1px solid var(--color-tt-line);
     border-radius: 0.25rem;
+  }
+  .tt-progress {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    width: 100%;
+    font-size: 0.72rem;
+    color: var(--color-tt-muted);
+  }
+  .tt-progress progress {
+    flex: 1;
+    height: 0.35rem;
+    accent-color: var(--color-tt-signal);
   }
   .tt-countdown-input {
     display: grid;
