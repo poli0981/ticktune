@@ -16,6 +16,16 @@
 
   interface Props {
     tracks: TtTrack[];
+    /**
+     * Where this instance is mounted.
+     *
+     * `rail` is the docs/03 §2 Z4 player rail, which owns its column and can
+     * take 60vh. `setup` stacks under the drop zone and above the countdown
+     * inputs and Start — at 60vh a 24-track queue pushed Start clean off a
+     * 720 px viewport, so the list is capped much shorter there and scrolls
+     * sooner. Same component, same rules, different budget.
+     */
+    variant: 'rail' | 'setup';
     /** The cursor. Null before Start — nothing is highlighted then, by design. */
     currentId: string | null;
     shuffle: boolean;
@@ -31,6 +41,7 @@
 
   const {
     tracks,
+    variant,
     currentId,
     shuffle,
     repeat,
@@ -53,7 +64,12 @@
   const capText = positionText(TT_MAX_PLAYLIST_TOTAL_MS);
 </script>
 
-<aside class="tt-rail" data-testid="tt-queue-panel">
+<aside
+  class="tt-rail"
+  class:tt-in-setup={variant === 'setup'}
+  data-testid="tt-queue-panel"
+  data-tt-variant={variant}
+>
   <div class="tt-badge">DANH SÁCH</div>
 
   <div class="tt-toggles" role="group" aria-label="Phát lại">
@@ -133,16 +149,49 @@
 </aside>
 
 <style>
+  /*
+   * FLEX column, not grid — and that is load-bearing rather than taste.
+   *
+   * As a grid this panel had `align-content: start` and implicit `auto` rows,
+   * and an `auto` track sizes to its content: the container's `max-height` caps
+   * the BOX while the track keeps growing, so a long queue painted straight
+   * through the border, over the bottom bar and off the screen. `min-height: 0`
+   * on the list does not help there, because nothing was ever asking the track
+   * to be smaller.
+   *
+   * In a height-constrained flex column the free space really is negative, so a
+   * shrinkable item with `min-height: 0` gives way — which is what makes the
+   * list's own `overflow-y: auto` fire.
+   */
   .tt-rail {
-    display: grid;
+    display: flex;
+    flex-direction: column;
     gap: 0.5rem;
-    align-content: start;
     width: 17rem;
     max-height: 60vh;
     padding: 0.9rem;
     background: color-mix(in srgb, var(--color-tt-surface) 80%, transparent);
     border: 1px solid var(--color-tt-line);
     border-radius: 0.5rem;
+    /* Backstop. The list scrolls itself; a future child that forgets to should
+       be clipped by the border rather than escaping it the way this one did. */
+    overflow: hidden;
+  }
+  /* Setup stacks this above the countdown inputs and Start, so it gets a much
+     smaller budget — and a fixed one, because what has to stay on screen is the
+     Start button, not a proportion of the viewport. */
+  .tt-in-setup {
+    width: 100%;
+    max-height: 15rem;
+  }
+  /* Only the row list gives way. Without this the toggles and the totals footer
+     are shrinkable too, and a long queue squashes them instead of scrolling. */
+  .tt-badge,
+  .tt-toggles,
+  .tt-empty,
+  .tt-totals,
+  .tt-ended {
+    flex: none;
   }
   .tt-badge {
     font-size: 0.66rem;
@@ -180,6 +229,15 @@
     gap: 0.1rem;
     margin: 0;
     padding: 0;
+    /*
+     * `min-height: 0` is what lets this shrink at all: a flex item's automatic
+     * minimum size is its CONTENT size, so without it the list refuses to give
+     * way, `overflow-y` never fires, and 95 rows escape the panel. Reported
+     * from the live app with a 24-track queue — every test before it used three
+     * tracks and never reached the cap.
+     */
+    flex: 1 1 auto;
+    min-height: 0;
     overflow-y: auto;
     list-style: none;
   }

@@ -33,6 +33,7 @@ function mount(props: Partial<Parameters<typeof TtQueuePanel>[1]> = {}) {
   const oninfo = vi.fn();
   render(TtQueuePanel, {
     tracks: [track('a'), track('b'), track('c')],
+    variant: 'rail',
     currentId: null,
     shuffle: false,
     repeat: true,

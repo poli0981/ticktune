@@ -438,6 +438,7 @@
         />
       {:else}
         <TtQueuePanel
+          variant="rail"
           tracks={session.queue}
           currentId={session.currentId}
           shuffle={settings.current.shuffle}

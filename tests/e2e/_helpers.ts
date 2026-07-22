@@ -77,6 +77,30 @@ export async function stagePlaylist(page: Page, fixtures: string[]): Promise<voi
   await expect(page.getByTestId('tt-queue-row')).toHaveCount(fixtures.length);
 }
 
+/**
+ * Stage `count` tracks that are byte-identical but distinctly NAMED.
+ *
+ * The dedupe key is `name::size::duration` (docs/02 §4 step 5), so renaming is
+ * enough to make copies of one fixture count as separate tracks — passing the
+ * same path N times would measure dedupe instead, and add exactly one row.
+ *
+ * Buffers go through `setInputFiles`, which takes them directly; `dropFiles`
+ * base64-inlines every byte through one `page.evaluate` argument and does not
+ * scale to a long queue.
+ */
+export async function stageManyTracks(page: Page, count: number): Promise<void> {
+  const buffer = readFileSync(join('tests/e2e/fixtures', 'tone-5s.mp3'));
+  await page.getByTestId('tt-tab-playlist').click();
+  await page.getByTestId('tt-file-input').setInputFiles(
+    Array.from({ length: count }, (_, i) => ({
+      name: `track-${String(i).padStart(3, '0')}.mp3`,
+      mimeType: 'audio/mpeg',
+      buffer,
+    })),
+  );
+  await expect(page.getByTestId('tt-queue-row')).toHaveCount(count);
+}
+
 /** Set the countdown inputs. They keep the P1 labels deliberately. */
 export async function setDuration(page: Page, h: number, m: number, s: number): Promise<void> {
   await page.getByLabel('giờ').fill(String(h));
