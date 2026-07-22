@@ -92,9 +92,11 @@ function harness(over: { ctxState?: 'suspended' | 'running' } = {}) {
   const logs: string[] = [];
   const statuses: string[] = [];
   const loops: number[] = [];
+  const ended: number[] = [];
   const engine = new TtAudioEngine(ports, {
     onLog: (code) => logs.push(code),
     onLoop: (n) => loops.push(n),
+    onEnded: () => ended.push(1),
     onStatus: (s) => statuses.push(s),
   });
 
@@ -103,6 +105,7 @@ function harness(over: { ctxState?: 'suspended' | 'running' } = {}) {
     ports,
     decks,
     deckGains,
+    ended,
     userGain,
     fadeGain,
     created,

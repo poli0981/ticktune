@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoApp, dismissUnloadDialogs, dropFiles } from './_helpers';
+import { gotoSingleMode, dismissUnloadDialogs, dropFiles } from './_helpers';
 
 /**
  * docs/13 §3 "Playlist limits", the Single-mode half — every rejection the
@@ -15,7 +15,7 @@ test.describe('single-mode import', () => {
   const pick = (path: string) => `tests/e2e/fixtures/${path}`;
 
   test('rejects a container outside the allow-list (TT-IMP-001)', async ({ page }) => {
-    await gotoApp(page);
+    await gotoSingleMode(page);
     await page.getByTestId('tt-file-input').setInputFiles(pick('rejected.aiff'));
 
     await expect(page.locator('[data-tt-code="TT-IMP-001"]')).toBeVisible();
@@ -24,7 +24,7 @@ test.describe('single-mode import', () => {
   });
 
   test('rejects a track over 10:02 (TT-IMP-002)', async ({ page }) => {
-    await gotoApp(page);
+    await gotoSingleMode(page);
     await page.getByTestId('tt-file-input').setInputFiles(pick('over-limit-11min.mp3'));
 
     await expect(page.locator('[data-tt-code="TT-IMP-002"]')).toBeVisible();
@@ -36,7 +36,7 @@ test.describe('single-mode import', () => {
     // only by dropping — which is also the path that has to survive the
     // capacity check being hoisted ahead of the per-file work (docs/02 §4).
     dismissUnloadDialogs(page);
-    await gotoApp(page);
+    await gotoSingleMode(page);
     await dropFiles(page, ['tone-5s.mp3', 'tone-5s.flac', 'tone-5s.wav']);
 
     await expect(page.getByTestId('tt-staged')).toBeVisible();
@@ -46,7 +46,7 @@ test.describe('single-mode import', () => {
 
   test('a second import REPLACES the held track (docs/02 §4)', async ({ page }) => {
     dismissUnloadDialogs(page);
-    await gotoApp(page);
+    await gotoSingleMode(page);
 
     await page.getByTestId('tt-file-input').setInputFiles(pick('tone-5s.mp3'));
     await expect(page.getByTestId('tt-staged')).toContainText('tone-5s');
@@ -60,7 +60,7 @@ test.describe('single-mode import', () => {
 
   test('Vietnamese tags survive a v2.4 UTF-8 frame', async ({ page }) => {
     dismissUnloadDialogs(page);
-    await gotoApp(page);
+    await gotoSingleMode(page);
     await page.getByTestId('tt-file-input').setInputFiles(pick('vi-id3v24-utf8.mp3'));
 
     // Spike S3's acceptance criterion, now asserted through the real UI:
@@ -70,7 +70,7 @@ test.describe('single-mode import', () => {
 
   test('an ID3v1-only tag falls back to the file name (TT-IMP-007)', async ({ page }) => {
     dismissUnloadDialogs(page);
-    await gotoApp(page);
+    await gotoSingleMode(page);
     await page.getByTestId('tt-file-input').setInputFiles(pick('vi-id3v1-only.mp3'));
 
     // The rule spike S3 replaced: ID3v1 has no charset field, so a non-ASCII
@@ -82,7 +82,7 @@ test.describe('single-mode import', () => {
 
   test('embedded cover art is extracted and shown (docs/05 §5)', async ({ page }) => {
     dismissUnloadDialogs(page);
-    await gotoApp(page);
+    await gotoSingleMode(page);
     await page.getByTestId('tt-file-input').setInputFiles(pick('with-cover.mp3'));
     await expect(page.getByTestId('tt-staged')).toBeVisible();
 
@@ -104,7 +104,7 @@ test.describe('single-mode import', () => {
 
   test('a file with no cover still reports N/A', async ({ page }) => {
     dismissUnloadDialogs(page);
-    await gotoApp(page);
+    await gotoSingleMode(page);
     await page.getByTestId('tt-file-input').setInputFiles(pick('tone-5s.mp3'));
     await page.getByRole('button', { name: 'Bắt đầu' }).click();
     await page.getByTestId('tt-nowplaying').click({ button: 'right' });
@@ -115,7 +115,7 @@ test.describe('single-mode import', () => {
 
   test('removing the staged track disables Start again', async ({ page }) => {
     dismissUnloadDialogs(page);
-    await gotoApp(page);
+    await gotoSingleMode(page);
     await page.getByTestId('tt-file-input').setInputFiles(pick('tone-5s.mp3'));
     await expect(page.getByRole('button', { name: 'Bắt đầu' })).toBeEnabled();
 

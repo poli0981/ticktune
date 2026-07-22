@@ -48,20 +48,34 @@ export function isReady(mode: TtMode, queue: readonly TtTrack[], countdownMs: nu
 }
 
 /**
- * "Match queue length" — docs/03 §3.
+ * Total playable duration, or **null when any of it is unknown**.
  *
- * Returns null when it must be disabled: an empty queue, or any track whose
- * duration is unknown (YouTube leaves `durationMs` null until player backfill,
- * so this is also what disables the button in that mode). Summing only the known
- * durations would silently produce a countdown shorter than the queue, which is
- * worse than refusing.
+ * Null rather than a partial sum, because a partial sum is a wrong number that
+ * looks like a right one: it understates the queue while reading as
+ * authoritative. Both callers turn null into a visible absence instead — the
+ * docs/03 §2 totals footer renders `–` (hard invariant 5) and "Match queue
+ * length" disables itself with its reason shown.
+ *
+ * S3 measured ~16% of a real library as having missing or unusable tags, so one
+ * unknown duration in a 95-track queue is the common case, not an edge case.
  */
-export function matchQueueLengthMs(queue: readonly TtTrack[]): number | null {
+export function queueTotalMs(queue: readonly TtTrack[]): number | null {
   const playable = queue.filter(isPlayable);
   if (playable.length === 0) return null;
   if (playable.some((t) => t.durationMs === null || t.durationMs === undefined)) return null;
+  return playable.reduce((sum, t) => sum + (t.durationMs ?? 0), 0);
+}
 
-  const total = playable.reduce((sum, t) => sum + (t.durationMs ?? 0), 0);
+/**
+ * "Match queue length" — docs/03 §3.
+ *
+ * Disabled (null) on an empty queue or any unknown duration — which is also
+ * what disables it in YouTube mode, where `durationMs` stays null until player
+ * backfill.
+ */
+export function matchQueueLengthMs(queue: readonly TtTrack[]): number | null {
+  const total = queueTotalMs(queue);
+  if (total === null) return null;
   // Whole seconds, rounded UP: a countdown that ends a fraction before the last
   // track does is the one outcome nobody wants from a button called "match".
   const rounded = Math.ceil(total / 1000) * 1000;

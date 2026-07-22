@@ -11,11 +11,18 @@
 
   interface Props {
     busy: boolean;
+    /**
+     * Playlist and YouTube modes only. Without it the picker takes exactly one
+     * file, so a 95-file batch is unreachable through the button and
+     * `setInputFiles` with several paths throws outright — the count cap in
+     * docs/02 §4 step 0 would never be exercised from the UI at all.
+     */
+    multiple: boolean;
     ondrop: (dt: DataTransfer) => void;
     onpick: (files: FileList | null) => void;
   }
 
-  const { busy, ondrop, onpick }: Props = $props();
+  const { busy, multiple, ondrop, onpick }: Props = $props();
 
   let over = $state(false);
   let input: HTMLInputElement;
@@ -47,6 +54,7 @@
     bind:this={input}
     type="file"
     accept={TT_ACCEPT_ATTR}
+    {multiple}
     disabled={busy}
     data-testid="tt-file-input"
     onchange={(e) => {

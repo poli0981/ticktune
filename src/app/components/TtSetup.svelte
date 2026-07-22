@@ -1,8 +1,11 @@
 <script lang="ts">
   import TtDropZone from './TtDropZone.svelte';
+  import TtQueuePanel from './TtQueuePanel.svelte';
   import TtToast from './TtToast.svelte';
   import { positionText } from '../engine/importer/tt-track-display';
+  import type { TtTrack } from '../engine/importer/types';
   import { session } from '../state/session.svelte';
+  import { settings } from '../state/settings.svelte';
 
   /**
    * docs/03 §3 item 3 — the Setup screen.
@@ -22,9 +25,11 @@
     /** ?ttdebug=1 only — the docs/15 §S2 timer-only Start. */
     debug: boolean;
     ondebugstart: () => void;
+    oninfo: (track: TtTrack) => void;
   }
 
-  const { hours, minutes, seconds, onchange, onstart, debug, ondebugstart }: Props = $props();
+  const { hours, minutes, seconds, onchange, onstart, debug, ondebugstart, oninfo }: Props =
+    $props();
 
   /** docs/03 §3 — presets in MINUTES. The unit was never stated until P2. */
   const PRESETS = [5, 10, 15, 25, 30, 45, 60, 90];
@@ -34,20 +39,36 @@
     onchange(Math.floor(total / 3600), Math.floor((total % 3600) / 60), total % 60);
   }
 
-  const track = $derived(session.track);
+  const track = $derived(session.current);
+  const single = $derived(session.mode === 'single');
 </script>
 
 <section class="tt-setup" data-testid="tt-setup">
   <!--
-    docs/03 §3: all three tabs render; Playlist and YouTube are disabled with a
-    hint rather than hidden, so the shape of the finished app is visible and the
-    absence reads as "not yet" instead of "not a feature".
+    docs/03 §3: all three tabs render; YouTube is disabled with a hint rather
+    than hidden, so the shape of the finished app is visible and the absence
+    reads as "not yet" instead of "not a feature". P3 unlocked Playlist.
+
+    Switching mode never touches the queue — docs/03 §3: readiness is a
+    predicate, so an invalid queue just re-disables Start with its reason shown.
   -->
   <div class="tt-tabs" role="tablist" aria-label="Chế độ">
-    <button role="tab" aria-selected="true" class="tt-tab tt-tab-on">Một bài</button>
-    <button role="tab" aria-selected="false" class="tt-tab" aria-disabled="true" disabled>
-      Danh sách <span class="tt-soon">P3</span>
-    </button>
+    <button
+      role="tab"
+      aria-selected={single}
+      class="tt-tab"
+      class:tt-tab-on={single}
+      data-testid="tt-tab-single"
+      onclick={() => session.setMode('single')}>Một bài</button
+    >
+    <button
+      role="tab"
+      aria-selected={!single}
+      class="tt-tab"
+      class:tt-tab-on={!single}
+      data-testid="tt-tab-playlist"
+      onclick={() => session.setMode('playlist')}>Danh sách</button
+    >
     <button role="tab" aria-selected="false" class="tt-tab" aria-disabled="true" disabled>
       YouTube <span class="tt-soon">P4</span>
     </button>
@@ -55,22 +76,40 @@
 
   <TtDropZone
     busy={session.importing}
+    multiple={!single}
     ondrop={(dt) => void session.importDropped(dt)}
     onpick={(files) => void session.importPicked(files)}
   />
 
-  {#if track}
-    <div class="tt-staged" data-testid="tt-staged">
-      <div class="tt-staged-text">
-        <strong>{track.title}</strong>
-        <span>{track.artist || '—'} · {positionText(track.durationMs)}</span>
+  {#if single}
+    {#if track}
+      <div class="tt-staged" data-testid="tt-staged">
+        <div class="tt-staged-text">
+          <strong>{track.title}</strong>
+          <span>{track.artist || '—'} · {positionText(track.durationMs)}</span>
+        </div>
+        <button
+          class="tt-remove"
+          data-testid="tt-remove-track"
+          onclick={() => session.removeTrack(track.id)}>Bỏ</button
+        >
       </div>
-      <button
-        class="tt-remove"
-        data-testid="tt-remove-track"
-        onclick={() => session.removeTrack(track.id)}>Bỏ</button
-      >
-    </div>
+    {/if}
+  {:else}
+    <!-- Same component as the Z4 rail: one now-playing highlight, one totals
+         footer, one place for either to be wrong (docs/03 §2). -->
+    <TtQueuePanel
+      tracks={session.queue}
+      currentId={session.currentId}
+      shuffle={settings.current.shuffle}
+      repeat={settings.current.repeatPlaylist}
+      exhausted={false}
+      onremove={(id) => session.removeTrack(id)}
+      onjump={() => undefined}
+      onshuffle={(on) => session.setShuffle(on)}
+      onrepeat={(on) => session.setRepeat(on)}
+      {oninfo}
+    />
   {/if}
 
   {#if session.lastImport}
@@ -116,11 +155,17 @@
         <button class="tt-preset" onclick={() => setFromMs(p * 60_000)}>{p}′</button>
       {/each}
       <!-- docs/03 §3: disabled on an empty queue or any unknown duration, and
-           one-shot — it does not recompute when the queue changes later. -->
+           one-shot — it does not recompute when the queue changes later.
+           The title states WHY: one untagged file in a 95-track queue is enough
+           to disable it, and a dead-looking button with no reason is the same
+           defect as a silent fallback (docs/03 §2 totals footer). -->
       <button
         class="tt-preset tt-match"
         data-testid="tt-match-length"
         disabled={session.matchableMs === null}
+        title={session.matchableMs === null
+          ? 'Cần biết thời lượng của mọi bài trong danh sách'
+          : ''}
         onclick={() => setFromMs(session.matchableMs ?? 0)}>Khớp độ dài</button
       >
     </div>
@@ -141,9 +186,13 @@
   {#if !session.canStart}
     <p class="tt-why" data-testid="tt-start-hint">
       {#if !track}
-        Chọn một tệp nhạc để bắt đầu.
+        Chọn {single ? 'một tệp nhạc' : 'ít nhất một tệp nhạc'} để bắt đầu.
       {:else if !session.countdownInRange}
         Đếm ngược phải từ 1 giây đến 24 giờ.
+      {:else if single && session.queue.length > 1}
+        <!-- Playlist → Single with several tracks staged. docs/03 §3 keeps the
+             queue and says why, rather than truncating the user's work. -->
+        Chế độ Một bài chỉ nhận đúng một tệp — bỏ bớt hoặc quay lại Danh sách.
       {:else}
         Tệp đang chọn không phát được.
       {/if}

@@ -24,6 +24,11 @@
     onstop: () => void;
     onvolume: (v: number) => void;
     onmute: () => void;
+    onprev: () => void;
+    onnext: () => void;
+    /** False in Single mode, and at the ends of the order (docs/02 §5.1). */
+    canPrev: boolean;
+    canNext: boolean;
     /** Bumped by the parent on any pointer/key, to un-hide. */
     wakeToken: number;
   }
@@ -39,6 +44,10 @@
     onstop,
     onvolume,
     onmute,
+    onprev,
+    onnext,
+    canPrev,
+    canNext,
     wakeToken,
   }: Props = $props();
 
@@ -66,14 +75,26 @@
   </div>
 
   <div class="tt-transport">
-    <button class="tt-ctl" disabled aria-label="Bài trước">⏮</button>
+    <button
+      class="tt-ctl"
+      data-testid="tt-prev"
+      disabled={!canPrev}
+      aria-label="Bài trước"
+      onclick={onprev}>⏮</button
+    >
     <button
       class="tt-ctl"
       data-testid="tt-playpause"
       aria-label={playing ? 'Tạm dừng' : 'Phát'}
       onclick={onplaypause}>{playing ? '⏸' : '▶'}</button
     >
-    <button class="tt-ctl" disabled aria-label="Bài sau">⏭</button>
+    <button
+      class="tt-ctl"
+      data-testid="tt-next"
+      disabled={!canNext}
+      aria-label="Bài sau"
+      onclick={onnext}>⏭</button
+    >
 
     <!--
       Stop lives here rather than in a second control row. docs/02 §1 needs the

@@ -250,8 +250,12 @@ describe('the produced track', () => {
     expect(t.fileSizeBytes).toBe(4_096);
     expect(t.durationMs).toBe(200_000);
     expect(t.addedAt).toBe(1_700_000_000_000);
-    // Never created at import — docs/05 §3 creates it lazily at first play.
-    expect(t.objectUrl).toBeUndefined();
+    // The media URL is NOT a field on the track: it lives in the ledger under
+    // `media:<id>` (docs/05 §3), created lazily at first play. `TtTrack.objectUrl`
+    // was declared through P2 and never written by anything, so this assertion
+    // used to check that a dead field stayed dead. The field is gone in P3; what
+    // is worth asserting is that importing creates no URL at all.
+    expect(t).not.toHaveProperty('objectUrl');
   });
 
   it('registers embedded cover art under the track id (docs/05 §3, §5)', async () => {
