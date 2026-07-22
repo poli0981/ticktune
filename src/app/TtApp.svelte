@@ -448,6 +448,7 @@
           onjump={onJump}
           onshuffle={(on) => session.setShuffle(on)}
           onrepeat={(on) => session.setRepeat(on)}
+          onmove={(id, delta) => session.moveTrack(id, delta)}
           oninfo={(t) => (infoTrack = t)}
         />
       {/if}

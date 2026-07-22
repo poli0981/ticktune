@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TtImportResult, TtTrack } from '../../src/app/engine/importer/types';
+import { nextInOrder } from '../../src/app/engine/queue/tt-play-order';
 // Type-only, so these do NOT pin a module instance: each test re-imports the
 // stores after `vi.resetModules()` to get its own copy of the singletons.
 import type * as PlaybackMod from '../../src/app/state/playback.svelte';
@@ -251,6 +252,72 @@ describe('queue mutation while playing — docs/02 §5.1', () => {
     // must not be silently rewritten mid-run.
     expect(session.order.slice(0, 3)).toEqual(before);
     expect(session.order).toHaveLength(4);
+  });
+});
+
+describe('moveTrack — docs/02 §5.1 rule 1', () => {
+  beforeEach(async () => {
+    await settings.patch({ shuffle: false, repeatPlaylist: true });
+  });
+
+  it('moves a row and reports where it landed', async () => {
+    await stage('playlist', [track('a'), track('b'), track('c')]);
+    expect(session.moveTrack('c', -1)).toBe(1);
+    expect(session.queue.map((t) => t.id)).toEqual(['a', 'c', 'b']);
+  });
+
+  it('clamps at the ends instead of wrapping', async () => {
+    // A held Alt+↑ should stop at the top, not cycle the queue forever.
+    await stage('playlist', [track('a'), track('b')]);
+    expect(session.moveTrack('a', -1)).toBeNull();
+    expect(session.moveTrack('b', 1)).toBeNull();
+    expect(session.queue.map((t) => t.id)).toEqual(['a', 'b']);
+  });
+
+  it('ignores an id that is not in the queue', async () => {
+    await stage('playlist', [track('a')]);
+    expect(session.moveTrack('gone', 1)).toBeNull();
+  });
+
+  it('with Shuffle OFF the playback order follows immediately', async () => {
+    await stage('playlist', [track('a'), track('b'), track('c')]);
+    session.start();
+    expect(session.order).toEqual(['a', 'b', 'c']);
+
+    session.moveTrack('c', -1);
+
+    // Derived, not synced: there is no stored permutation to keep in step.
+    expect(session.order).toEqual(['a', 'c', 'b']);
+    expect(nextInOrder(session.order, 'a')).toBe('c');
+  });
+
+  it('with Shuffle ON the stored permutation is NOT touched', async () => {
+    await settings.patch({ shuffle: true });
+    await stage('playlist', [track('a'), track('b'), track('c'), track('d')]);
+    session.start();
+    const before = [...session.order];
+
+    session.moveTrack(session.queue[3]?.id ?? '', -3);
+
+    // Rule 1: a drag reorders what the user SEES, never what they are about to
+    // hear. Remapping a permutation nobody can see would be invisible cause.
+    expect(session.order).toEqual(before);
+    expect(session.queue[0]?.id).toBe('d');
+  });
+
+  it('never moves the cursor, even when the playing row is the one dragged', async () => {
+    await stage('playlist', [track('a'), track('b'), track('c')]);
+    session.start();
+    session.advance(); // on 'b'
+
+    session.moveTrack('b', 1);
+
+    // Free, because the cursor names a track rather than a position — which is
+    // the entire reason docs/02 §5.1 chose an id.
+    expect(session.currentId).toBe('b');
+    expect(session.queue.map((t) => t.id)).toEqual(['a', 'c', 'b']);
+    // And it is genuinely last now, so there is nothing after it.
+    expect(nextInOrder(session.order, 'b')).toBeNull();
   });
 });
 

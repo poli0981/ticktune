@@ -405,6 +405,41 @@ class SessionStore {
     ttLog.info('TT-USR-001', '', id);
   }
 
+  /**
+   * Move a row within the DISPLAY order — docs/02 §5.1 rule 1.
+   *
+   * This touches `#queue` and nothing else, which is the whole design showing
+   * its work:
+   *
+   * - Shuffle **off**: playback order is derived from this array, so the next
+   *   track changes immediately. No extra call, and nothing to keep in sync.
+   * - Shuffle **on**: the stored permutation is untouched, so a drag reorders
+   *   what the user *sees* and not what they are about to *hear*. Remapping a
+   *   permutation nobody can see would change the future for no visible reason.
+   *
+   * In both cases the cursor is a track id, so the now-playing track stays
+   * current however far it moves.
+   *
+   * @param delta −1 for up, +1 for down. Clamped: moving the first row up is a
+   *   no-op rather than a wrap, so a held key stops at the end instead of
+   *   cycling the queue forever.
+   * @returns the index it ended at, or null when nothing moved.
+   */
+  moveTrack(id: string, delta: number): number | null {
+    const from = this.#queue.findIndex((t) => t.id === id);
+    if (from < 0) return null;
+
+    const to = from + delta;
+    if (to < 0 || to >= this.#queue.length) return null;
+
+    const next = [...this.#queue];
+    const [moved] = next.splice(from, 1);
+    if (moved === undefined) return null;
+    next.splice(to, 0, moved);
+    this.#queue = next;
+    return to;
+  }
+
   dismissImport(): void {
     this.#lastImport = null;
   }
