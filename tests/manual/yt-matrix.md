@@ -178,9 +178,9 @@ one and reached a stronger conclusion: the code does not discriminate at all.
 | no `⚠️ UNKNOWN` bucket | ✅ |
 | CSP on the deployed site | ✅ |
 | `i.ytimg.com` CORS | ✅ |
-| **controls at 384×216 inside the rail, in every rail/Focus state** | ⬜ **still open** — needs eyes, not a log |
-| **`onError 100` — deleted MID-SESSION** | ⬜ open, and possibly unreachable. Needs a video removed while the queue is running |
-| Firefox | ⬜ open — the whole run above is Chrome 151 only |
+| controls at 384×216 inside the rail, across rail/Focus states | ✅ measured — see below. **Both naive states violate the ToS** |
+| `onError 100` | ✅ **believed unreachable** — see below |
+| Firefox | ✅ same results (user-run) |
 
 **The region case is answered, by an inversion worth recording.** Rather than
 finding a video blocked *in* Vietnam, a **Vietnam-only** video was played from a
@@ -209,3 +209,49 @@ Kept for whoever re-runs this when statuses rot:
 Statuses change without notice, so re-verify an id before trusting a row built
 on it — a stale id fails as *"embedding disabled"* while actually being deleted,
 which is a green row for the wrong reason.
+
+
+## ✅ Closed 2026-07-22 — controls in the rail, and `onError 100`
+
+### Controls at 384×216, and what the rail states do to them
+
+Player box measured while a video was **playing**, on the deployed harness:
+
+| Rail state | Player box | Computed | Video |
+|------------|-----------|----------|-------|
+| normal | **384×216** exactly | `display: grid`, opacity 1 | playing |
+| **collapsed** | **0×0** | **`display: none`** | **still playing** |
+| **Focus** | 384×216 | **opacity 0.06** | **still playing** |
+
+Native controls render fully at 384×216 in the normal state — title, scrubber,
+elapsed/total, volume, settings, YouTube wordmark, all inside the box.
+
+Both other states leave **audio running with the player hidden**, which is what
+`docs/06 §1.2` forbids. That is the *expected* result: the harness implements the
+naive behaviour on purpose, so `docs/03 §2`'s carve-out is proven load-bearing
+rather than assumed. Recorded there.
+
+⚠️ **Implementation trap for P4:** `checkVisibility({checkOpacity: true})`
+returned **`true`** for the 0.06-opacity player. It only catches opacity *0*, so
+it cannot be the guard. Assert the computed opacity and the box.
+
+### `onError 100` — not reachable
+
+Cued **without playing** on **both** hosts, three causes each:
+
+```
+nocookie  abcdefghijk  404 gone/never-existed -> onError 150
+nocookie  l2jmBhzMons  403 private            -> onError 150
+nocookie  dt7N1Yw-DVI  401 embed-off          -> onError 150
+regular   abcdefghijk  404 gone/never-existed -> onError 150
+regular   l2jmBhzMons  403 private            -> onError 150
+regular   dt7N1Yw-DVI  401 embed-off          -> onError 150
+```
+
+Six for six. The host is **not** the variable — `youtube-nocookie` is not
+collapsing codes that the regular host would distinguish. `onError 100` does not
+appear for the causes YouTube documents it for.
+
+The one case that remains unmanufacturable is a video deleted *while already
+playing*. `docs/02 §6`'s separate TT-YT-100 path has folded into the 150 row
+accordingly: a path with no trigger reads as covered while doing nothing.

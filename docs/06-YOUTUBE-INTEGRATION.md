@@ -138,11 +138,18 @@ at play time. They are now caught before Start, which is the real win from S1.
 | `onError 2` | Bad parameter | `yt.err.invalid` | skip after 5 s | TT-YT-002 |
 | `onError 5` | HTML5 player failure | `yt.err.player` | retry once → skip | TT-YT-005 |
 
-⚠️ **The last three rows are unobserved.** S1 could not produce 2, 5 or 100 — in
-particular it could not delete a video mid-run, which is the only way `100` is
-supposed to arise. `02 §6`'s TT-YT-100 path is therefore built on a signal that
-has never been seen firing; if P4 finds it never fires either, that path folds
-into the 150 row and `02 §6` needs revisiting.
+⚠️ **The last three rows are unobserved, and `100` is now believed unreachable.**
+S1 re-tested it deliberately: the three ids whose oEmbed says *gone* (404),
+*private* (403) and *embed-off* (401) were **cued without playing** against
+**both** `youtube-nocookie.com` and `www.youtube.com`. All six combinations
+returned **150**. So the host is not the variable and `100` does not appear for
+the causes it documents.
+
+The only case S1 could not manufacture is a video deleted *while it is already
+playing*. `02 §6`'s separate 3 s path has therefore **folded into the 150 row**,
+because a path with no trigger reads as covered while doing nothing. This row
+stays only so a future observation has somewhere to land — **nothing may depend
+on `100` firing**.
 
 The age-vs-region ambiguity is **not** a gap to close later — it is the measured
 result. The subtext naming both causes, which this table already required, turns

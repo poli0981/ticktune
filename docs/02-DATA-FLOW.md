@@ -438,12 +438,29 @@ through these concrete paths:
 | Event | If currently playing | If queued | Log |
 |-------|----------------------|-----------|-----|
 | Local track fails to decode/play (corrupt, revoked URL) | stop → auto-advance to next | mark `status:'error'`, auto-remove | TT-PLY-101 |
-| YouTube video deleted / made private mid-session (`onError` 100) | stop → overlay 3 s → auto-advance | remove on next validation | TT-YT-100 |
-| YouTube embed blocked / age / region at play time | overlay (typed) → auto-skip after 5 s | — | TT-YT-101/150 |
+| ~~YouTube video deleted / made private mid-session (`onError` 100)~~ | **folded into the row below — see the note** | remove on next validation | TT-YT-100 |
+| YouTube **anything** unplayable at play time — deleted, private, embed-off, age-restricted, region-blocked | overlay (typed) → auto-skip after 5 s | — | TT-YT-150 |
 | User deletes track via UI | stop if current → advance | remove | TT-USR-001 |
 
 All removals release the track's ledger entries — its media URL and its cover —
 immediately (`05 §3`, `TtUrlLedger.releaseTrack`).
+
+**Why the `onError 100` row folded — spike S1, 2026-07-22.** This table gave
+deleted/private its own path ("stop → overlay 3 s → auto-advance") keyed on
+`onError 100`. Measured across six causes and ten videos, **the player reports
+`150` for every one of them and `100` was never seen**. Re-run cue-only against
+*both* `youtube-nocookie.com` and `www.youtube.com` — 150 on both, so the host is
+not the variable and the code is simply not reachable here.
+
+The distinct 3 s path therefore had no trigger. It is not deleted for tidiness:
+a path that can never run is worse than no path, because it reads as covered.
+`06 §4` keeps the `100` row marked unobserved in case a genuine mid-run deletion
+behaves differently — the one case S1 could not manufacture — but nothing may
+depend on it firing.
+
+**What replaces it:** deleted, private and embed-disabled are all distinguishable
+from the **oEmbed status at import** (`06 §3`), which is strictly better — the
+user learns why before the countdown starts, instead of watching a track fail.
 
 **Single-mode carve-out.** "Auto-advance to next" has no next track when the
 queue holds exactly one. So: media stops, the track is marked `status:'error'`
