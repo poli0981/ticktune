@@ -171,8 +171,24 @@ authenticates to Cloudflare via secret token, not GitHub permissions.
 1. `main` green (ci + e2e + codeql + audit).
 2. Bump version in `package.json`; the app's About panel reads it at build time.
 3. Tag `vX.Y.Z` → `deploy.yml` builds, runs `scripts/inject-csp-hash.ts`
-   (`10 §7`), deploys, then GitHub Release with generated notes → `notify.yml`
-   fans out.
+   (`10 §7`) and deploys.
+
+   ⚠️ **The GitHub Release and the fan-out do not exist.** This step read "then
+   GitHub Release with generated notes → `notify.yml` fans out" until v0.3.0;
+   `deploy.yml` has only a Build step and a Deploy step, there is no
+   `notify.yml`, and `gh release list` was empty after both v0.2.0 and v0.3.0.
+   Nobody noticed because a deploy that works looks identical either way — the
+   site updates, the workflow is green, and the missing artifact is one nobody
+   goes looking for. Filed as a gap rather than quietly implemented at release
+   time: whether releases are announced at all is a decision, and `notify.yml`
+   has no owner phase.
+
+   **Tags are signed** (`git tag -s`), and the signature is worth verifying
+   rather than assuming: `tag.gpgsign = true` was already set when **v0.2.0 was
+   created unsigned**, so the config proves nothing. `git tag -v vX.Y.Z` must
+   print `Good signature`. Note git uses `gpg.program`, which on the dev box is
+   the Windows GnuPG — a different keyring from the `gpg` on Git Bash's `PATH`,
+   which reports "No secret key" and means nothing.
 4. Post-deploy: run the live-site smoke checklist (`13 §7`).
 5. First production deploy ships CSP as Report-Only; the switch to enforcing CSP
    is its own tagged release during P7 (`09 §4`).
