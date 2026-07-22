@@ -30,11 +30,32 @@ throwaway, deleted before P6). Run it **on the deployed site**, not only locally
    player disappears, the carve-out is doing real work and P4 must implement it.
 6. **Copy log** puts the run, the UA and any CSP violations on the clipboard.
 
-⚠️ **A CSP-violation box appearing is a FINDING, not a broken harness.**
-`docs/09 §4` allows `script-src https://www.youtube.com` but **not**
-`https://s.ytimg.com`, and the audit suspects the loader pulls
-`www-widgetapi.js` from there. If the API never becomes ready on the live site,
-that is the answer — record the blocked URI and `docs/09 §4` gains a row.
+The harness still shows a **CSP-violation box** if one ever fires. That box would
+be a FINDING, not a broken harness — but see below: the case it was built for
+has already been checked and did not happen.
+
+## ✅ Closed: the CSP carries the player, and `s.ytimg.com` is not involved
+
+Measured 2026-07-22 on `https://ticktune.net/spike/s1-youtube/`, real browser,
+deployed CSP:
+
+```
++   115ms  IFrame API ready
++  1763ms  onStateChange 1 (playing) — dQw4w9WgXcQ
+violations: []
+
+resources loaded:
+  script  https://www.youtube.com/iframe_api
+  script  https://www.youtube.com/s/player/<build>/www-widgetapi.vflset/www-widgetapi.js
+  iframe  https://www.youtube-nocookie.com/embed/dQw4w9WgXcQ
+  other   https://i.ytimg.com/vi_webp/dQw4w9WgXcQ/mqdefault.webp
+```
+
+The audit predicted that `www-widgetapi.js` comes from `s.ytimg.com` and that
+`docs/09 §4` would therefore break the player. **It comes from
+`www.youtube.com`**, which `script-src` already allows. No CSP row is needed and
+no privacy-policy disclosure follows. `AUDIT-BACKLOG` updated with the
+refutation.
 
 ## Verified by oEmbed — re-checked 2026-07-22 against the live endpoint
 
@@ -115,7 +136,7 @@ specifically.
 | deleted mid-session | see the finding above | `onError 100` → `yt.err.gone` | 🔴 see above |
 | normal playback chain | `dQw4w9WgXcQ`, `jNQXAC9IVRw`, `9bZkp7q19f0` | queue of 3 advances hands-free after one gesture | ⬜ |
 | controls at 384×216 **inside the real rail** | any | fully visible in every rail/Focus state | ⬜ |
-| CSP: does the API load on the **deployed** site? | any | ready, with no violation row | ⬜ |
+| CSP: does the API load on the **deployed** site? | any | — | ✅ see above |
 | `i.ytimg.com` CORS | any | — | ✅ see above |
 
 ### Finding the three ids
