@@ -138,6 +138,27 @@ both hide Z4, which is where the player lives. Therefore, while
 This is enforced in the component, not left to layout discipline: the rail's
 collapse state derives from `mode`, so no future CSS change can silently hide it.
 
+### Measured 2026-07-22 (spike S1) — the carve-out is load-bearing
+
+The S1 harness renders the player inside a mock rail whose collapse and Focus
+behaviours are the **naive** ones, precisely so this could be observed rather
+than assumed. With a video **playing**:
+
+| Rail state | Player box | Computed | Video |
+|------------|-----------|----------|-------|
+| normal | 384×216 | `display: grid`, opacity 1 | playing |
+| **collapsed** | **0×0** | **`display: none`** | **still playing** |
+| **Focus** | 384×216 | **opacity 0.06** | **still playing** |
+
+Both states leave audio running with the player hidden — exactly what `06 §1.2`
+forbids. So the carve-out above is not defensive wording; without it the default
+implementation of either affordance violates the ToS.
+
+⚠️ **`Element.checkVisibility({ checkOpacity: true })` returns `true` at opacity
+0.06.** It only catches opacity **0**, so it cannot be the guard for "the player
+is visible" — a near-transparent player passes it. Any P4 assertion has to test
+the computed opacity and the box, not ask the platform whether it is visible.
+
 ## 3. Screens inventory
 
 1. **Landing** (`/`, `/en/`) — hero with looping demo capture (placeholder asset
