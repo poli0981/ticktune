@@ -244,7 +244,21 @@ it:
       passed a literal `false`
 - [ ] Playlist limits tests pass; 95-file batch import OK *(slice 2)*
 
-## P3 slice 1 review — 2026-07-22: **a playlist plays**
+## P3 slice 1 review — 2026-07-22 · **released as v0.3.0**
+
+Tagged `v0.3.0` from a rebase-merged `main` (strictly linear history — rebase,
+never squash), **signed**, and verified by fetching the served bundle rather
+than by trusting the green tick: `/app/` returns 200, the CSP is enforcing with
+the inline-gate hash, HSTS is present, and the shipped island contains
+`DANH SÁCH`, `Đã hết danh sách` and `data-tt-variant` — the last of which exists
+only because of the overflow fix, so the deployed build demonstrably includes
+the final commit rather than merely a build of the tag's ancestry.
+
+Two things the release itself exposed, both recorded in `14 §5` rather than
+patched over: **v0.2.0 was never signed** despite `tag.gpgsign = true` (so the
+config proves nothing and `git tag -v` is the only evidence), and **no GitHub
+Release or fan-out exists** — `deploy.yml` builds and deploys, full stop, and
+`notify.yml` has never existed. A deploy that works looks identical either way.
 
 Not a phase exit: slice 2 (drag-reorder, `TtContextMenu`, import progress, the
 95-file E2E) is still open. What is done is everything needed to run a queue,
