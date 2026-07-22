@@ -172,12 +172,13 @@ test.describe('playlist mode', () => {
 
     // Row 3 is the .wav fixture. Binding the modal to the playing track instead
     // of the targeted one would show row 1 here and look entirely correct.
-    await page
-      .getByTestId('tt-queue-row')
-      .nth(2)
-      .locator('button')
-      .first()
-      .click({ button: 'right' });
+    //
+    // Slice 1 opened the modal straight from the right-click; slice 2 put the
+    // docs/02 §8 menu in between, so the route is now two steps. The assertion
+    // that matters — the modal belongs to the row that was targeted — is
+    // unchanged, which is why this test was edited rather than replaced.
+    await page.getByTestId('tt-queue-row').nth(2).click({ button: 'right' });
+    await page.getByTestId('tt-menu-info').click();
     await expect(page.getByRole('dialog')).toBeVisible();
     await expect(page.getByRole('dialog')).toContainText('tone-5s.wav');
   });
@@ -260,6 +261,83 @@ test.describe('playlist mode', () => {
     await start.scrollIntoViewIfNeeded();
     await expect(start).toBeInViewport();
     await expect(start).toBeEnabled();
+  });
+
+  /**
+   * The `docs/16` P3 exit criterion — "95-file batch import OK".
+   *
+   * The tracks are byte-identical copies under distinct NAMES, which is the
+   * whole trick: the dedupe key is `name::size::duration` (docs/02 §4 step 5),
+   * so staging the same path 95 times would add exactly one row and 94
+   * TT-IMP-005s. That test would be green, fast, and about dedupe rather than
+   * about capacity.
+   */
+  test('imports a 95-file batch and refuses the 96th (TT-IMP-004)', async ({ page }) => {
+    test.slow(); // 95 sequential parses; generous rather than flaky under CI workers:1
+    dismissUnloadDialogs(page);
+    await gotoApp(page);
+    await stageManyTracks(page, 95);
+
+    await expect(page.getByTestId('tt-queue-totals')).toContainText('95 bài');
+    await expect(page.getByRole('button', { name: 'Bắt đầu' })).toBeEnabled();
+
+    // One more, and the count cap rejects it rather than silently dropping it.
+    await page
+      .getByTestId('tt-file-input')
+      .setInputFiles(['tests/e2e/fixtures/tone-5s.flac'].map((f) => f));
+    await expect(page.locator('[data-tt-code="TT-IMP-004"]')).toBeVisible();
+    await expect(page.getByTestId('tt-queue-row')).toHaveCount(95);
+  });
+
+  test('reorders a row by drag, and by Alt+arrow', async ({ page }) => {
+    dismissUnloadDialogs(page);
+    await gotoApp(page);
+    await stagePlaylist(page, THREE);
+
+    const rows = page.getByTestId('tt-queue-row');
+    const idsNow = () => rows.evaluateAll((els) => els.map((e) => e.getAttribute('data-tt-id')));
+    const original = await idsNow();
+
+    // Keyboard first: it is the path docs/13 §6's journey depends on, and the
+    // one a pointer-only implementation would have left untestable.
+    await page.getByTestId('tt-queue-grip').first().focus();
+    await page.keyboard.press('Alt+ArrowDown');
+    expect(await idsNow()).toEqual([original[1], original[0], original[2]]);
+    await expect(page.getByTestId('tt-queue-announce')).toContainText('vị trí 2 trên 3');
+
+    // Then the drag — pointer events, which Playwright CAN drive. An HTML5
+    // draggable row could not be exercised here at all.
+    const from = await page.getByTestId('tt-queue-grip').nth(2).boundingBox();
+    const to = await rows.nth(0).boundingBox();
+    await page.mouse.move(from!.x + from!.width / 2, from!.y + from!.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(to!.x + 8, to!.y + 2, { steps: 8 });
+    await page.mouse.up();
+
+    expect((await idsNow())[0]).toBe(original[2]);
+  });
+
+  test('the context menu moves and removes a row', async ({ page }) => {
+    dismissUnloadDialogs(page);
+    await gotoApp(page);
+    await stagePlaylist(page, THREE);
+
+    const rows = page.getByTestId('tt-queue-row');
+    const idsNow = () => rows.evaluateAll((els) => els.map((e) => e.getAttribute('data-tt-id')));
+    const original = await idsNow();
+
+    await rows.nth(2).click({ button: 'right' });
+    await expect(page.getByTestId('tt-context-menu')).toBeVisible();
+    // At the last row there is nowhere further down to go, and the item says so.
+    await expect(page.getByTestId('tt-menu-down')).toBeDisabled();
+    await page.getByTestId('tt-menu-up').click();
+
+    expect(await idsNow()).toEqual([original[0], original[2], original[1]]);
+    await expect(page.getByTestId('tt-context-menu')).toBeHidden();
+
+    await rows.nth(0).click({ button: 'right' });
+    await page.getByTestId('tt-menu-remove').click();
+    await expect(rows).toHaveCount(2);
   });
 
   test('switching to Single mode keeps the queue and explains why Start is off', async ({

@@ -1,9 +1,11 @@
-# P3 slice 1 live-site checklist — Playlist plays
+# P3 live-site checklist — Playlist
 
-The `docs/13 §7` checklist, filtered to **what this slice actually ships**. Rows
-for drag-reorder, the context menu's Move up/down, the import progress bar and
-crossfade are **deliberately absent** — see "Known-absent" at the bottom, and
-please don't report them as bugs.
+The `docs/13 §7` checklist, filtered to **what P3 actually ships**. Crossfade is
+**deliberately absent** — see "Known-absent" at the bottom, and please don't
+report it as a bug.
+
+Slice 1 (playback) items are the first block; **slice 2** adds reorder, the
+context menu and the import progress bar, marked ⬆ below.
 
 Run at `https://ticktune.net/app/` on a **desktop** browser, fresh profile.
 
@@ -33,9 +35,26 @@ Run at `https://ticktune.net/app/` on a **desktop** browser, fresh profile.
       own box**. No row may paint below the panel border or over the bottom bar.
       (This was broken on the first build and is the reason the check is here.)
 
+## ⬆ Slice 2 — reorder, menu, progress
+
+- [ ] **Drag a row by its ⠿ handle** onto another position. It follows the
+      pointer and every intermediate state is a sane queue. With **Trộn off**
+      this changes what plays next; with **Trộn on** it must **not** — the order
+      you are about to hear stays as it was (`02 §5.1` rule 1).
+- [ ] **Drag the row that is currently playing.** It keeps playing and stays
+      highlighted wherever it lands.
+- [ ] **Focus a ⠿ handle with Tab, then `Alt+↑` / `Alt+↓`.** The row moves.
+      Bare `↑/↓` must still change **volume**, not the order.
+- [ ] **Right-click a row** → menu with *Thông tin bài · Chuyển lên · Chuyển
+      xuống · Bỏ khỏi danh sách*. On the first row "Chuyển lên" is greyed out;
+      on the last, "Chuyển xuống" is. `Esc` closes it and nothing happens.
+- [ ] **Import ~50 files at once** → a progress bar appears with a count.
+- [ ] **Import ONE file** → **no bar at all**, not even a flash. That is the
+      requirement, not a side effect.
+
 ## Worth a look, not blocking
 
-- [ ] Right-click any row → the info modal shows **that row's** metadata, not
+- [ ] Right-click any row → *Thông tin bài* shows **that row's** metadata, not
       track 1's. `Esc` closes it and returns focus.
 - [ ] Import a file whose tags are broken → it still lists, using the file name.
 - [ ] Import the same file twice → skipped, with `TT-IMP-005` in the toast.
@@ -63,9 +82,6 @@ These are not built yet, on purpose:
 
 | Not there | Why |
 |-----------|-----|
-| Drag a row to reorder it, `Alt+↑/↓` | Slice 2. The behaviour is specified in `02 §5.1` and `03 §7` first, so the implementation cannot become the spec |
-| A right-click menu with Move up / Move down / Remove | Slice 2 — right-click currently opens the info modal directly |
-| A progress bar while a big batch imports | Slice 2 |
 | Crossfade between tracks, and the crossfade loop toggle | **Blocked on spike S4b**, whose harness needs fixing before its numbers mean anything (`15 §S4`). A hard cut is correct for now |
 | A Settings panel (shuffle/repeat/duplicates live only on the queue panel) | P5 |
 | An English UI | P5 — everything is Vietnamese until the dictionaries land |

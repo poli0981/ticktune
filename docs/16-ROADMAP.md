@@ -317,6 +317,43 @@ the context menu, the progress bar or crossfade. That table is the P2 lesson
 applied: the reviewer's time is the scarce resource, and an unfiltered checklist
 spends it on absences that were deliberate.
 
+## P3 slice 2 review — 2026-07-22: **the phase closes**
+
+| Criterion | Satisfied by | Result |
+|-----------|--------------|--------|
+| Playlist limits tests pass | `tests/unit/tt-import.test.ts` boundaries + the toast codes in `tests/e2e/playlist.spec.ts` | ✅ |
+| 95-file batch import OK | `playlist.spec.ts` "imports a 95-file batch and refuses the 96th" | ✅ and the 96th trips TT-IMP-004 rather than vanishing |
+| Drag-reorder | `TtQueuePanel` pointer drag + `playlist.spec.ts` | ✅ verified by mutation — deleting the `pointermove` handler fails the spec |
+| `TtContextMenu` | `TtContextMenu.svelte`, `02 §8`'s four items | ✅ incl. `Esc` closing without acting, and the end-of-list move disabled |
+| Import progress indicator | `session.progress` + `TtSetup` | ✅ **and it stays away from fast imports** — both sides of the threshold tested |
+
+**311 unit + component, 58 E2E** on the projects this box can launch, five gates
+green.
+
+### What was decided rather than defaulted
+
+**Reorder is pointer-driven, not HTML5 drag-and-drop.** `_helpers.ts` had
+already recorded that Playwright cannot synthesise a native drag — that is why
+file import uses a synthetic `DragEvent`. Building rows on `draggable` would
+have left `13 §2`'s reorder test and `13 §6`'s keyboard journey unassertable, so
+the feature would have shipped covered by a screenshot. The component test now
+asserts that no row carries `draggable`, which pins the decision rather than
+trusting it.
+
+**The progress indicator kept the reason it was deferred for.** P2's note —
+"Single mode imports one file at a median 11 ms; a spinner would flash" — was
+treated as a requirement, not as scheduling: the bar is gated behind a delay, so
+a one-file import renders nothing. A version without the gate would have passed
+any test that only checked the bar eventually appears, which is why both sides
+of the threshold have one.
+
+### Still not shipped, and still for the same reason
+
+**Crossfade.** `15 §S4b` gates the loop style *and* P3's inter-track crossfade,
+and its harness cannot produce a valid number until the `15 §S4` fixes land.
+Nothing in this slice changes that. P3 closes with a hard cut between tracks,
+which is correct until the number exists.
+
 ## Post-1.0 backlog (unordered)
 
 - YouTube Data API v3 proxy on the existing Worker (duration/publish date at

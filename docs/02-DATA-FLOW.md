@@ -335,9 +335,17 @@ Also settled here, all previously undefined:
   toast. Single-flight; no queue, no abort.
 - **No cancel button** in v1.0 — the operation is bounded and sub-10-second
   (S3 measured 103 files in 1 362 ms). Revisit with Playlist.
-- **No progress indicator in P2.** Single mode imports one file at a median
-  11 ms; a spinner would flash. It lands with Playlist in P3, where a 95-file
-  batch makes it meaningful.
+- **The progress indicator** landed in P3 slice 2 — but the deferral's reason
+  survived into its design. "Single mode imports one file at a median 11 ms; a
+  spinner would flash" is not a scheduling note, it is a **requirement**: the
+  bar appears only once a batch has been running past a threshold, so a one-file
+  import still renders nothing. Shipping it as "visible while importing" would
+  have been the flash the deferral was avoiding, and would have passed any test
+  that merely checked the bar eventually appears. Both sides of the threshold
+  are tested. The pipeline reports through an optional `onProgress` port, at the
+  **top** of each iteration counting files already finished — every rejection
+  leaves the loop early, so a call at the bottom would skip exactly the files a
+  user most wants to watch go past.
 - **Accepted files are kept when a later file trips a limit.** The loop is
   per-file and the summary toast reports both counts.
 
