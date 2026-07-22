@@ -9,6 +9,7 @@
   import TtSetup from './components/TtSetup.svelte';
   import TtSingleRail from './components/TtSingleRail.svelte';
   import TtTrackInfo from './components/TtTrackInfo.svelte';
+  import TtYouTubeRail from './components/TtYouTubeRail.svelte';
   import type { TtTrack } from './engine/importer/types';
   import { TtTimerDriver } from './engine/timer/tt-timer-driver';
   import type { TtTickSample } from './engine/timer/types';
@@ -16,6 +17,7 @@
   import { playback } from './state/playback.svelte';
   import { session } from './state/session.svelte';
   import { settings } from './state/settings.svelte';
+  import { yt } from './state/yt.svelte';
   import { TT_LEGAL_VERSION } from '../lib/tt-legal-const';
 
   /**
@@ -40,6 +42,10 @@
     // rather than inside the playback store because "what plays next" is the
     // session's question, and docs/12 §3.3 keeps data flowing one way.
     playback.onEnded = onTrackEnded;
+    // docs/06 §2: `onStateChange: ENDED` is YouTube's equivalent, and it is the
+    // ONLY one — there is no `ended` event on a cross-origin iframe to listen
+    // for. Same handler, so the queue rules cannot diverge per source.
+    yt.onAdvance = onTrackEnded;
 
     void settings.load(navigator.language).then((s) => {
       // docs/03 §3: P3 unlocks Playlist, so the remembered mode is finally
@@ -177,6 +183,12 @@
       // signal, and firing it on return is the useful behaviour. What must not
       // happen is the SCREEN claiming the moment is now — that is TtFinished's
       // job, and it is handled by the late variant.
+      // docs/06 §2: "Countdown done in YouTube mode: pauseVideo() + UI dim (no
+      // audio-graph fade available); chime still plays locally." The fade has
+      // nothing to act on — the audio is inside a cross-origin iframe — but the
+      // chime is ours and still sounds, so the attention signal survives.
+      if (session.mode === 'youtube') yt.pause();
+
       const end = playback.runEndBehavior();
       if (!end) return;
 
@@ -206,6 +218,7 @@
   onDestroy(() => {
     driver.dispose();
     playback.dispose();
+    yt.dispose();
   });
 
   /**
@@ -239,10 +252,18 @@
 
     const track = session.current;
     if (!force && track) {
-      // Unlock first and unawaited — this call is still inside the click's task
-      // and WebKit stops counting the gesture at the first yield (docs/05 §1).
-      void playback.unlock();
-      void playback.load(track, session.mode === 'single').then(() => playback.play());
+      if (session.mode === 'youtube') {
+        // docs/06 §1.4: the gesture chain is gate Accept → Start, so calling
+        // playVideo() from here is within the autoplay policy. There is no
+        // AudioContext to unlock — that is the audio engine's concern only.
+        yt.load(track);
+        yt.play();
+      } else {
+        // Unlock first and unawaited — this call is still inside the click's task
+        // and WebKit stops counting the gesture at the first yield (docs/05 §1).
+        void playback.unlock();
+        void playback.load(track, session.mode === 'single').then(() => playback.play());
+      }
     }
   }
 
@@ -258,17 +279,37 @@
     if (session.state !== 'playing') return;
     const outcome = session.advance();
     if (outcome === 'exhausted') {
-      playback.stop();
+      if (session.mode === 'youtube') yt.pause();
+      else playback.stop();
       return;
     }
     playTrack();
   }
 
-  /** Load and play whatever the cursor now points at. */
+  /** Load and play whatever the cursor now points at, on the right engine. */
   function playTrack() {
     const track = session.current;
     if (!track) return;
+    if (session.mode === 'youtube') {
+      yt.load(track);
+      yt.play();
+      return;
+    }
     void playback.load(track, session.mode === 'single').then(() => playback.play());
+  }
+
+  /**
+   * Volume and mute reach whichever engine is making sound — docs/03 §7.
+   *
+   * Without this, four documented hotkeys (`↑`, `↓`, `M`, and the Z7 slider)
+   * would move a Web Audio gain node that nothing is routed through in YouTube
+   * mode: silent no-ops that look like the app ignoring the user. `settings`
+   * stays the single source of truth, so a level set here survives a mode
+   * switch; only the SCALE differs, and that conversion lives in the player.
+   */
+  function applyVolume() {
+    if (session.mode === 'youtube') yt.applyVolume();
+    else playback.applyVolume();
   }
 
   /** docs/03 §2 Z7 — ⏭. Advancing past the end wraps or falls silent, as configured. */
@@ -291,13 +332,15 @@
   function onPause() {
     session.pause();
     driver.pause();
-    playback.pause();
+    if (session.mode === 'youtube') yt.pause();
+    else playback.pause();
   }
 
   function onResume() {
     session.resume();
     driver.resume();
-    void playback.play();
+    if (session.mode === 'youtube') yt.play();
+    else void playback.play();
   }
 
   /** docs/02 §1's Stop edge: playing/paused → setup, run discarded. */
@@ -325,7 +368,11 @@
     // 10 Hz: `timeupdate` alone fires at ~4 Hz, which is visibly steppy on a
     // progress bar. This reads the element rather than accumulating anything.
     const id = setInterval(() => {
-      playback.tick();
+      // docs/06 §2: in YouTube mode the bar's numbers come from the player, not
+      // from a media element — there is none. Same 10 Hz pull for the same
+      // reason: `timeupdate` has no equivalent here at all.
+      if (session.mode === 'youtube') yt.tick();
+      else playback.tick();
       if (debug) peakRms = Math.max(peakRms, playback.peakRms);
     }, 100);
     return () => clearInterval(id);
@@ -366,12 +413,12 @@
       if (session.state === 'playing') onPause();
       else onResume();
     } else if (e.key === 'm' || e.key === 'M') {
-      void settings.patch({ muted: !settings.current.muted }).then(() => playback.applyVolume());
+      void settings.patch({ muted: !settings.current.muted }).then(applyVolume);
     } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
       e.preventDefault();
       const delta = e.key === 'ArrowUp' ? 0.05 : -0.05;
       const volume = Math.min(1, Math.max(0, settings.current.volume + delta));
-      void settings.patch({ volume }).then(() => playback.applyVolume());
+      void settings.patch({ volume }).then(applyVolume);
     } else if (e.key === 'ArrowLeft' && session.canPrev) {
       // docs/03 §7 `←/→` prev/next. Inert in Single mode — there is nowhere to
       // go, which is the same reason Z7 disables the buttons there.
@@ -429,7 +476,25 @@
     <TtCountdown remainingMs={displayMs} glowIntensity={settings.current.glowIntensity} />
 
     {#if session.state === 'playing' || session.state === 'paused'}
-      {#if session.mode === 'single'}
+      {#if session.mode === 'youtube'}
+        <TtYouTubeRail
+          tracks={session.queue}
+          currentId={session.currentId}
+          shuffle={settings.current.shuffle}
+          repeat={settings.current.repeatPlaylist}
+          exhausted={session.exhausted}
+          overlay={yt.overlay}
+          focusMode={false}
+          onmount={(el) => yt.attach(el)}
+          onskip={() => yt.skipNow()}
+          onremove={(id) => session.removeTrack(id)}
+          onjump={onJump}
+          onshuffle={(on) => session.setShuffle(on)}
+          onrepeat={(on) => session.setRepeat(on)}
+          onmove={(id, delta) => session.moveTrack(id, delta)}
+          oninfo={(t) => (infoTrack = t)}
+        />
+      {:else if session.mode === 'single'}
         <TtSingleRail
           track={playback.track}
           loops={playback.loops}
@@ -444,7 +509,7 @@
           shuffle={settings.current.shuffle}
           repeat={settings.current.repeatPlaylist}
           exhausted={session.exhausted}
-          capped={session.mode !== 'youtube'}
+          capped={true}
           onremove={(id) => session.removeTrack(id)}
           onjump={onJump}
           onshuffle={(on) => session.setShuffle(on)}
@@ -496,17 +561,16 @@
 
   {#if session.state === 'playing' || session.state === 'paused'}
     <TtBottomBar
-      track={playback.track}
-      positionMs={playback.positionMs}
-      durationMs={playback.durationMs}
+      track={session.mode === 'youtube' ? session.current : playback.track}
+      positionMs={(session.mode === 'youtube' ? yt.positionMs : playback.positionMs) ?? 0}
+      durationMs={session.mode === 'youtube' ? yt.durationMs : playback.durationMs}
       playing={session.state === 'playing'}
       volume={settings.current.volume}
       muted={settings.current.muted}
       onplaypause={() => (session.state === 'playing' ? onPause() : onResume())}
       onstop={onStop}
-      onvolume={(v) => void settings.patch({ volume: v }).then(() => playback.applyVolume())}
-      onmute={() =>
-        void settings.patch({ muted: !settings.current.muted }).then(() => playback.applyVolume())}
+      onvolume={(v) => void settings.patch({ volume: v }).then(applyVolume)}
+      onmute={() => void settings.patch({ muted: !settings.current.muted }).then(applyVolume)}
       onprev={onPrev}
       onnext={onNext}
       canPrev={session.canPrev}
