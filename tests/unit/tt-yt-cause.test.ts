@@ -1,5 +1,9 @@
 import { describe, expect, it } from 'vitest';
-import { ytCauseFromUpstream, ytCauseIsTransient } from '../../src/lib/tt-yt-cause';
+import {
+  ytCauseFromResponse,
+  ytCauseFromUpstream,
+  ytCauseIsTransient,
+} from '../../src/lib/tt-yt-cause';
 
 /**
  * The oEmbed status → cause map — docs/06 §3.
@@ -67,5 +71,51 @@ describe('ytCauseIsTransient — docs/06 §5', () => {
     ] as const) {
       expect(ytCauseIsTransient(cause)).toBe(false);
     }
+  });
+});
+
+describe('ytCauseFromResponse — a status is only a cause if it is OURS', () => {
+  const JSONH = 'application/json; charset=utf-8';
+
+  it.each([
+    [400, 'invalid_id'],
+    [401, 'embed_off'],
+    [403, 'private'],
+    [404, 'not_found'],
+    [429, 'rate_limited'],
+  ] as const)('reads %i from our own JSON as %s', (status, cause) => {
+    expect(ytCauseFromResponse(status, JSONH)).toBe(cause);
+  });
+
+  it('treats our 502 as transient, not as a property of the video', () => {
+    // The Worker emits it when the EDGE could not reach oEmbed.
+    expect(ytCauseFromResponse(502, JSONH)).toBe('upstream_unreachable');
+    expect(ytCauseIsTransient(ytCauseFromResponse(502, JSONH))).toBe(true);
+  });
+
+  it('never blames the video when something else answered', () => {
+    // The bug this pins, found by using the app: under `astro preview` the
+    // Worker does not run, `/api/yt/oembed` fell through to the static 404
+    // page, and three known-good videos were reported as deleted.
+    for (const ct of ['text/html', 'text/html; charset=utf-8', 'text/plain', null]) {
+      const cause = ytCauseFromResponse(404, ct);
+      expect(cause).toBe('upstream_unreachable');
+      expect(cause).not.toBe('not_found');
+      // Transient, so the track survives as `pending` rather than being
+      // rejected for a reason we invented.
+      expect(ytCauseIsTransient(cause)).toBe(true);
+    }
+  });
+
+  it('still recognises a rate limit even as an HTML block page', () => {
+    // Cloudflare's own block page is HTML and carries no CORS header, but the
+    // status is unambiguous and "slow down" is more useful than "network down".
+    expect(ytCauseFromResponse(429, 'text/html')).toBe('rate_limited');
+  });
+
+  it('does not mistake a non-JSON 401 or 403 for a video property', () => {
+    // A proxy or SSO wall answering 401 must not read as "embedding disabled".
+    expect(ytCauseFromResponse(401, 'text/html')).toBe('upstream_unreachable');
+    expect(ytCauseFromResponse(403, 'text/html')).toBe('upstream_unreachable');
   });
 });
