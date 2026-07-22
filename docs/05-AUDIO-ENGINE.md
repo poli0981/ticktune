@@ -70,11 +70,28 @@ across the ~4 Hz `timeupdate` — a decrease of more than half the duration coun
 as a wrap, which distinguishes it from a user seek. Anything written against
 `ended` for the hard-loop path is dead code.
 
-**Crossfade status:** as of 2026-07-21 the crossfade loop style is **not
+**Crossfade status:** as of 2026-07-22 the crossfade loop style is **not
 shipped** — `15 §S4b` has not recorded overlap timing, so the scheduling above is
 unvalidated. P2 ships `hard` only; the toggle renders disabled, and a stored
 `singleLoopStyle: 'crossfade'` (which `clampSettings` accepts) falls back to
-`hard` with a one-time notice rather than silently.
+`hard` with a one-time notice rather than silently — **TT-SYS-205** (`12 §6`),
+plus the reason on the disabled toggle.
+
+> The notice is stated in the past tense above because it is real now. Through
+> P2 this paragraph described behaviour no code implemented: nothing read
+> `singleLoopStyle` at all — the load call passed a literal `true` — so the
+> fallback was **exactly the silent one this sentence forbids**. Wired up in P3
+> alongside the mode work. It is the same failure shape as `coverArtUrl`: a
+> documented behaviour whose absence is indistinguishable from correctness,
+> because the fallback path is what a reader sees either way.
+
+**P3 ships no inter-track crossfade either**, for the same gate: `15 §S4b`
+covers "the crossfade loop style **and P3's inter-track crossfade**". Playlist
+advance is edge-triggered from the media element's `ended` event, which is a
+different mechanism from the scheduled pre-trigger S4b measures and is therefore
+ungated. Note this is also why advance works at all: playlist tracks load with
+`element.loop = false`, so `ended` fires — the paragraph above only rules it out
+for the hard-**loop** path.
 
 ## 3. Object URL lifecycle
 

@@ -48,8 +48,10 @@ the reasoning and the numbers are in `docs/01 §3`.
 - Components `Tt*.svelte`; TS modules kebab-case; state in `*.svelte.ts` runes
   stores; engines in `src/app/engine/**` are pure TS (no svelte imports).
 - i18n keys `feature.element.state`, added to **both** `en.json` and `vi.json`
-  (CI diff-guard fails otherwise). Log codes `TT-AAA-nnn`, registered in
-  `docs/12 §6` before use.
+  (CI diff-guard fails otherwise). ⚠️ **Neither the dictionaries nor the guard
+  exist yet** — they land in P5 (`docs/13 §1`), and every shipped string is a
+  hardcoded VI literal until then. Do not claim CI guards a new key. Log codes
+  `TT-AAA-nnn`, registered in `docs/12 §6` before use.
 - Conventional Commits; branches `feat/* fix/* docs/* chore/* spike/*`.
 - CI caller stubs must keep **explicit `permissions:` blocks** (known GitHub
   inheritance bug — see `docs/14`).

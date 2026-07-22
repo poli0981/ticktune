@@ -100,13 +100,21 @@ just for a test. Transport lives in one place.
 | Mode | Rail content |
 |------|--------------|
 | Single | Mode badge, loop counter ("Loop ×7"), loop-style toggle (hard / crossfade), **now-playing card** |
-| Playlist | Queue list: drag-to-reorder, now-playing highlight, per-row duration, right-click → context menu (`02 §8`), shuffle/repeat toggles, totals footer "12 tracks · 48:31 / 91:00" |
+| Playlist | Queue list: drag-to-reorder, now-playing highlight, per-row duration, right-click → context menu (`02 §8`), shuffle/repeat toggles, totals footer "12 tracks · 48:31 / 91:00" — see the fallback below |
 | YouTube | **Embedded player 384×216** (ToS ≥ 200×200, controls fully visible, nothing may overlap it) + queue list beneath + loop/shuffle toggles |
 
 The Single rail's **now-playing card** is the `contextmenu` target for the track
 info modal (`02 §8`). It exists because that modal is P2 scope while the Playlist
 queue rows that would otherwise host it are P3 — without it the modal would have
 no trigger for a whole phase.
+
+**Totals footer, when a duration is unknown.** The literal form above assumes
+every track's `durationMs` is known, and one file with unreadable tags is enough
+to break that across a 95-track queue. The elapsed half then renders `–` per the
+standing numeric-fallback rule (`§3` item 3 / `02 §2`) — `"12 tracks · – / 91:00"`
+— never a sum over the known subset, which would understate the total while
+looking authoritative. The same condition already disables "Match queue length"
+(`§3`), and that button must state **why** rather than merely appearing dead.
 
 **"Loop ×N"** is the current playthrough index: ×1 on the first pass, incremented
 on each wrap. Because `element.loop = true` emits no `ended` event, the wrap is
@@ -151,12 +159,19 @@ collapse state derives from `mode`, so no future CSS change can silently hide it
    because a user who then edits the countdown by hand must not have that
    silently overwritten.
 
-   **Mode tabs during P2.** All three render; Playlist and YouTube are
-   `aria-disabled` with a "P3"/"P4" hint and the effective mode is forced to
-   `single`. `lastMode` is written only when the user picks an **enabled** tab —
-   so a profile carrying the `TT_DEFAULT_SETTINGS.lastMode = 'playlist'` default
-   (`02 §3.1`) keeps its real preference and P3 unlocks a tab instead of
-   repairing a value P2 clobbered.
+   **Mode tabs.** All three render. **P3 unlocked Playlist**; YouTube stays
+   `aria-disabled` with a "P4" hint. `lastMode` is written only when the user
+   picks an **enabled** tab — which is why a profile carrying the
+   `TT_DEFAULT_SETTINGS.lastMode = 'playlist'` default (`02 §3.1`) survived P2
+   with its real preference intact and P3 only had to unlock a tab rather than
+   repair a value P2 had clobbered.
+
+   **Switching mode with a queue already staged does not touch the queue.**
+   Playlist → Single with more than one track leaves every track in place and
+   simply disables Start with its reason shown, because `02 §1` makes readiness a
+   predicate: a queue that stops being valid re-disables the button and nothing
+   else. Truncating to the first track would silently discard user work, and
+   blocking the tab would strand someone mid-decision.
 4. **Player** — layout above.
 5. **Finished** — "TIME'S UP" in DSEG14-style caps (rendered in UI font with glow),
    session summary (tracks played, duration), Restart / Back to setup.
@@ -246,6 +261,14 @@ Two controls listed in earlier revisions are gone, not forgotten:
 `Space` play/pause · `←/→` prev/next · `↑/↓` volume ±5 · `M` mute · `F` fullscreen
 · `H` focus mode · `S` settings · `]` toggle rail · `Esc` close modal/panel.
 Disabled while typing in inputs.
+
+**`Alt+↑` / `Alt+↓` move the focused queue row** up or down one position — the
+keyboard equivalent of a drag, and the binding `13 §6`'s keyboard-only journey
+targets. It is `Alt`-modified because bare `↑/↓` are already volume, and it is
+specified here rather than left to the drag implementation because `02 §5.1`
+exists precisely to stop the first implementation becoming the spec. The same two
+moves appear in the row's context menu (`02 §8`), so the affordance is reachable
+without knowing the hotkey.
 
 `]` is a **no-op in YouTube mode** while a video is loaded — the rail holds the
 player and the player may never be hidden (`§2` carve-out, `06 §1.2`).

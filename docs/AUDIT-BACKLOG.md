@@ -7,7 +7,8 @@ tracks all of them.
 
 - ✅ **22 closed** during the bootstrap — table at the end
 - ✅ **3 closed + 1 partially resolved** during P2 slice S1 (2026-07-21)
-- ⬜ **23 open**
+- ✅ **1 closed** during P3 slice 1 (2026-07-22) — queue mutation during playback
+- ⬜ **22 open**
 
 Severity is the *verified* severity. Several findings were downgraded when the
 verifier showed the original claim overreached; where that happened, the
@@ -58,9 +59,28 @@ docs/15-SPIKES.md S1 method: "Also probe `/oembed` responses for each id (server
 
 ---
 
-### 🟠 high · Editing the queue during playback is implied by the UI but absent from the state machine; reorder outcomes undefined
+### 🟠 high · Editing the queue during playback is implied by the UI but absent from the state machine; reorder outcomes undefined — ✅ **resolved**
 
 **Owner phase:** P3 (playlist) · **Lens:** spec-completeness
+
+> ✅ **Resolved 2026-07-22 (P3 slice 1).** `02 §5.1 — Queue mutation during
+> playback` answers all three named forks by separating **display order** (the
+> queue array) from **playback order** (a sequence of track ids) and making the
+> cursor a **track id rather than an index**:
+> (a) a drag regenerates nothing — with Shuffle OFF the playback order *is* the
+> array so the next track changes immediately, and with Shuffle ON the stored
+> permutation is untouched; (b) toggling Shuffle takes effect **immediately**,
+> pinning the current track first; (c) the now-playing track always stays current,
+> which the id-cursor gives for free. "No immediate repeat" is now a testable rule
+> (swap `next[0]`↔`next[1]` when the fresh permutation would repeat the track
+> that just played, at `length ≥ 2`), and add/remove **reconciles** the stored
+> permutation instead of regenerating it.
+>
+> The keyboard half is closed too: `03 §7` binds **`Alt+↑/↓`** (bare `↑/↓` were
+> already volume ±5) and `02 §8`'s context-menu item list — which named only
+> "Track info" — now also names **Move up / Move down** and **Remove**, so
+> `13 §2`'s TtQueuePanel reorder test and `13 §6`'s keyboard-only journey have a
+> concrete target.
 
 Narrowed to a medium-severity spec gap: the docs never define the relationship between the queue array order shown in the Z4 Playlist rail (03 §2) and the Fisher-Yates playback order of 02 §5 ("reshuffle on wrap"). Specifically undefined: (a) whether a manual drag-reorder regenerates, remaps, or invalidates the current shuffle cycle; (b) whether toggling Shuffle mid-playback reshuffles immediately or takes effect at the next wrap; (c) whether the now-playing track stays current when it or another row is moved. 02 §3 names "playback order state" without specifying it. Deletion during playback is already covered by 02 §6 / TT-USR-001 and should be dropped from the finding, as should the "state machine doesn't model mutation" framing. The keyboard-reorder point reduces to a minor note: a Move up/Move down entry should be named explicitly in 02 §8's context-menu item list so 13 §6's keyboard-only journey and 13 §2's TtQueuePanel "reorder" test have something concrete to target.
 
