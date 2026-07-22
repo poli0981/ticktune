@@ -90,6 +90,18 @@
     >
   </div>
 
+  <!--
+    docs/06 §8 — the offline banner. Renders in the Setup column and never over
+    Z4: `03 §2`'s carve-out applies to it like any other overlay.
+  -->
+  {#if !session.online}
+    <p class="tt-offline" role="status" data-testid="tt-offline">
+      Mất kết nối mạng.{youtube
+        ? ' Chế độ YouTube cần mạng để phát.'
+        : ' Nhạc trong máy vẫn phát bình thường.'}
+    </p>
+  {/if}
+
   {#if youtube}
     <!--
       docs/06 §5. Sources do not mix, so YouTube mode shows a paste box and no
@@ -253,6 +265,8 @@
         Chọn {single ? 'một tệp nhạc' : 'ít nhất một tệp nhạc'} để bắt đầu.
       {:else if !session.countdownInRange}
         Đếm ngược phải từ 1 giây đến 24 giờ.
+      {:else if youtube && !session.online}
+        Cần kết nối mạng để phát video YouTube.
       {:else if single && session.queue.length > 1}
         <!-- Playlist → Single with several tracks staged. docs/03 §3 keeps the
              queue and says why, rather than truncating the user's work. -->
@@ -322,6 +336,14 @@
     color: var(--color-tt-danger);
     background: transparent;
     border: 1px solid var(--color-tt-line);
+    border-radius: 0.25rem;
+  }
+  .tt-offline {
+    width: 100%;
+    padding: 0.35rem 0.6rem;
+    font-size: 0.74rem;
+    color: var(--color-tt-warn);
+    border: 1px solid var(--color-tt-warn);
     border-radius: 0.25rem;
   }
   .tt-links {

@@ -34,6 +34,13 @@ vi.mock('../../src/app/engine/importer/tt-import', () => ({
   },
 }));
 
+const importLinks = vi.fn<() => Promise<TtImportResult>>();
+
+vi.mock('../../src/app/engine/youtube/tt-yt-import', () => ({
+  importLinks: () => importLinks(),
+}));
+vi.mock('../../src/app/engine/youtube/tt-yt-driver', () => ({ browserYtPorts: () => ({}) }));
+
 // The driver reaches for `document.createElement('audio')` and lazily imports
 // music-metadata; neither is the subject here.
 vi.mock('../../src/app/engine/importer/tt-import-driver', () => ({
@@ -75,7 +82,10 @@ const files = (n: number): File[] =>
 beforeEach(async () => {
   // The stores are module singletons, so each test needs its own module graph.
   vi.resetModules();
-  vi.clearAllMocks();
+  // resetAllMocks, not clearAllMocks: `clear` wipes recorded calls but LEAVES a
+  // queued mockResolvedValueOnce, so one test whose import never fired would
+  // hand its result to the next one. That happened.
+  vi.resetAllMocks();
   lastInput = null;
   lastPorts = null;
   ({ session } = await import('../../src/app/state/session.svelte'));
@@ -163,6 +173,33 @@ describe('mode switching — docs/03 §3', () => {
     const fresh = (await import('../../src/app/state/session.svelte')).session;
     fresh.adoptMode('youtube');
     expect(fresh.mode).toBe('youtube');
+  });
+});
+
+describe('offline — docs/06 §8', () => {
+  it('blocks Start in YouTube mode, rather than letting every track fail', async () => {
+    // Allowing Start would mean onError 150 on each track, five seconds apart,
+    // with the countdown already running — the worst version of this.
+    session.setMode('youtube');
+    session.countdownMs = 60_000;
+    importLinks.mockResolvedValueOnce(result([track('a', { source: 'youtube' })]));
+    await session.importLinks('dQw4w9WgXcQ');
+    // The queue is valid, so a false `canStart` below can only be the network.
+    expect(session.canStart).toBe(true);
+
+    session.setOnline(false);
+    expect(session.canStart).toBe(false);
+    session.setOnline(true);
+    expect(session.online).toBe(true);
+  });
+
+  it('does NOT block a local queue — files are in RAM and never touch the network', async () => {
+    await settings.patch({ shuffle: false });
+    await stage('playlist', [track('a')]);
+    session.countdownMs = 60_000;
+
+    session.setOnline(false);
+    expect(session.canStart).toBe(true);
   });
 });
 
