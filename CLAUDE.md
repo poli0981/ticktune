@@ -80,12 +80,16 @@ CI/CD `docs/14` · Spikes `docs/15` · Roadmap `docs/16`.
 ## Spike scope rule
 
 **No feature code in the area a spike covers, until that spike passes**
-(`docs/15 §Scope rule`). S1 gates P4 (YouTube) · S3 + **S4a** gated P2 and have
-passed; **S4b** (crossfade trigger timing) is still open and gates only the
-crossfade loop style ·
-S2 measures the P1 timer engine directly, on the shipping countdown page under
-`?ttdebug=1`, because S2's own method requires "the real `tt-timer` core".
-**No YouTube code before S1 passes; no crossfade code before S4b does.**
+(`docs/15 §Scope rule`). **S1, S3 and S4a have PASSED** and released P2's audio
+and P4's YouTube work. **S4b** (crossfade trigger timing) is the only one still
+open, and it gates the crossfade loop style *and* P3's inter-track crossfade —
+nothing else. S2 measured the P1 timer engine directly, on the shipping countdown
+page under `?ttdebug=1`, because S2's own method requires "the real `tt-timer`
+core". **No crossfade code before S4b passes.**
+
+⚠️ **S4b's harness cannot close it as written** — its overlap metric reads back
+the `gain.value` it scheduled itself, so it cannot fail. Fix `docs/15 §S4` first
+or the sweep produces numbers that mean nothing.
 
 ## Current status
 
@@ -94,22 +98,38 @@ P1 **complete (8/8)** and P2 **shipped as v0.2.0** (2026-07-22, live on
 local audio behind the countdown, with the import pipeline, the End Behavior and
 the late-finish Finished screen.
 
-**P3 is scope-complete.** Slice 1 shipped as **v0.3.0** (2026-07-22, live);
-slice 2 — drag-reorder, `TtContextMenu`, the import progress indicator and the
-95-file batch E2E — is built and **not yet released**. **311 unit + component
-tests, 58 E2E, five gates green.**
+**P3 shipped as v0.4.0** (2026-07-22, live). Playlist plays a queue, reorders by
+pointer drag and `Alt+↑/↓`, has `TtContextMenu` and an import progress bar.
 
-`docs/02 §5.1` — written before the UI — is the authority on queue mutation
-during playback: the cursor is a **track id, not an index**, and with Shuffle
-off no permutation is stored at all, so a drag changes the next track for free
-while a stored permutation is left alone.
+**P4 — YouTube is IN PROGRESS: two slices merged to `main`, not released.** The
+live site is still **v0.4.1** (which shipped only the S1 spike harness). Slice 1
+turns pasted links into a validated queue; slice 2 plays them. **451 unit +
+component + worker tests, 58 E2E, five gates green.** Full status, and the five
+things still owed, in `docs/16 §P4`.
 
-Two decisions in slice 2 that are not taste and should not be "simplified":
-**reorder is built on pointer events, never HTML5 `draggable`** — Playwright
-cannot synthesise a native drag, so a DnD implementation would ship with no E2E
-coverage (a component test asserts no row carries the attribute) — and **the
-import progress bar is gated behind a delay**, because P2's reason for deferring
-it ("a spinner would flash") was a requirement, not a scheduling note.
+**Spike S1 PASSED** and rewrote `docs/02 §6`, `03 §2`, `06 §3` and `06 §4`. Its
+load-bearing result: **`onError` does not discriminate** — private,
+age-restricted, region-blocked, deleted, malformed and embed-off all report
+**150**, and `onError 100` was never observed on either host. Cause lives in the
+**oEmbed status**, at import.
+
+Decisions from P3/P4 that are not taste and should not be "simplified":
+
+- **Reorder is pointer events, never HTML5 `draggable`** — Playwright cannot
+  synthesise a native drag, so DnD would ship with no E2E coverage at all.
+- **The import progress bar is gated behind a delay**, because P2's "a spinner
+  would flash" was a requirement, not a scheduling note.
+- **Sources do not mix** — a queue is all-local or all-links, decided by the mode
+  (`docs/06 §5`).
+- **A status is only a cause if our own endpoint produced it.** Our Worker always
+  answers `application/json`; anything else — a static 404, a captive portal, a
+  proxy, a Cloudflare challenge — is transient, and the track survives as
+  `pending` rather than being blamed on its owner.
+- **The `docs/03 §2` ToS carve-out is real, not precautionary.** S1 measured a
+  collapsed rail leaving the player `0×0` and Focus leaving it at opacity 0.06,
+  both with audio running. `TtYouTubeRail` renders **no collapse control at
+  all**. ⚠️ `checkVisibility({checkOpacity:true})` returns **true** at 0.06 — it
+  cannot be the guard.
 
 ⚠️ **Firefox CI cannot test audible output** — on the Linux runner
 `AudioContext.resume()` hangs (no audio device), so the four audio-signal E2E
@@ -145,11 +165,11 @@ mechanism measured — hand-mount wins (`docs/01 §3`).
 
 Open items, in the order they block things:
 
-1. **P4 — YouTube**, once S1's player half passes. **No crossfade anywhere**:
-   `docs/15 §S4b` gates the loop style *and* P3's inter-track crossfade, and its
-   harness cannot produce a valid number until the `docs/15 §S4` fixes land.
-   Advancing on `ended` is a different mechanism and is not gated — that is why
-   P3 could ship playback at all.
+1. **Finish P4** — `docs/16 §P4` lists what is owed. The load-bearing gap is
+   that **there is no E2E for YouTube at all**: the rail/Focus ToS check is
+   component-level only, and CI cannot reach the Worker either. The seams exist
+   (the player takes an injected constructor; `page.route` can stand in for
+   `/api/yt/oembed`), so this is work rather than research.
 
    Settled decisions, not to be re-litigated: **crossfade deferred** (ship
    `singleLoopStyle: 'hard'`; a stored `'crossfade'` falls back with
@@ -176,11 +196,12 @@ Open items, in the order they block things:
    0/1/2/5 s sweep — and note the harness cannot produce a valid number until it
    is fixed (its overlap metric reads back its own scheduled `gain.value`, so it
    cannot fail; `docs/15 §S4`).
-4. `docs/AUDIT-BACKLOG.md` — 22 open findings, 1 release blocker (generated
-   third-party notices, `legal/THIRD-PARTY-NOTICES.md`). P2's S1 slice closed
-   the chime-codec finding, both countdown-preset findings, and the two halves of
-   the import-pipeline finding that P2 owns; P3 slice 1 closed the 🟠
-   queue-mutation-during-playback finding by writing `docs/02 §5.1`.
+4. `docs/AUDIT-BACKLOG.md` — ~21 open findings, **1 release blocker** (generated
+   third-party notices, `legal/THIRD-PARTY-NOTICES.md`). P3 closed the 🟠
+   queue-mutation finding by writing `docs/02 §5.1`; S1 refuted the `s.ytimg.com`
+   CSP prediction. ⚠️ Still open and **P4-relevant**: the modified use of the
+   YouTube thumbnail (`docs/06 §6`) — S1 answered only its CORS half, the terms
+   were never read, so **do not build the blurred-thumbnail background**.
 
 `test/` is a **local-only, git-ignored** ~651 MB audio corpus for spikes S3/S4.
 Never commit it, never reference it from shipped code, never assume it exists in

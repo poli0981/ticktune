@@ -370,6 +370,51 @@ and its harness cannot produce a valid number until the `15 §S4` fixes land.
 Nothing in this slice changes that. P3 closes with a hard cut between tracks,
 which is correct until the number exists.
 
+## P4 — YouTube · **in progress**, two slices merged, not released
+
+`main` carries both slices; the live site is still **v0.4.1**. Written now rather
+than at the end, because a phase this long should not be reconstructed from
+commit messages later.
+
+### Shipped to `main`
+
+| Slice | What |
+|-------|------|
+| **1 — links become a queue** | The Worker names the failure **cause** (401 no longer rewritten to 404); a new **`tests/worker/**` tier**, because nothing else could reach that file; a pure URL parser for `06 §5`'s six shapes; a pure import pipeline over an injected `lookup` port; the YouTube tab, the paste box, and mode isolation |
+| **2 — the player** | The state machine behind an **injected constructor**; `TtYouTubeRail` as a third rail at a fixed 384 px; the `03 §2` carve-out in markup; typed overlays; transport, volume and the countdown end; offline specified (`06 §8`) and built |
+
+**451 unit + component + worker tests, 58 E2E, five gates green.**
+
+### Decisions this phase settled
+
+- **Sources do not mix.** A queue is all-local or all-links, decided by the mode
+  (`06 §5`). The caps differ, the 91:00 aggregate is meaningless against
+  durations the player has not backfilled, and playback would otherwise hand the
+  cursor between a media element and a cross-origin iframe *while `06 §1.2`
+  requires the player visible throughout*.
+- **A status is only a cause if our own endpoint produced it.** Found by using
+  the app: `astro preview` does not run the Worker, so `/api/yt/oembed` hit the
+  static 404 page and three known-good videos were reported as deleted.
+  `content-type: application/json` is what earns a status the right to be read.
+- **`onError` is not a classifier** (spike S1). Cause lives in the oEmbed status,
+  at import — which is a better place to tell someone anyway.
+
+### Still owed, and none of it is cosmetic
+
+| Item | Why it matters |
+|------|----------------|
+| **E2E for YouTube** | There is none. The rail/Focus ToS check is **component-level only**, and CI cannot reach the Worker either. Needs `page.route` over `/api/yt/oembed` plus a fake `window.YT` injected before the island mounts — the player module already takes an injected constructor, so the seam exists |
+| **`pending` is never re-checked** | `02 §1` promises "re-checked on Start" and nothing implements it. `session.start()` is synchronous by design — making it async would break the `05 §1` gesture chain — so the re-check needs a shape nobody has designed. Recorded in `06 §8` as unimplemented |
+| **The 60 req/min rule is unverified** | `10 §11`'s checkbox is still unticked. The client path is built and unit-tested; whether the rule exists in the zone is unobserved, and **Bot Fight Mode is a third failure shape with no branch at all** |
+| **`getVideoData()` backfill** | `06 §2` specifies it for title/channel when oEmbed was incomplete. Duration backfill ships; this half does not |
+| Manual `yt-matrix` re-run | The P4 exit criterion. S1's run was against the spike harness, not the app |
+
+⚠️ **The thumbnail background (`06 §6`, `03 §5`) is deliberately not built.** Its
+modified/decorative use of `hqdefault` rests on an **open 🟠 audit finding** that
+S1 answered only the CORS half of — the terms were never read. Shipping the
+generated gradient alone needs no ruling; do not let the visualizer substitute be
+what pulls an unreviewed ToS question into the release.
+
 ## Post-1.0 backlog (unordered)
 
 - YouTube Data API v3 proxy on the existing Worker (duration/publish date at
