@@ -57,7 +57,70 @@ The audit predicted that `www-widgetapi.js` comes from `s.ytimg.com` and that
 no privacy-policy disclosure follows. `AUDIT-BACKLOG` updated with the
 refutation.
 
-## Verified by oEmbed — re-checked 2026-07-22 against the live endpoint
+## ✅ RUN 2026-07-22 — Chrome 151 / Windows, deployed site, 1 gesture
+
+10 ids, 6 distinct causes, **9 hands-free advances from 1 gesture**, no CSP
+violations, no `⚠️ UNKNOWN` bucket. Acceptance items for the playback chain and
+the taxonomy's completeness both pass. The *content* of the taxonomy does not.
+
+| id | Cause | oEmbed (YouTube) | our `/api` | `onError` |
+|----|-------|------------------|-----------|-----------|
+| `l2jmBhzMons` | private / unlisted | **403** | 403 `unavailable` | **150** |
+| `-pvEyYU5-08` | age-restricted | **200** + full metadata | 200 + metadata | **150** |
+| `8dLS8_xM2LI` | age-restricted | **200** + full metadata | — | **150** |
+| `x8mLnM-oD_s` | region-blocked (VN-only, run from a foreign IP) | **200** + full metadata | — | **150** |
+| `jNQXAC9IVRw` | normal | 200 | 200 | plays ✅ |
+| `9bZkp7q19f0` | normal | 200 | 200 | plays ✅ |
+| `abcdefghijk` | well-formed, no such video | **404** | 404 `unavailable` | **150** |
+| `0000000000` | 10 chars — malformed | 400 | 400 `invalid_id` | **150** |
+| `______1111` | 10 chars — malformed | 400 | — | **150** |
+| `dt7N1Yw-DVI` | embedding disabled | **401** | ⚠️ **404** `unavailable` | **150** |
+
+### 🔴 Finding 1 — `onError` discriminates nothing
+
+Six causes, one code. **`onError 100` never fired.** Any overlay taxonomy keyed
+on the player's error code has two real outcomes: played, or did not. `docs/06
+§4` is rewritten around this.
+
+### ✅ Finding 2 — oEmbed *does* discriminate, and our Worker throws it away
+
+YouTube answers **400 / 401 / 403 / 404** for four different causes. Our Worker
+flattens every one of them to the body `{"error":"unavailable"}` **and rewrites
+401 → 404** (`worker/index.ts`), so embed-disabled is reported as deleted. Since
+`docs/06 §3` had been changed to classify on that body, the app could
+distinguish nothing at all. Two Worker changes are now owed to P4.
+
+The upside: deleted, private and embed-off are all knowable at **import**, before
+the countdown starts — better than failing at play time.
+
+### 🔴 Finding 3 — the earlier "400, not 404" finding was measured on bad ids, and I re-verified it wrongly
+
+The section below recorded, on 2026-07-21, that *"YouTube answers a non-existent
+video with 400, not 404"*, and `docs/06 §3`/`§4` were changed to classify on the
+`error` body because of it. Both samples were `aaaaaaaaaaa` and `ZZZZZZZZZZZ`.
+
+An 11-character YouTube id is base64url over 64 bits, so its **final character
+carries only 4 bits** and can only be one of `A E I M Q U Y c g k o s w 0 4 8`.
+Both samples end outside that set — they are *structurally impossible*, not
+*non-existent*, so they never tested the claim.
+
+Measured across the whole alphabet, `abcdefghij<c>`, 26 ids, **no exceptions**:
+
+```
+final char in the 16-value set  → 404  (A E I M Q U Y c g k o s w 0 4 8)
+final char outside it           → 400  (a b d z Z 1 2 9 _ - …)
+```
+
+So **400 = structurally invalid, 404 = well-formed but gone**, and the original
+status-based mapping was right before it was "fixed".
+
+⚠️ **I re-verified this matrix on 2026-07-22 by re-curling the same two bad
+ids** and reported it confirmed. Re-running a bad sample confirms nothing; the
+error survived a check that looked like diligence. The lesson is cheap to state
+and was not applied: a negative sample has to be *valid* in every respect except
+the one under test.
+
+## Verified by oEmbed — the original 2026-07-21 list
 
 | id | Case | oEmbed | Notes |
 |----|------|--------|-------|
@@ -65,20 +128,20 @@ refutation.
 | `jNQXAC9IVRw` | normal | 200 | "Me at the zoo" — the oldest video on the site, stable |
 | `9bZkp7q19f0` | normal | 200 | PSY — Gangnam Style |
 | `M7lc1UVf-VE` | normal | 200 | YouTube's own IFrame API demo video |
-| `aaaaaaaaaaa` | **no such video** | **400** `{"error":"unavailable"}` | Well-formed id, does not exist. See below |
-| `ZZZZZZZZZZZ` | no such video | 400 `{"error":"unavailable"}` | second sample, same behaviour |
+| `aaaaaaaaaaa` | ~~no such video~~ **structurally invalid** | **400** `{"error":"unavailable"}` | ⚠️ mislabelled here on 2026-07-21; ends in `a`, which cannot terminate an id |
+| `ZZZZZZZZZZZ` | ~~no such video~~ **structurally invalid** | 400 `{"error":"unavailable"}` | same mistake, same reason |
 | `xxx` | malformed | 400 `{"error":"invalid_id"}` | rejected by our regex, never reaches YouTube |
 
-### Finding: a deleted video is a 400, not a 404
+### ~~Finding: a deleted video is a 400, not a 404~~ — **RETRACTED 2026-07-22**
 
-`docs/06 §4` used to map "oEmbed 400" to *Invalid link* (TT-YT-002) and reserve
-*Deleted / private* (TT-YT-100) for 404/401. Measured behaviour is that YouTube
-answers a non-existent video with **400**, so under the old mapping a user who
-pasted a link to a deleted video would have been told their **link was
-malformed**.
+Kept here rather than deleted, because the shape of the mistake is the useful
+part. This concluded that YouTube answers a non-existent video with **400**, and
+`§3`/`§4` were rewritten to classify on the `error` body instead of the status.
 
-`§3` and `§4` now classify on the `error` field instead of the status code.
-Found before any P4 UI work existed, which is what S1 is for.
+Both samples (`aaaaaaaaaaa`, `ZZZZZZZZZZZ`) end in a character that **cannot
+terminate a valid YouTube id**, so they were malformed rather than missing and
+the claim was never tested. See Finding 3 above: well-formed-but-gone is a
+**404**, and the mapping this replaced was correct.
 
 ## ✅ Closed: `i.ytimg.com` sends CORS
 
@@ -97,63 +160,52 @@ So the thumbnail canvas is **not tainted**, and the dominant-hue extraction in
 before P5"* does not apply. Worth re-confirming in-browser with
 `crossOrigin="anonymous"` when P5 builds it, but `ACAO: *` leaves little room.
 
-## 🔴 Preliminary finding — a non-existent video reports **150**, not **100**
+## ~~Preliminary finding — 150 not 100~~ — superseded
 
-Measured 2026-07-22 in the harness, Chromium engine, local preview:
+Folded into **Finding 1** above, which measured it across six causes instead of
+one and reached a stronger conclusion: the code does not discriminate at all.
 
-```
-+   264ms  onReady — playing aaaaaaaaaaa
-+   265ms  onError 150 → yt.err.blocked (TT-YT-101/150) — aaaaaaaaaaa
-+  1891ms  onError 150 → yt.err.blocked (TT-YT-101/150) — ZZZZZZZZZZZ
-```
+## Remaining — what S1 still owes
 
-`docs/06 §4` expects **`onError 100` → `yt.err.gone` (TT-YT-100)** for a
-removed/private video, and maps **101/150** to *"Embedding disabled by owner"*.
-Under that table, a user whose queued video is deleted mid-session would be told
-**the owner disabled embedding** — the wrong cause, and the same shape of defect
-as the 400-vs-404 finding above.
+| Case | Result |
+|------|--------|
+| embed disabled (`dt7N1Yw-DVI`) | ✅ oEmbed **401**, `onError` 150 |
+| age-restricted (`-pvEyYU5-08`, `8dLS8_xM2LI`) | ✅ oEmbed **200**, `onError` 150 |
+| region-blocked (`x8mLnM-oD_s`, VN-only id from a foreign IP) | ✅ oEmbed **200**, `onError` 150 |
+| private / unlisted (`l2jmBhzMons`) | ✅ oEmbed **403**, `onError` 150 |
+| deleted / never existed (`abcdefghijk`) | ✅ oEmbed **404**, `onError` 150 |
+| normal playback chain | ✅ 9 hands-free advances from 1 gesture |
+| no `⚠️ UNKNOWN` bucket | ✅ |
+| CSP on the deployed site | ✅ |
+| `i.ytimg.com` CORS | ✅ |
+| **controls at 384×216 inside the rail, in every rail/Focus state** | ⬜ **still open** — needs eyes, not a log |
+| **`onError 100` — deleted MID-SESSION** | ⬜ open, and possibly unreachable. Needs a video removed while the queue is running |
+| Firefox | ⬜ open — the whole run above is Chrome 151 only |
 
-**Do not edit `docs/06 §4` from this alone.** It needs the confirmations below:
-an id that *never existed* may well behave differently from a video that existed
-and was removed, and Firefox has to agree. Both cases matter, because
-`docs/02 §6` promises "stop → overlay 3 s → auto-advance" for TT-YT-100
-specifically.
+**The region case is answered, by an inversion worth recording.** Rather than
+finding a video blocked *in* Vietnam, a **Vietnam-only** video was played from a
+**foreign IP**. Same signal, and it sidesteps the "needs Vietnam" constraint that
+had blocked this row since the spike was written. The complementary direction —
+a foreign-only video played from Vietnam — is still untested, but since every
+failure mode reports 150 the discrimination question does not depend on it.
 
-| Confirm | Expected | Result |
-|---------|----------|--------|
-| id that never existed (`aaaaaaaaaaa`), Chrome | 100 per the table; **measured 150** | 🔴 mismatch |
-| same, Firefox | — | ⬜ |
-| a **genuinely deleted** video, Chrome | 100 | ⬜ |
-| same, Firefox | — | ⬜ |
+### If you run more ids
 
-## Still to run — needs a browser and the IFrame player
+Paste them into `/spike/s1-youtube` and send the log. What would change a
+conclusion above: **any `onError` that is not 150**, and especially a real
+`onError 100`.
 
-| Case | id | Expected | Result |
-|------|-----|----------|--------|
-| embed disabled by owner | _find one, see below_ | `onError 101/150` → `yt.err.blocked` | ⬜ |
-| age-restricted | _find one, see below_ | `onError 101/150` (per `06 §4`) | ⬜ |
-| region-blocked in VN | _find one, see below_ | `onError 101/150` or an unplayable state | ⬜ **must be confirmed from Vietnam** |
-| deleted mid-session | see the finding above | `onError 100` → `yt.err.gone` | 🔴 see above |
-| normal playback chain | `dQw4w9WgXcQ`, `jNQXAC9IVRw`, `9bZkp7q19f0` | queue of 3 advances hands-free after one gesture | ⬜ |
-| controls at 384×216 **inside the real rail** | any | fully visible in every rail/Focus state | ⬜ |
-| CSP: does the API load on the **deployed** site? | any | — | ✅ see above |
-| `i.ytimg.com` CORS | any | — | ✅ see above |
+## Appendix — how the three hard ids were found
 
-### Finding the three ids
+Kept for whoever re-runs this when statuses rot:
 
-**Deliberately left blank rather than guessed.** A video's embed and age status
-changes without notice, and a stale id would fail as *"embedding disabled"*
-while actually being deleted — a green row for the wrong reason, which is worse
-than an empty one.
+- **Embed disabled** — on youtube.com, open a video and press *Share*. No
+  **Embed** option means the owner disabled it.
+- **Age-restricted** — shows *"Sign in to confirm your age"* in a private
+  window. Do not sign in; the signed-out embed path is the subject.
+- **Region-blocked** — either a video unavailable in your country, or (as used
+  here) a video available **only** in your country, played from elsewhere.
 
-- **Embed disabled** — on youtube.com, open a video and press *Share*. If there
-  is no **Embed** option, the owner disabled embedding. Major-label music videos
-  are the usual source. Confirm by pasting the id into the harness.
-- **Age-restricted** — a video that shows *"Sign in to confirm your age"* in a
-  private window. Do not sign in; the signed-out embed path is the subject.
-- **Region-blocked in VN** — a video that shows *"Video này không khả dụng ở
-  quốc gia của bạn"* **from a Vietnamese connection, with no VPN**. This is the
-  one case nobody outside Vietnam can produce, which is why it is yours to run.
-
-Fill in `id` and `Result` as each is run, paste the harness log into the PR, then
-copy the outcome into `docs/06 §4` and the `docs/15` result table.
+Statuses change without notice, so re-verify an id before trusting a row built
+on it — a stale id fails as *"embedding disabled"* while actually being deleted,
+which is a green row for the wrong reason.

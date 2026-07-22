@@ -45,20 +45,47 @@ GET /api/yt/oembed?id=<videoId>
   → method is not GET                    → 405 {error:"method_not_allowed"}
 ```
 
-⚠️ **The status code alone is not enough to classify the failure — read the
-`error` field.** Measured against the live endpoint on 2026-07-21: YouTube's
-oEmbed answers a well-formed but non-existent video id with **HTTP 400**, not
-404. So a deleted video and a malformed id both surface as 400, and only the
-body tells them apart:
+⚠️ **Corrected 2026-07-22 by spike S1 — the previous rule here was wrong, and
+wrong in a way that mattered.**
 
-| Response | Meaning | Client action |
-|----------|---------|---------------|
-| `400 {"error":"invalid_id"}` | Our own regex rejected the shape — never reached YouTube | `yt.err.invalid`, TT-YT-002 |
-| `400 {"error":"unavailable"}` | YouTube says there is no such video: deleted, private, or never existed | `yt.err.gone`, **TT-YT-100** |
-| `502 {"error":"upstream_unreachable"}` | Edge could not reach YouTube | keep `status:'pending'`, TT-YT-001 |
+This section used to say *"YouTube answers a well-formed but non-existent video
+id with HTTP 400, not 404 … read the `error` field, not the status."* That was
+measured with the ids `aaaaaaaaaaa` and `ZZZZZZZZZZZ`, and **neither is a
+well-formed video id**. An 11-character YouTube id is base64url over 64 bits, so
+the final character carries only 4 bits and can only be one of
+`A E I M Q U Y c g k o s w 0 4 8`. Both samples end outside that set, so they
+were *structurally impossible*, not *non-existent* — and the conclusion drawn
+from them never tested the thing it claimed to.
 
-This is why the Worker emits distinct `error` values rather than a single
-`"unavailable"` for everything non-2xx.
+Re-measured across the whole alphabet, 26 ids, **no exceptions**: every id whose
+final character is in that set returns **404**; every id whose final character is
+outside it returns **400**. So the original status-based rule was right all
+along, and the status **is** the signal:
+
+| Upstream | Meaning | Our Worker today | Client action |
+|----------|---------|------------------|---------------|
+| — (regex fails) | malformed shape, never sent upstream | `400 {"error":"invalid_id"}` | `yt.err.invalid`, TT-YT-002 |
+| **400** | 11 chars but structurally impossible id | `400 {"error":"unavailable"}` | `yt.err.invalid`, TT-YT-002 |
+| **404** | well-formed id, no such video — deleted or never existed | `404 {"error":"unavailable"}` | `yt.err.gone`, TT-YT-100 |
+| **403** | private / unlisted | `403 {"error":"unavailable"}` | `yt.err.gone`, TT-YT-100 |
+| **401** | **embedding disabled by owner** | ⚠️ `404` — the Worker rewrites 401→404 | `yt.err.blocked`, TT-YT-101 |
+| **200** | exists and is listed — says nothing about whether it will *play* | 200 + metadata | continue; see `§4` |
+| network failure | edge could not reach YouTube | `502 {"error":"upstream_unreachable"}` | keep `status:'pending'`, TT-YT-001 |
+
+**Two Worker changes are owed to P4** (not made here — `15 §Scope rule` holds
+YouTube code behind S1, and this is the finding, not the fix):
+
+1. **Stop rewriting 401 → 404** (`worker/index.ts`, the `res.status === 401 ?
+   404 : res.status` expression). 401 is *embed disabled*, not *deleted*, and
+   collapsing them tells the user the wrong cause.
+2. **Emit a distinct `error` per case** instead of `"unavailable"` for
+   everything non-2xx. The sentence *"This is why the Worker emits distinct
+   `error` values"* was aspirational: it emits exactly three
+   (`invalid_id`, `unavailable`, `upstream_unreachable`), and the only one that
+   carries cause is the one our own regex produces.
+
+Until both land, a client that classifies on the `error` field — which the old
+rule above told it to do — can distinguish **nothing**.
 
 - Thumbnails render directly from `https://i.ytimg.com/vi/<id>/hqdefault.jpg`.
 - Duration and publish date are **not** available without the Data API v3 —
@@ -72,20 +99,56 @@ This is why the Worker emits distinct `error` values rather than a single
 The spec's per-condition "custom pages" are implemented as **typed overlay cards**
 inside the player area — a routed page would break the running countdown.
 
+**Rewritten 2026-07-22 from spike S1's measured run** (10 videos, 6 distinct
+causes, `tests/manual/yt-matrix.md`). The headline result inverts the old table's
+premise:
+
+> ### 🔴 `onError` does not discriminate. Every failure is **150**.
+>
+> Private, age-restricted, region-blocked, deleted, structurally-invalid and
+> embed-disabled all reported `onError 150` — six causes, one code. **`onError
+> 100` did not fire once.** A taxonomy keyed on the player's error code
+> therefore has exactly two outcomes, "played" and "did not play", however many
+> rows it lists.
+>
+> The **oEmbed status is where the cause actually lives** (`§3`), and it is
+> available at *import* — before the countdown starts, which is a better place
+> to tell the user anyway.
+
+### Import time — the oEmbed status is the classifier
+
 | Signal | Meaning | Overlay (i18n key) | Action | Log |
 |--------|---------|--------------------|--------|-----|
-| URL regex fails, or `400 {"error":"invalid_id"}` | Invalid link | `yt.err.invalid` | rejected at import | TT-YT-002 |
-| **Any non-2xx carrying `{"error":"unavailable"}`** — in practice a **400**, see `§3` | Deleted / private / no such video | `yt.err.gone` | rejected at import | TT-YT-100 |
+| URL regex fails, or `400 {"error":"invalid_id"}` | Malformed link | `yt.err.invalid` | rejected at import | TT-YT-002 |
+| **400** from upstream | 11 chars, structurally impossible id | `yt.err.invalid` | rejected at import | TT-YT-002 |
+| **404** | Deleted, or never existed | `yt.err.gone` | rejected at import | TT-YT-100 |
+| **403** | Private / unlisted | `yt.err.gone` | rejected at import | TT-YT-100 |
+| **401** | **Embedding disabled by owner** | `yt.err.blocked` | rejected at import | TT-YT-101 |
 | `502 {"error":"upstream_unreachable"}` | Edge could not reach YouTube | none — keep the track | TT-YT-001 |
+
+Three of those — deleted, private, embed-off — were previously only discoverable
+at play time. They are now caught before Start, which is the real win from S1.
+
+### Play time — what oEmbed cannot see
+
+| Signal | Meaning | Overlay | Action | Log |
+|--------|---------|---------|--------|-----|
+| `onError 150` after a **200** oEmbed | **Age-restricted or region-blocked — genuinely indistinguishable.** Both return 200 with full title and channel, then refuse to play | `yt.err.blocked`, subtext naming both as possible causes | skip after 5 s | TT-YT-150 |
+| `onError 100` | Removed/private **mid-session** | `yt.err.gone` | stop → 3 s → next (`02 §6`) | TT-YT-100 |
 | `onError 2` | Bad parameter | `yt.err.invalid` | skip after 5 s | TT-YT-002 |
 | `onError 5` | HTML5 player failure | `yt.err.player` | retry once → skip | TT-YT-005 |
-| `onError 100` | Removed/private mid-session | `yt.err.gone` | stop → 3 s → next (`02 §6`) | TT-YT-100 |
-| `onError 101/150` | Embedding disabled by owner — **also the observed signal for age-restricted**; region blocks may surface here or as an unplayable state | `yt.err.blocked` (subtext lists embed-off / age / region as possible causes) | skip after 5 s | TT-YT-101 / TT-YT-150 |
+
+⚠️ **The last three rows are unobserved.** S1 could not produce 2, 5 or 100 — in
+particular it could not delete a video mid-run, which is the only way `100` is
+supposed to arise. `02 §6`'s TT-YT-100 path is therefore built on a signal that
+has never been seen firing; if P4 finds it never fires either, that path folds
+into the 150 row and `02 §6` needs revisiting.
+
+The age-vs-region ambiguity is **not** a gap to close later — it is the measured
+result. The subtext naming both causes, which this table already required, turns
+out to be the only honest wording available.
 
 Each overlay: icon, title, one-line cause, countdown-to-skip, "Skip now" button.
-Exact signal↔cause mapping (esp. age vs region) is confirmed empirically in
-**Spike S1** with a curated test-video list; this table is updated from its
-findings.
 
 ## 5. Import pipeline (YouTube mode)
 
