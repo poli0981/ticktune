@@ -29,6 +29,9 @@ Run at `https://ticktune.net/app/` on a **desktop** browser, fresh profile.
       countdown that stopped here would be the real bug.
 - [ ] **Remove the track that is currently playing** (× on its row): playback
       moves to the **next** track, not back to the top, and not silence.
+- [ ] **Import ~25 tracks** and look at the panel: the list **scrolls inside its
+      own box**. No row may paint below the panel border or over the bottom bar.
+      (This was broken on the first build and is the reason the check is here.)
 
 ## Worth a look, not blocking
 
@@ -71,3 +74,10 @@ These are not built yet, on purpose:
 Also expected, and not a defect: a **backgrounded** tab still finishes late, and
 the Finished screen says when zero was actually reached (`04 §2`). That is the
 re-scoped promise from P2, unchanged here.
+
+**Known and pre-existing, worth a decision but not a P3 bug:** on a short screen
+(~720 px) the `Bắt đầu` button sits just below the fold and needs a scroll,
+because the full-size countdown preview shares the Setup screen with the
+controls. Measured at y=727 in **Single** mode on v0.2.0, before any playlist
+work. Say the word if you want the Setup layout revisited — it is a `docs/03 §3`
+change, not a fix.
