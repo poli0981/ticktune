@@ -16,7 +16,7 @@ risk-retiring purpose while letting the measured code survive:
 
 | Spike | Gates | Harness |
 |-------|-------|---------|
-| S1 | **P4** (YouTube) | throwaway `spike/s1-yt` |
+| S1 | **P4** (YouTube) | throwaway `spike/s1-youtube` — built 2026-07-22 |
 | S2 | **P2** (audio) — but runs *on* the P1 timer engine | the shipping countdown page under `?ttdebug=1` |
 | S3 | **P2** (audio/import) | throwaway `spike/s3-metadata` |
 | **S4a** | **P2** (audio graph + unlock) — ✅ passed | throwaway `spike/s4-crossfade` |
@@ -232,7 +232,7 @@ against the P1 timer engine it ran on; S1 gates P4; S3 and S4 gate P2
 
 | Spike | Result | Date | Findings written to |
 |-------|--------|------|---------------------|
-| S1 | 🟡 partial | 2026-07-21 | oEmbed half done — see `tests/manual/yt-matrix.md`. Player/onError half still needs a browser, and the region case needs Vietnam |
+| S1 | 🟡 partial | 2026-07-22 | oEmbed half done and re-verified. **Harness built** — `/spike/s1-youtube`, run instructions in `tests/manual/yt-matrix.md`. **Thumbnail CORS closed:** `i.ytimg.com` sends `Access-Control-Allow-Origin: *`, so the `03 §5` auto-theme risk does **not** apply. 🔴 **New mismatch:** a non-existent video reports `onError` **150**, which `06 §4` maps to *"embedding disabled by owner"* — under that table a deleted video would be blamed on the owner. Needs confirming against a genuinely deleted video and on Firefox before `06 §4` is edited. Still open: embed-off, age-restricted, and the region case, which **needs Vietnam** |
 | S2 | 🔴 **FAIL — and the contingency failed too** | 2026-07-21 | Hidden+silent: `done` **2m 57s late**. Control run with keep-alive **ON**: still **52.4 s late**, 105× the bound. The audibility exemption does not protect the timer, so `15 §S2`'s contingency is **withdrawn, not adopted**. The stall is in main-thread message processing, so a worker cannot route around it. P2 needs a product decision, not a code fix (`04 §2`) |
 | S3 | ✅ **PASS** | 2026-07-21 | Tag matrix + 103-file/598 MB real corpus in **1 362 ms** (budget 10 s); 7.26 MB cover extracted; 0 false positives from the new `onlyV1` rule. The U+FFFD rule was falsified and replaced (`05 §5`). ID3v2.2 and APEv2 found in the wild |
 | **S4a** | ✅ **PASS** | 2026-07-21 | Crossfade judged clean by ear on headphones **and** speakers (the criterion no instrument can answer); graph, `createMediaElementSource` reuse and gesture `resume()` all exercised. Gates released for P2's audio graph |
