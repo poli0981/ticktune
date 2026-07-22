@@ -145,13 +145,24 @@ describe('mode switching — docs/03 §3', () => {
     expect(session.canStart).toBe(false);
   });
 
-  it('adopts the remembered mode at boot, but never a mode this build lacks', () => {
-    session.adoptMode('playlist');
-    expect(session.mode).toBe('playlist');
-    // YouTube is P4. Falling back beats writing over a real preference — which
-    // is the same reasoning that let P3 unlock a tab rather than repair a value.
-    session.adoptMode('youtube');
-    expect(session.mode).toBe('playlist');
+  it.each(['single', 'playlist', 'youtube'] as const)('adopts %s at boot', (mode) => {
+    session.adoptMode(mode);
+    expect(session.mode).toBe(mode);
+  });
+
+  it('does NOT rewrite a remembered youtube back to playlist', async () => {
+    // P3 fell back here because YouTube was not built. Leaving that in place
+    // once P4 shipped the tab produced a specific, silent bug: `setMode`
+    // persists `lastMode`, so a user who picked YouTube had it saved correctly
+    // and then rewritten on every single reload — a preference that stored
+    // perfectly and never came back.
+    session.setMode('youtube');
+    expect(settings.current.lastMode).toBe('youtube');
+
+    vi.resetModules();
+    const fresh = (await import('../../src/app/state/session.svelte')).session;
+    fresh.adoptMode('youtube');
+    expect(fresh.mode).toBe('youtube');
   });
 });
 

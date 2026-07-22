@@ -39,6 +39,7 @@ function mount(props: Partial<Parameters<typeof TtQueuePanel>[1]> = {}) {
     shuffle: false,
     repeat: true,
     exhausted: false,
+    capped: true,
     onremove,
     onjump,
     onshuffle,
@@ -258,6 +259,23 @@ describe('exhaustion — docs/02 §5.1 rule 6', () => {
     cleanup();
     mount({ exhausted: true });
     expect(screen.getByTestId('tt-playlist-ended').textContent).toContain('Đã hết danh sách');
+  });
+});
+
+describe('YouTube mode has no total cap — docs/06 §5', () => {
+  it('drops the denominator rather than asserting a ceiling that does not exist', () => {
+    // "No per-track or total duration limits in this mode." Rendering
+    // "… / 91:00" against links would state a limit nobody imposed — and the
+    // numerator is `–` until the player backfills each duration anyway.
+    mount({ capped: false });
+    const totals = screen.getByTestId('tt-queue-totals').textContent ?? '';
+    expect(totals).toContain('3 bài');
+    expect(totals).not.toContain('91:00');
+  });
+
+  it('labels the panel for the mode it is showing', () => {
+    mount({ capped: false });
+    expect(screen.getByText('YOUTUBE')).toBeTruthy();
   });
 });
 

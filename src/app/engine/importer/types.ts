@@ -59,16 +59,29 @@ export interface TtTrack {
   addedAt: number;
 }
 
-/** Codes the local import pipeline can emit. Registered in docs/12 §6. */
+/**
+ * Codes an import can emit — local or YouTube. Registered in docs/12 §6.
+ *
+ * One union across both sources on purpose: `TtImportSkip` is what the summary
+ * toast renders, and a second parallel type would mean a second `MESSAGES` map
+ * for TtToast to fall out of sync with. The YouTube half is import-time only —
+ * play-time codes belong to the player, not to this.
+ */
 export type TtImportCode =
   | 'TT-IMP-001' // unsupported format / canPlayType negative
   | 'TT-IMP-002' // longer than 10:02
   | 'TT-IMP-003' // playlist total would exceed 91:00
   | 'TT-IMP-004' // the mode's queue count cap would be exceeded
-  | 'TT-IMP-005' // duplicate
+  | 'TT-IMP-005' // duplicate (local key, or videoId in YouTube mode)
   | 'TT-IMP-006' // metadata parse failed — imported with a file-name title
   | 'TT-IMP-007' // tag unreliable — file-name fallback
-  | 'TT-IMP-008'; // dropped entry count exceeded the pre-scan cap
+  | 'TT-IMP-008' // dropped entry count exceeded the pre-scan cap
+  | 'TT-YT-001' // oEmbed pre-check failed transiently — kept as `pending`
+  | 'TT-YT-002' // not a YouTube video link
+  | 'TT-YT-003' // the 50-link cap would be exceeded
+  | 'TT-YT-004' // oEmbed failed for a reason nobody has classified
+  | 'TT-YT-100' // deleted, never existed, or private
+  | 'TT-YT-101'; // embedding disabled by the owner
 
 /**
  * Tags as the importer consumes them — deliberately NOT music-metadata's shape.

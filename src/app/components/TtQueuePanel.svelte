@@ -40,6 +40,15 @@
     repeat: boolean;
     /** docs/02 §5.1 rule 6 — the order ran out with Repeat off. */
     exhausted: boolean;
+    /**
+     * Whether a total-duration cap applies — false in YouTube mode.
+     *
+     * docs/06 §5: "No per-track or total duration limits in this mode." Showing
+     * `… / 91:00` against links would assert a ceiling that does not exist, and
+     * the numerator is `–` anyway until the player backfills each duration
+     * (docs/06 §2), so the row would read as a limit nobody can measure.
+     */
+    capped: boolean;
     onremove: (id: string) => void;
     onjump: (id: string) => void;
     onshuffle: (on: boolean) => void;
@@ -56,6 +65,7 @@
     shuffle,
     repeat,
     exhausted,
+    capped,
     onremove,
     onjump,
     onshuffle,
@@ -190,6 +200,7 @@
    */
   const totalMs = $derived(queueTotalMs(tracks));
   const capText = positionText(TT_MAX_PLAYLIST_TOTAL_MS);
+  const badge = $derived(capped ? 'DANH SÁCH' : 'YOUTUBE');
 </script>
 
 <aside
@@ -198,7 +209,7 @@
   data-testid="tt-queue-panel"
   data-tt-variant={variant}
 >
-  <div class="tt-badge">DANH SÁCH</div>
+  <div class="tt-badge">{badge}</div>
 
   <div class="tt-toggles" role="group" aria-label="Phát lại">
     <button
@@ -277,7 +288,9 @@
     </ul>
 
     <p class="tt-totals" data-testid="tt-queue-totals">
-      {playable.length} bài · {totalMs === null ? '–' : positionText(totalMs)} / {capText}
+      {playable.length} bài · {totalMs === null ? '–' : positionText(totalMs)}{capped
+        ? ` / ${capText}`
+        : ''}
     </p>
   {/if}
 

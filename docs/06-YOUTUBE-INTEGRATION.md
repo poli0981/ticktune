@@ -62,14 +62,15 @@ final character is in that set returns **404**; every id whose final character i
 outside it returns **400**. So the original status-based rule was right all
 along, and the status **is** the signal:
 
-| Upstream | Meaning | Our Worker today | Client action |
-|----------|---------|------------------|---------------|
+| Upstream | Meaning | Our Worker | Client action |
+|----------|---------|------------|---------------|
 | — (regex fails) | malformed shape, never sent upstream | `400 {"error":"invalid_id"}` | `yt.err.invalid`, TT-YT-002 |
-| **400** | 11 chars but structurally impossible id | `400 {"error":"unavailable"}` | `yt.err.invalid`, TT-YT-002 |
-| **404** | well-formed id, no such video — deleted or never existed | `404 {"error":"unavailable"}` | `yt.err.gone`, TT-YT-100 |
-| **403** | private / unlisted | `403 {"error":"unavailable"}` | `yt.err.gone`, TT-YT-100 |
-| **401** | **embedding disabled by owner** | ⚠️ `404` — the Worker rewrites 401→404 | `yt.err.blocked`, TT-YT-101 |
+| **400** | 11 chars but structurally impossible id | `400 {"error":"invalid_id"}` | `yt.err.invalid`, TT-YT-002 |
+| **404** | well-formed id, no such video — deleted or never existed | `404 {"error":"not_found"}` | `yt.err.gone`, TT-YT-100 |
+| **403** | private / unlisted | `403 {"error":"private"}` | `yt.err.gone`, TT-YT-100 |
+| **401** | **embedding disabled by owner** | `401 {"error":"embed_off"}` | `yt.err.blocked`, TT-YT-101 |
 | **200** | exists and is listed — says nothing about whether it will *play* | 200 + metadata | continue; see `§4` |
+| **429** | our own edge rate limit, not YouTube's (`10 §6`) | passthrough `{"error":"rate_limited"}` | keep `status:'pending'`, TT-YT-001 |
 | network failure | edge could not reach YouTube | `502 {"error":"upstream_unreachable"}` | keep `status:'pending'`, TT-YT-001 |
 
 ✅ **Both Worker changes landed in P4** (S1 having passed, the scope rule
@@ -172,15 +173,41 @@ Input: textarea paste (one URL per line) and/or repeated single adds.
    (11-char id regex; extra params ignored)          fail → TT-YT-002
 2. Dedupe by videoId (default skip + toast)          dup  → TT-IMP-005
 3. Cap: queue would exceed 50 links                  fail → TT-YT-003
-4. oEmbed pre-check via /api/yt/oembed (4 concurrent)
-   ok  → TtTrack{status:'ok', title, artist=channel, thumbnailUrl}
-   404 → rejected with toast                         log  → TT-YT-100
-   net-fail → TtTrack{status:'pending'} kept; re-checked on Start  TT-YT-001
+4. oEmbed pre-check via /api/yt/oembed
+   ok       → TtTrack{status:'ok', title, artist=channel, thumbnailUrl}
+   400      → rejected, malformed id                  log  → TT-YT-002
+   401      → rejected, embedding disabled            log  → TT-YT-101
+   403/404  → rejected, private or gone               log  → TT-YT-100
+   429/502  → TtTrack{status:'pending'} kept          log  → TT-YT-001
+   anything else → rejected, cause unknown            log  → TT-YT-004
 5. durationMs stays null → rendered "–" until backfill (§2)
 ```
 
-No per-track or total duration limits in this mode (spec). Batch ends with the
-standard summary toast.
+No per-track or total duration limits in this mode (spec) — so the queue
+panel's totals row drops its `/ 91:00` denominator here rather than asserting a
+ceiling nobody imposed. Batch ends with the standard summary toast.
+
+**Only the transient causes keep the track.** Everything else is a property of
+the video, so re-checking on Start would fail identically and rejecting now is
+both honest and cheaper — the user learns before the countdown starts rather
+than watching a track fail. That split is `ytCauseIsTransient` in
+`src/lib/tt-yt-cause.ts`, shared with the Worker.
+
+⚠️ **The 429 is our own edge, not YouTube's** (`docs/10 §6`), and its block page
+carries no CORS header — so `res.json()` throws, and the browser may reject the
+`fetch` outright with an opaque error indistinguishable from being offline. The
+client therefore reads `res.status` **before** any body and treats a rejected
+fetch as transient too (`tt-yt-driver.ts`). ⬜ **Whether the 60 req/min rule
+exists in the zone at all is still unverified** — `docs/10 §11`'s checkbox is
+unticked, so this path is implemented and unit-tested but not observed.
+
+**Sources do not mix.** A queue is all-local or all-links, decided by the mode:
+the caps differ (95 vs 50), the 91:00 aggregate is meaningless against durations
+the player has not backfilled yet, and playback would have to hand the cursor
+between an `HTMLAudioElement` and a cross-origin iframe while `§1.2` requires
+the player visible throughout — including while a local file is the one making
+sound. Switching mode keeps the queue and disables Start with its reason, which
+is the `docs/03 §3` predicate Playlist → Single already uses.
 
 ## 6. Degraded visuals (platform limit)
 

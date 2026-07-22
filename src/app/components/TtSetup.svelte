@@ -41,6 +41,17 @@
 
   const track = $derived(session.current);
   const single = $derived(session.mode === 'single');
+  const youtube = $derived(session.mode === 'youtube');
+  const playlist = $derived(session.mode === 'playlist');
+
+  /**
+   * docs/06 §5 — the paste box. Local state, submitted explicitly.
+   *
+   * Not an `oninput` import: a partially typed URL is not a link the user has
+   * asked us to fetch, and firing the oEmbed pre-check per keystroke would walk
+   * straight into the rate limit the P4 exit criterion is about.
+   */
+  let links = $state('');
 </script>
 
 <section class="tt-setup" data-testid="tt-setup">
@@ -63,23 +74,55 @@
     >
     <button
       role="tab"
-      aria-selected={!single}
+      aria-selected={playlist}
       class="tt-tab"
-      class:tt-tab-on={!single}
+      class:tt-tab-on={playlist}
       data-testid="tt-tab-playlist"
       onclick={() => session.setMode('playlist')}>Danh sách</button
     >
-    <button role="tab" aria-selected="false" class="tt-tab" aria-disabled="true" disabled>
-      YouTube <span class="tt-soon">P4</span>
-    </button>
+    <button
+      role="tab"
+      aria-selected={youtube}
+      class="tt-tab"
+      class:tt-tab-on={youtube}
+      data-testid="tt-tab-youtube"
+      onclick={() => session.setMode('youtube')}>YouTube</button
+    >
   </div>
 
-  <TtDropZone
-    busy={session.importing}
-    multiple={!single}
-    ondrop={(dt) => void session.importDropped(dt)}
-    onpick={(files) => void session.importPicked(files)}
-  />
+  {#if youtube}
+    <!--
+      docs/06 §5. Sources do not mix, so YouTube mode shows a paste box and no
+      drop zone at all — a queue is all-local or all-links, decided by the mode.
+    -->
+    <div class="tt-links">
+      <label>
+        <span>Dán link YouTube — mỗi dòng một link</span>
+        <textarea
+          bind:value={links}
+          rows="4"
+          placeholder="https://www.youtube.com/watch?v=..."
+          data-testid="tt-yt-input"></textarea>
+      </label>
+      <button
+        class="tt-btn"
+        data-testid="tt-yt-add"
+        disabled={session.importing || links.trim() === ''}
+        onclick={() => {
+          const text = links;
+          links = '';
+          void session.importLinks(text);
+        }}>Thêm vào danh sách</button
+      >
+    </div>
+  {:else}
+    <TtDropZone
+      busy={session.importing}
+      multiple={!single}
+      ondrop={(dt) => void session.importDropped(dt)}
+      onpick={(files) => void session.importPicked(files)}
+    />
+  {/if}
 
   {#if single}
     {#if track}
@@ -105,6 +148,7 @@
       shuffle={settings.current.shuffle}
       repeat={settings.current.repeatPlaylist}
       exhausted={false}
+      capped={!youtube}
       onremove={(id) => session.removeTrack(id)}
       onjump={() => undefined}
       onshuffle={(on) => session.setShuffle(on)}
@@ -283,6 +327,30 @@
     background: transparent;
     border: 1px solid var(--color-tt-line);
     border-radius: 0.25rem;
+  }
+  .tt-links {
+    display: grid;
+    gap: 0.5rem;
+    justify-items: end;
+    width: 100%;
+  }
+  .tt-links label {
+    display: grid;
+    gap: 0.25rem;
+    width: 100%;
+    font-size: 0.72rem;
+    color: var(--color-tt-muted);
+  }
+  .tt-links textarea {
+    width: 100%;
+    padding: 0.5rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-tt-text);
+    background: var(--color-tt-surface);
+    border: 1px solid var(--color-tt-line);
+    border-radius: 0.25rem;
+    resize: vertical;
   }
   .tt-progress {
     display: flex;

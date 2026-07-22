@@ -74,6 +74,7 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-YT-001 | oEmbed pre-check network failure — kept pending |
 | TT-YT-002 | Invalid YouTube URL / bad parameter |
 | TT-YT-003 | Rejected: link count would exceed 50 |
+| TT-YT-004 | oEmbed failed for a status nobody has classified — the honest bucket, so an unmeasured failure cannot borrow a confident wrong label from TT-YT-100 |
 | TT-YT-005 | Player HTML5 error — retried/skipped |
 | TT-YT-100 | Video unavailable (deleted/private) |
 | TT-YT-101 / 150 | Embedding blocked (embed-off / age / region) |
