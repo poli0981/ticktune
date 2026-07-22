@@ -19,7 +19,7 @@ that depend on YouTube's servers.
 | Drop pre-scan | depth-first flattening; deterministic `Intl.Collator` order; the entry cap → TT-IMP-008 (`02 §4` step 0) |
 | Object-URL ledger | `acquire` idempotent per key; double release is a no-op; the ≤2-media + ≤queueLength-cover bound under a random add/remove property test (`05 §3`) |
 | Playback order (`02 §5.1`) | Fisher–Yates over an injected `rand` — a permutation, nothing lost or duplicated, one draw per element; the no-immediate-repeat swap at lengths 1 and 2 (the real boundary); `reconcile` under random add/remove; `nextInOrder` at the last element and for a cursor whose track is gone |
-| Session store | The tier the engines **cannot** fail: that `allowDuplicates` reaches the importer from settings rather than as a literal; that a playlist import appends while a Single import replaces and releases; that removing the current track advances before the queue is mutated; that a mode switch keeps the queue |
+| Session store | The tier the engines **cannot** fail: that `allowDuplicates` reaches the importer from settings rather than as a literal; that a playlist import appends while a Single import replaces and releases; that removing the current track advances before the queue is mutated; that a mode switch keeps the queue; that `moveTrack` leaves a stored shuffle permutation alone (`02 §5.1` rule 1); and **both sides** of the import-progress threshold — a fast batch must render nothing |
 | Audio graph | `createMediaElementSource` called exactly twice across many loads and deck swaps; a rejected `play()` logs one TT-PLY-100 and never reports "playing"; hard-loop wrap detection vs a user seek |
 | End behavior | plan immutability once `done` has fired; `endFadeMs: 0` emits a single `setValueAtTime` and **never** a zero-duration curve (which throws `RangeError`); a volume write mid-fade leaves the fade automation untouched; all three `endAction` values |
 | Late finish | `overshootMs` at 1 999 / 2 000 / 2 001 (strict `>`); a latch-fired `done` with a 300 ms overshoot renders the **normal** screen; the `now − overshootMs` reconstruction (`04 §2`) |
@@ -58,11 +58,13 @@ digits hold `0.000` in both) · TtSetup (limits meter, preset buttons in minutes
 Match-queue-length disabled rules, Start gated by `isReady`) · TtBottomBar
 (`N/A`/`–` fallbacks, 4 s auto-hide, ⏮/⏭ disabled in Single) · TtTrackInfo (every
 `02 §8` field, focus trap, `Esc` restores focus) · TtToast (summary counts,
-`data-tt-code` present) · **TtQueuePanel — built in P3 slice 1** (now-playing
-highlight on exactly one row and none before Start, an errored row struck
-through rather than hidden, the totals footer rendering `–` when any duration is
-unknown, and the context menu resolving to the row that was targeted; the
-reorder half arrives with slice 2) · TtSettings (End Behavior controls persist
+`data-tt-code` present) · **TtQueuePanel** (now-playing highlight on exactly one
+row and none before Start, an errored row struck through rather than hidden, the
+totals footer rendering `–` when any duration is unknown, the context menu
+resolving to the row that was targeted, all four `02 §8` items with the
+end-of-list move disabled, `Esc` closing without acting, `Alt+↑/↓` moving the
+focused row and announcing where it landed, and rows carrying **no**
+`draggable` attribute — see `§3`) · TtSettings (End Behavior controls persist
 calls) · TtOverlay (typed
 variants render correct i18n keys) · TtLegalGate (Accept enables only with
 checkbox).
@@ -89,7 +91,8 @@ non-empty queue must also handle the `beforeunload` guard (`02 §3`) or they han
 | Gate → Setup → Single | accept unlocks; fixture plays — asserted as **`dataset.ttAudio === 'running'` and peak Analyser RMS > 0**, because "no error thrown" passes identically on a silent app; loop counter increments across a wrap; countdown reaches <60 s regime (short timer) and shows `SS.mmm`; Finished screen; **chime ran**, observed via `data-tt-chime-count` (the chime is synthesised, so there is no request to observe — and counting the run is the stronger assertion anyway, `05 §7`) |
 | Hidden finish (`16 §P2`) | a second page fronted so `document.hidden` is genuinely true; on return the fade completed, the chime ran exactly once, media is paused and the Finished screen is correct. Asserts the **outcome**, never which path fired |
 | Object-URL canary (`05 §3`) | under `?ttdebug=1`: import → play → replace → clear leaves the ledger at 0 and never exceeds the bound |
-| Playlist limits | 11-min file rejected with toast; duplicate skipped; totals footer math. ⚠️ TT-IMP-003 (91:00) is **not reachable from E2E**: the only long fixture exists to be rejected by TT-IMP-002, and reaching the aggregate cap needs a ~10:00 *legal* fixture nobody has generated. Its exact boundary keeps unit coverage |
+| Playlist limits | 11-min file rejected with toast; duplicate skipped; totals footer math; **a 95-file batch imports and the 96th is refused with TT-IMP-004**. The batch is one fixture buffer restaged under 95 distinct **names** — the dedupe key is `name::size::duration` (`02 §4` step 5), so passing the same path 95 times would add one row and 94 TT-IMP-005s, and the test would be green, fast, and about dedupe. ⚠️ TT-IMP-003 (91:00) is **not reachable from E2E**: the only long fixture exists to be rejected by TT-IMP-002, and reaching the aggregate cap needs a ~10:00 *legal* fixture nobody has generated. Its exact boundary keeps unit coverage |
+| Queue reorder | **Both routes**, because they have different failure modes: `Alt+↑/↓` from a focused handle (with the `aria-live` position announcement), and a real pointer drag driven by `mouse.down`/`move`/`up`. The drag half is only assertable because reorder is built on **pointer events rather than the HTML5 DnD API** — `_helpers.ts` already records that Playwright cannot synthesise a native drag, so a `draggable` implementation would have shipped with no end-to-end coverage at all. Verified by mutation: deleting the `pointermove` handler fails this spec |
 | Playlist playback (`02 §5.1`) | Three ~5 s fixtures play in sequence with **no click between them** — asserted as peak Analyser RMS > 0 both **before and after** the advance, because one that moved the highlight while loading a dead deck would pass on the highlight alone. Repeat off at exhaustion: media stops, "Đã hết danh sách" shows, and the countdown **keeps running** (`04 §5`). Removing the playing row advances rather than restarting. Shuffle mid-run leaves the current track playing. Right-click opens the info modal for the row that was targeted, not for track 1 |
 | Hotkeys | Space/M/F/H/] behave; disabled while typing. Satisfied in two parts: P2 ships `Space`/`↑↓`/`M`/`Esc` with the Player screen; `F`/`H`/`]` arrive with Focus mode and the rail in P5 |
 | i18n | toggle EN↔VI swaps visible strings without reload |

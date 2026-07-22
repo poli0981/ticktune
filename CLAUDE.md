@@ -94,18 +94,22 @@ P1 **complete (8/8)** and P2 **shipped as v0.2.0** (2026-07-22, live on
 local audio behind the countdown, with the import pipeline, the End Behavior and
 the late-finish Finished screen.
 
-**P3 slice 1 is built but not yet released: a playlist plays.** Mode is dynamic
-and boots from `lastMode` (so a fresh profile now lands on **Playlist**, per
-`docs/02 §1`), the queue advances on the media element's `ended`, and
-shuffle/repeat/⏮⏭ work. `docs/02 §5.1` — written before the UI — is the
-authority on queue mutation during playback: the cursor is a **track id, not an
-index**, and with Shuffle off no permutation is stored at all. **295 unit +
-component tests, 53 E2E, five gates green.**
+**P3 is scope-complete.** Slice 1 shipped as **v0.3.0** (2026-07-22, live);
+slice 2 — drag-reorder, `TtContextMenu`, the import progress indicator and the
+95-file batch E2E — is built and **not yet released**. **311 unit + component
+tests, 58 E2E, five gates green.**
 
-Slice 2 is still open: drag-reorder, `TtContextMenu` (Move up/down, bound to
-`Alt+↑/↓` in `docs/03 §7`), the import progress indicator, and the 95-file batch
-E2E — which needs distinct files synthesised in-page, since 95 copies of one
-fixture share a dedupe key and would measure dedupe, not capacity.
+`docs/02 §5.1` — written before the UI — is the authority on queue mutation
+during playback: the cursor is a **track id, not an index**, and with Shuffle
+off no permutation is stored at all, so a drag changes the next track for free
+while a stored permutation is left alone.
+
+Two decisions in slice 2 that are not taste and should not be "simplified":
+**reorder is built on pointer events, never HTML5 `draggable`** — Playwright
+cannot synthesise a native drag, so a DnD implementation would ship with no E2E
+coverage (a component test asserts no row carries the attribute) — and **the
+import progress bar is gated behind a delay**, because P2's reason for deferring
+it ("a spinner would flash") was a requirement, not a scheduling note.
 
 ⚠️ **Firefox CI cannot test audible output** — on the Linux runner
 `AudioContext.resume()` hangs (no audio device), so the four audio-signal E2E
@@ -141,11 +145,11 @@ mechanism measured — hand-mount wins (`docs/01 §3`).
 
 Open items, in the order they block things:
 
-1. **P3 slice 2** — drag-reorder, `TtContextMenu`, import progress, 95-file E2E.
-   **No crossfade**: `docs/15 §S4b` gates the loop style *and* P3's inter-track
-   crossfade, and its harness cannot produce a valid number until the `docs/15
-   §S4` fixes land. Advancing on `ended` is a different mechanism and is not
-   gated — that is why slice 1 could ship playback at all.
+1. **P4 — YouTube**, once S1's player half passes. **No crossfade anywhere**:
+   `docs/15 §S4b` gates the loop style *and* P3's inter-track crossfade, and its
+   harness cannot produce a valid number until the `docs/15 §S4` fixes land.
+   Advancing on `ended` is a different mechanism and is not gated — that is why
+   P3 could ship playback at all.
 
    Settled decisions, not to be re-litigated: **crossfade deferred** (ship
    `singleLoopStyle: 'hard'`; a stored `'crossfade'` falls back with
