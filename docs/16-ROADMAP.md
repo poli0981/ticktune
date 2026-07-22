@@ -317,7 +317,23 @@ the context menu, the progress bar or crossfade. That table is the P2 lesson
 applied: the reviewer's time is the scarce resource, and an unfiltered checklist
 spends it on absences that were deliberate.
 
-## P3 slice 2 review — 2026-07-22: **the phase closes**
+## P3 slice 2 review — 2026-07-22 · **released as v0.4.0**, and the phase closes
+
+Tagged `v0.4.0` from a rebase-merged `main`, **signed** (`git tag -v` prints
+`Good signature` — the only evidence that counts, since `tag.gpgsign = true` was
+already set when v0.2.0 was created unsigned). Verified by fetching the served
+bundle rather than by trusting the green tick: `/app/` returns 200, CSP and HSTS
+are present, the island's content hash changed, and it contains `Chuyển lên`,
+`Chuyển xuống`, `Kéo để đổi thứ tự`, `tt-queue-grip` and `Đang nhập` — strings
+that exist only because of this slice.
+
+⚠️ **Shipped before the live checklist was run**, at the user's direction. The
+⬆ slice-2 block in `tests/manual/p3-live-checklist.md` is still outstanding;
+recorded here so a later reader does not mistake "released" for "exercised by a
+human". Slice 1 shipped the other way round and that is the safer order.
+
+Still no GitHub Release — see `14 §5`, the gap this project has now carried
+across three tags.
 
 | Criterion | Satisfied by | Result |
 |-----------|--------------|--------|
