@@ -72,20 +72,25 @@ along, and the status **is** the signal:
 | **200** | exists and is listed — says nothing about whether it will *play* | 200 + metadata | continue; see `§4` |
 | network failure | edge could not reach YouTube | `502 {"error":"upstream_unreachable"}` | keep `status:'pending'`, TT-YT-001 |
 
-**Two Worker changes are owed to P4** (not made here — `15 §Scope rule` holds
-YouTube code behind S1, and this is the finding, not the fix):
+✅ **Both Worker changes landed in P4** (S1 having passed, the scope rule
+released them):
 
-1. **Stop rewriting 401 → 404** (`worker/index.ts`, the `res.status === 401 ?
-   404 : res.status` expression). 401 is *embed disabled*, not *deleted*, and
-   collapsing them tells the user the wrong cause.
-2. **Emit a distinct `error` per case** instead of `"unavailable"` for
-   everything non-2xx. The sentence *"This is why the Worker emits distinct
-   `error` values"* was aspirational: it emits exactly three
-   (`invalid_id`, `unavailable`, `upstream_unreachable`), and the only one that
-   carries cause is the one our own regex produces.
+1. **The 401 → 404 rewrite is gone.** 401 is *embed disabled*, not *deleted*;
+   collapsing them told the user the wrong cause, and nothing downstream could
+   recover it because the player reports `onError 150` for everything.
+2. **The `error` body now names the cause**, from one shared vocabulary:
+   `invalid_id` · `embed_off` · `private` · `not_found` ·
+   `upstream_unreachable` · `unavailable`. The status passes through unchanged.
 
-Until both land, a client that classifies on the `error` field — which the old
-rule above told it to do — can distinguish **nothing**.
+The map lives in **`src/lib/tt-yt-cause.ts`**, imported by *both* the Worker and
+the app — `src/lib/` exists for exactly this, as `tt-domain-types.ts` explains:
+two programs that must agree on a vocabulary should not each keep a copy. Its
+truth table is unit-tested against S1's measurements, including the assertion
+that 401 and 404 stay distinct.
+
+`unavailable` survives as the fallback for a status nobody has measured. It
+means "it failed and we do not know why", which is true; guessing a specific
+cause there would put a confident wrong sentence in front of the user.
 
 - Thumbnails render directly from `https://i.ytimg.com/vi/<id>/hqdefault.jpg`.
 - Duration and publish date are **not** available without the Data API v3 —

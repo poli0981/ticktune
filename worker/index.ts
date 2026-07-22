@@ -10,6 +10,8 @@
  * usable as an open proxy.
  */
 
+import { ytCauseFromUpstream } from '../src/lib/tt-yt-cause';
+
 interface Env {
   ASSETS: { fetch: (req: Request) => Promise<Response> };
 }
@@ -58,8 +60,23 @@ async function oembed(id: string, ctx: ExecutionContext): Promise<Response> {
   }
 
   if (!res.ok) {
-    // 404/401 from oEmbed means deleted or private (docs/06 §4, TT-YT-100).
-    const out = json({ error: 'unavailable' }, res.status === 401 ? 404 : res.status, ERROR_TTL_S);
+    /*
+     * The status is passed through UNCHANGED and the cause is named in the
+     * body — docs/06 §3, rewritten from spike S1's measurements.
+     *
+     * This used to read `res.status === 401 ? 404 : res.status` with the body
+     * hardcoded to `"unavailable"`, on the belief that "404/401 from oEmbed
+     * means deleted or private". S1 measured otherwise: **401 is embedding
+     * disabled by the owner**, which is a different thing to tell a user than
+     * "this video is gone", and 403 is the one that means private. Rewriting
+     * 401 to 404 destroyed the distinction, and the single body string destroyed
+     * the rest of it — leaving the client, which docs/06 §3 had just told to
+     * classify on the body, unable to distinguish anything at all.
+     *
+     * The player cannot recover any of it later: S1 found `onError` reports 150
+     * for every cause. This response is the only place the reason exists.
+     */
+    const out = json({ error: ytCauseFromUpstream(res.status) }, res.status, ERROR_TTL_S);
     ctx.waitUntil(cache.put(cacheKey, out.clone()));
     return out;
   }
@@ -93,6 +110,9 @@ export default {
 
       const id = url.searchParams.get('id') ?? '';
       if (!VIDEO_ID.test(id)) {
+        // Same cause word the upstream 400 produces, because it IS the same
+        // thing to the user: a string that cannot be a video id. Whether we or
+        // YouTube noticed is our business, not theirs (src/lib/tt-yt-cause.ts).
         return json({ error: 'invalid_id' }, 400, 0);
       }
 
