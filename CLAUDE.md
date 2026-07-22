@@ -92,8 +92,20 @@ S2 measures the P1 timer engine directly, on the shipping countdown page under
 P1 **complete (8/8)** and P2 **shipped as v0.2.0** (2026-07-22, live on
 `https://ticktune.net`) — exit reviews for both in `docs/16`. Single mode plays
 local audio behind the countdown, with the import pipeline, the End Behavior and
-the late-finish Finished screen. **233 unit + component tests, 76 E2E across
-four browser projects, five gates green.**
+the late-finish Finished screen.
+
+**P3 slice 1 is built but not yet released: a playlist plays.** Mode is dynamic
+and boots from `lastMode` (so a fresh profile now lands on **Playlist**, per
+`docs/02 §1`), the queue advances on the media element's `ended`, and
+shuffle/repeat/⏮⏭ work. `docs/02 §5.1` — written before the UI — is the
+authority on queue mutation during playback: the cursor is a **track id, not an
+index**, and with Shuffle off no permutation is stored at all. **295 unit +
+component tests, 53 E2E, five gates green.**
+
+Slice 2 is still open: drag-reorder, `TtContextMenu` (Move up/down, bound to
+`Alt+↑/↓` in `docs/03 §7`), the import progress indicator, and the 95-file batch
+E2E — which needs distinct files synthesised in-page, since 95 copies of one
+fixture share a dedupe key and would measure dedupe, not capacity.
 
 ⚠️ **Firefox CI cannot test audible output** — on the Linux runner
 `AudioContext.resume()` hangs (no audio device), so the four audio-signal E2E
@@ -129,20 +141,20 @@ mechanism measured — hand-mount wins (`docs/01 §3`).
 
 Open items, in the order they block things:
 
-1. **P2 — local audio + Single mode. Scope complete; all three exit criteria
-   pass** — see the exit review in `docs/16`. 228 unit + component tests, 42
-   E2E. What remains of P2 is the **crossfade loop style**,
-   which `docs/15 §S4b` gates. S4 was split into **S4a**
-   (graph + unlock, ✅ passed → P2's audio graph is cleared) and **S4b**
-   (crossfade trigger timing, 🟡 open → gates only the crossfade loop style),
-   `docs/15 §S4`. S3 passed, so the importer's metadata path is cleared.
+1. **P3 slice 2** — drag-reorder, `TtContextMenu`, import progress, 95-file E2E.
+   **No crossfade**: `docs/15 §S4b` gates the loop style *and* P3's inter-track
+   crossfade, and its harness cannot produce a valid number until the `docs/15
+   §S4` fixes land. Advancing on `ended` is a different mechanism and is not
+   gated — that is why slice 1 could ship playback at all.
 
-   Four P2 decisions are settled and should not be re-litigated:
-   **crossfade deferred** (ship `singleLoopStyle: 'hard'`) · **the chime is
-   synthesised with `OscillatorNode`s** — no `public/audio/`, no asset, closes
-   the 🟡 audit finding (`docs/05 §7`) · **`crypto.randomUUID()` for track ids**,
-   not nanoid (`docs/02 §2`) · **hardcoded VI** with keys filed in
-   `docs/08 §3.1`.
+   Settled decisions, not to be re-litigated: **crossfade deferred** (ship
+   `singleLoopStyle: 'hard'`; a stored `'crossfade'` falls back with
+   **TT-SYS-205**, which is a real log entry since P3 and was a doc-only promise
+   before) · **the chime is synthesised with `OscillatorNode`s** — no
+   `public/audio/`, no asset, closes the 🟡 audit finding (`docs/05 §7`) ·
+   **`crypto.randomUUID()` for track ids**, not nanoid (`docs/02 §2`) ·
+   **hardcoded VI** with keys filed in `docs/08 §3.1` · **the playback cursor is
+   a track id** (`docs/02 §5.1`).
 
    The master stage is now **two** nodes — `userGain` then `fadeGain`
    (`docs/05 §1`). One shared `masterGain` throws `NotSupportedError` when the
@@ -160,10 +172,11 @@ Open items, in the order they block things:
    0/1/2/5 s sweep — and note the harness cannot produce a valid number until it
    is fixed (its overlap metric reads back its own scheduled `gain.value`, so it
    cannot fail; `docs/15 §S4`).
-4. `docs/AUDIT-BACKLOG.md` — 23 open findings, 1 release blocker (generated
+4. `docs/AUDIT-BACKLOG.md` — 22 open findings, 1 release blocker (generated
    third-party notices, `legal/THIRD-PARTY-NOTICES.md`). P2's S1 slice closed
    the chime-codec finding, both countdown-preset findings, and the two halves of
-   the import-pipeline finding that P2 owns.
+   the import-pipeline finding that P2 owns; P3 slice 1 closed the 🟠
+   queue-mutation-during-playback finding by writing `docs/02 §5.1`.
 
 `test/` is a **local-only, git-ignored** ~651 MB audio corpus for spikes S3/S4.
 Never commit it, never reference it from shipped code, never assume it exists in

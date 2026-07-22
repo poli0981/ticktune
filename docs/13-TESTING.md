@@ -18,10 +18,20 @@ that depend on YouTube's servers.
 | Crossfade math | equal-power curve endpoints/midpoint (`out² + in² = 1`); trigger scheduling margins |
 | Drop pre-scan | depth-first flattening; deterministic `Intl.Collator` order; the entry cap → TT-IMP-008 (`02 §4` step 0) |
 | Object-URL ledger | `acquire` idempotent per key; double release is a no-op; the ≤2-media + ≤queueLength-cover bound under a random add/remove property test (`05 §3`) |
+| Playback order (`02 §5.1`) | Fisher–Yates over an injected `rand` — a permutation, nothing lost or duplicated, one draw per element; the no-immediate-repeat swap at lengths 1 and 2 (the real boundary); `reconcile` under random add/remove; `nextInOrder` at the last element and for a cursor whose track is gone |
+| Session store | The tier the engines **cannot** fail: that `allowDuplicates` reaches the importer from settings rather than as a literal; that a playlist import appends while a Single import replaces and releases; that removing the current track advances before the queue is mutated; that a mode switch keeps the queue |
 | Audio graph | `createMediaElementSource` called exactly twice across many loads and deck swaps; a rejected `play()` logs one TT-PLY-100 and never reports "playing"; hard-loop wrap detection vs a user seek |
 | End behavior | plan immutability once `done` has fired; `endFadeMs: 0` emits a single `setValueAtTime` and **never** a zero-duration curve (which throws `RangeError`); a volume write mid-fade leaves the fade automation untouched; all three `endAction` values |
 | Late finish | `overshootMs` at 1 999 / 2 000 / 2 001 (strict `>`); a latch-fired `done` with a 300 ms overshoot renders the **normal** screen; the `now − overshootMs` reconstruction (`04 §2`) |
 | i18n guard | `en.json` vs `vi.json` key-set diff = ∅ (build-failing) — from P5, when the dictionaries exist (`08 §3.1`) |
+
+**A store test is only worth writing if it fails under the bug it names.** The
+two above were checked by mutation, not by inspection: restoring
+`allowDuplicates: false` at the call site fails exactly one, and moving the queue
+filter ahead of the advance in `removeTrack` fails exactly one other. Applying
+that check costs a minute and is the only thing separating this tier from
+decoration — which matters here more than usual, because both bugs that reached
+the live site were invisible to every tier that existed.
 
 Coverage target: **≥ 85% lines on `src/app/engine/**`** — enforced in
 `vitest.config.ts` and wired into `pnpm test`, so it fails the run rather than
@@ -48,8 +58,12 @@ digits hold `0.000` in both) · TtSetup (limits meter, preset buttons in minutes
 Match-queue-length disabled rules, Start gated by `isReady`) · TtBottomBar
 (`N/A`/`–` fallbacks, 4 s auto-hide, ⏮/⏭ disabled in Single) · TtTrackInfo (every
 `02 §8` field, focus trap, `Esc` restores focus) · TtToast (summary counts,
-`data-tt-code` present) · TtQueuePanel (reorder, context menu opens, totals
-footer) · TtSettings (End Behavior controls persist calls) · TtOverlay (typed
+`data-tt-code` present) · **TtQueuePanel — built in P3 slice 1** (now-playing
+highlight on exactly one row and none before Start, an errored row struck
+through rather than hidden, the totals footer rendering `–` when any duration is
+unknown, and the context menu resolving to the row that was targeted; the
+reorder half arrives with slice 2) · TtSettings (End Behavior controls persist
+calls) · TtOverlay (typed
 variants render correct i18n keys) · TtLegalGate (Accept enables only with
 checkbox).
 
@@ -75,7 +89,8 @@ non-empty queue must also handle the `beforeunload` guard (`02 §3`) or they han
 | Gate → Setup → Single | accept unlocks; fixture plays — asserted as **`dataset.ttAudio === 'running'` and peak Analyser RMS > 0**, because "no error thrown" passes identically on a silent app; loop counter increments across a wrap; countdown reaches <60 s regime (short timer) and shows `SS.mmm`; Finished screen; **chime ran**, observed via `data-tt-chime-count` (the chime is synthesised, so there is no request to observe — and counting the run is the stronger assertion anyway, `05 §7`) |
 | Hidden finish (`16 §P2`) | a second page fronted so `document.hidden` is genuinely true; on return the fade completed, the chime ran exactly once, media is paused and the Finished screen is correct. Asserts the **outcome**, never which path fired |
 | Object-URL canary (`05 §3`) | under `?ttdebug=1`: import → play → replace → clear leaves the ledger at 0 and never exceeds the bound |
-| Playlist limits | 11-min file rejected with toast; duplicate skipped; totals footer math |
+| Playlist limits | 11-min file rejected with toast; duplicate skipped; totals footer math. ⚠️ TT-IMP-003 (91:00) is **not reachable from E2E**: the only long fixture exists to be rejected by TT-IMP-002, and reaching the aggregate cap needs a ~10:00 *legal* fixture nobody has generated. Its exact boundary keeps unit coverage |
+| Playlist playback (`02 §5.1`) | Three ~5 s fixtures play in sequence with **no click between them** — asserted as peak Analyser RMS > 0 both **before and after** the advance, because one that moved the highlight while loading a dead deck would pass on the highlight alone. Repeat off at exhaustion: media stops, "Đã hết danh sách" shows, and the countdown **keeps running** (`04 §5`). Removing the playing row advances rather than restarting. Shuffle mid-run leaves the current track playing. Right-click opens the info modal for the row that was targeted, not for track 1 |
 | Hotkeys | Space/M/F/H/] behave; disabled while typing. Satisfied in two parts: P2 ships `Space`/`↑↓`/`M`/`Esc` with the Player screen; `F`/`H`/`]` arrive with Focus mode and the rail in P5 |
 | i18n | toggle EN↔VI swaps visible strings without reload |
 | Mobile gate (`07 §6`) | mobile project: overlay visible, **zero component/framework chunks** in the network log (the ≈200 B guard chunk is expected and is not the app bundle — `01 §3`); desktop project: island mounts |
@@ -97,11 +112,19 @@ for media elements) and re-checking the gesture chain (which was already sound).
 
 Consequences, all deliberate:
 
-- **The four assertions that need AUDIBLE output are skipped on Firefox** —
-  single-mode playback, the loop counter, and the two chime tests. Everything
-  else runs there, including the whole import pipeline and the Finished screens.
-  Chromium runs all of them, and `tests/manual/p2-live-checklist.md` carries a
-  real-Firefox item.
+- **Only the assertions that need AUDIBLE output are skipped on Firefox** —
+  single-mode playback, the loop counter, the two chime tests, and the one
+  playlist test that waits for a real `ended`. Everything else runs there,
+  including the whole import pipeline, the Finished screens, and seven of the
+  nine playlist tests. Chromium runs all of them, and each phase's
+  `tests/manual/p*-live-checklist.md` carries a real-Firefox item.
+
+  **Skip only for the stated reason.** A playlist test that asserts a highlight,
+  a disabled control or a bar title reads no Analyser, so skipping it "because
+  audio" would record a reason that is false, understate the matrix, and hide
+  any Firefox-only regression in the parts that do work there. Four such skips
+  were written and removed in the same session — the temptation is to skip a
+  whole file, and the file is the wrong unit.
 - **Chromium is permissive too** (`--autoplay-policy=no-user-gesture-required`
   by default), so neither desktop project can catch a genuine "playback started
   without a gesture" regression. That is a unit test against a rejecting fake.
