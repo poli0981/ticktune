@@ -58,6 +58,19 @@ type TtAppState = 'boot' | 'gate' | 'setup' | 'playing' | 'paused' | 'finished';
 /** What `advance()` did, so the caller can load, wrap or fall silent. */
 type TtAdvance = 'advanced' | 'wrapped' | 'exhausted';
 
+/**
+ * How long an import must still be running before its progress bar appears.
+ *
+ * docs/02 §4 deferred the indicator out of P2 with a reason — "Single mode
+ * imports one file at a median 11 ms; a spinner would flash" — and shipping it
+ * in P3 without a threshold would reintroduce exactly that flash on every
+ * one-file import. So the bar is not "shown while importing", it is "shown while
+ * an import is taking long enough to be worth reporting". S3 measured 103 files
+ * in 1 362 ms, so a 95-file batch clears this comfortably and a single file
+ * never does.
+ */
+const PROGRESS_DELAY_MS = 400;
+
 class SessionStore {
   #state = $state<TtAppState>('boot');
   #countdownMs = $state(90_000);
@@ -65,6 +78,12 @@ class SessionStore {
   #queue = $state<TtTrack[]>([]);
   #importing = $state(false);
   #lastImport = $state<TtImportResult | null>(null);
+
+  /** Live counts from the pipeline. Null except during a batch. */
+  #progress = $state<{ done: number; total: number } | null>(null);
+  /** Flipped by the PROGRESS_DELAY_MS timer — see the constant's note. */
+  #progressVisible = $state(false);
+  #progressTimer: ReturnType<typeof setTimeout> | null = null;
 
   /**
    * P2 pinned this to `single` because Playlist was not built. P3 unlocks it and
@@ -111,6 +130,18 @@ class SessionStore {
   /** The last batch's outcome, for the summary toast (docs/02 §4). */
   get lastImport(): TtImportResult | null {
     return this.#lastImport;
+  }
+
+  /**
+   * docs/02 §4's progress indicator — null until the batch has been running for
+   * PROGRESS_DELAY_MS, so a fast import shows nothing at all.
+   *
+   * The gate lives here rather than in the component because "is this worth
+   * showing" is a rule, and a component that receives counts and decides for
+   * itself is a rule nobody can unit-test.
+   */
+  get progress(): { done: number; total: number } | null {
+    return this.#progressVisible ? this.#progress : null;
   }
 
   /** docs/02 §5.1 rule 6 — bottom bar shows "Playlist ended"; timer runs on. */
@@ -337,6 +368,14 @@ class SessionStore {
 
   async #runImport(files: File[], droppedByCap: number): Promise<void> {
     this.#importing = true;
+    this.#progress = { done: 0, total: files.length };
+    this.#progressVisible = false;
+    // Armed, not shown. If the batch finishes first the `finally` clears this
+    // and nothing was ever rendered — which is the whole point (docs/02 §4).
+    this.#progressTimer = setTimeout(() => {
+      if (this.#importing) this.#progressVisible = true;
+    }, PROGRESS_DELAY_MS);
+
     try {
       if (droppedByCap > 0) ttLog.warn('TT-IMP-008', `${droppedByCap} entries over the scan cap`);
 
@@ -366,7 +405,12 @@ class SessionStore {
           // have shipped doing nothing, and no engine test could have caught it.
           allowDuplicates: settings.current.allowDuplicates,
         },
-        browserImportPorts(playback.makeCoverUrl),
+        {
+          ...browserImportPorts(playback.makeCoverUrl),
+          onProgress: (done, total) => {
+            this.#progress = { done, total };
+          },
+        },
       );
 
       // Every skip and every note gets a coded entry — docs/01 §2 principle 5.
@@ -386,6 +430,10 @@ class SessionStore {
       this.#lastImport = result;
     } finally {
       this.#importing = false;
+      if (this.#progressTimer !== null) clearTimeout(this.#progressTimer);
+      this.#progressTimer = null;
+      this.#progressVisible = false;
+      this.#progress = null;
     }
   }
 

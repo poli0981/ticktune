@@ -123,6 +123,21 @@ export interface TtImportPorts {
    * against the `queueLength + 2` bound. Returns null when it cannot.
    */
   makeCoverUrl: (trackId: string, bytes: Uint8Array, mime: string) => string | null;
+  /**
+   * Called once per file as the batch walks it — docs/02 §4's progress
+   * indicator, deferred from P2 to P3 because Single mode imports one file at a
+   * median 11 ms and a spinner would only flash.
+   *
+   * **Optional on purpose.** Making it required would edit every `makePorts`
+   * factory in the unit suite to add a callback none of those tests care about,
+   * which is a lot of churn to prove a port exists. The pipeline is unchanged
+   * when it is absent.
+   *
+   * @param done files finished, INCLUDING rejected ones — the bar tracks work
+   *   completed, not tracks added, or it would stall on a batch of duplicates.
+   * @param total files the batch will actually walk, after the step-0 cap.
+   */
+  onProgress?: (done: number, total: number) => void;
 }
 
 export interface TtImportInput {
