@@ -291,10 +291,6 @@
     opacity: 0.45;
     cursor: not-allowed;
   }
-  .tt-soon {
-    font-size: 0.62rem;
-    opacity: 0.8;
-  }
   .tt-staged {
     display: flex;
     gap: 0.75rem;

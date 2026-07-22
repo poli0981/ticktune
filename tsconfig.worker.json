@@ -9,7 +9,7 @@
     "module": "ESNext",
     "moduleResolution": "bundler",
     "lib": ["ES2022"],
-    "types": ["@cloudflare/workers-types"],
+    "types": ["@cloudflare/workers-types", "vitest/globals"],
 
     // Same flag set as the app (docs/12 §2) — the edge endpoint is the one
     // piece of server code we ship, so it does not get a looser bar.
@@ -22,5 +22,8 @@
     "noEmit": true,
     "skipLibCheck": true
   },
-  "include": ["worker/**/*.ts"]
+  // The worker's tests live here too, for the reason tsconfig.json's `exclude`
+  // records: they import worker/index.ts, so they must be checked under the same
+  // globals it is. `vitest/globals` joins the types for the same reason.
+  "include": ["worker/**/*.ts", "tests/worker/**/*.ts"]
 }

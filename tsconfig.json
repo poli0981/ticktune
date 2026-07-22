@@ -24,5 +24,11 @@
   },
   "include": ["src/**/*", "tests/**/*", "scripts/**/*", ".astro/types.d.ts"],
   // worker/** is checked by tsconfig.worker.json — different runtime, conflicting globals.
-  "exclude": ["dist", "node_modules", "test", "worker"]
+  //
+  // `tests/worker/**` follows it there rather than living here, and the reason is
+  // exact: those tests IMPORT worker/index.ts, which drags it into whichever
+  // program checks them. Under this one it has DOM lib and no
+  // @cloudflare/workers-types, so `ExecutionContext` and `caches.default` are
+  // unknown names — the excluded file gets pulled back in through its own test.
+  "exclude": ["dist", "node_modules", "test", "worker", "tests/worker"]
 }
