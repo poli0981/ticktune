@@ -95,6 +95,9 @@ export function trackInfoRows(t: TtTrack): TtInfoRow[] {
       { label: 'Kênh', value: text(t.artist) },
       { label: 'Video ID', value: text(t.videoId) },
       { label: 'URL', value: text(t.sourceUrl) },
+      // docs/02 §8 has listed Thumbnail since the first revision and nothing
+      // rendered it — the same declared-but-never-shown shape as coverArtUrl.
+      { label: 'Ảnh thu nhỏ', value: text(t.thumbnailUrl) },
       { label: 'Trạng thái', value: text(t.status) },
     );
   }

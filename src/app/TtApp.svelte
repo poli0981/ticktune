@@ -444,6 +444,7 @@
           shuffle={settings.current.shuffle}
           repeat={settings.current.repeatPlaylist}
           exhausted={session.exhausted}
+          capped={session.mode !== 'youtube'}
           onremove={(id) => session.removeTrack(id)}
           onjump={onJump}
           onshuffle={(on) => session.setShuffle(on)}

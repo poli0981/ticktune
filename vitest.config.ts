@@ -12,7 +12,28 @@ export default defineConfig({
   test: {
     globals: true,
     environment: 'happy-dom',
-    include: ['tests/unit/**/*.test.ts', 'tests/component/**/*.test.ts'],
+    /*
+     * `tests/worker/**` is a third tier, added in P4.
+     *
+     * The edge endpoint had **no automated coverage at all** and could not get
+     * any from the tiers that existed: Playwright's `webServer` is
+     * `astro preview`, not `wrangler`, so `/api/yt/oembed` does not exist under
+     * E2E and `docs/13 §3` plans to *mock* it rather than run it. That was
+     * tolerable while the Worker only proxied a body through. It stopped being
+     * tolerable when spike S1 established that this response is the **only**
+     * place a failure cause survives — the player reports `onError 150` for
+     * every cause there is.
+     *
+     * The handler is importable and its two dependencies (`fetch`,
+     * `caches.default`) are stubbable, so this needs neither network nor
+     * browser. It is excluded from the `src/app/engine/**` coverage gate below
+     * for the same reason the drivers are: different program, different globals.
+     */
+    include: [
+      'tests/unit/**/*.test.ts',
+      'tests/component/**/*.test.ts',
+      'tests/worker/**/*.test.ts',
+    ],
     // Scaffold affordance: the tree is empty until the timer suite lands
     // (docs/13 §1). Safe to keep afterwards because the coverage thresholds
     // below fail loudly if the include globs ever stop matching real tests.

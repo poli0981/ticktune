@@ -50,6 +50,16 @@ export type TtYtCause =
   | 'not_found'
   /** The edge could not reach YouTube. Transient: keep the track as pending. */
   | 'upstream_unreachable'
+  /**
+   * 429 — our own edge rate limit, not YouTube's (`docs/10 §6`).
+   *
+   * Transient like the one above, and deliberately NOT folded into it: a user
+   * who pasted fifty links wants to hear "slow down", not "the network is
+   * broken". ⚠️ The block page Cloudflare returns carries no CORS header, so
+   * the client may see a rejected `fetch` rather than a readable 429 — the
+   * driver has to treat both as this.
+   */
+  | 'rate_limited'
   /** Any other non-2xx. Honest fallback rather than a guess. */
   | 'unavailable';
 
@@ -63,15 +73,16 @@ export function ytCauseFromUpstream(status: number): TtYtCause {
   if (status === 401) return 'embed_off';
   if (status === 403) return 'private';
   if (status === 404) return 'not_found';
+  if (status === 429) return 'rate_limited';
   return 'unavailable';
 }
 
 /**
  * Whether a cause should keep the track rather than reject it — docs/06 §5.
  *
- * Only the transient one does. Everything else is a property of the video and
- * re-checking on Start would fail identically.
+ * The two transient ones do. Everything else is a property of the *video*, so
+ * re-checking on Start would fail identically and rejecting now is honest.
  */
 export function ytCauseIsTransient(cause: TtYtCause): boolean {
-  return cause === 'upstream_unreachable';
+  return cause === 'upstream_unreachable' || cause === 'rate_limited';
 }

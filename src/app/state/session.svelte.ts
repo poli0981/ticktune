@@ -12,6 +12,8 @@ import {
   shuffleIds,
   withoutImmediateRepeat,
 } from '../engine/queue/tt-play-order';
+import { browserYtPorts } from '../engine/youtube/tt-yt-driver';
+import { importLinks } from '../engine/youtube/tt-yt-import';
 import { finishReport } from '../engine/timer/tt-late';
 import { TT_MAX_COUNTDOWN_MS, TT_MIN_COUNTDOWN_MS } from '../engine/timer/tt-format';
 import type { TtFinishInfo, TtFinishReport } from '../engine/timer/types';
@@ -224,13 +226,13 @@ class SessionStore {
   /**
    * Boot: adopt the remembered mode.
    *
-   * A stored mode this build has not shipped falls back to Playlist rather than
-   * being written over — the same reasoning that kept P2 from clobbering
-   * `lastMode`: the profile keeps its real preference and the phase that ships
-   * the mode only has to unlock a tab.
+   * P4 ships YouTube, so all three are honoured and the fallback is gone. It
+   * had to go with the tab: `setMode` writes `lastMode`, so a user who picked
+   * YouTube got it persisted and then silently rewritten to Playlist on every
+   * single reload — the preference saved correctly and never came back.
    */
   adoptMode(lastMode: TtMode): void {
-    this.#mode = lastMode === 'youtube' ? 'playlist' : lastMode;
+    this.#mode = lastMode;
   }
 
   /**
@@ -366,7 +368,57 @@ class SessionStore {
     await this.#runImport(Array.from(list), 0);
   }
 
+  /**
+   * docs/06 §5 — paste one or more YouTube links.
+   *
+   * **Sources do not mix.** A queue is all-local or all-YouTube, decided by the
+   * mode, and this guard is where that holds: the caps differ (95 vs 50), the
+   * 91:00 aggregate is meaningless for videos whose duration is unknown until
+   * the player backfills it, and playback would have to hand the cursor back
+   * and forth between an `HTMLAudioElement` and a cross-origin iframe — with
+   * the ToS requiring the player visible throughout, including while a local
+   * file is the one making sound. Switching mode keeps the queue and disables
+   * Start instead (docs/03 §3), which is the same predicate Playlist → Single
+   * already uses.
+   */
+  async importLinks(text: string): Promise<void> {
+    if (this.#importing || this.#mode !== 'youtube' || text.trim() === '') return;
+
+    this.#importing = true;
+    this.#progress = { done: 0, total: 0 };
+    this.#progressVisible = false;
+    this.#progressTimer = setTimeout(() => {
+      if (this.#importing) this.#progressVisible = true;
+    }, PROGRESS_DELAY_MS);
+
+    try {
+      const result = await importLinks(
+        { text, queue: this.#queue, allowDuplicates: settings.current.allowDuplicates },
+        browserYtPorts((done, total) => {
+          this.#progress = { done, total };
+        }),
+      );
+
+      for (const s of [...result.skipped, ...result.notes]) ttLog.warn(s.code, '');
+
+      if (result.added.length > 0) this.#queue = [...this.#queue, ...result.added];
+      this.#syncOrder();
+      this.#lastImport = result;
+    } finally {
+      this.#importing = false;
+      if (this.#progressTimer !== null) clearTimeout(this.#progressTimer);
+      this.#progressTimer = null;
+      this.#progressVisible = false;
+      this.#progress = null;
+    }
+  }
+
   async #runImport(files: File[], droppedByCap: number): Promise<void> {
+    // Sources do not mix (see importLinks). The drop zone is not even rendered
+    // in YouTube mode, but a stray drop on the window would otherwise reach
+    // here and quietly build a queue the mode cannot play.
+    if (this.#mode === 'youtube') return;
+
     this.#importing = true;
     this.#progress = { done: 0, total: files.length };
     this.#progressVisible = false;

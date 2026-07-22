@@ -30,6 +30,15 @@
     'TT-IMP-006': 'Không đọc được thẻ — dùng tên tệp',
     'TT-IMP-007': 'Thẻ bị lỗi mã hoá — dùng tên tệp',
     'TT-IMP-008': 'Quá nhiều mục trong thư mục thả vào',
+    // docs/06 §5. Without these the toast falls back to the bare "Đã bỏ qua",
+    // which is the one thing docs/01 §2 principle 5 exists to prevent: a link
+    // that vanished with no reason is what makes an importer feel broken.
+    'TT-YT-001': 'Chưa kiểm tra được — sẽ thử lại khi bắt đầu',
+    'TT-YT-002': 'Không phải link video YouTube',
+    'TT-YT-003': 'Vượt giới hạn 50 link',
+    'TT-YT-004': 'YouTube từ chối, không rõ lý do',
+    'TT-YT-100': 'Video đã xoá hoặc ở chế độ riêng tư',
+    'TT-YT-101': 'Chủ video không cho phép nhúng',
   };
 
   // Grouped by code: 40 files rejected for the same reason is one row saying
