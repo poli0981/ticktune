@@ -370,7 +370,12 @@ and its harness cannot produce a valid number until the `15 §S4` fixes land.
 Nothing in this slice changes that. P3 closes with a hard cut between tracks,
 which is correct until the number exists.
 
-## P4 — YouTube · **complete**, three slices, released as v0.5.0
+## P4 — YouTube · **CLOSED**, three slices · v0.5.0 → v0.5.2
+
+**Exit criterion met 2026-07-23**: `tests/manual/p4-live-checklist.md` was run
+against the deployed site, on Chrome and Firefox, including the `yt-matrix`
+block and the region-blocked id from a Vietnamese connection — the one row
+nobody else could run.
 
 Written across the phase rather than at the end, because a phase this long should
 not be reconstructed from commit messages later. Slices 1 and 2 were recorded
@@ -458,10 +463,42 @@ Also closed, and each one a promise the code was already making:
   never existed. The importer is strictly sequential, which is stricter than the
   doc promised, so the doc changed.
 
-**465 unit + component + worker tests, 76 E2E on Chromium, five gates green.**
 Every new assertion was mutation-checked — the bug it names re-introduced, the
 test confirmed red — because on this project a test that cannot fail is the
 thing being guarded against.
+
+### The live run, and the two patch releases it cost
+
+The checklist passed on **v0.5.0** except one line: *"turn your network off — the
+offline banner appears and Start is blocked"*. It did not.
+
+The banner was never broken. Forcing `navigator.onLine` to `false` on the live
+site raised it correctly and `online` cleared it. **The hint simply never
+flipped** — Chrome reports `onLine` from whether a network interface is up, not
+from whether anything is reachable. The corroboration was on the same checklist:
+the very next line passed, which means links *had* failed to import while the
+hint said connected.
+
+`06 §8` had already written the answer — *"`navigator.onLine` is a hint and is
+used as one; **the import result is the authority**"* — and only the hint was
+ever implemented. The same prose-only shape as everything else this phase.
+
+**v0.5.1** made `reachedEdge()` that authority. Its third state is the one worth
+naming: a batch that never touched the network (all malformed, all duplicates,
+all over-cap) proves **nothing**, which is not the same as offline — collapsing
+those two would raise the banner on a good connection.
+
+**v0.5.2** fixed what v0.5.1 broke. The banner blocks Start, and the re-check
+that clears it runs *after* Start — so on the very machine v0.5.1 was written
+for, the evidence could only be gathered by the one action the banner forbade.
+Found by testing the deploy, not by reading the diff. `§8` rejects a poll, so the
+user says when to try: the banner carries **Thử lại** whenever something is
+pending to re-check.
+
+⚠️ **The rule that earns:** when an action is gated on evidence, ask what
+gathers that evidence — and whether the gate forbids it.
+
+**511 unit + component + worker tests, 79 E2E on Chromium, five gates green.**
 
 ### Still owed after P4
 
@@ -470,7 +507,7 @@ thing being guarded against.
 | **The 60 req/min rule, and Bot Fight Mode, in the zone** | `10 §11`'s three unticked boxes are dashboard state, unobservable from this repository. `.github/SECURITY.md:43` publicly tells researchers that 429 on `/api/*` is out of scope, for a control nobody has confirmed is switched on |
 | **Focus mode's ToS carve-out, end to end** | `TtApp` passes `focusMode={false}` as a literal, so the branch cannot execute in production. The rail's markup and component tests are written and waiting. **A P5 exit item**, not a P4 gap |
 | The blurred thumbnail background | Unchanged: an open 🟠 audit finding whose ToS half was never read |
-| A re-check on **reconnect** | The natural trigger — Start — is now covered, and `navigator.onLine` is a hint rather than an authority (`06 §8`) |
+| A re-check on **reconnect** | There is no reliable reconnect signal to hang it on — that is the whole finding above. Start covers it, and **Thử lại** covers the case where the browser never notices |
 
 ⚠️ **The thumbnail background (`06 §6`, `03 §5`) is deliberately not built.** Its
 modified/decorative use of `hqdefault` rests on an **open 🟠 audit finding** that
