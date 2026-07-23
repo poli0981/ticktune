@@ -39,7 +39,23 @@ const importLinks = vi.fn<() => Promise<TtImportResult>>();
 vi.mock('../../src/app/engine/youtube/tt-yt-import', () => ({
   importLinks: () => importLinks(),
 }));
-vi.mock('../../src/app/engine/youtube/tt-yt-driver', () => ({ browserYtPorts: () => ({}) }));
+/**
+ * The re-check calls `lookup` directly, so it needs a real port rather than the
+ * empty object the import path was happy with.
+ */
+const lookup = vi.fn<(videoId: string) => Promise<unknown>>();
+const lookedUp: string[] = [];
+
+vi.mock('../../src/app/engine/youtube/tt-yt-driver', () => ({
+  browserYtPorts: () => ({
+    newId: () => 'generated',
+    now: () => 0,
+    lookup: (videoId: string) => {
+      lookedUp.push(videoId);
+      return lookup(videoId);
+    },
+  }),
+}));
 
 // The driver reaches for `document.createElement('audio')` and lazily imports
 // music-metadata; neither is the subject here.
@@ -88,6 +104,7 @@ beforeEach(async () => {
   vi.resetAllMocks();
   lastInput = null;
   lastPorts = null;
+  lookedUp.length = 0;
   ({ session } = await import('../../src/app/state/session.svelte'));
   ({ settings } = await import('../../src/app/state/settings.svelte'));
   ({ playback } = await import('../../src/app/state/playback.svelte'));
@@ -543,5 +560,152 @@ describe('patchTrack — the backfill writer docs/06 §2 always assumed', () => 
     session.advance();
     session.patchTrack('a', { durationMs: 5_000 });
     expect(session.currentId).toBe('b');
+  });
+});
+
+describe("recheckPending — docs/02 §1's promise, and the toast's", () => {
+  /**
+   * `02 §1` said "Re-checked on Start" from revision 1 and nothing implemented
+   * it, while `TtToast` rendered TT-YT-001 as *"Chưa kiểm tra được — sẽ thử lại
+   * khi bắt đầu"* to the user's face. `06 §8` recorded the honest reason:
+   * `start()` is synchronous because `05 §1`'s gesture chain is, so nobody had
+   * found a shape that fits. The shape is to run it AFTER Start returns.
+   */
+  const pending = (id: string, videoId: string): TtTrack =>
+    track(id, {
+      source: 'youtube',
+      status: 'pending',
+      title: '',
+      artist: '',
+      durationMs: null,
+      videoId,
+    });
+
+  const ok = (title: string, author: string) =>
+    Promise.resolve({ ok: true, meta: { title, author_name: author, thumbnail_url: null } });
+  const failed = (cause: string) => Promise.resolve({ ok: false, cause });
+
+  async function stageLinks(tracks: TtTrack[]): Promise<void> {
+    session.setMode('youtube');
+    importLinks.mockResolvedValueOnce(result(tracks));
+    await session.importLinks('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+  }
+
+  it('promotes a track that now resolves, and fills its blank metadata', async () => {
+    await stageLinks([pending('a', 'jNQXAC9IVRw')]);
+    lookup.mockReturnValueOnce(ok('Me at the zoo', 'jawed'));
+
+    await session.recheckPending();
+
+    expect(session.queue[0]?.status).toBe('ok');
+    expect(session.queue[0]?.title).toBe('Me at the zoo');
+    expect(session.queue[0]?.artist).toBe('jawed');
+  });
+
+  it('marks a track the video itself has broken, and drops it from the order', async () => {
+    await stageLinks([pending('a', 'jNQXAC9IVRw'), pending('b', '9bZkp7q19f0')]);
+    lookup.mockReturnValueOnce(failed('not_found')).mockReturnValueOnce(ok('fine', 'ch'));
+
+    await session.recheckPending();
+
+    expect(session.queue[0]?.status).toBe('error');
+    // `isPlayable` gates the order, and the strike-through row is already built
+    // — both were waiting for a writer that had no production caller.
+    expect(session.order).not.toContain('a');
+    expect(session.order).toContain('b');
+  });
+
+  it('leaves a still-transient track pending — one retry, not a spin', async () => {
+    await stageLinks([pending('a', 'jNQXAC9IVRw')]);
+    lookup.mockReturnValueOnce(failed('upstream_unreachable'));
+
+    await session.recheckPending();
+
+    expect(session.queue[0]?.status).toBe('pending');
+  });
+
+  it('never touches the track that is playing', async () => {
+    // Interfering with the current track is the one thing this must not do:
+    // marking it error would advance the cursor out from under the player.
+    await settings.patch({ shuffle: false });
+    await stageLinks([pending('a', 'jNQXAC9IVRw'), pending('b', '9bZkp7q19f0')]);
+    session.start();
+    expect(session.currentId).toBe('a');
+
+    lookup.mockReturnValue(failed('not_found'));
+    await session.recheckPending();
+
+    expect(lookedUp).toEqual(['9bZkp7q19f0']);
+    expect(session.queue[0]?.status).toBe('pending');
+    expect(session.queue[1]?.status).toBe('error');
+  });
+
+  it('looks up only pending tracks', async () => {
+    await stageLinks([
+      track('a', { source: 'youtube', videoId: 'AAAAAAAAAAA' }),
+      pending('b', '9bZkp7q19f0'),
+    ]);
+    lookup.mockReturnValue(ok('t', 'c'));
+
+    await session.recheckPending();
+    expect(lookedUp).toEqual(['9bZkp7q19f0']);
+  });
+
+  it('discards an answer for a track the user removed while it was in flight', async () => {
+    // The queue is live for the whole of this loop, and every answer arrives
+    // later than the row that asked for it.
+    await stageLinks([pending('a', 'jNQXAC9IVRw')]);
+    lookup.mockImplementationOnce(() => {
+      session.removeTrack('a');
+      return ok('too late', 'nobody');
+    });
+
+    await session.recheckPending();
+    expect(session.queue).toHaveLength(0);
+  });
+
+  it('does nothing at all when there is nothing pending', async () => {
+    await stageLinks([track('a', { source: 'youtube', videoId: 'AAAAAAAAAAA' })]);
+    await session.recheckPending();
+    expect(lookedUp).toEqual([]);
+  });
+
+  it('leaves a track the CURSOR reached while its answer was in flight', async () => {
+    // The filter at the top runs once; the loop then takes as long as the
+    // network does. Advancing onto track b mid-lookup and then marking it error
+    // would move the cursor out from under a player that had just cued it.
+    await settings.patch({ shuffle: false });
+    await stageLinks([pending('a', 'jNQXAC9IVRw'), pending('b', '9bZkp7q19f0')]);
+    session.start();
+    session.advance();
+    expect(session.currentId).toBe('b');
+    // Now un-seat back onto a, so the initial filter picks up b as a target…
+    session.jumpTo('a');
+
+    lookup.mockImplementationOnce(() => {
+      // …and the cursor arrives on b while a's answer is being fetched.
+      session.jumpTo('b');
+      return failed('not_found');
+    });
+    lookup.mockImplementationOnce(() => failed('not_found'));
+
+    await session.recheckPending();
+    expect(session.queue[1]?.status).toBe('pending');
+  });
+
+  it('discards an answer for a track whose status changed while in flight', async () => {
+    // Nothing else writes `status` mid-loop today, but the loop is the only
+    // place two writers could meet — the player marks a track it failed to
+    // play, and this marks one the edge failed to resolve.
+    await stageLinks([pending('a', 'jNQXAC9IVRw')]);
+    lookup.mockImplementationOnce(() => {
+      session.markTrackError('a');
+      return ok('resolved after all', 'channel');
+    });
+
+    await session.recheckPending();
+    // The later verdict does not un-break it.
+    expect(session.queue[0]?.status).toBe('error');
+    expect(session.queue[0]?.title).toBe('');
   });
 });
