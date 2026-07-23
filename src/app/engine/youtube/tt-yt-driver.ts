@@ -58,9 +58,17 @@ async function lookup(videoId: string): Promise<TtYtLookup> {
       },
     };
   } catch {
-    // A 200 that is not JSON is nobody's documented behaviour, so it gets the
-    // honest bucket rather than a guess.
-    return { ok: false, cause: 'unavailable' };
+    /*
+     * A 200 whose body will not parse did NOT come from our Worker — it always
+     * answers `application/json`, and this is the branch where it did not.
+     *
+     * The last hole in the rule `tt-yt-cause.ts` states for the `!res.ok` path.
+     * This used to return `unavailable`, which is non-transient, so a captive
+     * portal or a challenge page answering 200 rejected the track and told the
+     * user their video was unusable. Same evidence, same verdict as every other
+     * response we cannot attribute: transient, and the track survives.
+     */
+    return { ok: false, cause: 'upstream_unreachable' };
   }
 }
 

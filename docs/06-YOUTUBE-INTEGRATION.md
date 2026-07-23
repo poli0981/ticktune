@@ -39,7 +39,9 @@ call it. The static-assets Worker exposes:
 GET /api/yt/oembed?id=<videoId>
   → edge fetch https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=<id>&format=json
   → 200 {title, author_name, thumbnail_url}   (cached 6 h, caches.default)
-  → upstream not-ok passthrough {error:"unavailable"}  (cached 15 min)
+  → upstream not-ok passthrough, cause named in the body (see the table below)
+      · a verdict about the VIDEO (400/401/403/404) → cached 15 min
+      · a TRANSIENT verdict (429, 5xx)             → uncached, max-age=0
   → input fails ^[A-Za-z0-9_-]{11}$      → 400 {error:"invalid_id"}   (uncached)
   → upstream unreachable                 → 502 {error:"upstream_unreachable"} (uncached)
   → method is not GET                    → 405 {error:"method_not_allowed"}
@@ -70,8 +72,17 @@ along, and the status **is** the signal:
 | **403** | private / unlisted | `403 {"error":"private"}` | `yt.err.gone`, TT-YT-100 |
 | **401** | **embedding disabled by owner** | `401 {"error":"embed_off"}` | `yt.err.blocked`, TT-YT-101 |
 | **200** | exists and is listed — says nothing about whether it will *play* | 200 + metadata | continue; see `§4` |
-| **429** | our own edge rate limit, not YouTube's (`10 §6`) | passthrough `{"error":"rate_limited"}` | keep `status:'pending'`, TT-YT-001 |
+| **429** | our own edge rate limit, not YouTube's (`10 §6`) | passthrough `{"error":"rate_limited"}`, **uncached** | keep `status:'pending'`, TT-YT-001 |
+| **5xx** | oEmbed itself is having a bad minute | passthrough `{"error":"upstream_unreachable"}`, **uncached** | keep `status:'pending'`, TT-YT-001 |
 | network failure | edge could not reach YouTube | `502 {"error":"upstream_unreachable"}` | keep `status:'pending'`, TT-YT-001 |
+
+⚠️ **Corrected 2026-07-23.** A 5xx used to fall through to `unavailable`, which
+`§5` treats as non-transient — so a YouTube outage did not fail an import, it
+**rejected every pasted link**, and the 15-minute error cache then held that
+verdict against a retry the user could not bypass. Two rules now hold together:
+a status is only a cause if our own endpoint produced it (already true for the
+`!res.ok` path, and true since this correction for an unparseable **200** as
+well), and a cause we cannot attribute to the video is never cached.
 
 ✅ **Both Worker changes landed in P4** (S1 having passed, the scope rule
 released them):
