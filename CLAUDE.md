@@ -101,20 +101,29 @@ the late-finish Finished screen.
 **P3 shipped as v0.4.0** (2026-07-22, live). Playlist plays a queue, reorders by
 pointer drag and `Alt+↑/↓`, has `TtContextMenu` and an import progress bar.
 
-**P4 — YouTube is COMPLETE (3/3 slices).** Slice 1 turns pasted links into a
-validated queue; slice 2 plays them; slice 3 closed the phase. **465 unit +
-component + worker tests, 76 E2E on Chromium, five gates green.** Exit review in
-`docs/16 §P4`.
+**P4 — YouTube is CLOSED (3/3 slices), live as v0.5.2.** The exit criterion —
+`tests/manual/p4-live-checklist.md` against the deployed site, including the
+`yt-matrix` block and the region-blocked id from a Vietnamese connection — was
+**run and passed on 2026-07-23**. **511 unit + component + worker tests, 79 E2E
+on Chromium, five gates green.** Exit review in `docs/16 §P4`.
 
-⚠️ **Slice 3's finding, and the lesson worth carrying:** YouTube playback did
-**not work at all** — the first Start cued nothing and the app never contacted
-Google, because `onStart` is synchronous while the rail mounts a microtask later.
-Three more wiring defects sat beside it (Stop → Start left a dead player; ⏭,
-Stop and Về thiết lập stopped the wrong engine; the whole End Behavior was dead
-for returning users). **The values and the engines were all correct.** After nine
-"declared but never written" *fields*, this phase's bugs were the layer above:
-wiring between correct parts, which no engine test can see. That is what the new
-E2E tier exists for — reverting the four fixes turns 15 of its 26 specs red.
+⚠️ **The lesson worth carrying, and it recurred three times:** YouTube playback
+did **not work at all** — the first Start cued nothing and the app never
+contacted Google, because `onStart` is synchronous while the rail mounts a
+microtask later. Three more wiring defects sat beside it (Stop → Start left a
+dead player; ⏭, Stop and Về thiết lập stopped the wrong engine; the whole End
+Behavior was dead for returning users). **The values and the engines were all
+correct.** After nine "declared but never written" *fields*, this phase's bugs
+were the layer above: wiring between correct parts, which no engine test can see.
+That is what the E2E tier exists for — reverting the four fixes turns 15 of its
+specs red.
+
+It then happened twice more, in the patch releases: the offline banner never
+appeared because `navigator.onLine` never flipped (`06 §8` had already said the
+import result is the authority — prose only), and the fix for THAT deadlocked
+Start, because the banner blocked the only action that could gather the evidence
+to clear it. **When an action is gated on evidence, ask what gathers that
+evidence and whether the gate forbids it.**
 
 **Spike S1 PASSED** and rewrote `docs/02 §6`, `03 §2`, `06 §3` and `06 §4`. Its
 load-bearing result: **`onError` does not discriminate** — private,
@@ -186,12 +195,17 @@ mechanism measured — hand-mount wins (`docs/01 §3`).
 
 Open items, in the order they block things:
 
-1. **Run `tests/manual/p4-live-checklist.md` against the deployed v0.5.0.** The
-   P4 exit criterion, and it cannot be run any earlier: `astro preview` and
-   `astro dev` do not run the Worker, so `/api/yt/oembed` falls through to the
-   static 404 and every link reports a network problem. One row — the
-   region-blocked id — needs a Vietnamese connection with no VPN and cannot be
-   delegated.
+1. **P5 is next** — `docs/16` has the scope. Two things P4 deliberately handed
+   forward and both are P5 **exit** items, not new work: **Focus mode** (`TtApp`
+   passes `focusMode={false}` as a literal, so `docs/03 §2`'s ToS carve-out
+   cannot execute in production — its markup and component tests are written and
+   waiting for a real prop and an E2E), and the **i18n dictionaries**, without
+   which every shipped string stays a hardcoded VI literal and the CI diff-guard
+   does not exist.
+
+   ⚠️ **A release is not done until the live checklist is run.** P4's found a
+   real bug on the first line nobody expected — and it can only be run against a
+   TAG, because neither `astro dev` nor `astro preview` runs the Worker.
 
    Settled decisions, not to be re-litigated: **crossfade deferred** (ship
    `singleLoopStyle: 'hard'`; a stored `'crossfade'` falls back with

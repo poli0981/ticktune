@@ -15,6 +15,20 @@ preview` and `astro dev` the Worker does not run at all, so `/api/yt/oembed`
 falls through to the static 404 page and every link is reported as a network
 problem. The site is the only place this is testable.
 
+## ✅ RUN 2026-07-23 — **P4's exit criterion is met**
+
+Run by the user against the deployed site, Chrome and Firefox, including the
+`yt-matrix` block and the region-blocked id from a Vietnamese connection.
+
+**One line failed: the offline banner.** It is kept below with its finding
+rather than quietly ticked, because what it exposed is the useful part —
+`navigator.onLine` never flipped, and `06 §8`'s "the import result is the
+authority" had been prose since the section was written. Fixed in **v0.5.1**;
+that fix then deadlocked Start, found by testing the deploy, fixed in
+**v0.5.2**; re-run and passed there.
+
+Everything else passed first time, on **v0.5.0**.
+
 ## Blocking — a failure here means don't announce
 
 - [x] **The YouTube tab is there and switching to it hides the drop zone.** A
@@ -104,16 +118,11 @@ earlier run explains some disagreements and a real bug explains the rest.
 - [x] Paste `youtu.be/`, `shorts/`, `live/` and `music.youtube.com` forms → all
       accepted as the same video.
 - [x] **Turn your network off, then on.** The offline banner appears and Start is
-      blocked with the reason stated; the banner clears by itself on reconnect.
-      🔴 **FAILED on the v0.5.0 run — "Banner not show" — and fixed in v0.5.1.**
-      The render path was fine (measured: forcing `navigator.onLine` false made
-      the banner appear correctly). The hint itself never flipped: Chrome reports
-      `onLine` from whether an interface is up, not from whether anything is
-      reachable. `06 §8` had always said the import result is the authority and
-      only the hint was implemented. **Re-test on v0.5.1**, and note that a
-      queue where nothing reached the edge now blocks Start too — and the
-      banner then carries a **Thử lại** button, which is the only way out on a
-      machine whose `navigator.onLine` never flips (v0.5.2).
+      blocked with the reason stated; the banner clears when the connection is
+      back — by itself if the browser notices, and via **Thử lại** if it does
+      not. Also: a queue where nothing reached the edge blocks Start.
+      🔴 **This is the one line the v0.5.0 run failed** — *"Banner not show"* —
+      and the two patch releases below exist because of it. ✅ Passed on v0.5.2.
 - [x] **Import while offline, reconnect, then press Bắt đầu.** The rows that
       imported as `N/A / N/A` gain their real title and channel a moment after
       Start — that is the re-check the toast has always promised and never did.
