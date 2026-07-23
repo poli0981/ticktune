@@ -1,5 +1,6 @@
 <script lang="ts">
   import TtDropZone from './TtDropZone.svelte';
+  import { i18n } from '../state/i18n.svelte';
   import TtQueuePanel from './TtQueuePanel.svelte';
   import TtToast from './TtToast.svelte';
   import { positionText } from '../engine/importer/tt-track-display';
@@ -63,14 +64,14 @@
     Switching mode never touches the queue — docs/03 §3: readiness is a
     predicate, so an invalid queue just re-disables Start with its reason shown.
   -->
-  <div class="tt-tabs" role="tablist" aria-label="Chế độ">
+  <div class="tt-tabs" role="tablist" aria-label={i18n.t('setup.mode.label')}>
     <button
       role="tab"
       aria-selected={single}
       class="tt-tab"
       class:tt-tab-on={single}
       data-testid="tt-tab-single"
-      onclick={() => session.setMode('single')}>Một bài</button
+      onclick={() => session.setMode('single')}>{i18n.t('setup.mode.single')}</button
     >
     <button
       role="tab"
@@ -78,7 +79,7 @@
       class="tt-tab"
       class:tt-tab-on={playlist}
       data-testid="tt-tab-playlist"
-      onclick={() => session.setMode('playlist')}>Danh sách</button
+      onclick={() => session.setMode('playlist')}>{i18n.t('setup.mode.playlist')}</button
     >
     <button
       role="tab"
@@ -86,7 +87,7 @@
       class="tt-tab"
       class:tt-tab-on={youtube}
       data-testid="tt-tab-youtube"
-      onclick={() => session.setMode('youtube')}>YouTube</button
+      onclick={() => session.setMode('youtube')}>{i18n.t('setup.mode.youtube')}</button
     >
   </div>
 
@@ -96,9 +97,9 @@
   -->
   {#if !session.online}
     <p class="tt-offline" role="status" data-testid="tt-offline">
-      Mất kết nối mạng.{youtube
-        ? ' Chế độ YouTube cần mạng để phát.'
-        : ' Nhạc trong máy vẫn phát bình thường.'}
+      {i18n.t('setup.offline.title')}{youtube
+        ? i18n.t('setup.offline.youtube')
+        : i18n.t('setup.offline.local')}
       <!--
         The way out, and it has to exist.
 
@@ -116,7 +117,7 @@
           type="button"
           class="tt-retry"
           data-testid="tt-offline-retry"
-          onclick={() => void session.recheckPending()}>Thử lại</button
+          onclick={() => void session.recheckPending()}>{i18n.t('setup.offline.retry')}</button
         >
       {/if}
     </p>
@@ -129,7 +130,7 @@
     -->
     <div class="tt-links">
       <label>
-        <span>Dán link YouTube — mỗi dòng một link</span>
+        <span>{i18n.t('yt.setup.paste.label')}</span>
         <textarea
           bind:value={links}
           rows="4"
@@ -144,7 +145,7 @@
           const text = links;
           links = '';
           void session.importLinks(text);
-        }}>Thêm vào danh sách</button
+        }}>{i18n.t('yt.setup.paste.submit')}</button
       >
     </div>
   {:else}
@@ -166,7 +167,7 @@
         <button
           class="tt-remove"
           data-testid="tt-remove-track"
-          onclick={() => session.removeTrack(track.id)}>Bỏ</button
+          onclick={() => session.removeTrack(track.id)}>{i18n.t('setup.staged.remove')}</button
         >
       </div>
     {/if}
@@ -202,9 +203,14 @@
       <progress
         max={session.progress.total}
         value={session.progress.done}
-        aria-label="Đang nhập tệp"
+        aria-label={i18n.t('setup.progress.label')}
       ></progress>
-      <span>Đang nhập {session.progress.done}/{session.progress.total}</span>
+      <span>
+        {i18n.t('setup.progress.text', {
+          done: session.progress.done,
+          total: session.progress.total,
+        })}
+      </span>
     </div>
   {/if}
 
@@ -215,7 +221,7 @@
   <div class="tt-countdown-input">
     <div class="tt-hms">
       <label>
-        <span>giờ</span>
+        <span>{i18n.t('setup.countdown.hours')}</span>
         <input
           type="number"
           min="0"
@@ -225,7 +231,7 @@
         />
       </label>
       <label>
-        <span>phút</span>
+        <span>{i18n.t('setup.countdown.minutes')}</span>
         <input
           type="number"
           min="0"
@@ -235,7 +241,7 @@
         />
       </label>
       <label>
-        <span>giây</span>
+        <span>{i18n.t('setup.countdown.seconds')}</span>
         <input
           type="number"
           min="0"
@@ -259,16 +265,17 @@
         class="tt-preset tt-match"
         data-testid="tt-match-length"
         disabled={session.matchableMs === null}
-        title={session.matchableMs === null
-          ? 'Cần biết thời lượng của mọi bài trong danh sách'
-          : ''}
-        onclick={() => setFromMs(session.matchableMs ?? 0)}>Khớp độ dài</button
+        title={session.matchableMs === null ? i18n.t('setup.countdown.matchLocked') : ''}
+        onclick={() => setFromMs(session.matchableMs ?? 0)}
+        >{i18n.t('setup.countdown.match')}</button
       >
     </div>
   </div>
 
   <div class="tt-actions">
-    <button class="tt-btn" disabled={!session.canStart} onclick={onstart}>Bắt đầu</button>
+    <button class="tt-btn" disabled={!session.canStart} onclick={onstart}
+      >{i18n.t('setup.start')}</button
+    >
     {#if debug}
       <!-- docs/15 §S2: cases 4-7 are still unrun and the silent case is
            audio-free by definition, so the harness keeps a way past the queue
@@ -282,17 +289,17 @@
   {#if !session.canStart}
     <p class="tt-why" data-testid="tt-start-hint">
       {#if !track}
-        Chọn {single ? 'một tệp nhạc' : 'ít nhất một tệp nhạc'} để bắt đầu.
+        {single ? i18n.t('setup.hint.single') : i18n.t('setup.hint.playlist')}
       {:else if !session.countdownInRange}
-        Đếm ngược phải từ 1 giây đến 24 giờ.
+        {i18n.t('setup.hint.range')}
       {:else if youtube && !session.online}
-        Cần kết nối mạng để phát video YouTube.
+        {i18n.t('setup.hint.youtubeOffline')}
       {:else if single && session.queue.length > 1}
         <!-- Playlist → Single with several tracks staged. docs/03 §3 keeps the
              queue and says why, rather than truncating the user's work. -->
-        Chế độ Một bài chỉ nhận đúng một tệp — bỏ bớt hoặc quay lại Danh sách.
+        {i18n.t('setup.hint.singleOnly')}
       {:else}
-        Tệp đang chọn không phát được.
+        {i18n.t('setup.hint.unplayable')}
       {/if}
     </p>
   {/if}

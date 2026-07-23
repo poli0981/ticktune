@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { i18n } from '../state/i18n.svelte';
   import { TT_LEGAL_LINKS, TT_LEGAL_VERSION } from '../../lib/tt-legal-const';
 
   /**
@@ -45,36 +46,49 @@
       <h1 id="tt-gate-title" class="text-lg font-semibold tracking-wide">TickTune</h1>
     </div>
 
-    <p class="mb-3 text-sm">Trước khi bắt đầu, vui lòng đọc và đồng ý:</p>
+    <p class="mb-3 text-sm">{i18n.t('gate.intro')}</p>
 
     <ul class="text-tt-muted mb-4 space-y-1.5 text-sm">
       <li>
-        <strong class="text-tt-text">Nhạc của bạn không rời khỏi máy.</strong> Tệp được giữ trong bộ nhớ
-        của trình duyệt cho phiên hiện tại và không được tải lên bất kỳ máy chủ nào.
+        <strong class="text-tt-text">{i18n.t('gate.point.files')}</strong>{i18n.t(
+          'gate.point.filesRest',
+        )}
       </li>
       <li>
-        <strong class="text-tt-text">Bạn chịu trách nhiệm về nội dung mình mở.</strong> TickTune không
-        kiểm duyệt và không lưu trữ nội dung đó.
+        <strong class="text-tt-text">{i18n.t('gate.point.responsibility')}</strong>{i18n.t(
+          'gate.point.responsibilityRest',
+        )}
       </li>
       <li>
-        <strong class="text-tt-text">Chế độ YouTube dùng trình phát chính thức</strong> của YouTube; khi
-        dùng, bạn cũng chịu ràng buộc bởi điều khoản của YouTube và Google.
+        <strong class="text-tt-text">{i18n.t('gate.point.youtube')}</strong>{i18n.t(
+          'gate.point.youtubeRest',
+        )}
       </li>
-      <li>Phần mềm cung cấp "NGUYÊN TRẠNG", không bảo hành.</li>
+      <li>{i18n.t('gate.point.asIs')}</li>
     </ul>
 
     <p class="text-tt-muted mb-4 text-xs">
-      Toàn văn:
-      <a href={TT_LEGAL_LINKS.eula} rel="noopener noreferrer" target="_blank">Điều khoản</a> ·
-      <a href={TT_LEGAL_LINKS.disclaimer} rel="noopener noreferrer" target="_blank">Miễn trừ</a> ·
-      <a href={TT_LEGAL_LINKS.privacy} rel="noopener noreferrer" target="_blank">Quyền riêng tư</a>
+      {i18n.t('gate.full')}
+      <a href={TT_LEGAL_LINKS.eula} rel="noopener noreferrer" target="_blank"
+        >{i18n.t('gate.link.eula')}</a
+      >
       ·
-      <a href={TT_LEGAL_LINKS.thirdParty} rel="noopener noreferrer" target="_blank">Bên thứ ba</a>
+      <a href={TT_LEGAL_LINKS.disclaimer} rel="noopener noreferrer" target="_blank"
+        >{i18n.t('gate.link.disclaimer')}</a
+      >
+      ·
+      <a href={TT_LEGAL_LINKS.privacy} rel="noopener noreferrer" target="_blank"
+        >{i18n.t('gate.link.privacy')}</a
+      >
+      ·
+      <a href={TT_LEGAL_LINKS.thirdParty} rel="noopener noreferrer" target="_blank"
+        >{i18n.t('gate.link.thirdParty')}</a
+      >
     </p>
 
     <label class="mb-4 flex cursor-pointer items-start gap-2 text-sm">
       <input type="checkbox" bind:checked={agreed} class="mt-0.5" data-testid="tt-gate-agree" />
-      <span>Tôi đã đọc và đồng ý với các điều khoản trên.</span>
+      <span>{i18n.t('gate.agree')}</span>
     </label>
 
     <button
@@ -83,11 +97,11 @@
       data-testid="tt-gate-accept"
       onclick={() => onaccept(TT_LEGAL_VERSION)}
     >
-      Đồng ý và tiếp tục
+      {i18n.t('gate.accept')}
     </button>
 
     <p class="text-tt-muted mt-3 text-center font-mono text-[10px]">
-      v{TT_LEGAL_VERSION} · lưu cục bộ trên máy bạn
+      v{TT_LEGAL_VERSION} · {i18n.t('gate.stored')}
     </p>
   </div>
 </div>

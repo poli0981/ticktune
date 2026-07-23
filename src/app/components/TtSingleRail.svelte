@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { i18n } from '../state/i18n.svelte';
   import { positionText, text } from '../engine/importer/tt-track-display';
   import type { TtTrack } from '../engine/importer/types';
 
@@ -24,19 +25,21 @@
 </script>
 
 <aside class="tt-rail" data-testid="tt-rail">
-  <div class="tt-badge">MỘT BÀI</div>
+  <div class="tt-badge">{i18n.t('player.badge.single')}</div>
 
-  <div class="tt-loop" data-testid="tt-loop-count">Loop ×{loops}</div>
+  <div class="tt-loop" data-testid="tt-loop-count">
+    {i18n.t('player.loop.count', { count: loops })}
+  </div>
 
-  <div class="tt-loop-style" role="group" aria-label="Kiểu lặp">
-    <button class="tt-style tt-style-on" aria-pressed="true">Cắt thẳng</button>
+  <div class="tt-loop-style" role="group" aria-label={i18n.t('player.loop.label')}>
+    <button class="tt-style tt-style-on" aria-pressed="true">{i18n.t('player.loop.hard')}</button>
     <button
       class="tt-style"
       aria-pressed="false"
       disabled={!crossfadeAvailable}
       aria-disabled={!crossfadeAvailable}
-      title={crossfadeAvailable ? '' : 'Chờ đo đạc spike S4b'}
-      data-testid="tt-crossfade-toggle">Chuyển mềm</button
+      title={crossfadeAvailable ? '' : i18n.t('player.loop.locked')}
+      data-testid="tt-crossfade-toggle">{i18n.t('player.loop.crossfade')}</button
     >
   </div>
 
@@ -65,7 +68,7 @@
       <span>{text(track.artist)}</span>
       <span class="tt-dur">{positionText(track.durationMs)}</span>
     </button>
-    <p class="tt-hint">Chuột phải để xem thông tin</p>
+    <p class="tt-hint">{i18n.t('player.loop.hint')}</p>
   {/if}
 </aside>
 

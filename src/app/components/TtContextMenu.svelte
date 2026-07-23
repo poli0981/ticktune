@@ -22,6 +22,8 @@
     danger?: boolean;
   }
 
+  import { i18n } from '../state/i18n.svelte';
+
   interface Props {
     items: TtMenuItem[];
     /** Viewport coordinates of the click, or of the focused row for keyboard. */
@@ -114,7 +116,7 @@
   class="tt-menu"
   role="menu"
   tabindex="-1"
-  aria-label="Tuỳ chọn bài"
+  aria-label={i18n.t('player.menu.label')}
   data-testid="tt-context-menu"
   style="left: {pos.left}px; top: {pos.top}px;"
   onkeydown={onKeydown}

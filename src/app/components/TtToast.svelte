@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { TtImportResult } from '../engine/importer/types';
+  import { i18n, type TtKey } from '../state/i18n.svelte';
 
   /**
    * The import summary toast — docs/02 §4 ("Added 12 · Skipped 3") plus one row
@@ -21,26 +22,6 @@
 
   const { result, ondismiss }: Props = $props();
 
-  const MESSAGES: Record<string, string> = {
-    'TT-IMP-001': 'Định dạng không được hỗ trợ',
-    'TT-IMP-002': 'Dài hơn giới hạn 10:02',
-    'TT-IMP-003': 'Vượt tổng thời lượng 91:00',
-    'TT-IMP-004': 'Vượt số lượng cho phép',
-    'TT-IMP-005': 'Trùng với tệp đã có',
-    'TT-IMP-006': 'Không đọc được thẻ — dùng tên tệp',
-    'TT-IMP-007': 'Thẻ bị lỗi mã hoá — dùng tên tệp',
-    'TT-IMP-008': 'Quá nhiều mục trong thư mục thả vào',
-    // docs/06 §5. Without these the toast falls back to the bare "Đã bỏ qua",
-    // which is the one thing docs/01 §2 principle 5 exists to prevent: a link
-    // that vanished with no reason is what makes an importer feel broken.
-    'TT-YT-001': 'Chưa kiểm tra được — sẽ thử lại khi bắt đầu',
-    'TT-YT-002': 'Không phải link video YouTube',
-    'TT-YT-003': 'Vượt giới hạn 50 link',
-    'TT-YT-004': 'YouTube từ chối, không rõ lý do',
-    'TT-YT-100': 'Video đã xoá hoặc ở chế độ riêng tư',
-    'TT-YT-101': 'Chủ video không cho phép nhúng',
-  };
-
   // Grouped by code: 40 files rejected for the same reason is one row saying
   // "×40", not forty rows the user has to scroll past.
   //
@@ -49,6 +30,24 @@
   // reactive in runes mode, so one used as state would silently fail to update.
   // Here it is local to a derivation, but the rule cannot know that, and the
   // object form is just as clear.
+  /**
+   * A code's message — docs/08 §3.1 files these as `toast.import.*`.
+   *
+   * The `Record<string, string>` of Vietnamese that stood here WAS a dictionary,
+   * keyed by log code; moving it into the JSON removes a copy rather than adding
+   * a layer. This is the app's one lookup that cannot be a literal — the code
+   * arrives from the import pipeline at runtime — which is why `i18n.has` exists
+   * and why these keys are listed as indirect callers in the key guard.
+   *
+   * A code with no filed key still gets a sentence, never its own id: docs/01 §2
+   * principle 5, "a file that vanished with no reason is what makes an importer
+   * feel broken".
+   */
+  function message(code: string): string {
+    const key = `toast.import.${code}`;
+    return i18n.has(key) ? i18n.t(key as TtKey) : i18n.t('toast.skipped');
+  }
+
   const groups = $derived.by(() => {
     const counts: Record<string, number> = {};
     for (const s of [...result.skipped, ...result.notes]) {
@@ -60,7 +59,7 @@
 
 <div class="tt-toast" role="status" data-testid="tt-toast">
   <p class="tt-summary">
-    Đã thêm {result.added.length} · Bỏ qua {result.skipped.length}
+    {i18n.t('toast.summary', { added: result.added.length, skipped: result.skipped.length })}
   </p>
 
   {#if groups.length}
@@ -68,14 +67,16 @@
       {#each groups as [code, count] (code)}
         <li data-tt-code={code}>
           <code>{code}</code>
-          <span>{MESSAGES[code] ?? 'Đã bỏ qua'}</span>
+          <span>{message(code)}</span>
           {#if count > 1}<span class="tt-count">×{count}</span>{/if}
         </li>
       {/each}
     </ul>
   {/if}
 
-  <button class="tt-dismiss" onclick={ondismiss} data-testid="tt-toast-dismiss">Đóng</button>
+  <button class="tt-dismiss" onclick={ondismiss} data-testid="tt-toast-dismiss"
+    >{i18n.t('toast.dismiss')}</button
+  >
 </div>
 
 <style>

@@ -1,5 +1,6 @@
 <script lang="ts">
   import TtQueuePanel from './TtQueuePanel.svelte';
+  import { i18n, type TtKey } from '../state/i18n.svelte';
   import { YT_HEIGHT, YT_WIDTH } from '../engine/youtube/tt-yt-player-driver';
   import type { TtYtOverlayState } from '../engine/youtube/tt-yt-player';
   import type { TtTrack } from '../engine/importer/types';
@@ -73,22 +74,17 @@
     onmove,
   }: Props = $props();
 
-  /** Hardcoded VI until P5 — keys filed in docs/08 §3.1 with the rest. */
-  const TITLES: Record<TtYtOverlayState['key'], string> = {
-    'yt.err.blocked': 'Không phát nhúng được',
-    'yt.err.gone': 'Video không còn nữa',
-    'yt.err.invalid': 'Link không hợp lệ',
-    'yt.err.player': 'Trình phát gặp lỗi',
-  };
-
-  const CAUSES: Record<TtYtOverlayState['key'], string> = {
-    // The wording S1 forced: age-restricted and region-blocked are identical
-    // from the outside, so naming one would be a guess stated as a fact.
-    'yt.err.blocked': 'Chủ video tắt nhúng, hoặc video giới hạn tuổi / chặn theo khu vực.',
-    'yt.err.gone': 'Video đã bị xoá hoặc chuyển sang riêng tư.',
-    'yt.err.invalid': 'YouTube không nhận tham số này.',
-    'yt.err.player': 'Trình phát HTML5 báo lỗi.',
-  };
+  /*
+   * The overlay's `key` IS the dictionary stem — `tt-yt-player.ts` has typed it
+   * that way since P4 ("i18n key stem. Hardcoded VI until P5"). So the two
+   * `Record` maps that stood here were a dictionary in disguise, and P5 deletes
+   * them rather than translating them: one lookup, no second list to drift.
+   *
+   * These are the keys the guard lists as indirect callers — a stem plus a
+   * suffix is not something a grep for `t('literal')` can see.
+   */
+  const title = $derived(overlay ? i18n.t(`${overlay.key}.title` as TtKey) : '');
+  const cause = $derived(overlay ? i18n.t(`${overlay.key}.cause` as TtKey) : '');
 
   let mount = $state<HTMLDivElement | null>(null);
   $effect(() => {
@@ -97,7 +93,7 @@
 </script>
 
 <aside class="tt-rail" class:tt-focus={focusMode} data-testid="tt-yt-rail">
-  <div class="tt-badge">YOUTUBE</div>
+  <div class="tt-badge">{i18n.t('player.badge.youtube')}</div>
 
   <!--
     The player slot. Fixed pixel size on purpose: docs/06 §1.2 is a ToS
@@ -118,8 +114,8 @@
         failed video looking like a frozen player.
       -->
       <div class="tt-overlay" role="alert" data-testid="tt-yt-overlay" data-tt-key={overlay.key}>
-        <strong>{TITLES[overlay.key]}</strong>
-        <p>{CAUSES[overlay.key]}</p>
+        <strong>{title}</strong>
+        <p>{cause}</p>
         <!--
           docs/06 §4 lists FIVE parts and this was the missing one: without the
           countdown the card sat still and then vanished, which reads as the app
@@ -131,10 +127,10 @@
         -->
         {#if skipInSeconds !== null}
           <p class="tt-skip-in" data-testid="tt-yt-skip-in">
-            Tự bỏ qua sau {skipInSeconds}s
+            {i18n.t('yt.err.skipIn', { seconds: skipInSeconds })}
           </p>
         {/if}
-        <button data-testid="tt-yt-skip" onclick={onskip}>Bỏ qua ngay</button>
+        <button data-testid="tt-yt-skip" onclick={onskip}>{i18n.t('yt.err.skip')}</button>
         <!--
           `ambiguous` was declared with a paragraph of rationale, written on all
           four branches, and read by nothing — the coverArtUrl shape in
@@ -143,7 +139,7 @@
           outside), so it earns a mark the three definite ones do not get.
         -->
         <code data-tt-ambiguous={overlay.ambiguous ? '1' : null}>
-          {overlay.code}{overlay.ambiguous ? ' · chưa rõ nguyên nhân' : ''}
+          {overlay.code}{overlay.ambiguous ? i18n.t('yt.err.ambiguous') : ''}
         </code>
       </div>
     {/if}

@@ -18,7 +18,7 @@ TickTune's own code: **GPL-3.0-only** — © 2026 poli0981.
 | Motion | MIT | animation (from P5; not yet installed) |
 | music-metadata | MIT | audio tag parsing |
 | Dexie.js | Apache-2.0 | IndexedDB wrapper (Apache-2.0 code combined into a GPL-3.0 project — one-way compatible) |
-| i18next | MIT | i18n runtime (from P5; not yet installed) |
+| i18next | MIT | i18n runtime (26.3.6, installed in P5) |
 | DSEG7 Classic (font) | SIL OFL 1.1 | © 2017 keshikan (http://www.keshikan.net), **Reserved Font Name "DSEG"**. v0.46, vendored unmodified; the full licence ships with the build as `public/fonts/dseg7/OFL.txt` (OFL §2 requires it to accompany the font). Provenance and SHA-256 hashes: `public/fonts/dseg7/PROVENANCE.md`. The reserved name means the file must not be subset or regenerated while keeping the name — a derivative must be renamed. |
 | Be Vietnam Pro (font) | SIL OFL 1.1 | via @fontsource package (packaging MIT) |
 | JetBrains Mono (font) | SIL OFL 1.1 | via @fontsource package (packaging MIT) |

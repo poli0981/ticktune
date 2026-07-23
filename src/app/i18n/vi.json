@@ -1,0 +1,206 @@
+{
+  "gate": {
+    "intro": "Trước khi bắt đầu, vui lòng đọc và đồng ý:",
+    "point": {
+      "files": "Nhạc của bạn không rời khỏi máy.",
+      "filesRest": " Tệp được giữ trong bộ nhớ của trình duyệt cho phiên hiện tại và không được tải lên bất kỳ máy chủ nào.",
+      "responsibility": "Bạn chịu trách nhiệm về nội dung mình mở.",
+      "responsibilityRest": " TickTune không kiểm duyệt và không lưu trữ nội dung đó.",
+      "youtube": "Chế độ YouTube dùng trình phát chính thức",
+      "youtubeRest": " của YouTube; khi dùng, bạn cũng chịu ràng buộc bởi điều khoản của YouTube và Google.",
+      "asIs": "Phần mềm cung cấp \"NGUYÊN TRẠNG\", không bảo hành."
+    },
+    "full": "Toàn văn:",
+    "link": {
+      "eula": "Điều khoản",
+      "disclaimer": "Miễn trừ",
+      "privacy": "Quyền riêng tư",
+      "thirdParty": "Bên thứ ba"
+    },
+    "agree": "Tôi đã đọc và đồng ý với các điều khoản trên.",
+    "accept": "Đồng ý và tiếp tục",
+    "stored": "lưu cục bộ trên máy bạn"
+  },
+  "setup": {
+    "mode": {
+      "label": "Chế độ",
+      "single": "Một bài",
+      "playlist": "Danh sách",
+      "youtube": "YouTube"
+    },
+    "offline": {
+      "title": "Mất kết nối mạng.",
+      "youtube": " Chế độ YouTube cần mạng để phát.",
+      "local": " Nhạc trong máy vẫn phát bình thường.",
+      "retry": "Thử lại"
+    },
+    "drop": {
+      "hint": "MP3 · M4A · AAC · FLAC · WAV · OGG · Opus · WebM — tối đa 10:02"
+    },
+    "staged": {
+      "remove": "Bỏ"
+    },
+    "progress": {
+      "label": "Đang nhập tệp",
+      "text": "Đang nhập {{done}}/{{total}}"
+    },
+    "countdown": {
+      "hours": "giờ",
+      "minutes": "phút",
+      "seconds": "giây",
+      "match": "Khớp độ dài",
+      "matchLocked": "Cần biết thời lượng của mọi bài trong danh sách"
+    },
+    "start": "Bắt đầu",
+    "hint": {
+      "single": "Chọn một tệp nhạc để bắt đầu.",
+      "playlist": "Chọn ít nhất một tệp nhạc để bắt đầu.",
+      "youtubeOffline": "Cần kết nối mạng để phát video YouTube.",
+      "range": "Đếm ngược phải từ 1 giây đến 24 giờ.",
+      "singleOnly": "Chế độ Một bài chỉ nhận đúng một tệp — bỏ bớt hoặc quay lại Danh sách.",
+      "unplayable": "Tệp đang chọn không phát được."
+    }
+  },
+  "yt": {
+    "setup": {
+      "paste": {
+        "label": "Dán link YouTube — mỗi dòng một link",
+        "submit": "Thêm vào danh sách"
+      }
+    },
+    "err": {
+      "skip": "Bỏ qua ngay",
+      "skipIn": "Tự bỏ qua sau {{seconds}}s",
+      "ambiguous": " · chưa rõ nguyên nhân",
+      "blocked": {
+        "title": "Không phát nhúng được",
+        "cause": "Chủ video tắt nhúng, hoặc video giới hạn tuổi / chặn theo khu vực."
+      },
+      "gone": {
+        "title": "Video không còn nữa",
+        "cause": "Video đã bị xoá hoặc chuyển sang riêng tư."
+      },
+      "invalid": {
+        "title": "Link không hợp lệ",
+        "cause": "YouTube không nhận tham số này."
+      },
+      "player": {
+        "title": "Trình phát gặp lỗi",
+        "cause": "Trình phát HTML5 báo lỗi."
+      }
+    }
+  },
+  "player": {
+    "transport": {
+      "prev": "Bài trước",
+      "play": "Phát",
+      "pause": "Tạm dừng",
+      "next": "Bài sau",
+      "stop": "Dừng hẳn",
+      "mute": "Tắt tiếng",
+      "volume": "Âm lượng"
+    },
+    "loop": {
+      "label": "Kiểu lặp",
+      "count": "Loop ×{{count}}",
+      "hard": "Cắt thẳng",
+      "crossfade": "Chuyển mềm",
+      "locked": "Chờ đo đạc spike S4b",
+      "hint": "Chuột phải để xem thông tin"
+    },
+    "queue": {
+      "label": "Phát lại",
+      "shuffle": "Trộn",
+      "repeat": "Lặp lại",
+      "empty": "Chưa có bài nào.",
+      "ended": "Đã hết danh sách",
+      "totals": "{{count}} bài",
+      "drag": "Kéo để đổi thứ tự {{title}}",
+      "remove": "Bỏ {{title}}",
+      "moved": "{{title}} — vị trí {{to}} trên {{total}}"
+    },
+    "menu": {
+      "label": "Tuỳ chọn bài",
+      "info": "Thông tin bài",
+      "up": "Chuyển lên",
+      "down": "Chuyển xuống",
+      "remove": "Bỏ khỏi danh sách"
+    },
+    "trackinfo": {
+      "open": "Thông tin bài hát",
+      "close": "Đóng",
+      "title": "Tiêu đề",
+      "artist": "Nghệ sĩ",
+      "album": "Album",
+      "year": "Năm",
+      "genre": "Thể loại",
+      "trackNo": "Số thứ tự",
+      "duration": "Thời lượng",
+      "codec": "Codec",
+      "bitrate": "Bitrate",
+      "sampleRate": "Tần số lấy mẫu",
+      "channels": "Số kênh",
+      "fileSize": "Kích thước",
+      "fileName": "Tên tệp",
+      "channel": "Kênh",
+      "videoId": "Video ID",
+      "url": "URL",
+      "thumbnail": "Ảnh thu nhỏ",
+      "status": "Trạng thái",
+      "source": "Nguồn",
+      "sourceLocal": "Tệp cục bộ",
+      "sourceYoutube": "YouTube",
+      "addedAt": "Đã thêm lúc",
+      "coverArt": "Ảnh bìa",
+      "coverArtYes": "Có"
+    },
+    "badge": {
+      "single": "MỘT BÀI",
+      "playlist": "DANH SÁCH",
+      "youtube": "YOUTUBE"
+    }
+  },
+  "toast": {
+    "summary": "Đã thêm {{added}} · Bỏ qua {{skipped}}",
+    "dismiss": "Đóng",
+    "skipped": "Đã bỏ qua",
+    "import": {
+      "TT-IMP-001": "Định dạng không được hỗ trợ",
+      "TT-IMP-002": "Dài hơn giới hạn 10:02",
+      "TT-IMP-003": "Vượt tổng thời lượng 91:00",
+      "TT-IMP-004": "Vượt số lượng cho phép",
+      "TT-IMP-005": "Trùng với tệp đã có",
+      "TT-IMP-006": "Không đọc được thẻ — dùng tên tệp",
+      "TT-IMP-007": "Thẻ bị lỗi mã hoá — dùng tên tệp",
+      "TT-IMP-008": "Quá nhiều mục trong thư mục thả vào",
+      "TT-YT-001": "Chưa kiểm tra được — sẽ thử lại khi bắt đầu",
+      "TT-YT-002": "Không phải link video YouTube",
+      "TT-YT-003": "Vượt giới hạn 50 link",
+      "TT-YT-004": "YouTube từ chối, không rõ lý do",
+      "TT-YT-100": "Video đã xoá hoặc ở chế độ riêng tư",
+      "TT-YT-101": "Chủ video không cho phép nhúng"
+    }
+  },
+  "finished": {
+    "title": "HẾT GIỜ",
+    "late": {
+      "at": "lúc {{time}}",
+      "ago": "{{duration}} trước"
+    },
+    "unit": {
+      "hours": "{{count}} giờ",
+      "minutes": "{{count}} phút",
+      "seconds": "{{count}} giây"
+    },
+    "action": {
+      "restart": "Chạy lại",
+      "back": "Về thiết lập"
+    }
+  },
+  "header": {
+    "lang": {
+      "toVi": "Chuyển sang tiếng Việt",
+      "toEn": "Switch to English"
+    }
+  }
+}

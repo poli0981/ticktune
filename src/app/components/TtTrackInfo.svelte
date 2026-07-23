@@ -1,5 +1,6 @@
 <script lang="ts">
   import { trackInfoRows } from '../engine/importer/tt-track-display';
+  import { i18n, type TtKey } from '../state/i18n.svelte';
   import type { TtTrack } from '../engine/importer/types';
 
   /**
@@ -17,7 +18,23 @@
 
   const { track, onclose }: Props = $props();
 
-  const rows = $derived(trackInfoRows(track));
+  /**
+   * The engine hands back KEYS; translating them is this component's job.
+   *
+   * A value prefixed `@` is itself a key — `source` and `coverArt` carry
+   * translatable VALUES, not just labels, which docs/08 §3.1's "one key per
+   * 02 §8 field" did not anticipate. `N/A` and `–` pass through untouched:
+   * docs/08 §3 keeps the fallbacks universal.
+   */
+  const rows = $derived(
+    trackInfoRows(track, i18n.locale).map((row) => ({
+      key: row.labelKey,
+      label: i18n.t(`player.trackinfo.${row.labelKey}` as TtKey),
+      value: row.value.startsWith('@')
+        ? i18n.t(`player.trackinfo.${row.value.slice(1)}` as TtKey)
+        : row.value,
+    })),
+  );
 
   let dialog: HTMLDivElement;
   let closeButton: HTMLButtonElement;
@@ -62,10 +79,10 @@
     class="tt-modal"
     role="dialog"
     aria-modal="true"
-    aria-label="Thông tin bài hát"
+    aria-label={i18n.t('player.trackinfo.open')}
     data-testid="tt-trackinfo"
   >
-    <h2>Thông tin bài hát</h2>
+    <h2>{i18n.t('player.trackinfo.open')}</h2>
 
     <!--
       The embedded cover, when the file carried one (docs/05 §5). The `Ảnh bìa`
@@ -78,7 +95,7 @@
     {/if}
 
     <dl>
-      {#each rows as row (row.label)}
+      {#each rows as row (row.key)}
         <div>
           <dt>{row.label}</dt>
           <dd>{row.value}</dd>
@@ -90,7 +107,7 @@
       bind:this={closeButton}
       class="tt-close"
       data-testid="tt-trackinfo-close"
-      onclick={onclose}>Đóng</button
+      onclick={onclose}>{i18n.t('player.trackinfo.close')}</button
     >
   </div>
 </div>

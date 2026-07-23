@@ -1,3 +1,4 @@
+import en from '../../src/app/i18n/en.json';
 import { describe, expect, it } from 'vitest';
 import {
   TT_DASH,
@@ -75,6 +76,12 @@ describe('bytesText / bitrateText', () => {
   });
 });
 
+/** Injected rather than read — the engine stays pure (docs/12 §3.1). */
+const LOCALE = 'vi-VN';
+
+/** The stems `player.trackinfo.*` actually offers, from the EN reference. */
+const TRACKINFO_KEYS = Object.keys(en.player.trackinfo);
+
 describe('trackInfoRows — docs/02 §8', () => {
   const local: TtTrack = {
     id: 'x',
@@ -88,36 +95,51 @@ describe('trackInfoRows — docs/02 §8', () => {
     addedAt: Date.UTC(2026, 6, 21, 7, 32),
   };
 
+  /*
+   * Keys, not labels, since P5 moved the strings into the dictionaries — the
+   * engine may not import from state (docs/12 §3.1), so it returns stems and
+   * `TtTrackInfo` translates them. What this file still owns is docs/02 §8's
+   * real contract: WHICH fields appear, and in what order.
+   */
   it('lists every documented field for a local track', () => {
-    const labels = trackInfoRows(local).map((r) => r.label);
+    const keys = trackInfoRows(local, LOCALE).map((r) => r.labelKey);
     for (const expected of [
-      'Tiêu đề',
-      'Nghệ sĩ',
-      'Album',
-      'Năm',
-      'Thể loại',
-      'Số thứ tự',
-      'Thời lượng',
-      'Codec',
-      'Bitrate',
-      'Tần số lấy mẫu',
-      'Số kênh',
-      'Kích thước',
-      'Tên tệp',
-      'Nguồn',
-      'Đã thêm lúc',
-      'Ảnh bìa',
+      'title',
+      'artist',
+      'album',
+      'year',
+      'genre',
+      'trackNo',
+      'duration',
+      'codec',
+      'bitrate',
+      'sampleRate',
+      'channels',
+      'fileSize',
+      'fileName',
+      'source',
+      'addedAt',
+      'coverArt',
     ]) {
-      expect(labels).toContain(expected);
+      expect(keys).toContain(expected);
+    }
+  });
+
+  it('names a dictionary key for every row, so none can render blank', () => {
+    // The direction the i18n guard cannot see from the other end: a row whose
+    // stem has no entry under `player.trackinfo.*` would reach the modal as a
+    // raw id. Asserted here because this is where the stems are chosen.
+    for (const row of trackInfoRows(local, LOCALE)) {
+      expect(TRACKINFO_KEYS).toContain(row.labelKey);
     }
   });
 
   it('applies the fallback rule to every missing field', () => {
-    const rows = trackInfoRows(local);
+    const rows = trackInfoRows(local, LOCALE);
     // Untagged file: album/year/genre/track#/codec/bitrate are all absent.
-    expect(rows.find((r) => r.label === 'Album')?.value).toBe(TT_NA);
-    expect(rows.find((r) => r.label === 'Bitrate')?.value).toBe(TT_DASH);
-    expect(rows.find((r) => r.label === 'Số kênh')?.value).toBe(TT_DASH);
+    expect(rows.find((r) => r.labelKey === 'album')?.value).toBe(TT_NA);
+    expect(rows.find((r) => r.labelKey === 'bitrate')?.value).toBe(TT_DASH);
+    expect(rows.find((r) => r.labelKey === 'channels')?.value).toBe(TT_DASH);
     // And nothing anywhere renders as undefined or blank.
     for (const r of rows) expect(r.value.trim()).not.toBe('');
   });
@@ -130,12 +152,12 @@ describe('trackInfoRows — docs/02 §8', () => {
       sourceUrl: 'https://youtu.be/dQw4w9WgXcQ',
       durationMs: null,
     };
-    const labels = trackInfoRows(yt).map((r) => r.label);
+    const keys = trackInfoRows(yt, LOCALE).map((r) => r.labelKey);
 
-    expect(labels).toContain('Video ID');
-    expect(labels).toContain('URL');
-    expect(labels).not.toContain('Tên tệp');
+    expect(keys).toContain('videoId');
+    expect(keys).toContain('url');
+    expect(keys).not.toContain('fileName');
     // Unknown duration renders as the numeric fallback, per docs/06 §5.
-    expect(trackInfoRows(yt).find((r) => r.label === 'Thời lượng')?.value).toBe(TT_DASH);
+    expect(trackInfoRows(yt, LOCALE).find((r) => r.labelKey === 'duration')?.value).toBe(TT_DASH);
   });
 });

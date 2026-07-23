@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { i18n } from '../state/i18n.svelte';
   import { TT_ACCEPT_ATTR } from '../engine/importer/tt-accept';
 
   /**
@@ -72,7 +73,7 @@
       Kéo thả một tệp nhạc vào đây, hoặc bấm để chọn
     {/if}
   </span>
-  <span class="tt-drop-hint">MP3 · M4A · AAC · FLAC · WAV · OGG · Opus · WebM — tối đa 10:02</span>
+  <span class="tt-drop-hint">{i18n.t('setup.drop.hint')}</span>
 </label>
 
 <style>
