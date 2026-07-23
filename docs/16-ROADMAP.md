@@ -370,11 +370,12 @@ and its harness cannot produce a valid number until the `15 §S4` fixes land.
 Nothing in this slice changes that. P3 closes with a hard cut between tracks,
 which is correct until the number exists.
 
-## P4 — YouTube · **in progress**, two slices merged, not released
+## P4 — YouTube · **complete**, three slices, released as v0.5.0
 
-`main` carries both slices; the live site is still **v0.4.1**. Written now rather
-than at the end, because a phase this long should not be reconstructed from
-commit messages later.
+Written across the phase rather than at the end, because a phase this long should
+not be reconstructed from commit messages later. Slices 1 and 2 were recorded
+while `main` still carried them unreleased; slice 3 is what closing the phase
+actually took.
 
 ### Shipped to `main`
 
@@ -399,15 +400,77 @@ commit messages later.
 - **`onError` is not a classifier** (spike S1). Cause lives in the oEmbed status,
   at import — which is a better place to tell someone anyway.
 
-### Still owed, and none of it is cosmetic
+### Slice 3 — the phase's real work, 2026-07-23
 
-| Item | Why it matters |
-|------|----------------|
-| **E2E for YouTube** | There is none. The rail/Focus ToS check is **component-level only**, and CI cannot reach the Worker either. Needs `page.route` over `/api/yt/oembed` plus a fake `window.YT` injected before the island mounts — the player module already takes an injected constructor, so the seam exists |
-| **`pending` is never re-checked** | `02 §1` promises "re-checked on Start" and nothing implements it. `session.start()` is synchronous by design — making it async would break the `05 §1` gesture chain — so the re-check needs a shape nobody has designed. Recorded in `06 §8` as unimplemented |
-| **The 60 req/min rule is unverified** | `10 §11`'s checkbox is still unticked. The client path is built and unit-tested; whether the rule exists in the zone is unobserved, and **Bot Fight Mode is a third failure shape with no branch at all** |
-| **`getVideoData()` backfill** | `06 §2` specifies it for title/channel when oEmbed was incomplete. Duration backfill ships; this half does not |
-| Manual `yt-matrix` re-run | The P4 exit criterion. S1's run was against the spike harness, not the app |
+The five items above were the plan. What the slice actually found, on its first
+hour, was that **YouTube playback did not work at all** — and that every other
+owed item shared one cause with it.
+
+The first Start cued nothing. `onStart` is synchronous, because `05 §1`'s
+gesture chain requires it; the rail only renders once the state IS `playing` and
+hands its element over from an `$effect` that Svelte flushes afterwards. So
+`yt.load()` ran against a null player and went nowhere — and since `loadApi()`
+only runs inside `TtYtPlayer.load()`, **the IFrame API script was never even
+requested**. Measured on `astro dev`: no iframe, `window.YT` undefined, no
+network call to Google. Pressing ⏭ recovered it, which is why nothing looked
+obviously broken from the outside.
+
+Four wiring defects in total, none of which any test could reach:
+
+| | What |
+|---|---|
+| First Start | the store now holds a pre-mount `load` the way `TtYtPlayer` already held a `#pendingId`, and `attach` flushes it |
+| Stop → Start | `attach` guarded on the store's LIFETIME, not the element, so after a remount the player stayed bound to a destroyed node and the second run was a black 384×216 box. Guarded per element now, and disposed on every exit from `playing`/`paused` |
+| ⏭ past the end, Stop, Về thiết lập | all three called `playback.stop()` with no mode branch, stopping an audio graph nothing is routed through while the video played on |
+| The whole End Behavior | dead in YouTube mode for every visit after the first. `runEndBehavior()` returns null when the audio driver was never built, and the legal gate — which does not render for a returning user — was the only other unlock site. No chime, no flash, no `endAction` |
+
+**The pattern is now precise enough to state.** Nine times this project has
+shipped a feature that was declared, rendered, and never written. Every one of
+those was a *value*. These four are the next layer: the values are all correct,
+the engines are all correct, and the defect is the **wiring between them** —
+which no engine test can see by construction, and which the E2E tier did not
+exist to see either.
+
+### What closed
+
+| Item | How |
+|------|-----|
+| **E2E for YouTube** | 26 specs. `page.route` over `iframe_api` serves a stub player — preferred over `addInitScript`, because routing exercises the real `loadApi()` and proves the app requests that URL and no other — and `page.route` over `/api/yt/oembed`, which is not optional since `astro preview` runs no Worker. Reverting the four fixes above turns 15 of them red |
+| **`pending` re-check** | The shape `06 §8` said nobody had designed: it is **not part of Start**. `start()` returns, the gesture is already spent on `playVideo()`, and the shell then calls `recheckPending()` unawaited. Answers patch the queue as they land, which is safe only because P3 made the cursor a track id |
+| **`getVideoData()` backfill** | Along with the duration half, which turned out never to have reached the track either — `yt.tick()` wrote a store field the bottom bar reads, and `TtTrack.durationMs` stayed null forever, so the info modal, the queue rows and the totals footer all read `–`. The missing piece was a track writer: `markTrackError` was the session's only one and it wrote nothing but `status` |
+| **Bot Fight Mode** | Already handled — the content-type guard from slice 2 sends any non-JSON response to `upstream_unreachable`. The claim above was stale. What was NOT handled: an upstream **5xx** rejected every pasted link permanently and the edge cached that for 15 minutes, and an unparseable **200** blamed the video's owner |
+| Manual `yt-matrix` re-run | `tests/manual/p4-live-checklist.md`, retargeted at `/app/`. The matrix's own procedure drives the S1 spike harness and would not have exercised P4 at all |
+
+Also closed, and each one a promise the code was already making:
+
+- The **nocookie host** was asserted nowhere, while two source comments claimed
+  a test and an E2E existed for it. Both now exist; the comments say what is true.
+- `13 §1` excludes `*-driver.ts` from the coverage gate *because* "they are
+  covered where they actually run: Playwright" — unkept for both YouTube drivers
+  until this slice.
+- The component test's ToS floor read `YT_HEIGHT >= 200 * (9/16)`. The floor is
+  **square**; that assertion passes at 200×113, proven by setting the height to
+  150 and watching the file stay green.
+- The **countdown-to-skip** `06 §4` lists among the error card's five parts, and
+  `TtYtOverlayState.ambiguous`, `yt.playing` and `playback.status` — all written
+  on every change, all read by nothing.
+- `06 §3` claimed a client throttle "to 4 concurrent oEmbed checks" that has
+  never existed. The importer is strictly sequential, which is stricter than the
+  doc promised, so the doc changed.
+
+**465 unit + component + worker tests, 76 E2E on Chromium, five gates green.**
+Every new assertion was mutation-checked — the bug it names re-introduced, the
+test confirmed red — because on this project a test that cannot fail is the
+thing being guarded against.
+
+### Still owed after P4
+
+| Item | Why it is not here |
+|------|--------------------|
+| **The 60 req/min rule, and Bot Fight Mode, in the zone** | `10 §11`'s three unticked boxes are dashboard state, unobservable from this repository. `.github/SECURITY.md:43` publicly tells researchers that 429 on `/api/*` is out of scope, for a control nobody has confirmed is switched on |
+| **Focus mode's ToS carve-out, end to end** | `TtApp` passes `focusMode={false}` as a literal, so the branch cannot execute in production. The rail's markup and component tests are written and waiting. **A P5 exit item**, not a P4 gap |
+| The blurred thumbnail background | Unchanged: an open 🟠 audit finding whose ToS half was never read |
+| A re-check on **reconnect** | The natural trigger — Start — is now covered, and `navigator.onLine` is a hint rather than an authority (`06 §8`) |
 
 ⚠️ **The thumbnail background (`06 §6`, `03 §5`) is deliberately not built.** Its
 modified/decorative use of `hqdefault` rests on an **open 🟠 audit finding** that

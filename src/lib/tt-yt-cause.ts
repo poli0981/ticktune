@@ -5,7 +5,8 @@
  * vocabulary two very different programs must agree on. `worker/index.ts` runs
  * on workerd and decides the cause; the app runs in the browser and renders it.
  * A copy on each side is a copy that drifts, and the whole value here is that
- * both ends name the same five things.
+ * both ends name the same **seven** things — the union below, which grew past
+ * the "five" this sentence claimed until 2026-07-23 without anyone updating it.
  *
  * ## Why the status and not the body
  *
