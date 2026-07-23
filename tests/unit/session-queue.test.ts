@@ -3,6 +3,7 @@ import type { TtImportPorts, TtImportResult, TtTrack } from '../../src/app/engin
 import { nextInOrder } from '../../src/app/engine/queue/tt-play-order';
 // Type-only, so these do NOT pin a module instance: each test re-imports the
 // stores after `vi.resetModules()` to get its own copy of the singletons.
+import type * as YtImportMod from '../../src/app/engine/youtube/tt-yt-import';
 import type * as PlaybackMod from '../../src/app/state/playback.svelte';
 import type * as SessionMod from '../../src/app/state/session.svelte';
 import type * as SettingsMod from '../../src/app/state/settings.svelte';
@@ -36,7 +37,11 @@ vi.mock('../../src/app/engine/importer/tt-import', () => ({
 
 const importLinks = vi.fn<() => Promise<TtImportResult>>();
 
-vi.mock('../../src/app/engine/youtube/tt-yt-import', () => ({
+// Only the PIPELINE is mocked. `reachedEdge` is pure, it is the docs/06 §8
+// decision these tests are about, and a fake one would let the store agree with
+// a verdict nothing actually computes.
+vi.mock('../../src/app/engine/youtube/tt-yt-import', async (importOriginal) => ({
+  ...(await importOriginal<typeof YtImportMod>()),
   importLinks: () => importLinks(),
 }));
 /**
@@ -707,5 +712,77 @@ describe("recheckPending — docs/02 §1's promise, and the toast's", () => {
     // The later verdict does not un-break it.
     expect(session.queue[0]?.status).toBe('error');
     expect(session.queue[0]?.title).toBe('');
+  });
+});
+
+describe('the offline banner is driven by evidence, not by the hint — docs/06 §8', () => {
+  /**
+   * The live v0.5.0 finding. `06 §8` says `navigator.onLine` "is a hint and is
+   * used as one; the import result is the authority", and only the hint
+   * existed. Turning the network off left `navigator.onLine` true — Chrome
+   * reports it from whether an interface is up — so the banner never appeared,
+   * even though every link had just failed to import.
+   */
+  const ytTrack = (id: string, status: 'ok' | 'pending'): TtTrack =>
+    track(id, { source: 'youtube', status, videoId: 'dQw4w9WgXcQ', durationMs: null });
+
+  async function importWith(r: TtImportResult): Promise<void> {
+    session.setMode('youtube');
+    importLinks.mockResolvedValueOnce(r);
+    await session.importLinks('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+  }
+
+  it('goes offline when every link failed transiently, hint or no hint', async () => {
+    session.setOnline(true); // the hint still says "connected", as it did live
+    await importWith({
+      added: [ytTrack('a', 'pending')],
+      skipped: [],
+      notes: [{ code: 'TT-YT-001', fileName: 'dQw4w9WgXcQ' }],
+    });
+    expect(session.online).toBe(false);
+  });
+
+  it('comes back online as soon as one lookup answers', async () => {
+    session.setOnline(false);
+    await importWith({ added: [ytTrack('a', 'ok')], skipped: [], notes: [] });
+    expect(session.online).toBe(true);
+  });
+
+  it('does not raise the banner on a batch that never touched the network', async () => {
+    // Nothing but malformed links: rejected by the regex before any fetch.
+    session.setOnline(true);
+    await importWith({ added: [], skipped: [{ code: 'TT-YT-002', fileName: 'junk' }], notes: [] });
+    expect(session.online).toBe(true);
+  });
+
+  it('the re-check clears the banner when the edge answers again', async () => {
+    session.setMode('youtube');
+    importLinks.mockResolvedValueOnce({
+      added: [ytTrack('a', 'pending')],
+      skipped: [],
+      notes: [{ code: 'TT-YT-001', fileName: 'dQw4w9WgXcQ' }],
+    });
+    await session.importLinks('x');
+    expect(session.online).toBe(false);
+
+    lookup.mockReturnValueOnce(
+      Promise.resolve({ ok: true, meta: { title: 't', author_name: 'c', thumbnail_url: null } }),
+    );
+    await session.recheckPending();
+    expect(session.online).toBe(true);
+  });
+
+  it('the re-check keeps the banner up while the edge is still unreachable', async () => {
+    session.setMode('youtube');
+    importLinks.mockResolvedValueOnce({
+      added: [ytTrack('a', 'pending')],
+      skipped: [],
+      notes: [{ code: 'TT-YT-001', fileName: 'dQw4w9WgXcQ' }],
+    });
+    await session.importLinks('x');
+
+    lookup.mockReturnValueOnce(Promise.resolve({ ok: false, cause: 'upstream_unreachable' }));
+    await session.recheckPending();
+    expect(session.online).toBe(false);
   });
 });

@@ -17,49 +17,49 @@ problem. The site is the only place this is testable.
 
 ## Blocking — a failure here means don't announce
 
-- [ ] **The YouTube tab is there and switching to it hides the drop zone.** A
+- [x] **The YouTube tab is there and switching to it hides the drop zone.** A
       queue is all-local or all-links, decided by the mode (`06 §5`) — there is
       no paste box in Playlist and no drop zone here.
-- [ ] **Paste 3 real links at once**, one per line, and press *Thêm vào danh
+- [x] **Paste 3 real links at once**, one per line, and press *Thêm vào danh
       sách*. Each row shows the video's **title and channel**, and the footer
       counts them with **no `/ 91:00`** denominator — this mode imposes no
       duration cap.
-- [ ] **Press Bắt đầu. The first video plays, on its own, without touching
+- [x] **Press Bắt đầu. The first video plays, on its own, without touching
       anything else.**
       This is the single most important line in this file. It did not work at
       all before this release: the first Start cued nothing and the app never
       even contacted YouTube. If you see a black rectangle where the video
       should be, stop and say so.
-- [ ] **When a video ends, the next one starts by itself.** The highlighted row
+- [x] **When a video ends, the next one starts by itself.** The highlighted row
       moves with it.
-- [ ] **Press ⏹ Dừng, then Bắt đầu again.** The video plays again. A black
+- [x] **Press ⏹ Dừng, then Bắt đầu again.** The video plays again. A black
       384×216 box on the second run is the other bug this release fixes.
-- [ ] **The player stays visible and unobscured the whole time** — it is a
+- [x] **The player stays visible and unobscured the whole time** — it is a
       YouTube ToS requirement (`06 §1.2`), not a layout preference. Nothing may
       cover it, and there is deliberately no control anywhere that could collapse
       or hide it.
-- [ ] **YouTube's own controls work** — play, pause, seek, fullscreen, volume.
+- [x] **YouTube's own controls work** — play, pause, seek, fullscreen, volume.
       Pausing with **YouTube's** button must make the app's bottom-bar button
       turn back into ▶. (Before this release it stayed ⏸ and the ⏯ hotkey pointed
       the wrong way.)
-- [ ] **Let the countdown reach zero.** The video pauses, **the chime plays**,
+- [x] **Let the countdown reach zero.** The video pauses, **the chime plays**,
       and the Finished screen appears. Do this **twice, in the same browser
       profile** — the second run is the one that was broken, because the legal
       gate does not appear again and it was the only thing unlocking audio.
 
 ## ⬆ Slice 2 — the player, errors and metadata
 
-- [ ] **Paste a link to a video that cannot be embedded** (see the matrix below
+- [x] **Paste a link to a video that cannot be embedded** (see the matrix below
       for a known one). It is **refused at import** with a reason, rather than
       accepted and failing five seconds later during the countdown.
-- [ ] **Volume and mute** (`↑` `↓` `M`, and the slider) change the video's
+- [x] **Volume and mute** (`↑` `↓` `M`, and the slider) change the video's
       loudness. YouTube's scale is 0–100 and ours is 0–1, so a bug here sounds
       like the app being silent rather than like a wrong level.
-- [ ] **Turn Lặp lại off and let the queue run out** → the panel says *"Đã hết
+- [x] **Turn Lặp lại off and let the queue run out** → the panel says *"Đã hết
       danh sách"*, the video stops, **and the countdown keeps running**.
-- [ ] **⏭ past the last track** → the video actually stops. (It used to keep
+- [x] **⏭ past the last track** → the video actually stops. (It used to keep
       playing while the queue reported itself finished.)
-- [ ] **Right-click a row → Thông tin bài.** *Thời lượng* shows a real duration,
+- [x] **Right-click a row → Thông tin bài.** *Thời lượng* shows a real duration,
       not `–`, once the video has started. Every YouTube track read `–` forever
       before this release.
 
@@ -84,10 +84,10 @@ the finding.
 | `8dLS8_xM2LI` | age-restricted | as above |
 | `x8mLnM-oD_s` | region-blocked (VN-only) | from Vietnam: plays. From elsewhere: imports, then the same card as age-restricted |
 
-- [ ] The two age-restricted ids produce the **card with a countdown**, and it
+- [x] The two age-restricted ids produce the **card with a countdown**, and it
       skips to the next track by itself after 5 s.
-- [ ] **Bỏ qua ngay** on that card skips immediately.
-- [ ] ⚠️ **`x8mLnM-oD_s` is the one row that needs a Vietnamese connection with
+- [x] **Bỏ qua ngay** on that card skips immediately.
+- [x] ⚠️ **`x8mLnM-oD_s` is the one row that needs a Vietnamese connection with
       no VPN.** It is the only part of this file nobody else can run.
 
 ⚠️ The edge caches an oEmbed answer for 6 hours and a client cannot bust it. If
@@ -96,20 +96,27 @@ earlier run explains some disagreements and a real bug explains the rest.
 
 ## Worth a look, not blocking
 
-- [ ] Paste the same link twice → the second is skipped with `TT-IMP-005`.
-- [ ] Paste 51+ links → the extras are refused with `TT-YT-003` and the first 50
+- [x] Paste the same link twice → the second is skipped with `TT-IMP-005`.
+- [x] Paste 51+ links → the extras are refused with `TT-YT-003` and the first 50
       are kept.
-- [ ] Paste junk (a bare word, a Spotify URL) → `TT-YT-002`, and the good lines
+- [x] Paste junk (a bare word, a Spotify URL) → `TT-YT-002`, and the good lines
       in the same paste still import.
-- [ ] Paste `youtu.be/`, `shorts/`, `live/` and `music.youtube.com` forms → all
+- [x] Paste `youtu.be/`, `shorts/`, `live/` and `music.youtube.com` forms → all
       accepted as the same video.
-- [ ] **Turn your network off, then on.** The offline banner appears and Start is
+- [x] **Turn your network off, then on.** The offline banner appears and Start is
       blocked with the reason stated; the banner clears by itself on reconnect.
-- [ ] **Import while offline, reconnect, then press Bắt đầu.** The rows that
+      🔴 **FAILED on the v0.5.0 run — "Banner not show" — and fixed in v0.5.1.**
+      The render path was fine (measured: forcing `navigator.onLine` false made
+      the banner appear correctly). The hint itself never flipped: Chrome reports
+      `onLine` from whether an interface is up, not from whether anything is
+      reachable. `06 §8` had always said the import result is the authority and
+      only the hint was implemented. **Re-test on v0.5.1**, and note that a
+      queue where nothing reached the edge now blocks Start too.
+- [x] **Import while offline, reconnect, then press Bắt đầu.** The rows that
       imported as `N/A / N/A` gain their real title and channel a moment after
       Start — that is the re-check the toast has always promised and never did.
-- [ ] Switch YouTube → Danh sách with links staged: the queue survives and Start
-      disables with a reason.
+- [x] Switch YouTube → Danh sách with links staged: the queue survives and Start
+      disables with a reason. 
 
 ## Firefox — still the gap CI cannot close
 
@@ -118,7 +125,7 @@ every Firefox result in this project is a manual one. The YouTube specs do not
 need an audio device — the sound is inside the iframe — so CI should cover them,
 but CI has never run them before this release.
 
-- [ ] **In a real Firefox, fresh profile:** accept the gate, paste 2 links, press
+- [x] **In a real Firefox, fresh profile:** accept the gate, paste 2 links, press
       Start. The video plays, and it advances to the second by itself.
 
 ## Known-absent — do not report

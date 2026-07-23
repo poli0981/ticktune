@@ -47,6 +47,42 @@ function codeForCause(cause: TtYtCause): TtImportCode {
   }
 }
 
+/**
+ * Did this batch actually reach our edge? — docs/06 §8.
+ *
+ * `§8` says `navigator.onLine` "is a *hint* and is used as one; **the import
+ * result is the authority**", and for a whole phase only the hint existed. The
+ * live v0.5.0 run found what that costs: the user was genuinely without
+ * internet — links imported as `N/A`, which only happens when the lookup fails
+ * — while `navigator.onLine` stayed `true`, so the banner never appeared and
+ * Start was never blocked. Chrome reports `onLine` from whether an interface is
+ * up, not from whether anything is reachable, and `§8` deliberately rejected a
+ * polling probe (it would be a self-inflicted 429 against the `§6` rule).
+ *
+ * So the evidence has to come from the requests the app was already making.
+ *
+ * @returns `true` when the edge answered at least once, `false` when every
+ *   attempt failed transiently, and **null when the batch proves nothing** —
+ *   which is not the same as "offline". A paste of nothing but malformed links
+ *   never touches the network, and treating that as a verdict would raise the
+ *   banner on a perfectly good connection.
+ */
+export function reachedEdge(result: TtImportResult): boolean | null {
+  // A cause is only nameable if the edge produced it (`src/lib/tt-yt-cause.ts`),
+  // so any of these IS proof we got through — even though the track was refused.
+  const ANSWERED: readonly TtImportCode[] = ['TT-YT-100', 'TT-YT-101', 'TT-YT-004'];
+
+  const answered =
+    result.added.some((t) => t.status === 'ok') ||
+    result.skipped.some((s) => ANSWERED.includes(s.code));
+  if (answered) return true;
+
+  // TT-YT-001 is the transient bucket: unreachable, or rate-limited. Both mean
+  // we did not get an answer about the video.
+  const unreachable = result.notes.some((n) => n.code === 'TT-YT-001');
+  return unreachable ? false : null;
+}
+
 export interface TtYtImportInput {
   /** Raw textarea contents — one URL or id per line (docs/06 §5). */
   text: string;

@@ -338,11 +338,16 @@ test.describe('youtube mode', () => {
        * neither ran, because the session had no track writer at all.
        */
       dismissUnloadDialogs(page);
+      // ONE fails transiently and is the row under test; TWO answers, which is
+      // what keeps Start enabled — a batch where NOTHING reached the edge now
+      // raises the offline banner and blocks Start (`06 §8`), so a queue built
+      // entirely from failures could not be started at all.
       await gotoYouTubeApp(page, {
         [ONE]: { status: 502, body: { error: 'upstream_unreachable' } },
       });
-      await stageLinks(page, [ONE]);
+      await stageLinks(page, [ONE, TWO], 2);
       await expect(page.getByTestId('tt-queue-row').first()).toContainText('N/A');
+      await expect(page.getByTestId('tt-offline')).toHaveCount(0);
 
       await setDuration(page, 0, 1, 0);
       await page.getByRole('button', { name: 'Bắt đầu' }).click();
@@ -353,8 +358,12 @@ test.describe('youtube mode', () => {
       await expect(row).toContainText('Kênh trình phát');
       await expect(row).toContainText('3:32');
       await expect(row).not.toContainText('N/A');
-      // The footer total is the surface nobody would have thought to check.
-      await expect(page.getByTestId('tt-queue-totals')).toContainText('3:32');
+      // The footer is the surface nobody would have thought to check, and it is
+      // still honest here: track 2 has not played, so its duration is unknown
+      // and a queue total would be a guess. `–` is the right answer until every
+      // row is known (hard invariant 5) — before this release it was the answer
+      // FOREVER, because nothing ever wrote a duration to a track at all.
+      await expect(page.getByTestId('tt-queue-totals')).toContainText('–');
     });
 
     test('never overwrites what oEmbed already answered', async ({ page }) => {
@@ -464,6 +473,47 @@ test.describe('youtube mode', () => {
       // Not "allowed and then failing": every track would report onError 150
       // five seconds apart while the countdown ran, which is the worst version.
       await expect(page.getByRole('button', { name: 'Bắt đầu' })).toBeDisabled();
+    });
+
+    test('raises the banner from the IMPORT, while the hint still says connected', async ({
+      page,
+    }) => {
+      /*
+       * The live v0.5.0 finding, and the reason `06 §8` calls the import result
+       * the authority. The user turned their network off, every link imported as
+       * `N/A` — which only happens when the lookup fails — and no banner
+       * appeared, because `navigator.onLine` stayed `true`. Chrome reports it
+       * from whether an interface is up, not from whether anything is reachable.
+       *
+       * Note there is deliberately NO `setOffline` here and no synthetic event:
+       * the hint is left saying "connected" for the whole test, exactly as it
+       * did live. Only the failed requests can raise this banner.
+       */
+      dismissUnloadDialogs(page);
+      await gotoYouTubeApp(page, {
+        [ONE]: { status: 502, body: { error: 'upstream_unreachable' } },
+        [TWO]: { status: 502, body: { error: 'upstream_unreachable' } },
+      });
+      expect(await page.evaluate(() => navigator.onLine)).toBe(true);
+      await expect(page.getByTestId('tt-offline')).toHaveCount(0);
+
+      await stageLinks(page, [ONE, TWO], 2);
+
+      await expect(page.getByTestId('tt-offline')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Bắt đầu' })).toBeDisabled();
+    });
+
+    test('a batch that never reached the network does not raise it', async ({ page }) => {
+      // Malformed links are rejected by the regex before any fetch, so they are
+      // evidence of nothing. Treating them as offline would put the banner up
+      // on a perfectly good connection.
+      dismissUnloadDialogs(page);
+      await gotoYouTubeApp(page);
+      await page.getByTestId('tt-yt-input').fill('not-a-link\nalso not one');
+      await page.getByTestId('tt-yt-add').click();
+      await expect(page.getByTestId('tt-toast')).toContainText('TT-YT-002');
+
+      await expect(page.getByTestId('tt-offline')).toHaveCount(0);
     });
   });
 });

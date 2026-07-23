@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
-import { importLinks } from '../../src/app/engine/youtube/tt-yt-import';
+import { importLinks, reachedEdge } from '../../src/app/engine/youtube/tt-yt-import';
 import type { TtYtLookup, TtYtPorts } from '../../src/app/engine/youtube/types';
-import type { TtTrack } from '../../src/app/engine/importer/types';
+import type { TtImportResult, TtTrack } from '../../src/app/engine/importer/types';
 
 /**
  * The YouTube import pipeline — docs/06 §5.
@@ -217,5 +217,74 @@ describe('progress — docs/02 §4', () => {
       [1, 2],
       [2, 2],
     ]);
+  });
+});
+
+describe('reachedEdge — docs/06 §8, the authority the doc always named', () => {
+  /**
+   * Found on the live v0.5.0 run. The user turned their network off, every link
+   * imported as `N/A` — which only happens when the lookup fails — and the
+   * offline banner never appeared, because `navigator.onLine` stayed `true`.
+   * Chrome reports it from whether an interface is up, not from whether
+   * anything is reachable. `§8` had already said the import result is the
+   * authority; nothing implemented that half.
+   */
+  const res = (over: Partial<TtImportResult> = {}): TtImportResult => ({
+    added: [],
+    skipped: [],
+    notes: [],
+    ...over,
+  });
+
+  const track = (status: 'ok' | 'pending'): TtTrack => ({
+    id: 'a',
+    source: 'youtube',
+    status,
+    title: '',
+    artist: '',
+    durationMs: null,
+    videoId: 'dQw4w9WgXcQ',
+    addedAt: 0,
+  });
+
+  it('a track that imported proves we got through', () => {
+    expect(reachedEdge(res({ added: [track('ok')] }))).toBe(true);
+  });
+
+  it.each(['TT-YT-100', 'TT-YT-101', 'TT-YT-004'] as const)(
+    'a refusal the edge NAMED (%s) also proves we got through',
+    (code) => {
+      // A cause is only nameable if our own endpoint produced it, so being told
+      // "that video is gone" is proof of reachability even though nothing was
+      // added.
+      expect(reachedEdge(res({ skipped: [{ code, fileName: 'x' }] }))).toBe(true);
+    },
+  );
+
+  it('a transient note means we did NOT get through', () => {
+    expect(reachedEdge(res({ notes: [{ code: 'TT-YT-001', fileName: 'x' }] }))).toBe(false);
+  });
+
+  it('one success outweighs any number of transient failures', () => {
+    // A partly-failed batch still proves the connection exists; raising the
+    // banner there would contradict what the user just saw work.
+    expect(
+      reachedEdge(
+        res({
+          added: [track('ok'), track('pending')],
+          notes: [{ code: 'TT-YT-001', fileName: 'x' }],
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it('proves NOTHING when the batch never touched the network', () => {
+    // The trap this returns null for: a paste of nothing but malformed links is
+    // rejected by the regex before any fetch, and calling that "offline" would
+    // raise the banner on a perfectly good connection.
+    expect(reachedEdge(res({ skipped: [{ code: 'TT-YT-002', fileName: 'junk' }] }))).toBeNull();
+    expect(reachedEdge(res({ skipped: [{ code: 'TT-YT-003', fileName: 'over' }] }))).toBeNull();
+    expect(reachedEdge(res({ skipped: [{ code: 'TT-IMP-005', fileName: 'dup' }] }))).toBeNull();
+    expect(reachedEdge(res())).toBeNull();
   });
 });

@@ -252,7 +252,28 @@ blocking panel (`yt.err.offline`); local modes keep working once loaded"*), and
 this chapter did not mention offline at all. Everything below is decided here so
 the first implementation does not become the spec by default.
 
-**Trigger: `navigator.onLine` plus the `online`/`offline` events. No probe.**
+**Trigger: the import result, with `navigator.onLine` as a hint. No probe.**
+
+⚠️ **Corrected 2026-07-23, from the live v0.5.0 run.** This section already said
+`navigator.onLine` "is a *hint* and is used as one; the import result is the
+authority" — and only the hint was ever implemented. What that cost, measured:
+the user turned their network off, every link imported as `N/A` (which happens
+only when the lookup fails), and **the banner never appeared**, because Chrome
+reports `onLine` from whether a network interface is up rather than from whether
+anything is reachable. Start was not blocked either.
+
+`reachedEdge()` (`tt-yt-import.ts`) now returns the verdict the batch actually
+supports:
+
+| Evidence | Verdict |
+|----------|---------|
+| A track imported, **or** the edge named a refusal (TT-YT-100/101/004) | **online** — a cause is only nameable if our own endpoint produced it |
+| Every attempt returned TT-YT-001 (transient) | **offline** |
+| Nothing touched the network — all malformed, all duplicates, all over-cap | **no verdict.** Not the same as offline; treating it as offline would raise the banner on a good connection |
+
+The re-check (`§8` below) applies the same rule per answer, which is what clears
+the banner when a connection returns. The hint still clears it optimistically on
+an `online` event, and the next lookup corrects that if it was wrong.
 
 `docs/10 §9` suggested a failed-fetch probe as well, and P4 deliberately does
 not add one. The only same-origin endpoint worth probing is `/api/yt/oembed` —

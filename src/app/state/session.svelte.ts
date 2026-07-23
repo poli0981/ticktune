@@ -14,7 +14,7 @@ import {
 } from '../engine/queue/tt-play-order';
 import { ytCauseIsTransient } from '../../lib/tt-yt-cause';
 import { browserYtPorts } from '../engine/youtube/tt-yt-driver';
-import { importLinks } from '../engine/youtube/tt-yt-import';
+import { importLinks, reachedEdge } from '../engine/youtube/tt-yt-import';
 import { finishReport } from '../engine/timer/tt-late';
 import { TT_MAX_COUNTDOWN_MS, TT_MIN_COUNTDOWN_MS } from '../engine/timer/tt-format';
 import type { TtFinishInfo, TtFinishReport } from '../engine/timer/types';
@@ -224,7 +224,16 @@ class SessionStore {
     return isReady(this.#mode, this.#queue, this.#countdownMs);
   }
 
-  /** docs/06 §8 — `navigator.onLine`, used as the hint it is. */
+  /**
+   * docs/06 §8 — reachability, from two sources of different quality.
+   *
+   * `navigator.onLine` is the **hint** and arrives through `setOnline`; an
+   * import or re-check result is the **authority** and is written directly. The
+   * authority wins by being later: a hint that says "connected" cannot undo the
+   * evidence of a request that just failed, because nothing re-fires the hint
+   * after a failed request. The reverse is deliberate — an `online` event
+   * clears the banner optimistically, and the next lookup corrects it.
+   */
   get online(): boolean {
     return this.#online;
   }
@@ -441,6 +450,12 @@ class SessionStore {
       if (result.added.length > 0) this.#queue = [...this.#queue, ...result.added];
       this.#syncOrder();
       this.#lastImport = result;
+
+      // docs/06 §8 — `navigator.onLine` is the hint, THIS is the authority. It
+      // is the only signal that survives a machine whose interface is up but
+      // whose internet is not, which is the state the live v0.5.0 run was in.
+      const reached = reachedEdge(result);
+      if (reached !== null) this.#online = reached;
     } finally {
       this.#importing = false;
       if (this.#progressTimer !== null) clearTimeout(this.#progressTimer);
@@ -650,6 +665,17 @@ class SessionStore {
       if (videoId === undefined) continue;
 
       const result = await ports.lookup(videoId);
+
+      /*
+       * docs/06 §8 — the same authority the import uses, applied to the retry.
+       *
+       * This is the half that CLEARS the banner: whether the answer is a 200 or
+       * a "that video is gone", the edge answered, so we are reachable. Set as
+       * each answer lands rather than at the end, so a connection that comes
+       * back mid-sweep is reflected at once.
+       */
+      if (result.ok || !ytCauseIsTransient(result.cause)) this.#online = true;
+      else this.#online = false;
 
       // The queue is live: the user can remove a track, or the cursor can reach
       // it, while its answer is in flight. Both mean this answer is stale.
