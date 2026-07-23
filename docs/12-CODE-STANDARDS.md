@@ -71,6 +71,7 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-PLY-105 | `AudioContext.resume()` did not complete — no usable audio output; playback continues unreported rather than hanging |
 | TT-USR-001 | Track removed by user |
 | TT-USR-100 | Legal gate accepted (records the version) |
+| TT-USR-101 | Settings reset to defaults by the user — the Dexie row is deleted, so `legalAccepted` goes with it and the gate re-blocks at next boot (`03 §6`) |
 | TT-YT-001 | oEmbed pre-check network failure — kept pending |
 | TT-YT-002 | Invalid YouTube URL / bad parameter |
 | TT-YT-003 | Rejected: link count would exceed 50 |

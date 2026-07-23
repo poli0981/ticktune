@@ -1,8 +1,20 @@
+import { readFileSync } from 'node:fs';
 import { defineConfig } from 'vitest/config';
 import { svelte } from '@sveltejs/vite-plugin-svelte';
 
+const { version } = JSON.parse(
+  readFileSync(new URL('./package.json', import.meta.url), 'utf8'),
+) as {
+  version: string;
+};
+
 export default defineConfig({
   plugins: [svelte()],
+  // Mirrors astro.config.mjs, and read from the same package.json rather than
+  // stubbed: the About panel renders this string, so the component test should
+  // assert the real one. A hardcoded test value would pass while the build
+  // shipped `__TT_VERSION__` unreplaced.
+  define: { __TT_VERSION__: JSON.stringify(version) },
   // Without this, `import { mount } from 'svelte'` resolves to svelte's SERVER
   // build and every component test dies with `mount(...) is not available on
   // the server` — Svelte 5 ships client/server halves behind export conditions

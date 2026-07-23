@@ -138,6 +138,19 @@ both hide Z4, which is where the player lives. Therefore, while
 This is enforced in the component, not left to layout discipline: the rail's
 collapse state derives from `mode`, so no future CSS change can silently hide it.
 
+**The overlay row has a mechanism as of P5 slice 2: `--tt-yt-reserve`.** The shell
+publishes it on `.tt-main` — the rail's column plus the page padding while a
+YouTube video is loaded, `0px` in every other mode — and every fixed layer insets
+its right edge by it. One variable, so a future overlay inherits the rule instead
+of rediscovering it.
+
+⚠️ It was written because the rule was **already being broken in v0.5.2**, and
+the shape is worth keeping: `TtTrackInfo`'s modal box never reached the rail, but
+its **backdrop** was `inset: 0` at 75% opaque void, so right-clicking a queue row
+during YouTube playback laid a scrim over a playing player. The part of the markup
+that covered the player was the part with no content in it, which is why reading
+the component did not find it and measuring did.
+
 ### Measured 2026-07-22 (spike S1) — the carve-out is load-bearing
 
 The S1 harness renders the player inside a mock rail whose collapse and Focus
@@ -233,11 +246,72 @@ the computed opacity and the box, not ask the platform whether it is visible.
 ## 4. Focus mode
 
 `F` toggles fullscreen; `H` toggles **Focus**: hides Z4–Z7, dims Z1 further,
-countdown scales up ~20%. Any pointer/key shows a 3 s hint chip "H to exit focus".
+countdown scales up ~20%. Any pointer/key shows a 3 s hint chip "H to exit focus"
+— **including the `H` that entered Focus**, which is the case that matters: the
+keystroke has just removed every control that could explain itself.
+
+Leaving the player screen cancels Focus. The path that forces this is the one the
+user cannot steer: with Z7 hidden there is no Stop button, so a run **finishing**
+is how Focus is left from inside it, and the Finished screen must not arrive under
+a hidden header.
 
 **In YouTube mode, Focus keeps the player visible** — Z4 is reduced to the player
 alone rather than hidden. See the YouTube visibility carve-out in `§2`; it is a
 ToS requirement (`06 §1.2`), not a preference.
+
+### The countdown size cap — measured 2026-07-23, and it is a ToS floor
+
+`§4` grows the digits ~20% while `06 §1.2` pins the player at 384×216 and forbids
+anything overlapping it. The two pull opposite ways, so the question was measured
+on the shipping app before any Focus code existed (Chromium, DSEG7 Classic v0.46,
+YouTube mode, a **two-hour** countdown so the widest of `04 §4`'s three regimes is
+on screen):
+
+| Viewport | Player right edge | Fully on screen | Off screen |
+|----------|-------------------|-----------------|------------|
+| 1920 | 1800 | ✅ | — |
+| 1600 | 1726 | ❌ | 126 px (33%) |
+| 1440 | 1633 | ❌ | 193 px (50%) |
+| 1366 | 1573 | ❌ | 207 px (54%) |
+| 1280 | 1504 | ❌ | **224 px (58%)** |
+| 1152 | 1400 | ❌ | 248 px (65%) |
+
+**That is a defect that shipped in v0.5.2, not a P5 one.** Neither flex item could
+shrink below its min-content size — the rail's is the player's own 384 px — so the
+line overflowed and the overflow went off the right edge, taking the player with
+it. It survived every existing spec because they all use a one-minute countdown,
+and `MM:SS` is the *narrowest* regime.
+
+The glyph metric that decides it, same measurement:
+
+| Regime (`04 §4`) | Ghost | Width ÷ font-size |
+|------------------|-------|-------------------|
+| ≥ 1 h | `8:88:88` | **4.48 em** |
+| < 60 s | `88.888` | 4.08 em |
+| 60 s – 1 h | `88:88` | 3.46 em |
+
+**Resolution: the ToS floor wins, and it is enforced by layout rather than by a
+YouTube-specific branch.** The rails are `flex: none`; the countdown lives in a
+`container-type: inline-size` column whose width is therefore "the stage minus the
+rail"; and its size is `min(<the s/m/l × Focus clamp>, 22.2cqw)` — `22.2 = 100 ÷
+4.49`. Consequences, all deliberate:
+
+- Above ~1600 px nothing changes: the vw term is still the smaller of the two, so
+  a wide monitor renders exactly what it did before.
+- Below that, Focus grows the digits by **less** than 20%, and in YouTube mode at
+  1280 px it does not grow them at all. That is the correct trade: `06 §1.2` is a
+  contract, `§4`'s 20% is a preference.
+- The cap sits **outside** the `clamp`, so its 96 px floor cannot beat it. `07 §2`
+  keeps a session alive when a desktop window is snapped narrow, which is exactly
+  when the floor would otherwise push the player off screen again.
+- The **widest** regime sets the constant even though it is only on screen above
+  an hour. Sizing per regime would resize the digits at the 1 h and 60 s
+  boundaries — the jitter the ghost layer exists to prevent (`§1`).
+
+⚠️ Verified by mutation: with the cap removed, six of `tests/e2e/yt-visibility.spec.ts`
+turn red. An earlier version of that spec probed only the player's **centre** and
+stayed green while the digits overlapped its left edge by 79 px — the failure
+arrives from one side, which is where a single sample is blind. It samples a grid.
 
 ## 5. Auto-theme (enhancement)
 
@@ -252,17 +326,54 @@ This table is the **UI grouping only**. Field names, types, ranges and defaults
 live in `02 §3.1` (`TtSettings` / `TT_DEFAULT_SETTINGS`) — the single source of
 truth. Do not restate a default here; it will drift.
 
-| Group | Controls | `TtSettings` fields |
-|-------|----------|---------------------|
-| General | Language EN/VI · reopen legal pages · reset app (clears Dexie) | `lang` |
-| Display | Background: Solid / Gradient (6 presets + custom) / Image / Slideshow (multi-upload, interval, fade or Ken Burns) / Cover-art blur · scrim strength · scanlines | `background`, `gradientPreset`, `gradientCustom`, `slideshowIntervalMs`, `slideshowTransition`, `scrimStrength`, `scrimAuto`, `scanlines`, `autoTheme` |
-| Countdown | Glow intensity · size (S/M/L) · **End Behavior**: fade-out duration, chime, flash, and what happens at zero (stay / restart / loop — see `02 §3.3`) | `glowIntensity`, `countdownSize`, `endFadeMs`, `endChime`, `endFlash`, `endAction` |
-| Visualizer | Style off/bars/wave/ring · sensitivity | `visualizer`, `visualizerSensitivity` |
-| Audio | Volume · mute · crossfade · single-mode loop style | `volume`, `muted`, `crossfadeMs`, `singleLoopStyle` |
-| Playback | Shuffle · Repeat playlist · allow duplicates | `shuffle`, `repeatPlaylist`, `allowDuplicates` |
-| Hotkeys | Read-only reference list | — |
-| Diagnostics | Log viewer · Copy Diagnostics · clear log | — |
-| About | Version, license, GitHub, third-party notices | — |
+| Group | Controls | `TtSettings` fields | Ships |
+|-------|----------|---------------------|-------|
+| General | Language EN/VI · reopen legal pages · reset app (clears Dexie) | `lang` | **P5 s2** |
+| Display | Background: Solid / Gradient (6 presets + custom) / Image / Slideshow (multi-upload, interval, fade or Ken Burns) / Cover-art blur · scrim strength · scanlines | `background`, `gradientPreset`, `gradientCustom`, `slideshowIntervalMs`, `slideshowTransition`, `scrimStrength`, `scrimAuto`, `scanlines`, `autoTheme` | P5 s3 |
+| Countdown | Glow intensity · size (S/M/L) · **End Behavior**: fade-out duration, chime, flash, and what happens at zero (stay / restart / loop — see `02 §3.3`) | `glowIntensity`, `countdownSize`, `endFadeMs`, `endChime`, `endFlash`, `endAction` | **P5 s2** |
+| Visualizer | Style off/bars/wave/ring · sensitivity | `visualizer`, `visualizerSensitivity` | P5 s4 |
+| Audio | Volume · mute · ~~crossfade~~ · ~~single-mode loop style~~ | `volume`, `muted`, (`crossfadeMs`, `singleLoopStyle` — S4b) | **P5 s2**, partly |
+| Playback | Shuffle · Repeat playlist · allow duplicates | `shuffle`, `repeatPlaylist`, `allowDuplicates` | **P5 s2** |
+| Hotkeys | Read-only reference list | — | **P5 s2** |
+| Diagnostics | Log viewer · Copy Diagnostics · clear log | — | **P5 s2** |
+| About | Version, license, GitHub, third-party notices | — | **P5 s2** |
+
+### A group ships with its feature, never before it
+
+**A group whose renderer does not exist is not rendered — not even disabled.**
+Display and Visualizer are absent from the panel until slices 3 and 4, and inside
+Audio the crossfade slider and the loop-style selector are absent while `15 §S4b`
+is open; the group carries one line of prose saying so instead.
+
+The rule is written here because the alternative had already shipped: `TtSingleRail`
+carried a loop-style pair with hardcoded `aria-pressed` and **no `onclick` at all**
+for three phases — an inert control, in production, reading as finished work. A
+greyed-out Display group would be the same object with better manners.
+
+The loop-style pair itself stays in Z4 where `§2` puts it, now wired: the pressed
+state reports the **effective** style, which is `hard` while S4b is open, and a
+stored `'crossfade'` renders the visible notice `05 §2` promised beside it.
+
+### Reset app — two steps, and the second one states the cost
+
+`settings.reset()` deletes the Dexie row, so `legalAccepted` goes with it and the
+**legal gate blocks at next boot**. That is what "clears Dexie" means and it is
+the intended behaviour — a full reset is a fresh profile, and the gate is also one
+of the three autoplay-unlock sites (`05 §1`), so nothing downstream is worse off.
+
+What was missing was saying so. The confirmation names the consequence before it
+happens; an unannounced re-block is indistinguishable from the app having broken.
+Logged as **TT-USR-101** (`12 §6`), and the shell returns the app to `gate`
+in place rather than waiting for a reload.
+
+### The panel is a side sheet, not a modal
+
+Left-anchored, no page-covering backdrop, capped by `--tt-yt-reserve` (`§2`), and
+**no `aria-modal`** — a full-bleed backdrop is precisely what `§2` forbids over
+the player, so the page behind genuinely stays interactive and the ARIA must not
+claim otherwise. `Esc` and a press outside close it; focus moves to the close
+button on open and returns to **⚙** on close, because `S` opens the panel with
+nothing focused and "restore the opener" would drop a keyboard user on `<body>`.
 
 **`endFlash`, defined.** The setting existed in `02 §3.1` with no visual
 specified anywhere, which is how a shipped affordance gets invented at

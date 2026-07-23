@@ -342,6 +342,10 @@
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
+    /* A fixed column on the stage, so the countdown's cap can be computed from
+       what is left over (docs/03 §4). Harmless in `setup`, where `.tt-in-setup`
+       overrides the width and the parent is not a flex row. */
+    flex: none;
     width: 17rem;
     max-height: 60vh;
     padding: 0.9rem;

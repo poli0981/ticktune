@@ -64,8 +64,11 @@ totals footer rendering `–` when any duration is unknown, the context menu
 resolving to the row that was targeted, all four `02 §8` items with the
 end-of-list move disabled, `Esc` closing without acting, `Alt+↑/↓` moving the
 focused row and announcing where it landed, and rows carrying **no**
-`draggable` attribute — see `§3`) · TtSettings (End Behavior controls persist
-calls) · TtOverlay (typed
+`draggable` attribute — see `§3`) · **TtSettings** (every control patches the
+field it names; the two-step reset; Diagnostics rendering, filtering, copying
+parseable JSON and clearing; About rendering `__TT_VERSION__`; and the
+**absence** of the Display and Visualizer groups, which is the guard against
+shipping a control with no feature under it) · TtOverlay (typed
 variants render correct i18n keys) · TtLegalGate (Accept enables only with
 checkbox).
 
@@ -94,7 +97,9 @@ non-empty queue must also handle the `beforeunload` guard (`02 §3`) or they han
 | Playlist limits | 11-min file rejected with toast; duplicate skipped; totals footer math; **a 95-file batch imports and the 96th is refused with TT-IMP-004**. The batch is one fixture buffer restaged under 95 distinct **names** — the dedupe key is `name::size::duration` (`02 §4` step 5), so passing the same path 95 times would add one row and 94 TT-IMP-005s, and the test would be green, fast, and about dedupe. ⚠️ TT-IMP-003 (91:00) is **not reachable from E2E**: the only long fixture exists to be rejected by TT-IMP-002, and reaching the aggregate cap needs a ~10:00 *legal* fixture nobody has generated. Its exact boundary keeps unit coverage |
 | Queue reorder | **Both routes**, because they have different failure modes: `Alt+↑/↓` from a focused handle (with the `aria-live` position announcement), and a real pointer drag driven by `mouse.down`/`move`/`up`. The drag half is only assertable because reorder is built on **pointer events rather than the HTML5 DnD API** — `_helpers.ts` already records that Playwright cannot synthesise a native drag, so a `draggable` implementation would have shipped with no end-to-end coverage at all. Verified by mutation: deleting the `pointermove` handler fails this spec |
 | Playlist playback (`02 §5.1`) | Three ~5 s fixtures play in sequence with **no click between them** — asserted as peak Analyser RMS > 0 both **before and after** the advance, because one that moved the highlight while loading a dead deck would pass on the highlight alone. Repeat off at exhaustion: media stops, "Đã hết danh sách" shows, and the countdown **keeps running** (`04 §5`). Removing the playing row advances rather than restarting. Shuffle mid-run leaves the current track playing. Right-click opens the info modal for the row that was targeted, not for track 1 |
-| Hotkeys | Space/M/F/H/] behave; disabled while typing. Satisfied in two parts: P2 ships `Space`/`↑↓`/`M`/`Esc` with the Player screen; `F`/`H`/`]` arrive with Focus mode and the rail in P5 |
+| Hotkeys | Space/M/F/H/]/S behave; disabled while typing. Satisfied in two parts: P2 shipped `Space`/`↑↓`/`M`/`Esc` with the Player screen; **P5 slice 2 completed the set** — `S` opens the panel and returns focus to ⚙, `H` hides Z4–Z7 and grows the digits, `]` collapses a local rail, and all of them are inert while the legal gate is up or the panel is open |
+| Settings panel (`03 §6`) | `countdownSize` is **genuinely read** — the computed `font-size` is strictly ordered S < M < L and survives a reload; `glowIntensity` changes the rendered `text-shadow` (compared, never pattern-matched: Chromium serialises `color-mix` as `color(srgb …)` and Firefox as `rgba(…)`); `endAction: 'restart'` re-runs the countdown exactly once and `endFlash` fires; Diagnostics shows the real TT-USR-100 the gate logged; reset needs two presses and lands back on the gate |
+| **YouTube visibility** (`06 §1.2`, `03 §2`) | Its own file, `yt-visibility.spec.ts`, because the P4 suite could not express it: the countdown is swept across 1920→1024 px **in the ≥ 1 h regime**, which is 4.48 em wide against `MM:SS`'s 3.46 and is the regime every other YouTube spec skips. Asserts the player box ≥ 200×200, computed opacity exactly `1`, fully inside the viewport, no horizontal scroll, and **nothing painted over it** — sampled on a 5×5 grid, because a centre-only probe stayed green while the digits overlapped the player's left edge by 79 px. Covers Focus, `]`, the settings sheet and the info modal. ⚠️ Never `checkVisibility({checkOpacity:true})`: S1 measured it `true` at opacity 0.06 |
 | i18n | toggle EN↔VI swaps visible strings without reload |
 | Mobile gate (`07 §6`) | mobile project: overlay visible, **zero component/framework chunks** in the network log (the ≈200 B guard chunk is expected and is not the app bundle — `01 §3`); desktop project: island mounts |
 | Offline | context.setOffline → banner; YT mode blocked panel |

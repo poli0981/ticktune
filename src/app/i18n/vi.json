@@ -106,7 +106,12 @@
       "hard": "Cắt thẳng",
       "crossfade": "Chuyển mềm",
       "locked": "Chờ đo đạc spike S4b",
+      "fallback": "Bản này chưa có chuyển mềm — đang phát bằng cắt thẳng.",
       "hint": "Chuột phải để xem thông tin"
+    },
+    "focus": {
+      "hint": "Bấm H để thoát chế độ tập trung",
+      "railLocked": "Trình phát phải luôn hiển thị — điều khoản YouTube"
     },
     "queue": {
       "label": "Phát lại",
@@ -201,6 +206,89 @@
     "lang": {
       "toVi": "Chuyển sang tiếng Việt",
       "toEn": "Switch to English"
+    },
+    "settings": "Cài đặt",
+    "fullscreen": "Toàn màn hình"
+  },
+  "settings": {
+    "title": "Cài đặt",
+    "close": "Đóng cài đặt",
+    "group": {
+      "general": "Chung",
+      "countdown": "Đồng hồ",
+      "audio": "Âm thanh",
+      "playback": "Phát lại",
+      "hotkeys": "Phím tắt",
+      "diagnostics": "Chẩn đoán",
+      "about": "Giới thiệu"
+    },
+    "general": {
+      "lang": "Ngôn ngữ",
+      "legal": "Văn bản pháp lý",
+      "reset": "Đặt lại ứng dụng",
+      "resetHint": "Xoá mọi cài đặt đã lưu trên máy này.",
+      "resetConfirm": "Xoá toàn bộ cài đặt đã lưu? Bạn sẽ phải đồng ý điều khoản lại một lần nữa, vì việc đồng ý được lưu cùng chỗ.",
+      "resetYes": "Xoá tất cả",
+      "resetNo": "Huỷ"
+    },
+    "countdown": {
+      "glow": "Độ phát sáng",
+      "size": "Cỡ chữ số",
+      "sizeS": "Nhỏ",
+      "sizeM": "Vừa",
+      "sizeL": "Lớn",
+      "end": "Khi về 0",
+      "endFade": "Nhỏ dần",
+      "endFadeValue": "{{seconds}} giây",
+      "endChime": "Tiếng chuông",
+      "endFlash": "Nháy màn hình",
+      "endAction": "Sau đó",
+      "endActionStay": "Dừng lại",
+      "endActionRestart": "Chạy thêm một lần",
+      "endActionLoop": "Lặp đến khi bạn dừng"
+    },
+    "audio": {
+      "volume": "Âm lượng",
+      "mute": "Tắt tiếng",
+      "deferred": "Bản này chưa có chuyển mềm và kiểu lặp cho chế độ một bài — đang chờ spike S4b."
+    },
+    "playback": {
+      "shuffle": "Trộn",
+      "repeat": "Lặp danh sách",
+      "duplicates": "Cho phép trùng bài",
+      "duplicatesHint": "Áp dụng cho lần nhập sau; các bài đã thêm không bị ảnh hưởng."
+    },
+    "hotkeys": {
+      "space": "Phát / tạm dừng",
+      "arrows": "Bài trước / bài sau",
+      "updown": "Âm lượng ±5",
+      "m": "Tắt tiếng",
+      "f": "Toàn màn hình",
+      "h": "Chế độ tập trung",
+      "s": "Cài đặt",
+      "bracket": "Ẩn / hiện bảng bên phải",
+      "esc": "Đóng hộp thoại hoặc bảng",
+      "altUpDown": "Di chuyển bài đang chọn",
+      "note": "Phím tắt không hoạt động khi bạn đang gõ trong ô nhập."
+    },
+    "diagnostics": {
+      "level": "Mức",
+      "all": "Tất cả",
+      "info": "Thông tin",
+      "warn": "Cảnh báo",
+      "error": "Lỗi",
+      "empty": "Chưa có gì được ghi lại.",
+      "copy": "Chép thông tin chẩn đoán",
+      "copied": "Đã chép vào bộ nhớ tạm.",
+      "copyFailed": "Bộ nhớ tạm bị từ chối. Hãy chọn đoạn dưới đây và chép thủ công.",
+      "clear": "Xoá nhật ký",
+      "privacy": "Không chứa tên tệp và tên bài hát — dán vào báo lỗi được."
+    },
+    "about": {
+      "version": "Phiên bản",
+      "license": "Giấy phép",
+      "repo": "Mã nguồn",
+      "thirdParty": "Ghi chú bên thứ ba"
     }
   }
 }

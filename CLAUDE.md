@@ -56,6 +56,11 @@ the reasoning and the numbers are in `docs/01 §3`.
   `CALLED_INDIRECTLY_PREFIX` with a reason, never a blanket exemption.
   ⚠️ **The statics are still VI literals** (`/`, `/404`, `TtBase.astro`) —
   `08 §1`'s route-based EN mirrors are P6's.
+  ⚠️ **The guard shapes the markup, and that is intended.** A key held in a
+  variable has no greppable caller, so option lists (the hotkey table, the
+  `endAction` options, the log-level filter) are written out as literals rather
+  than mapped over an array, and the hint chip branches on a tag instead of
+  storing a `TtKey`.
   Log codes `TT-AAA-nnn`, registered in `docs/12 §6` before use.
 - Conventional Commits; branches `feat/* fix/* docs/* chore/* spike/*`.
 - CI caller stubs must keep **explicit `permissions:` blocks** (known GitHub
@@ -130,9 +135,9 @@ Start, because the banner blocked the only action that could gather the evidence
 to clear it. **When an action is gated on evidence, ask what gathers that
 evidence and whether the gate forbids it.**
 
-**P5 — Visuals & settings is IN PROGRESS.** Slice 1 (i18n) is merged to `main`
-and **not released**; the live site is still v0.5.2. `docs/16 §P5` has the
-four-slice plan and the measurement that shapes the whole phase: **14 of the 26
+**P5 — Visuals & settings is IN PROGRESS.** Slices 1–2 are merged to `main` and
+**not released**; the live site is still v0.5.2. `docs/16 §P5` has the four-slice
+plan and the measurement that shapes the whole phase: **14 of the 26
 `TtSettings` fields are declared, defaulted, clamped, persisted, unit-tested —
 and read by nothing.** P5 is wiring up what `docs/02 §3.1` already promised, not
 schema design, so every slice owes a test that its field is genuinely READ.
@@ -143,6 +148,30 @@ Z6's language toggle, and ~145 literals migrated. It also changed
 changing a default reaches nobody who has used the app before — `load()` lets
 the stored row win and `patch()` writes the whole object. That reasoning is in
 `docs/02 §3.2` and applies to every default this suite ever changes.
+
+Slice 2 shipped the ⚙ panel (**7 of `03 §6`'s 9 groups**), Focus mode, and
+`F H S ]`. Three rules from it that are not taste:
+
+- **A group ships with its feature, never before it.** Display and Visualizer
+  are not rendered at all; nor is crossfade or the loop-style selector inside
+  Audio. A disabled placeholder is `TtSingleRail`'s inert-button defect with
+  better manners (`docs/03 §6`).
+- **The ⚙ panel is a left side sheet with no backdrop and no `aria-modal`.** A
+  full-bleed backdrop is exactly what `docs/03 §2` forbids over the YouTube
+  player, so the page behind genuinely stays live and the ARIA must not lie.
+- **`--tt-yt-reserve` is the one mechanism for "no overlay covers the player".**
+  Published on `.tt-main`; every fixed layer insets its right edge by it.
+
+🔴 **The slice's measurement found a ToS bug that was already live in v0.5.2:**
+in the `≥ 1 h` countdown regime the YouTube player was pushed **off screen at
+every viewport below 1920 px** — 224 px of 384 at 1280. `8:88:88` is 4.48 em wide
+against `88:88`'s 3.46, no flex item could shrink below min-content, and the
+overflow went off the right edge. Every existing spec used a one-minute
+countdown. Fixed structurally (`flex: none` rails + a `cqw` size cap in a
+container-query column) and guarded by `tests/e2e/yt-visibility.spec.ts`.
+⚠️ That guard's first version probed the player's **centre** and stayed green
+while the digits overlapped its left edge by 79 px — it samples a 5×5 grid now.
+`TtTrackInfo`'s `inset: 0` backdrop was breaking the same rule and is fixed too.
 
 **Spike S1 PASSED** and rewrote `docs/02 §6`, `03 §2`, `06 §3` and `06 §4`. Its
 load-bearing result: **`onError` does not discriminate** — private,
@@ -214,22 +243,18 @@ mechanism measured — hand-mount wins (`docs/01 §3`).
 
 Open items, in the order they block things:
 
-1. **P5 slice 2 — the ⚙ Settings panel and Focus mode.** `docs/16 §P5` has the
-   four-slice plan and the measurement behind it: **14 of 26 `TtSettings` fields
-   are declared, clamped, persisted and read by nobody.** P5 is wiring, not
-   schema design, so every slice owes a test that its field is genuinely read.
+1. **Release v0.6.0 (slices 1 + 2), then P5 slice 3 — backgrounds.** Slice 3
+   wires the eight Display fields; slice 4 is the visualizer plus a11y/perf.
 
-   Four things carried into slice 2, each verified against the code:
-   **`TtSingleRail` ships two buttons with no `onclick`** (an inert control, in
-   production) · **`settings.reset()` nulls `legalAccepted`**, so the legal gate
-   re-blocks at next boot and no doc specifies a confirm dialog · **Focus grows
-   the countdown ~20% (`03 §4`) while `06 §1.2` floors the player at 200×200** —
-   measure before building · **`13 §5` says the perf budget is checked in P7
-   while `16` makes it a P5 exit criterion** — reconcile before slice 4.
+   Two items still carried, neither belonging to slice 3: **`13 §5` says the
+   perf budget is checked in P7 while `16` makes it a P5 exit criterion** —
+   reconcile before slice 4 · **"a11y milestones announced" is unwritten code**,
+   `03 §8`'s five polite announcements at 10 min / 5 min / 1 min / 10 s / zero.
 
-   ⚠️ **A release is not done until the live checklist is run.** P4's found a
-   real bug on the first line nobody expected — and it can only be run against a
-   TAG, because neither `astro dev` nor `astro preview` runs the Worker.
+   ⚠️ **A release is not done until the live checklist is run.**
+   `tests/manual/p5-live-checklist.md` is written and unrun. P4's found a real
+   bug on the first line nobody expected — and it can only be run against a TAG,
+   because neither `astro dev` nor `astro preview` runs the Worker.
 
    Settled decisions, not to be re-litigated: **crossfade deferred** (ship
    `singleLoopStyle: 'hard'`; a stored `'crossfade'` falls back with
