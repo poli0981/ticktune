@@ -25,7 +25,10 @@ describe('defaults', () => {
       autoTheme: true,
       singleLoopStyle: 'hard',
       volume: 0.8,
-      visualizer: 'ring',
+      // 'off', not 'ring'. Changed 2026-07-23, while the field still had no
+      // reader — see docs/02 §3.1. A default that costs nothing today is the
+      // one that decides what every existing user sees the day it gains one.
+      visualizer: 'off',
     });
   });
 
@@ -70,7 +73,7 @@ describe('clamping garbage', () => {
     const s = clampSettings({ lang: 'de', endAction: 'explode', visualizer: 'lasers' });
     expect(s.lang).toBe('vi');
     expect(s.endAction).toBe('stay');
-    expect(s.visualizer).toBe('ring');
+    expect(s.visualizer).toBe('off');
   });
 
   it('drops unknown fields instead of persisting them', () => {
@@ -83,7 +86,41 @@ describe('clamping garbage', () => {
   });
 
   it('always reports the current schema version', () => {
-    expect(clampSettings({ schema: 99 }).schema).toBe(1);
+    expect(clampSettings({ schema: 99 }).schema).toBe(2);
+  });
+});
+
+describe('schema 1 → 2: the stored visualizer is forgotten once', () => {
+  /*
+   * Changing a default does not reach an existing user, and this is the test
+   * that says so out loud. `settings.load` spreads defaults UNDER the stored
+   * row and `patch()` writes the whole object, so accepting the legal gate was
+   * enough to persist `visualizer: 'ring'` for everyone who has ever used the
+   * app. Without the migration the new default applies to fresh profiles only —
+   * which is the shape of a change that reads as done and is not.
+   */
+  it('drops a v1 row’s visualizer, because no control could have set it', () => {
+    expect(clampSettings({ schema: 1, visualizer: 'ring' }).visualizer).toBe('off');
+  });
+
+  it('drops it from a row too old to carry a schema at all', () => {
+    expect(clampSettings({ visualizer: 'bars', volume: 0.5 }).visualizer).toBe('off');
+  });
+
+  it('keeps everything else in that row — this is one field, not a reset', () => {
+    const s = clampSettings({ schema: 1, visualizer: 'ring', volume: 0.5, scanlines: false });
+    expect(s.volume).toBe(0.5);
+    expect(s.scanlines).toBe(false);
+  });
+
+  it('honours a v2 row, where the value IS a user choice', () => {
+    // The boundary. Once the Settings panel ships, a stored value means
+    // something and the migration must not reach it.
+    expect(clampSettings({ schema: 2, visualizer: 'ring' }).visualizer).toBe('ring');
+  });
+
+  it('leaves an empty row on the default rather than calling it a migration', () => {
+    expect(clampSettings({}).visualizer).toBe('off');
   });
 });
 

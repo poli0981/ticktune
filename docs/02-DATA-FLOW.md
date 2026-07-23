@@ -145,7 +145,7 @@ type TtLoopStyle   = 'hard' | 'crossfade';
 
 interface TtSettings {
   /** Schema marker. Bumped only by a migration (see 3.2). */
-  readonly schema: 1;
+  readonly schema: 2;
 
   // ── General ───────────────────────────────────────────────────────────────
   lang: TtLang;
@@ -189,7 +189,7 @@ interface TtSettings {
 }
 
 export const TT_DEFAULT_SETTINGS: TtSettings = {
-  schema: 1,
+  schema: 2,
   lang: 'vi',                 // VI is the default UI (08); overridden at first
                               //   boot by navigator.language per 08 §2
   lastMode: 'playlist',       // §1 first-run default
@@ -209,7 +209,8 @@ export const TT_DEFAULT_SETTINGS: TtSettings = {
   endChime: true,             // D4
   endFlash: false,
   endAction: 'stay',
-  visualizer: 'ring',         // the signature look (05 §6)
+  visualizer: 'off',          // see the note below — 'ring' is the signature
+                              // look (05 §6), not the starting one
   visualizerSensitivity: 1.0,
   volume: 0.8,
   muted: false,
@@ -226,6 +227,15 @@ Values whose defaults `03 §6` did not state (`volume`, `background`,
 `scanlines`, `glowIntensity`, `countdownSize`, `visualizer`,
 `visualizerSensitivity`, `shuffle`, `endFlash`) are fixed here. `03 §6` defers to
 this table; do not restate them there.
+
+**`visualizer` changed from `'ring'` to `'off'` on 2026-07-23, before P5's
+renderer existed.** While nothing read the field the default cost nothing; the
+day a renderer landed it would have cost something specific — every user whose
+row already said `'ring'` would open the app to a moving graphic they never
+chose, over a countdown designed legibility-first (`03 §1`). Changing it while
+the field is still inert means no upgrade ever imposes it. `05 §6` still calls
+ring the signature look: that is what the Settings panel offers, not what a
+release turns on.
 
 `prefers-reduced-motion` does **not** rewrite these values — it suppresses
 scanlines, Ken Burns, the visualizer and the tally pulse at render time (`03 §8`).
@@ -255,6 +265,28 @@ type. `schema` exists to make that boundary explicit and greppable.
 Corrupt or unreadable row ⇒ fall back to `TT_DEFAULT_SETTINGS`, log `TT-SYS-204`,
 and rewrite. Never block boot on settings (`§1`: `boot` must always reach `gate`
 or `setup`).
+
+#### schema 1 → 2 (2026-07-23) — the stored `visualizer` is forgotten once
+
+The only migration so far, and the reason one was needed is worth stating,
+because it applies to **every default this suite ever changes**:
+
+> Changing a default reaches nobody who has used the app before.
+
+`load()` is `{ ...TT_DEFAULT_SETTINGS, ...storedRow }` — the row wins — and
+`patch()` writes the **whole object**, not a delta. So accepting the legal gate
+was enough to persist all 26 fields, and `visualizer: 'ring'` sat in every
+existing user's row. Flipping the default to `'off'` would have applied to fresh
+profiles and no one else.
+
+Discarding the stored value is **not** overriding a preference: no control for
+this field has ever shipped, so the value is a default `patch()` carried along
+incidentally. That reasoning expires the moment `03 §6`'s Settings panel lands —
+after which a stored value means something, and the migration must not be
+extended to it. That boundary is why the marker is a version rather than a flag.
+
+No Dexie `version(2)`: nothing is renamed, removed or retyped, which is exactly
+the line drawn above.
 
 ### 3.3 End Behavior vs Repeat — precedence
 
