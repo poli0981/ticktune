@@ -101,11 +101,20 @@ the late-finish Finished screen.
 **P3 shipped as v0.4.0** (2026-07-22, live). Playlist plays a queue, reorders by
 pointer drag and `Alt+↑/↓`, has `TtContextMenu` and an import progress bar.
 
-**P4 — YouTube is IN PROGRESS: two slices merged to `main`, not released.** The
-live site is still **v0.4.1** (which shipped only the S1 spike harness). Slice 1
-turns pasted links into a validated queue; slice 2 plays them. **451 unit +
-component + worker tests, 58 E2E, five gates green.** Full status, and the five
-things still owed, in `docs/16 §P4`.
+**P4 — YouTube is COMPLETE (3/3 slices).** Slice 1 turns pasted links into a
+validated queue; slice 2 plays them; slice 3 closed the phase. **465 unit +
+component + worker tests, 76 E2E on Chromium, five gates green.** Exit review in
+`docs/16 §P4`.
+
+⚠️ **Slice 3's finding, and the lesson worth carrying:** YouTube playback did
+**not work at all** — the first Start cued nothing and the app never contacted
+Google, because `onStart` is synchronous while the rail mounts a microtask later.
+Three more wiring defects sat beside it (Stop → Start left a dead player; ⏭,
+Stop and Về thiết lập stopped the wrong engine; the whole End Behavior was dead
+for returning users). **The values and the engines were all correct.** After nine
+"declared but never written" *fields*, this phase's bugs were the layer above:
+wiring between correct parts, which no engine test can see. That is what the new
+E2E tier exists for — reverting the four fixes turns 15 of its 26 specs red.
 
 **Spike S1 PASSED** and rewrote `docs/02 §6`, `03 §2`, `06 §3` and `06 §4`. Its
 load-bearing result: **`onError` does not discriminate** — private,
@@ -129,7 +138,19 @@ Decisions from P3/P4 that are not taste and should not be "simplified":
   collapsed rail leaving the player `0×0` and Focus leaving it at opacity 0.06,
   both with audio running. `TtYouTubeRail` renders **no collapse control at
   all**. ⚠️ `checkVisibility({checkOpacity:true})` returns **true** at 0.06 — it
-  cannot be the guard.
+  cannot be the guard; assert computed opacity plus the box, as the E2E does.
+- **A cause we cannot attribute to the video is transient.** 5xx, an unparseable
+  200, and any non-JSON response all keep the track as `pending`, and the Worker
+  never caches a transient verdict — a retry that hits the cache is not a retry.
+- **The `pending` re-check runs AFTER `start()` returns, never inside it.**
+  `start()` is synchronous because `docs/05 §1`'s gesture chain is; the re-check
+  is fire-and-forget from the shell and patches the queue as answers land.
+- **Backfill fills blanks only.** oEmbed's title beats the player's, so
+  `session.patchTrack` never overwrites a value that is already there.
+- **The E2E YouTube seam is `page.route` over `iframe_api`**, not
+  `addInitScript` setting `window.YT` — routing exercises the real `loadApi()`.
+  ⚠️ The oEmbed mock **must** send `content-type: application/json`, or every
+  cause case silently becomes `pending` and passes for the wrong reason.
 
 ⚠️ **Firefox CI cannot test audible output** — on the Linux runner
 `AudioContext.resume()` hangs (no audio device), so the four audio-signal E2E
@@ -165,11 +186,12 @@ mechanism measured — hand-mount wins (`docs/01 §3`).
 
 Open items, in the order they block things:
 
-1. **Finish P4** — `docs/16 §P4` lists what is owed. The load-bearing gap is
-   that **there is no E2E for YouTube at all**: the rail/Focus ToS check is
-   component-level only, and CI cannot reach the Worker either. The seams exist
-   (the player takes an injected constructor; `page.route` can stand in for
-   `/api/yt/oembed`), so this is work rather than research.
+1. **Run `tests/manual/p4-live-checklist.md` against the deployed v0.5.0.** The
+   P4 exit criterion, and it cannot be run any earlier: `astro preview` and
+   `astro dev` do not run the Worker, so `/api/yt/oembed` falls through to the
+   static 404 and every link reports a network problem. One row — the
+   region-blocked id — needs a Vietnamese connection with no VPN and cannot be
+   delegated.
 
    Settled decisions, not to be re-litigated: **crossfade deferred** (ship
    `singleLoopStyle: 'hard'`; a stored `'crossfade'` falls back with
@@ -190,12 +212,12 @@ Open items, in the order they block things:
    against the live site on 2026-07-22: no beacon in the served HTML, and
    `Strict-Transport-Security: max-age=15552000; includeSubDomains; preload`
    (`docs/10 §11`).
-3. **Spikes still open:** **S1** player half — embed-off, age-restricted, and a
-   **region-blocked case that can only be confirmed from Vietnam**
-   (`tests/manual/yt-matrix.md`); **S4b** overlap timing ±150 ms and the
-   0/1/2/5 s sweep — and note the harness cannot produce a valid number until it
-   is fixed (its overlap metric reads back its own scheduled `gain.value`, so it
-   cannot fail; `docs/15 §S4`).
+3. **Spikes still open: S4b only.** Overlap timing ±150 ms and the 0/1/2/5 s
+   sweep — and note the harness cannot produce a valid number until it is fixed
+   (its overlap metric reads back its own scheduled `gain.value`, so it cannot
+   fail; `docs/15 §S4`). S1 has passed; its every id is filled in
+   `tests/manual/yt-matrix.md`, and the region-blocked row carries into the P4
+   live checklist as the one item needing a Vietnamese connection.
 4. `docs/AUDIT-BACKLOG.md` — ~21 open findings, **1 release blocker** (generated
    third-party notices, `legal/THIRD-PARTY-NOTICES.md`). P3 closed the 🟠
    queue-mutation finding by writing `docs/02 §5.1`; S1 refuted the `s.ytimg.com`

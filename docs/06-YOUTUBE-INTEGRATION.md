@@ -108,8 +108,16 @@ cause there would put a confident wrong sentence in front of the user.
 - Duration and publish date are **not** available without the Data API v3 —
   post-1.0 option (same Worker would hold the key server-side). v1 renders `–`
   until the player backfills duration.
-- Abuse controls: Cloudflare rate-limiting rule on `/api/*` (`10 §6`); client
-  throttles imports to 4 concurrent oEmbed checks.
+- Abuse controls: Cloudflare rate-limiting rule on `/api/*` (`10 §6`); the client
+  imports **strictly sequentially** — one oEmbed check at a time, awaited.
+
+  ⚠️ **Corrected 2026-07-23.** This line claimed a throttle "to 4 concurrent
+  oEmbed checks" and no such throttle has ever existed: `tt-yt-import.ts` is a
+  plain `for…of` with an `await` inside, and `recheckPending` copies it. That is
+  *stricter* than the doc promised, and it is what keeps a 50-link paste under
+  the 60 req/min rule, so the code is right and the sentence was wrong. Do not
+  "restore" the pool — a bounded-4 importer would put a 50-link paste much closer
+  to a limit nobody has yet confirmed is even switched on (`10 §11`).
 
 ## 4. Error matrix → typed overlays (spec: "custom pages")
 
