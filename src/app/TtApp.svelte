@@ -40,10 +40,10 @@
 
     // docs/06 §8 — events, not a poll. A timer probing /api would be a
     // self-inflicted 429 against the very rule §6 asks us to respect.
-    const setOnline = () => {
-      session.setOnline(navigator.onLine);
-      yt.setOnline(navigator.onLine);
-    };
+    // `yt` used to keep its own copy of this and nothing ever read it — one
+    // more channel written on every change with no consumer. `session.online`
+    // is what the banner and the Start predicate read, so it is the only one.
+    const setOnline = () => session.setOnline(navigator.onLine);
     setOnline();
     window.addEventListener('online', setOnline);
     window.addEventListener('offline', setOnline);

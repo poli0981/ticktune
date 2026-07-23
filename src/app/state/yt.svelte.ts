@@ -50,7 +50,6 @@ class YtStore {
   #playing = $state(false);
   #positionMs = $state<number | null>(null);
   #durationMs = $state<number | null>(null);
-  #online = $state(true);
 
   /** The track the player was last asked to load, for the docs/06 §2 backfill. */
   #trackId: string | null = null;
@@ -91,15 +90,6 @@ class YtStore {
   get durationMs(): number | null {
     return this.#durationMs;
   }
-  /** docs/10 §9 — false while the browser reports no connection. */
-  get online(): boolean {
-    return this.#online;
-  }
-
-  setOnline(online: boolean): void {
-    this.#online = online;
-  }
-
   /**
    * The rail hands over its 384×216 element.
    *
