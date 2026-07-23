@@ -19,6 +19,30 @@ import { settings } from './settings.svelte';
  */
 class YtStore {
   #player: TtYtPlayer | null = null;
+  /**
+   * Which element the current player is bound to.
+   *
+   * The guard used to be `#player !== null`, which is a guard on the store's
+   * LIFETIME rather than on the element — and the rail is destroyed and rebuilt
+   * every time the session leaves `playing`/`paused` (`TtApp` renders it behind
+   * an `{#if}`). So after a Stop the old player survived, bound to a node that
+   * no longer existed, and the next `attach` refused to adopt the new one.
+   */
+  #mount: HTMLElement | null = null;
+  /**
+   * A `load`/`play` issued before the rail existed — docs/06 §2.
+   *
+   * `onStart` is synchronous by necessity (the gesture chain, `docs/05 §1`), but
+   * the rail only renders once the state IS `playing` and hands its element over
+   * from an `$effect`, which Svelte flushes afterwards. So the very first Start
+   * called `load()` while `#player` was still null and the call went nowhere:
+   * measured 2026-07-23 on `astro dev` — no iframe, and `iframe_api` never even
+   * requested, because `loadApi()` only runs inside `TtYtPlayer.load()`.
+   *
+   * `TtYtPlayer` already solves the same problem one layer down with
+   * `#pendingId`. This is that idea at the store boundary.
+   */
+  #pending: { track: TtTrack; play: boolean } | null = null;
 
   #overlay = $state<TtYtOverlayState | null>(null);
   #playing = $state(false);
@@ -51,12 +75,20 @@ class YtStore {
   }
 
   /**
-   * The rail hands over its 384×216 element. Idempotent: Svelte re-runs the
-   * effect on any re-render, and rebuilding the player there would reload the
-   * iframe mid-video.
+   * The rail hands over its 384×216 element.
+   *
+   * Idempotent **per element**, not per lifetime: Svelte re-runs the effect on
+   * any re-render, and rebuilding the player for the same node would reload the
+   * iframe mid-video. A DIFFERENT node is the opposite case — the rail was
+   * destroyed and rebuilt — and there the old player has to go, or it stays
+   * bound to a detached node forever.
    */
   attach(mount: HTMLElement): void {
-    if (this.#player !== null) return;
+    if (this.#player !== null && this.#mount === mount) return;
+    // A new element means the rail remounted. The old iframe went with the old
+    // DOM; destroying the player is what lets a second run exist at all.
+    this.#player?.dispose();
+    this.#mount = mount;
     this.#player = new TtYtPlayer(browserPlayerPorts(mount), {
       onAdvance: () => this.onAdvance?.(),
       onOverlay: (o) => {
@@ -69,17 +101,49 @@ class YtStore {
       // title or a URL.
       onLog: (code, trackId) => ttLog.warn(code, '', trackId),
     });
+
+    this.#flushPending();
+  }
+
+  /**
+   * Replay a `load`/`play` that arrived before the rail did.
+   *
+   * The sequence is exactly what `load()` and `play()` would have done, in the
+   * same order, because `applyVolume` needs the player's `#api` — which only
+   * exists once `load()` has called `create()`.
+   */
+  #flushPending(): void {
+    const pending = this.#pending;
+    if (pending === null || this.#player === null) return;
+    this.#pending = null;
+    this.#player.load(pending.track);
+    this.applyVolume();
+    if (pending.play) this.#player.play();
   }
 
   load(track: TtTrack): void {
-    this.#player?.load(track);
     this.#positionMs = null;
     this.#durationMs = null;
+
+    if (this.#player === null) {
+      // Held, not dropped. `attach` is the only thing that can act on it, and it
+      // is one microtask away — see `#pending`.
+      this.#pending = { track, play: false };
+      return;
+    }
+
+    this.#player.load(track);
     this.applyVolume();
   }
 
   play(): void {
-    this.#player?.play();
+    if (this.#player === null) {
+      // Start issues `load(); play();` back to back, so this is the second half
+      // of the same pre-mount pair rather than a separate case.
+      if (this.#pending !== null) this.#pending.play = true;
+      return;
+    }
+    this.#player.play();
   }
 
   pause(): void {
@@ -109,8 +173,14 @@ class YtStore {
   dispose(): void {
     this.#player?.dispose();
     this.#player = null;
+    this.#mount = null;
+    // A run that was stopped before the rail mounted must not have its track
+    // replayed by the NEXT run's attach.
+    this.#pending = null;
     this.#overlay = null;
     this.#playing = false;
+    this.#positionMs = null;
+    this.#durationMs = null;
   }
 }
 
