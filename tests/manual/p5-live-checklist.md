@@ -151,14 +151,14 @@ use, and then on a smaller one.
 Short by design. A preview deployment runs the same code and the same Worker, so
 everything above carries; what it cannot speak for is **zone-scoped**.
 
-- [ ] `https://ticktune.net/app/` loads, and ⚙ → Giới thiệu reads **0.6.0** — i.e.
+- [x] `https://ticktune.net/app/` loads, and ⚙ → Giới thiệu reads **0.6.0** — i.e.
       the tag actually deployed, rather than the previous release still serving.
-- [ ] One YouTube link plays, from the production origin. This is the only place
+- [x] One YouTube link plays, from the production origin. This is the only place
       the real `/api/yt/oembed` route on the custom domain is exercised; the
       preview build answers on a `workers.dev` host.
-- [ ] The `≥ 1 h` geometry line once more, at your normal window size. It is the
+- [x] The `≥ 1 h` geometry line once more, at your normal window size. It is the
       headline fix and it costs ten seconds.
-- [ ] Headers still live (`10 §11`): HSTS present, CSP unchanged. The CSP hash is
+- [x] Headers still live (`10 §11`): HSTS present, CSP unchanged. The CSP hash is
       re-injected at build time, so a stale hash would break the gate script.
 
 ## Known-absent — do not report
