@@ -503,6 +503,36 @@ test.describe('youtube mode', () => {
       await expect(page.getByRole('button', { name: 'Bắt đầu' })).toBeDisabled();
     });
 
+    test('the banner offers a way out — it must not be able to trap Start', async ({ page }) => {
+      /*
+       * A deadlock I built, found by testing v0.5.1 on production rather than
+       * by reading it: the banner blocks Start (§8), and `recheckPending` runs
+       * just AFTER Start — so on a machine whose `navigator.onLine` never flips,
+       * the evidence that would lift the banner could only be gathered by the
+       * one action the banner forbids. Banner up, Start disabled, nothing able
+       * to change either.
+       *
+       * §8 rejects a poll, so the user says when to try.
+       */
+      dismissUnloadDialogs(page);
+      await gotoYouTubeApp(page, {
+        [ONE]: { status: 502, body: { error: 'upstream_unreachable' } },
+        [TWO]: { status: 502, body: { error: 'upstream_unreachable' } },
+      });
+      await stageLinks(page, [ONE, TWO], 2);
+      await expect(page.getByTestId('tt-offline')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Bắt đầu' })).toBeDisabled();
+
+      // The connection comes back, and nothing in the browser says so.
+      await mockOembed(page, {});
+      await page.getByTestId('tt-offline-retry').click();
+
+      await expect(page.getByTestId('tt-offline')).toHaveCount(0);
+      await expect(page.getByRole('button', { name: 'Bắt đầu' })).toBeEnabled();
+      // …and the tracks it re-checked are named, not left as N/A.
+      await expect(page.getByTestId('tt-queue-row').first()).toContainText(`Video ${ONE}`);
+    });
+
     test('a batch that never reached the network does not raise it', async ({ page }) => {
       // Malformed links are rejected by the regex before any fetch, so they are
       // evidence of nothing. Treating them as offline would put the banner up

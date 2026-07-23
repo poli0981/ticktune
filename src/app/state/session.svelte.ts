@@ -161,6 +161,18 @@ class SessionStore {
   }
 
   /**
+   * Is there anything a re-check could learn from? — docs/06 §8.
+   *
+   * The offline banner's retry only makes sense while something is `pending`,
+   * because that is the only thing `recheckPending` looks up. It is also the
+   * only way the banner can be up from evidence at all: the verdict is reached
+   * by an import whose transient failures each ADDED a pending track.
+   */
+  get hasPending(): boolean {
+    return this.#queue.some((t) => t.status === 'pending');
+  }
+
+  /**
    * The track the player is on.
    *
    * Before Start there is no cursor yet, so this falls back to the first

@@ -99,6 +99,26 @@
       Mất kết nối mạng.{youtube
         ? ' Chế độ YouTube cần mạng để phát.'
         : ' Nhạc trong máy vẫn phát bình thường.'}
+      <!--
+        The way out, and it has to exist.
+
+        The banner blocks Start (§8), and the re-check that would clear it runs
+        just after Start — so on a machine whose `navigator.onLine` never flips,
+        the evidence that would lift the banner could only be gathered by an
+        action the banner forbids. Measured on the deployed v0.5.1: banner up,
+        Start disabled, nothing able to change either.
+
+        A poll is not the answer (§8 rejects it — the only endpoint worth
+        probing is the one the rate limit guards), so the user says when to try.
+      -->
+      {#if youtube && session.hasPending}
+        <button
+          type="button"
+          class="tt-retry"
+          data-testid="tt-offline-retry"
+          onclick={() => void session.recheckPending()}>Thử lại</button
+        >
+      {/if}
     </p>
   {/if}
 
@@ -336,6 +356,15 @@
     color: var(--color-tt-danger);
     background: transparent;
     border: 1px solid var(--color-tt-line);
+    border-radius: 0.25rem;
+  }
+  .tt-retry {
+    margin-left: 0.5rem;
+    padding: 0.1rem 0.5rem;
+    font-size: 0.72rem;
+    color: var(--color-tt-warn);
+    background: transparent;
+    border: 1px solid var(--color-tt-warn);
     border-radius: 0.25rem;
   }
   .tt-offline {
