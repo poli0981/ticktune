@@ -251,10 +251,14 @@ Open items, in the order they block things:
    reconcile before slice 4 · **"a11y milestones announced" is unwritten code**,
    `03 §8`'s five polite announcements at 10 min / 5 min / 1 min / 10 s / zero.
 
-   ⚠️ **A release is not done until the live checklist is run.**
-   `tests/manual/p5-live-checklist.md` is written and unrun. P4's found a real
-   bug on the first line nobody expected — and it can only be run against a TAG,
-   because neither `astro dev` nor `astro preview` runs the Worker.
+   ✅ **`tests/manual/p5-live-checklist.md` was run on 2026-07-23 and every line
+   passed first time**, including the `≥ 1 h` geometry block and a real Firefox
+   pass. It corrected its own rule: the requirement is a real **deployment**, not
+   specifically a TAG — `astro dev`/`astro preview` are excluded because they do
+   not run the Worker, but the **per-PR Cloudflare build does**, so the checklist
+   runs *before* the merge from now on. A failure there costs a force-push; the
+   same failure after a tag costs a patch release, which is what v0.5.1 and
+   v0.5.2 were. Only a short production re-check stays tag-scoped.
 
    Settled decisions, not to be re-litigated: **crossfade deferred** (ship
    `singleLoopStyle: 'hard'`; a stored `'crossfade'` falls back with
