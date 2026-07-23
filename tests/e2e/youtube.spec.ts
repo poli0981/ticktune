@@ -316,6 +316,57 @@ test.describe('youtube mode', () => {
     });
   });
 
+  test.describe('the backfill — docs/06 §2', () => {
+    test('a pending track gets its title, channel and duration from the player', async ({
+      page,
+    }) => {
+      /*
+       * The gap this closes. A transient lookup leaves `title: ''` and
+       * `artist: ''`, so the row renders `N/A N/A –` for a video that then plays
+       * perfectly — and `durationMs` stayed null for EVERY YouTube track, so the
+       * queue footer read `–` for the whole session.
+       *
+       * `getDuration()` and `getVideoData()` were specified from revision 1;
+       * neither ran, because the session had no track writer at all.
+       */
+      dismissUnloadDialogs(page);
+      await gotoYouTubeApp(page, {
+        [ONE]: { status: 502, body: { error: 'upstream_unreachable' } },
+      });
+      await stageLinks(page, [ONE]);
+      await expect(page.getByTestId('tt-queue-row').first()).toContainText('N/A');
+
+      await setDuration(page, 0, 1, 0);
+      await page.getByRole('button', { name: 'Bắt đầu' }).click();
+      await expect(page.getByTestId('tt-yt-frame')).toBeVisible();
+
+      const row = page.getByTestId('tt-queue-row').first();
+      await expect(row).toContainText('Từ trình phát');
+      await expect(row).toContainText('Kênh trình phát');
+      await expect(row).toContainText('3:32');
+      await expect(row).not.toContainText('N/A');
+      // The footer total is the surface nobody would have thought to check.
+      await expect(page.getByTestId('tt-queue-totals')).toContainText('3:32');
+    });
+
+    test('never overwrites what oEmbed already answered', async ({ page }) => {
+      // oEmbed is the better source — the channel's own title, before the
+      // player's normalisation. Blanks only is the whole rule.
+      dismissUnloadDialogs(page);
+      await gotoYouTubeApp(page);
+      await stageLinks(page, [ONE]);
+      await setDuration(page, 0, 1, 0);
+      await page.getByRole('button', { name: 'Bắt đầu' }).click();
+      await expect(page.getByTestId('tt-yt-frame')).toBeVisible();
+
+      const row = page.getByTestId('tt-queue-row').first();
+      await expect(row).toContainText(`Video ${ONE}`);
+      await expect(row).not.toContainText('Từ trình phát');
+      // …but the duration, which oEmbed does not carry, still lands.
+      await expect(row).toContainText('3:32');
+    });
+  });
+
   test.describe('the mode boundary — docs/06 §5', () => {
     test('sources do not mix: the drop zone is not offered in YouTube mode', async ({ page }) => {
       dismissUnloadDialogs(page);

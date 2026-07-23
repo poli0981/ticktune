@@ -1,4 +1,9 @@
-import type { TtYtPlayerApi, TtYtPlayerEvents, TtYtPlayerPorts } from './tt-yt-player';
+import type {
+  TtYtPlayerApi,
+  TtYtPlayerEvents,
+  TtYtPlayerPorts,
+  TtYtVideoData,
+} from './tt-yt-player';
 
 /**
  * The browser half of the player — docs/06 §2.
@@ -115,6 +120,22 @@ export function browserPlayerPorts(mount: HTMLElement): TtYtPlayerPorts {
         // while the real player is still arriving, because `toMs` reads it.
         getDuration: () => real?.getDuration() ?? 0,
         getCurrentTime: () => real?.getCurrentTime() ?? 0,
+        /*
+         * Called defensively because `getVideoData` is NOT in YouTube's
+         * published reference (docs/06 §2). It is long established and present
+         * on every build measured, but our own `TtYtPlayerApi` promising it does
+         * not make the real object have it — and this runs inside a 10 Hz tick,
+         * where a throw would take the position readout down with it.
+         */
+        getVideoData: () => {
+          const fn = (real as { getVideoData?: () => TtYtVideoData } | null)?.getVideoData;
+          if (typeof fn !== 'function') return {};
+          try {
+            return fn.call(real) ?? {};
+          } catch {
+            return {};
+          }
+        },
         destroy: () => {
           real?.destroy();
           real = null;

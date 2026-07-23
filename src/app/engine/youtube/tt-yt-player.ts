@@ -28,6 +28,20 @@ export const YT_PAUSED = 2;
  */
 export const OVERLAY_SKIP_MS = 5_000;
 
+/**
+ * What `getVideoData()` returns — docs/06 §2.
+ *
+ * ⚠️ **Not in YouTube's published IFrame Player API reference.** It is long
+ * established and universally present, but nothing contractually stops a future
+ * build dropping it, so every field is optional and the driver treats a missing
+ * method as "we learned nothing" rather than as an error.
+ */
+export interface TtYtVideoData {
+  title?: string;
+  author?: string;
+  video_id?: string;
+}
+
 /** The subset of `YT.Player` this app uses. Nothing else may be called. */
 export interface TtYtPlayerApi {
   loadVideoById: (videoId: string) => void;
@@ -40,6 +54,8 @@ export interface TtYtPlayerApi {
   /** Seconds, and 0 until the video is loaded enough to know. */
   getDuration: () => number;
   getCurrentTime: () => number;
+  /** docs/06 §2's title/channel backfill. Empty object when unavailable. */
+  getVideoData: () => TtYtVideoData;
   destroy: () => void;
 }
 
@@ -136,6 +152,21 @@ export class TtYtPlayer {
    */
   get durationMs(): number | null {
     return this.#api === null ? null : toMs(this.#api.getDuration());
+  }
+
+  /**
+   * docs/06 §2 — title and channel from the player itself.
+   *
+   * Only useful when oEmbed did not answer, which is exactly the `pending` case:
+   * `tt-yt-import.ts` writes `title: ''` and `artist: ''` there, and every
+   * surface then renders `N/A` for a video that plays perfectly well.
+   *
+   * Empty strings come back as null so `docs/02 §2`'s fallback rule stays the
+   * one that decides what a missing value looks like.
+   */
+  get videoData(): { title: string | null; author: string | null } {
+    const data = this.#api?.getVideoData();
+    return { title: nonEmpty(data?.title), author: nonEmpty(data?.author) };
   }
 
   /**
@@ -249,4 +280,9 @@ export class TtYtPlayer {
 function toMs(seconds: number): number | null {
   if (!Number.isFinite(seconds) || seconds <= 0) return null;
   return Math.round(seconds * 1000);
+}
+
+/** '' is missing, not a title. Same reasoning as `toMs`'s zero. */
+function nonEmpty(v: string | undefined): string | null {
+  return v === undefined || v.trim() === '' ? null : v;
 }
