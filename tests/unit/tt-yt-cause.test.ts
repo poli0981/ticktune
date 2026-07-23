@@ -41,12 +41,22 @@ describe('ytCauseFromUpstream — the S1 truth table', () => {
     expect(ytCauseFromUpstream(404)).toBe('not_found');
   });
 
-  it('falls back honestly on a status nobody has measured', () => {
+  it('falls back honestly on a 4xx nobody has measured', () => {
     // `unavailable` says "it did not work and we do not know why", which is
     // true. Guessing a specific cause here would put a confident wrong sentence
     // in front of the user.
-    for (const status of [402, 410, 418, 451, 500, 503]) {
+    for (const status of [402, 410, 418, 451]) {
       expect(ytCauseFromUpstream(status)).toBe('unavailable');
+    }
+  });
+
+  it('treats every 5xx as the SERVER failing, never the video', () => {
+    // These used to land in `unavailable`, which is non-transient — so a
+    // YouTube outage did not fail an import, it rejected every pasted link
+    // outright, and the Worker then cached that verdict for fifteen minutes.
+    for (const status of [500, 502, 503, 504]) {
+      expect(ytCauseFromUpstream(status)).toBe('upstream_unreachable');
+      expect(ytCauseIsTransient(ytCauseFromUpstream(status))).toBe(true);
     }
   });
 
@@ -91,6 +101,14 @@ describe('ytCauseFromResponse — a status is only a cause if it is OURS', () =>
     // The Worker emits it when the EDGE could not reach oEmbed.
     expect(ytCauseFromResponse(502, JSONH)).toBe('upstream_unreachable');
     expect(ytCauseIsTransient(ytCauseFromResponse(502, JSONH))).toBe(true);
+  });
+
+  it('treats an upstream 5xx the same way, JSON or not', () => {
+    // A 503 our Worker forwarded and a 503 from something in between are the
+    // same fact to the user: the server failed. Neither is the owner's doing.
+    for (const ct of [JSONH, 'text/html', null]) {
+      expect(ytCauseIsTransient(ytCauseFromResponse(503, ct))).toBe(true);
+    }
   });
 
   it('never blames the video when something else answered', () => {

@@ -87,10 +87,41 @@ describe('the cause is preserved — spike S1', () => {
     await expect(res.json()).resolves.toEqual({ error: 'embed_off' });
   });
 
-  it('falls back to "unavailable" on a status nobody has measured', async () => {
+  it('falls back to "unavailable" on a 4xx nobody has measured', async () => {
     fetchMock.mockResolvedValue(new Response('', { status: 451 }));
     const res = await call(OEMBED + GOOD_ID);
     await expect(res.json()).resolves.toEqual({ error: 'unavailable' });
+  });
+
+  it('names an upstream 5xx as the server failing, not the video', async () => {
+    fetchMock.mockResolvedValue(new Response('', { status: 503 }));
+    const res = await call(OEMBED + GOOD_ID);
+    // `unavailable` is non-transient, so this used to REJECT the track: a
+    // YouTube outage threw away every pasted link.
+    await expect(res.json()).resolves.toEqual({ error: 'upstream_unreachable' });
+  });
+});
+
+describe('a transient verdict is never remembered — docs/06 §3', () => {
+  it.each([
+    [503, 'an upstream outage'],
+    [429, 'a rate limit'],
+  ])('does not cache %i (%s)', async (status) => {
+    // The 502 branch already refused to cache "for exactly this reason" while
+    // every OTHER transient status was kept for 15 minutes — so the retry that
+    // would have cleared it hit the cache instead and got the same answer.
+    fetchMock.mockResolvedValue(new Response('', { status }));
+    const res = await call(OEMBED + GOOD_ID);
+
+    expect(cache.put).not.toHaveBeenCalled();
+    expect(res.headers.get('cache-control')).toBe('public, max-age=0');
+  });
+
+  it('still caches a verdict about the VIDEO itself', async () => {
+    fetchMock.mockResolvedValue(new Response('', { status: 404 }));
+    await call(OEMBED + GOOD_ID);
+    // 404s are cheap and rarely un-delete; that is what the 15 minutes is for.
+    expect(cache.put).toHaveBeenCalled();
   });
 });
 

@@ -10,7 +10,7 @@
  * usable as an open proxy.
  */
 
-import { ytCauseFromUpstream } from '../src/lib/tt-yt-cause';
+import { ytCauseFromUpstream, ytCauseIsTransient } from '../src/lib/tt-yt-cause';
 
 interface Env {
   ASSETS: { fetch: (req: Request) => Promise<Response> };
@@ -76,8 +76,21 @@ async function oembed(id: string, ctx: ExecutionContext): Promise<Response> {
      * The player cannot recover any of it later: S1 found `onError` reports 150
      * for every cause. This response is the only place the reason exists.
      */
-    const out = json({ error: ytCauseFromUpstream(res.status) }, res.status, ERROR_TTL_S);
-    ctx.waitUntil(cache.put(cacheKey, out.clone()));
+    const cause = ytCauseFromUpstream(res.status);
+
+    /*
+     * Only a verdict about the VIDEO earns the 15 minutes.
+     *
+     * `ERROR_TTL_S` used to apply to every non-ok status, which meant a 429 or
+     * a 503 — the two that say the server is having a bad minute — were
+     * remembered exactly as long as a 404. That is the opposite of what the 502
+     * branch above already does, and for the same stated reason: a transient
+     * blip must not look like a deleted video, and here it also could not be
+     * cleared by retrying, because the retry hit the cache.
+     */
+    const transient = ytCauseIsTransient(cause);
+    const out = json({ error: cause }, res.status, transient ? 0 : ERROR_TTL_S);
+    if (!transient) ctx.waitUntil(cache.put(cacheKey, out.clone()));
     return out;
   }
 

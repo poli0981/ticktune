@@ -74,6 +74,19 @@ export function ytCauseFromUpstream(status: number): TtYtCause {
   if (status === 403) return 'private';
   if (status === 404) return 'not_found';
   if (status === 429) return 'rate_limited';
+  /*
+   * 5xx is the SERVER failing, never the video.
+   *
+   * This used to fall through to `unavailable`, which is non-transient — so a
+   * YouTube outage did not merely fail an import, it **rejected every pasted
+   * link permanently**, and `worker/index.ts` then edge-cached that verdict for
+   * fifteen minutes. The user's remedy was to wait out a cache they cannot see
+   * and re-paste fifty links.
+   *
+   * It is the same reasoning that already gave our own 502 this cause: nothing
+   * about a 503 from oEmbed says anything about whether the video plays.
+   */
+  if (status >= 500) return 'upstream_unreachable';
   return 'unavailable';
 }
 
@@ -111,8 +124,8 @@ export function ytCauseFromResponse(status: number, contentType: string | null):
   if (!(contentType ?? '').includes('application/json')) {
     return status === 429 ? 'rate_limited' : 'upstream_unreachable';
   }
-  // 502 is ours, not YouTube's: the Worker emits it when the edge could not
-  // reach oEmbed at all, so it must not be read as a property of the video.
-  if (status === 502) return 'upstream_unreachable';
+  // Our own 502 needs no special case any more: `ytCauseFromUpstream` sends
+  // every 5xx to `upstream_unreachable`, which is the same answer for the same
+  // reason — the edge failed, and that says nothing about the video.
   return ytCauseFromUpstream(status);
 }
