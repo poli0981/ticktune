@@ -30,7 +30,7 @@ type TtSize = 's' | 'm' | 'l';
 type TtVisualizer = 'off' | 'bars' | 'wave' | 'ring';
 
 export interface TtSettings {
-  readonly schema: 1;
+  readonly schema: 2;
 
   lang: TtLang;
   lastMode: TtMode;
@@ -66,7 +66,7 @@ export interface TtSettings {
   allowDuplicates: boolean;
 }
 
-const TT_SETTINGS_SCHEMA = 1 as const;
+const TT_SETTINGS_SCHEMA = 2 as const;
 
 export const TT_DEFAULT_SETTINGS: TtSettings = {
   schema: TT_SETTINGS_SCHEMA,
@@ -88,7 +88,21 @@ export const TT_DEFAULT_SETTINGS: TtSettings = {
   endChime: true,
   endFlash: false,
   endAction: 'stay',
-  visualizer: 'ring',
+  /*
+   * OFF, and changed from `'ring'` on 2026-07-23 — deliberately BEFORE the
+   * renderer exists.
+   *
+   * The default was written when nothing read the field, so it cost nothing.
+   * The day P5's renderer lands it would have cost something specific: every
+   * existing user, whose settings row already carries `visualizer: 'ring'`,
+   * would open the app to a moving graphic they never asked for — over a
+   * countdown whose whole design is legibility first (`03 §1`). Shipping the
+   * new default first means the row says `'off'` before anything can act on it.
+   *
+   * `05 §6` still calls ring the signature look; that is what the Settings
+   * panel offers, not what an upgrade imposes.
+   */
+  visualizer: 'off',
   visualizerSensitivity: 1.0,
   volume: 0.8,
   muted: false,
@@ -149,6 +163,28 @@ export function clampSettings(raw: unknown): TtSettings {
       ? ([gc[0], gc[1]] as [string, string])
       : null;
 
+  /*
+   * schema 1 → 2: forget the stored `visualizer`.
+   *
+   * Changing `TT_DEFAULT_SETTINGS.visualizer` to `'off'` does NOT reach anyone
+   * who has used the app before, and the read path is why: `settings.load`
+   * spreads defaults *under* the stored row, and `patch()` writes the WHOLE
+   * object — so accepting the legal gate was enough to persist
+   * `visualizer: 'ring'` for every existing user. The new default would have
+   * applied to nobody but a fresh profile.
+   *
+   * Discarding it is not overriding a preference, because a preference was
+   * never expressible: no control for this field has ever shipped, so any
+   * stored value is a default that `patch()` carried along incidentally. The
+   * moment P5's Settings panel exists, a stored value means something and this
+   * migration must not be extended to it.
+   *
+   * No Dexie `version(2)` — nothing is renamed, removed or retyped (`02 §3.2`),
+   * which is exactly the boundary `schema` exists to mark.
+   */
+  const storedSchema = typeof r['schema'] === 'number' ? r['schema'] : 0;
+  const preVisualizerRow = Object.keys(r).length > 0 && storedSchema < 2;
+
   return {
     schema: TT_SETTINGS_SCHEMA,
     lang: oneOf(r['lang'], LANGS, d.lang),
@@ -174,7 +210,7 @@ export function clampSettings(raw: unknown): TtSettings {
     endChime: bool(r['endChime'], d.endChime),
     endFlash: bool(r['endFlash'], d.endFlash),
     endAction: oneOf(r['endAction'], END_ACTIONS, d.endAction),
-    visualizer: oneOf(r['visualizer'], VISUALIZERS, d.visualizer),
+    visualizer: preVisualizerRow ? d.visualizer : oneOf(r['visualizer'], VISUALIZERS, d.visualizer),
     visualizerSensitivity: num(r['visualizerSensitivity'], 0.5, 2, d.visualizerSensitivity),
     volume: num(r['volume'], 0, 1, d.volume),
     muted: bool(r['muted'], d.muted),
