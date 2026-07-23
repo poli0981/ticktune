@@ -106,7 +106,12 @@
       "hard": "Hard cut",
       "crossfade": "Crossfade",
       "locked": "Waiting on spike S4b measurements",
+      "fallback": "Crossfade is saved but not in this build — playing with a hard cut.",
       "hint": "Right-click for track info"
+    },
+    "focus": {
+      "hint": "Press H to leave focus mode",
+      "railLocked": "The player must stay visible — YouTube terms"
     },
     "queue": {
       "label": "Playback",
@@ -201,6 +206,89 @@
     "lang": {
       "toVi": "Chuyển sang tiếng Việt",
       "toEn": "Switch to English"
+    },
+    "settings": "Settings",
+    "fullscreen": "Fullscreen"
+  },
+  "settings": {
+    "title": "Settings",
+    "close": "Close settings",
+    "group": {
+      "general": "General",
+      "countdown": "Countdown",
+      "audio": "Audio",
+      "playback": "Playback",
+      "hotkeys": "Keyboard shortcuts",
+      "diagnostics": "Diagnostics",
+      "about": "About"
+    },
+    "general": {
+      "lang": "Language",
+      "legal": "Legal documents",
+      "reset": "Reset app",
+      "resetHint": "Deletes every setting saved on this machine.",
+      "resetConfirm": "Delete every saved setting? You will be asked to accept the terms again, because acceptance is stored with them.",
+      "resetYes": "Delete everything",
+      "resetNo": "Cancel"
+    },
+    "countdown": {
+      "glow": "Glow",
+      "size": "Digit size",
+      "sizeS": "Small",
+      "sizeM": "Medium",
+      "sizeL": "Large",
+      "end": "At zero",
+      "endFade": "Fade out",
+      "endFadeValue": "{{seconds}} s",
+      "endChime": "Chime",
+      "endFlash": "Screen flash",
+      "endAction": "Then",
+      "endActionStay": "Stop",
+      "endActionRestart": "Run once more",
+      "endActionLoop": "Repeat until stopped"
+    },
+    "audio": {
+      "volume": "Volume",
+      "mute": "Mute",
+      "deferred": "Crossfade and the single-track loop style are not in this build yet — they are waiting on spike S4b."
+    },
+    "playback": {
+      "shuffle": "Shuffle",
+      "repeat": "Repeat playlist",
+      "duplicates": "Allow duplicates",
+      "duplicatesHint": "Applies to the next import; tracks already added are unaffected."
+    },
+    "hotkeys": {
+      "space": "Play / pause",
+      "arrows": "Previous / next track",
+      "updown": "Volume ±5",
+      "m": "Mute",
+      "f": "Fullscreen",
+      "h": "Focus mode",
+      "s": "Settings",
+      "bracket": "Show / hide the right panel",
+      "esc": "Close a dialog or panel",
+      "altUpDown": "Move the selected track",
+      "note": "Shortcuts are off while you are typing in a field."
+    },
+    "diagnostics": {
+      "level": "Level",
+      "all": "All",
+      "info": "Info",
+      "warn": "Warning",
+      "error": "Error",
+      "empty": "Nothing logged yet.",
+      "copy": "Copy diagnostics",
+      "copied": "Copied to the clipboard.",
+      "copyFailed": "The clipboard refused. Select the text below and copy it by hand.",
+      "clear": "Clear log",
+      "privacy": "Carries no file names and no track titles — safe to paste into a bug report."
+    },
+    "about": {
+      "version": "Version",
+      "license": "Licence",
+      "repo": "Source code",
+      "thirdParty": "Third-party notices"
     }
   }
 }

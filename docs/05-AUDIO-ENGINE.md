@@ -84,6 +84,13 @@ plus the reason on the disabled toggle.
 > alongside the mode work. It is the same failure shape as `coverArtUrl`: a
 > documented behaviour whose absence is indistinguishable from correctness,
 > because the fallback path is what a reader sees either way.
+>
+> **P5 slice 2 gave it the half a listener can see.** Through P4 the "notice"
+> was a log entry — technically real, and invisible to anyone not holding the
+> Diagnostics panel open, which did not exist either. The rail now renders the
+> fallback in words whenever the stored style is `'crossfade'`, and the pressed
+> state of the loop-style pair reports the **effective** style rather than the
+> stored one. The pair had no `onclick` at all until that change (`03 §6`).
 
 **P3 ships no inter-track crossfade either**, for the same gate: `15 §S4b`
 covers "the crossfade loop style **and P3's inter-track crossfade**". Playlist

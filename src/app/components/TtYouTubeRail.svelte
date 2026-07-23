@@ -177,7 +177,13 @@
     flex-direction: column;
     gap: 0.6rem;
     /* Wide enough for the mandatory 384 px player plus the rail's own padding.
-       Never a percentage — see the markup note. */
+       Never a percentage — see the markup note.
+
+       `flex: none` is part of the same requirement, not tidiness: as a plain
+       flex item this aside could be asked to shrink, and only its min-content
+       size (the player's own 384 px) held the line. The overflow then went to
+       the RIGHT, off the viewport — measured 2026-07-23, docs/03 §4. */
+    flex: none;
     width: calc(384px + 1.8rem);
     max-height: 78vh;
     padding: 0.9rem;

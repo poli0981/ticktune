@@ -6,6 +6,7 @@
   import TtFinished from './components/TtFinished.svelte';
   import TtLegalGate from './components/TtLegalGate.svelte';
   import TtQueuePanel from './components/TtQueuePanel.svelte';
+  import TtSettings from './components/TtSettings.svelte';
   import TtSetup from './components/TtSetup.svelte';
   import TtSingleRail from './components/TtSingleRail.svelte';
   import TtTrackInfo from './components/TtTrackInfo.svelte';
@@ -504,6 +505,124 @@
 
   function onActivity() {
     wakeToken += 1;
+    // docs/03 §4: "Any pointer/key shows a 3 s hint chip". Focus hides every
+    // control including the one that would undo it, so the way out has to be
+    // re-offered rather than remembered.
+    if (focusMode) showHint('focus');
+  }
+
+  // ── docs/03 §4 Focus, docs/03 §7 the rest of the hotkeys ──────────────────
+
+  /**
+   * Both are session-only on purpose.
+   *
+   * `02 §3.1` has no field for either, and P5 is wiring what that schema already
+   * promised rather than extending it (`16 §P5`). A persisted Focus would also
+   * be a trap: the app would open with every control hidden and no clue why.
+   */
+  let focusMode = $state(false);
+  let railCollapsed = $state(false);
+  let settingsOpen = $state(false);
+
+  /**
+   * The 3 s chip both `03 §2` and `03 §4` call for — one region, two messages.
+   *
+   * A tag rather than a `TtKey`, so the two strings are looked up by LITERAL in
+   * the markup below. The key guard finds callers by grepping for `t('…')`
+   * (tests/unit/tt-i18n-keys.test.ts), and passing the key through a variable
+   * would make both entries read as orphans and fail the build — which is the
+   * guard working, not a reason to exempt them.
+   */
+  let hint = $state<'focus' | 'railLocked' | null>(null);
+  let hintTimer: ReturnType<typeof setTimeout> | undefined;
+  function showHint(which: 'focus' | 'railLocked') {
+    hint = which;
+    clearTimeout(hintTimer);
+    hintTimer = setTimeout(() => (hint = null), 3000);
+  }
+
+  /**
+   * Closing the panel returns focus to ⚙ — docs/03 §8's "full keyboard support".
+   *
+   * The panel deliberately does not do this itself: `S` opens it with `<body>`
+   * focused, so an opener-restore (which is right for the info modal) would
+   * drop a keyboard user nowhere. ⚙ is the control that carries `aria-expanded`,
+   * so it is where "closed" belongs. Optional because Focus mode does not
+   * render Z6 at all.
+   */
+  function closeSettings() {
+    settingsOpen = false;
+    queueMicrotask(() =>
+      document.querySelector<HTMLElement>('[data-testid=tt-settings-open]')?.focus(),
+    );
+  }
+
+  const onPlayerScreen = $derived(session.state === 'playing' || session.state === 'paused');
+
+  /**
+   * docs/03 §2's carve-out, and the reason it is a `$derived` rather than a
+   * branch at each call site: the rail holds the YouTube player, and `06 §1.2`
+   * forbids hiding it. Focus reduces that rail to the player alone (the rail
+   * component does that itself); `]` cannot touch it at all.
+   */
+  const railHidden = $derived(session.mode === 'youtube' ? false : focusMode || railCollapsed);
+
+  /*
+   * Leaving the player screen cancels both. Otherwise Stop → Setup would land
+   * on a setup form with its chrome hidden and no visible way to bring it back.
+   */
+  $effect(() => {
+    if (!onPlayerScreen) {
+      focusMode = false;
+      railCollapsed = false;
+    }
+  });
+
+  /**
+   * The space no overlay may occupy — docs/03 §2, "any overlay / modal must not
+   * cover the player rect".
+   *
+   * Published once, as a variable, so a future overlay inherits the rule instead
+   * of rediscovering it. It is the rail's own column plus the page padding, i.e.
+   * the distance from the right edge of the viewport to the rail's left edge.
+   */
+  const ytReserve = $derived(
+    session.mode === 'youtube' && onPlayerScreen ? 'calc(384px + 1.8rem + 2rem)' : '0px',
+  );
+
+  function toggleFullscreen() {
+    // A rejection here is a browser policy decision the user can see the result
+    // of (nothing happens); it is not an app error and gets no log code.
+    if (document.fullscreenElement) void document.exitFullscreen().catch(() => {});
+    else void document.documentElement.requestFullscreen().catch(() => {});
+  }
+
+  /** `]` — docs/03 §7, and a no-op in YouTube mode with the reason shown. */
+  function toggleRail() {
+    if (!onPlayerScreen) return;
+    if (session.mode === 'youtube') {
+      showHint('railLocked');
+      return;
+    }
+    railCollapsed = !railCollapsed;
+  }
+
+  /**
+   * Settings → General → Reset, once the second confirmation is given.
+   *
+   * The row is gone, so `legalAccepted` is null and the app is a first-time
+   * visitor again. Doing that transition here rather than in the panel keeps
+   * the state machine in one place (docs/12 §3.3), and the run is stopped first
+   * because a countdown ticking behind an inert gate is nobody's intention.
+   */
+  function onSettingsReset() {
+    settingsOpen = false;
+    if (onPlayerScreen) onStop();
+    else if (session.state === 'finished') session.backToSetup();
+    driver.reset();
+    i18n.start(settings.current.lang);
+    session.booted(true);
+    document.documentElement.dataset['ttBooted'] = 'gate';
   }
 
   /**
@@ -522,15 +641,51 @@
   }
 
   /**
-   * docs/03 §7 hotkeys — the P2 subset. `F`/`H`/`]` arrive with Focus mode and
-   * the collapsible rail in P5. Inert while typing, so the countdown inputs
-   * still take a literal space.
+   * docs/03 §7 hotkeys — complete since P5 slice 2. Inert while typing, so the
+   * countdown inputs still take a literal space.
+   *
+   * Three things swallow the whole set rather than individual keys, and each is
+   * a different reason: the legal gate makes `main` inert, so acting on a key
+   * would drive an interface the user cannot see (`02 §1`); the info modal and
+   * the settings panel own `Esc` themselves, and a second handler underneath
+   * would close both at once.
    */
   function onKeydown(e: KeyboardEvent) {
     onActivity();
     const el = e.target as HTMLElement | null;
     if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+    if (booted && needsGate) return;
+    if (settingsOpen) {
+      // `S` toggles, so it has to survive the guard that the panel's own `Esc`
+      // handler otherwise hides behind.
+      if (e.key === 's' || e.key === 'S') closeSettings();
+      return;
+    }
     if (infoTrack) return;
+
+    if (e.key === 's' || e.key === 'S') {
+      settingsOpen = true;
+      return;
+    }
+    if (e.key === 'f' || e.key === 'F') {
+      toggleFullscreen();
+      return;
+    }
+    if (e.key === 'h' || e.key === 'H') {
+      if (onPlayerScreen) {
+        focusMode = !focusMode;
+        // The key that ENTERS Focus has to offer the way out too. `onActivity`
+        // above ran while `focusMode` was still false, so without this the chip
+        // waits for a second, unrelated keystroke — on a screen that has just
+        // hidden every control that could explain itself (docs/03 §4).
+        if (focusMode) showHint('focus');
+      }
+      return;
+    }
+    if (e.key === ']') {
+      toggleRail();
+      return;
+    }
 
     if (e.key === ' ' && (session.state === 'playing' || session.state === 'paused')) {
       e.preventDefault();
@@ -564,6 +719,8 @@
 <main
   class="tt-main"
   class:tt-player={session.state === 'playing' || session.state === 'paused'}
+  class:tt-focus={focusMode}
+  style:--tt-yt-reserve={ytReserve}
   inert={booted && needsGate}
 >
   {#if debug}
@@ -586,40 +743,74 @@
     beat-reactive pulse needs the Analyser loop that ships with the visualizer
     in P5 (docs/05 §6), and a fake pulse would be worse than none.
   -->
-  <header class="tt-brand">
-    <span
-      class="tt-tally"
-      class:tt-live={session.state === 'playing'}
-      data-testid="tt-tally"
-      aria-hidden="true"
-    ></span>
-    <span class="tt-wordmark">TickTune</span>
-  </header>
+  {#if !focusMode}
+    <header class="tt-brand" data-testid="tt-brand">
+      <span
+        class="tt-tally"
+        class:tt-live={session.state === 'playing'}
+        data-testid="tt-tally"
+        aria-hidden="true"
+      ></span>
+      <span class="tt-wordmark">TickTune</span>
+    </header>
+  {/if}
 
   <!--
     docs/03 §2 Z6 — "Settings ⚙, language, fullscreen. Icon buttons, 40 px hit
-    area." The language control lands with the dictionaries it switches; ⚙ and ⤢
-    arrive with the settings panel and Focus mode, which is why this is a header
-    rather than one button floated into the corner.
+    area." All three are here since P5 slice 2; the header shape was chosen in
+    slice 1 precisely so the other two could arrive without a re-layout.
 
-    The label is written in the language being switched TO, on purpose: someone
-    who cannot read the current interface has to be able to read their way out
-    of it (docs/03 §8, "language of parts").
+    The language label is written in the language being switched TO, on purpose:
+    someone who cannot read the current interface has to be able to read their
+    way out of it (docs/03 §8, "language of parts").
   -->
-  <header class="tt-chrome" data-testid="tt-chrome">
-    <button
-      class="tt-icon"
-      data-testid="tt-lang-toggle"
-      lang={i18n.lang === 'vi' ? 'en' : 'vi'}
-      aria-label={i18n.lang === 'vi' ? i18n.t('header.lang.toEn') : i18n.t('header.lang.toVi')}
-      onclick={() => void switchLang()}>{i18n.lang === 'vi' ? 'EN' : 'VI'}</button
-    >
-  </header>
+  {#if !focusMode}
+    <header class="tt-chrome" data-testid="tt-chrome">
+      <button
+        class="tt-icon"
+        data-testid="tt-lang-toggle"
+        lang={i18n.lang === 'vi' ? 'en' : 'vi'}
+        aria-label={i18n.lang === 'vi' ? i18n.t('header.lang.toEn') : i18n.t('header.lang.toVi')}
+        onclick={() => void switchLang()}>{i18n.lang === 'vi' ? 'EN' : 'VI'}</button
+      >
+      <button
+        class="tt-icon"
+        data-testid="tt-settings-open"
+        aria-label={i18n.t('header.settings')}
+        aria-expanded={settingsOpen}
+        onclick={() => (settingsOpen = !settingsOpen)}>⚙</button
+      >
+      <button
+        class="tt-icon"
+        data-testid="tt-fullscreen"
+        aria-label={i18n.t('header.fullscreen')}
+        onclick={toggleFullscreen}>⤢</button
+      >
+    </header>
+  {/if}
 
   <section class="tt-stage">
-    <TtCountdown remainingMs={displayMs} glowIntensity={settings.current.glowIntensity} />
+    <!--
+      The clock's own column, and it is load-bearing rather than a wrapper for
+      styling — docs/03 §4. `container-type: inline-size` makes this element a
+      size container whose width is computed WITHOUT its contents, so the flex
+      line gives it exactly what the rail does not need, and `TtCountdown`'s
+      `cqw` cap resolves against that. Measured 2026-07-23: without it the
+      countdown sized itself from the viewport, the rail could not shrink below
+      its 384 px player, and in the >= 1 h regime the player was pushed
+      224 px off screen at 1280 px (58% of it) and off screen at every width
+      below 1920 (docs/03 §4's table).
+    -->
+    <div class="tt-clock">
+      <TtCountdown
+        remainingMs={displayMs}
+        glowIntensity={settings.current.glowIntensity}
+        size={settings.current.countdownSize}
+        {focusMode}
+      />
+    </div>
 
-    {#if session.state === 'playing' || session.state === 'paused'}
+    {#if onPlayerScreen && !railHidden}
       {#if session.mode === 'youtube'}
         <TtYouTubeRail
           tracks={session.queue}
@@ -629,7 +820,7 @@
           exhausted={session.exhausted}
           overlay={yt.overlay}
           skipInSeconds={yt.skipInSeconds}
-          focusMode={false}
+          {focusMode}
           onmount={(el) => yt.attach(el)}
           onskip={() => yt.skipNow()}
           onremove={(id) => session.removeTrack(id)}
@@ -644,6 +835,8 @@
           track={playback.track}
           loops={playback.loops}
           crossfadeAvailable={false}
+          loopStyle={settings.current.singleLoopStyle}
+          onloopstyle={(style) => void settings.patch({ singleLoopStyle: style })}
           oninfo={() => (infoTrack = playback.track)}
         />
       {:else}
@@ -704,7 +897,9 @@
     />
   {/if}
 
-  {#if session.state === 'playing' || session.state === 'paused'}
+  <!-- docs/03 §4: Focus hides Z4–Z7. Z7 goes entirely rather than dimming —
+       it is already auto-hiding chrome, and a ghost of it would read as a bug. -->
+  {#if onPlayerScreen && !focusMode}
     <TtBottomBar
       track={session.mode === 'youtube' ? session.current : playback.track}
       positionMs={(session.mode === 'youtube' ? yt.positionMs : playback.positionMs) ?? 0}
@@ -728,6 +923,23 @@
     <TtTrackInfo track={infoTrack} onclose={() => (infoTrack = null)} />
   {/if}
 
+  {#if settingsOpen}
+    <TtSettings onclose={closeSettings} onvolume={applyVolume} onreset={onSettingsReset} />
+  {/if}
+
+  <!--
+    docs/03 §2 and §4 both ask for a 3 s chip, for two different reasons — the
+    way out of Focus, and why `]` did nothing in YouTube mode. One region, so
+    they cannot stack on top of each other.
+  -->
+  {#if hint === 'focus'}
+    <p class="tt-hint-chip" role="status" data-testid="tt-hint">{i18n.t('player.focus.hint')}</p>
+  {:else if hint === 'railLocked'}
+    <p class="tt-hint-chip" role="status" data-testid="tt-hint">
+      {i18n.t('player.focus.railLocked')}
+    </p>
+  {/if}
+
   <!-- docs/03 §6 endFlash. Decoration, so reduced motion removes it entirely. -->
   {#if flashing}
     <div class="tt-flash" data-testid="tt-flash" aria-hidden="true"></div>
@@ -746,6 +958,17 @@
   /* The bottom bar is fixed, so the player screen reserves room for it. */
   .tt-player {
     padding-bottom: 5rem;
+  }
+  /*
+   * docs/03 §4 — Focus "dims Z1 further". Z1 is the page background, so this
+   * darkens the stage rather than laying anything over it: an overlay would be
+   * one more thing that could reach the YouTube player (docs/03 §2).
+   *
+   * The bottom padding goes with Z7, which is not rendered in Focus.
+   */
+  .tt-main.tt-focus {
+    padding-bottom: 2rem;
+    background: color-mix(in srgb, var(--color-tt-void) 60%, #000);
   }
 
   /* docs/03 §2 Z6 — mirrors Z5 on the opposite corner. */
@@ -805,8 +1028,49 @@
     width: 100%;
   }
 
+  /*
+   * The size container the countdown's ToS cap reads (docs/03 §4).
+   *
+   * `flex: 1 1 0` plus `contain: inline-size` (which `container-type` applies)
+   * means this column's width never depends on the digits inside it — it is
+   * simply "the stage, minus the rail, minus the gap". No cycle, and the pair
+   * still reads as centred: an item that absorbs all the free space, with its
+   * own contents centred, lands in the same place `justify-content: center` put
+   * the pair before.
+   */
+  .tt-clock {
+    display: flex;
+    flex: 1 1 0;
+    justify-content: center;
+    min-width: 0;
+    container-type: inline-size;
+  }
+
   /* Buttons live with the components that own them — Setup has its own, and
      transport is entirely Z7's (docs/03 §2). The shell renders none. */
+
+  /*
+   * The 3 s chip (docs/03 §2, §4). Bottom-CENTRE rather than a corner: in Focus
+   * the corners are exactly what has just been emptied, and a chip appearing
+   * where the wordmark used to be reads as the chrome coming back.
+   *
+   * Right-inset by the rail reserve so it can never reach the player rect.
+   */
+  .tt-hint-chip {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    z-index: 15;
+    translate: -50% 0;
+    max-width: calc(100vw - var(--tt-yt-reserve, 0px) - 2rem);
+    padding: 0.35rem 0.8rem;
+    font-size: 0.72rem;
+    color: var(--color-tt-text);
+    background: color-mix(in srgb, var(--color-tt-surface) 92%, transparent);
+    border: 1px solid var(--color-tt-line);
+    border-radius: 999px;
+    pointer-events: none;
+  }
 
   /* docs/03 §6: two 120 ms pulses of tt-signal at ≤20% over Z1, 400 ms total.
      It never touches the digits — Z3 holds 0.000 (docs/04 §4). */

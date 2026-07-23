@@ -505,7 +505,7 @@ gathers that evidence — and whether the gate forbids it.
 | Item | Why it is not here |
 |------|--------------------|
 | **The 60 req/min rule, and Bot Fight Mode, in the zone** | `10 §11`'s three unticked boxes are dashboard state, unobservable from this repository. `.github/SECURITY.md:43` publicly tells researchers that 429 on `/api/*` is out of scope, for a control nobody has confirmed is switched on |
-| **Focus mode's ToS carve-out, end to end** | `TtApp` passes `focusMode={false}` as a literal, so the branch cannot execute in production. The rail's markup and component tests are written and waiting. **A P5 exit item**, not a P4 gap |
+| **Focus mode's ToS carve-out, end to end** | `TtApp` passes `focusMode={false}` as a literal, so the branch cannot execute in production. The rail's markup and component tests are written and waiting. **A P5 exit item**, not a P4 gap. ✅ **Closed by P5 slice 2** — and the measurement it forced found the player was already being pushed off screen in the `≥ 1 h` regime (`03 §4`) |
 | The blurred thumbnail background | Unchanged: an open 🟠 audit finding whose ToS half was never read |
 | A re-check on **reconnect** | There is no reliable reconnect signal to hang it on — that is the whole finding above. Start covers it, and **Thử lại** covers the case where the browser never notices |
 
@@ -515,7 +515,7 @@ S1 answered only the CORS half of — the terms were never read. Shipping the
 generated gradient alone needs no ruling; do not let the visualizer substitute be
 what pulls an unreviewed ToS question into the release.
 
-## P5 — Visuals & settings · **in progress**, slice 1 merged, not released
+## P5 — Visuals & settings · **in progress**, slices 1–2 merged, not released
 
 Sliced into four, one release each, because P4's live checklist found a real bug
 on a line nobody expected and a smaller surface per run is what makes that
@@ -538,7 +538,7 @@ that the field is genuinely read, not merely present.
 | Slice | Scope | Fields it wires |
 |-------|-------|-----------------|
 | **1 — i18n** ✅ | runtime, both dictionaries, the key guard, Z6, every string migrated | `lang` |
-| **2 — Settings + Focus** | the ⚙ panel, Focus mode, the missing hotkeys (`F H S ] Esc`) | `countdownSize`, the six End Behavior fields, `allowDuplicates`, `singleLoopStyle` |
+| **2 — Settings + Focus** ✅ | the ⚙ panel (7 of 9 groups), Focus mode, the missing hotkeys (`F H S ] Esc`) | `countdownSize`, the six Countdown fields, `allowDuplicates`, `singleLoopStyle` |
 | **3 — Backgrounds** | solid / gradient / image / slideshow, scrim, scanlines, auto-theme | the eight Display fields |
 | **4 — Visualizer + a11y/perf** | three styles, tally pulse, reduced motion, the perf number | `visualizer`, `visualizerSensitivity` |
 
@@ -571,15 +571,65 @@ writes the whole object, so `'ring'` was already in every existing row. The full
 reasoning is in `02 §3.2`, and it applies to every default this suite ever
 changes.
 
-### Carried into slice 2 — each verified against the code
+### Slice 2 — the ⚙ panel, Focus and the rest of the hotkeys · 2026-07-23
+
+`03 §6`'s panel, `03 §4`'s Focus mode, and the four hotkeys (`F H S ]`) `13 §3`
+has been carrying as "arrive in P5". Seven groups ship; **Display and Visualizer
+are not rendered at all**, and inside Audio neither is crossfade nor the
+loop-style selector — a control whose feature does not exist is the defect this
+same slice fixes in `TtSingleRail`, and a greyed-out group is that object with
+better manners. The rule is now written down (`03 §6`).
+
+Three more declared-and-never-consumed items turned up while planning it, all
+found the same way — grepping for the READ rather than the declaration:
 
 | | |
 |---|---|
-| **`TtSingleRail` ships two dead buttons** | The loop-style pair has hardcoded `aria-pressed` and **no `onclick`**. "Cắt thẳng" is not even disabled. An inert control, in production |
-| **`settings.reset()` re-blocks the app** | It deletes the row, so `legalAccepted` goes null and the legal gate blocks at next boot. No doc specifies a confirm dialog |
-| **Focus vs the ToS floor** | `03 §4` grows the countdown ~20% in Focus; `06 §1.2` floors the player at 200×200. Two specs pulling opposite ways — measure before building |
-| **Perf budget: P5 or P7?** | `13 §5` is headed "Performance budget (**checked in P7**)" while `16`'s table makes "perf budget met" a **P5** exit criterion. Reconcile before slice 4 leans on it |
-| **The a11y exit criterion is unwritten code** | "a11y milestones announced" is `03 §8`'s five polite announcements at 10 min / 5 min / 1 min / 10 s / zero. A feature, not a checkbox |
+| `ttLog.entries()` / `diagnostics()` / `clear()` | The whole `02 §7` Diagnostics API. Zero call sites outside its own unit test. The panel is the consumer it was written for |
+| `ttLog.subscribe()` | Zero call sites anywhere. It is what keeps the log viewer live while the panel is open |
+| `__TT_VERSION__` | Defined in `astro.config.mjs`, declared in `src/env.d.ts` with the comment *"Read by the About panel"* — and read by nothing |
+
+#### The measurement that changed the slice, and found a live bug
+
+`03 §4` says Focus grows the countdown ~20%; `06 §1.2` pins the player at 384×216
+and forbids overlapping it. Measuring that **before** writing any Focus code —
+which is what the carried item asked for — found the conflict already shipped:
+
+> **In the `≥ 1 h` countdown regime, v0.5.2 pushes the YouTube player off screen
+> at every viewport below 1920 px.** At 1280 px, 224 px of the 384 px player —
+> 58% of it — is outside the viewport.
+
+Neither flex item could shrink below its min-content size, so the line overflowed
+to the right and took the player with it. Every existing YouTube spec used a
+one-minute countdown, and `MM:SS` is the *narrowest* of `04 §4`'s three regimes at
+3.46 em against `8:88:88`'s 4.48. The full table and the resolution are in
+`03 §4`; the guard is `tests/e2e/yt-visibility.spec.ts`, which sweeps six widths
+in the widest regime.
+
+A second, quieter breach of the same rule came out with it: `TtTrackInfo`'s
+**backdrop** was `inset: 0` at 75% opaque void, so the info modal scrimmed a
+playing player. Both are now bounded by one published variable,
+`--tt-yt-reserve` (`03 §2`).
+
+⚠️ **And the guard itself had to be fixed before it was worth anything.** Its
+first version probed the player's centre point and stayed green while the digits
+overlapped its left edge by 79 px. The overlap arrives from one side. It samples
+a 5×5 grid now, and with the size cap removed six of its tests turn red — checked
+by mutation, per `13 §1`.
+
+Also closed here: **`16 §P4`'s deferred exit item**, the Focus/ToS carve-out end
+to end. `TtApp` passed `focusMode={false}` as a literal, so the branch could not
+execute in production; it now can, and is asserted.
+
+### Carried into slice 3 and 4 — what is still open
+
+| | |
+|---|---|
+| ~~`TtSingleRail` ships two dead buttons~~ | ✅ Fixed in slice 2. `aria-pressed` derives from the **effective** style, "Cắt thẳng" has a real handler, and a stored `'crossfade'` renders the visible notice `05 §2` promised — until now it was a log line only |
+| ~~`settings.reset()` re-blocks the app~~ | ✅ Resolved in slice 2, in favour of the honest reading: a full reset **is** a fresh profile, so the gate returning is correct and the confirmation says so before it happens (`03 §6`). Logged as TT-USR-101 |
+| ~~Focus vs the ToS floor~~ | ✅ Measured and resolved — the ToS floor wins, enforced by layout rather than a YouTube branch (`03 §4`) |
+| **Perf budget: P5 or P7?** | Still open. `13 §5` is headed "Performance budget (**checked in P7**)" while `16`'s table makes "perf budget met" a **P5** exit criterion. Reconcile before slice 4 leans on it |
+| **The a11y exit criterion is unwritten code** | Still open. "a11y milestones announced" is `03 §8`'s five polite announcements at 10 min / 5 min / 1 min / 10 s / zero. A feature, not a checkbox — slice 4 |
 
 ## Post-1.0 backlog (unordered)
 

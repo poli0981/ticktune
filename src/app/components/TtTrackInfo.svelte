@@ -113,9 +113,21 @@
 </div>
 
 <style>
+  /*
+   * docs/03 §2: "Any overlay / modal must not cover the player rect."
+   *
+   * This was `inset: 0` until P5 slice 2 and therefore violated that rule in
+   * v0.5.2: right-clicking a queue row during YouTube playback laid 75% opaque
+   * void over a playing player, which docs/06 §1.2 forbids. The modal box
+   * itself never reached the rail; the BACKDROP did, which is exactly the kind
+   * of thing that survives a review of the markup.
+   *
+   * `--tt-yt-reserve` is published by the shell and is `0px` in every other
+   * mode, so the common case is unchanged.
+   */
   .tt-backdrop {
     position: fixed;
-    inset: 0;
+    inset: 0 var(--tt-yt-reserve, 0px) 0 0;
     z-index: 30;
     display: grid;
     place-items: center;

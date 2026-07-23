@@ -26,7 +26,8 @@ export type TtLang = 'vi' | 'en';
  */
 type TtBackground = 'solid' | 'gradient' | 'image' | 'slideshow' | 'cover';
 type TtSlideXfade = 'fade' | 'kenburns';
-type TtSize = 's' | 'm' | 'l';
+/** Exported since P5 slice 2: `TtCountdown` and the ⚙ panel both name it. */
+export type TtSize = 's' | 'm' | 'l';
 type TtVisualizer = 'off' | 'bars' | 'wave' | 'ring';
 
 export interface TtSettings {
