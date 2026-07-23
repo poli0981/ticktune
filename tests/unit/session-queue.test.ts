@@ -483,3 +483,65 @@ describe('transport predicates — docs/03 §2 Z7', () => {
     expect(session.currentId).toBe('a');
   });
 });
+
+describe('patchTrack — the backfill writer docs/06 §2 always assumed', () => {
+  /**
+   * `getDuration()` and `getVideoData()` have been specified since revision 1
+   * and neither ran, because the store had no track mutator but
+   * `markTrackError` — which only ever wrote `status`. So every YouTube track
+   * kept `durationMs: null` and the info modal, the queue footer and "Khớp độ
+   * dài" read `–` for its whole life.
+   */
+  const yt = (id: string, over: Partial<TtTrack> = {}): TtTrack =>
+    track(id, { source: 'youtube', durationMs: null, videoId: 'dQw4w9WgXcQ', ...over });
+
+  it('writes a duration the track did not have', async () => {
+    await stage('playlist', [yt('a')]);
+    session.patchTrack('a', { durationMs: 212_500 });
+    expect(session.queue[0]?.durationMs).toBe(212_500);
+  });
+
+  it('fills the blank title and channel a pending import leaves behind', async () => {
+    // `tt-yt-import` writes '' for both when oEmbed could not be reached, and
+    // the fallback rule then renders N/A on a video that plays perfectly.
+    await stage('playlist', [yt('a', { title: '', artist: '' })]);
+    session.patchTrack('a', { title: 'Me at the zoo', artist: 'jawed' });
+
+    expect(session.queue[0]?.title).toBe('Me at the zoo');
+    expect(session.queue[0]?.artist).toBe('jawed');
+  });
+
+  it('never overwrites what oEmbed already answered', async () => {
+    // oEmbed is the better source — the channel's own title, before the
+    // player's normalisation. Blanks only is the whole rule.
+    await stage('playlist', [yt('a', { title: 'From oEmbed', artist: 'Channel' })]);
+    session.patchTrack('a', { title: 'From the player', artist: 'Someone else' });
+
+    expect(session.queue[0]?.title).toBe('From oEmbed');
+    expect(session.queue[0]?.artist).toBe('Channel');
+  });
+
+  it('never overwrites a duration that is already known', async () => {
+    await stage('playlist', [yt('a', { durationMs: 1_000 })]);
+    session.patchTrack('a', { durationMs: 999_000 });
+    expect(session.queue[0]?.durationMs).toBe(1_000);
+  });
+
+  it('ignores a track that has since been removed', async () => {
+    // Every caller is asynchronous by nature: the player learns a duration
+    // seconds after the row was drawn, and the user may have removed it.
+    await stage('playlist', [yt('a'), yt('b')]);
+    session.removeTrack('a');
+    expect(() => session.patchTrack('a', { durationMs: 1 })).not.toThrow();
+    expect(session.queue).toHaveLength(1);
+  });
+
+  it('leaves the cursor where it was', async () => {
+    await settings.patch({ shuffle: false });
+    await stage('playlist', [yt('a'), yt('b')]);
+    session.start();
+    session.advance();
+    session.patchTrack('a', { durationMs: 5_000 });
+    expect(session.currentId).toBe('b');
+  });
+});

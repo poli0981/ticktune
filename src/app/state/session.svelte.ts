@@ -565,6 +565,44 @@ class SessionStore {
     this.#lastImport = null;
   }
 
+  /**
+   * Fill in what the queue could not know at import — docs/06 §2.
+   *
+   * The missing writer. `06 §2` has specified since the first revision that
+   * `getDuration()` backfills `durationMs` and `getVideoData()` backfills
+   * title/channel, and neither happened — not because either was hard, but
+   * because there was nowhere to put the result: `markTrackError` was the store's
+   * only track mutator and it only ever wrote `status`. So every YouTube track
+   * kept `durationMs: null` for its whole life and the info modal, the queue
+   * footer total and "Khớp độ dài" all read `–` forever.
+   *
+   * **Blanks only, and that is the whole rule.** oEmbed is the better source
+   * when it answered — it is the channel's own title, before the player's
+   * normalisation — so a value that is already there wins. This exists to fill
+   * the gap left by a `pending` import, where title and artist are `''`.
+   *
+   * Silently ignores a track that has since been removed: every caller is
+   * asynchronous by nature, learning a duration seconds after the row was drawn.
+   */
+  patchTrack(id: string, fields: { durationMs?: number; title?: string; artist?: string }): void {
+    const target = this.#queue.find((t) => t.id === id);
+    if (target === undefined) return;
+
+    const patch: Partial<TtTrack> = {};
+    if (fields.durationMs !== undefined && target.durationMs === null) {
+      patch.durationMs = fields.durationMs;
+    }
+    if (fields.title !== undefined && target.title.trim() === '') patch.title = fields.title;
+    if (fields.artist !== undefined && target.artist.trim() === '') patch.artist = fields.artist;
+    if (Object.keys(patch).length === 0) return;
+
+    this.#queue = this.#queue.map((t) => (t.id === id ? { ...t, ...patch } : t));
+    // Nothing here changes `isPlayable`, but the queue array is new and
+    // docs/02 §5.1 rule 5 says reconcile after every mutation rather than
+    // deciding case by case which ones could matter.
+    this.#syncOrder();
+  }
+
   /** docs/02 §6 — a track that failed to decode is marked, not silently dropped. */
   markTrackError(id: string): void {
     // Same ordering as removeTrack, and for the same reason: marking it first

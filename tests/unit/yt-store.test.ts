@@ -64,6 +64,7 @@ function makeApi(): Made['api'] {
     unMute: vi.fn(),
     getDuration: vi.fn().mockReturnValue(0),
     getCurrentTime: vi.fn().mockReturnValue(0),
+    getVideoData: vi.fn().mockReturnValue({}),
     destroy: vi.fn(),
   };
 }
@@ -165,6 +166,95 @@ describe('attach is idempotent per ELEMENT, not per lifetime', () => {
     made[1]?.events.onReady();
     expect(made[1]?.api.loadVideoById).toHaveBeenCalledWith('9bZkp7q19f0');
     expect(made[0]?.api.loadVideoById).not.toHaveBeenCalledWith('9bZkp7q19f0');
+  });
+});
+
+describe('the docs/06 §2 backfill — what the player learns reaches the track', () => {
+  /** Bring one track to the point where the player knows its duration. */
+  function playing(over: Partial<TtTrack> = {}, data: Record<string, string> = {}): Made {
+    yt.load(track(over));
+    yt.attach(el());
+    const made0 = made[0];
+    if (made0 === undefined) throw new Error('no player');
+    made0.api.getDuration.mockReturnValue(212.5);
+    made0.api.getVideoData.mockReturnValue(data);
+    made0.events.onReady();
+    return made0;
+  }
+
+  it('reports the duration once the player knows it', () => {
+    const seen: Array<[string, Record<string, unknown>]> = [];
+    yt.onMeta = (id, fields) => seen.push([id, fields]);
+
+    playing();
+    yt.tick();
+
+    expect(seen).toHaveLength(1);
+    expect(seen[0]?.[0]).toBe('track-1');
+    expect(seen[0]?.[1]).toMatchObject({ durationMs: 212_500 });
+  });
+
+  it('says nothing while the duration is still 0 — "not known yet" is not a value', () => {
+    // `getDuration()` returns 0 until the video has loaded enough to know, and
+    // docs/06 §2 names PLAYING as the trigger. Patching there would put 0 into
+    // the track and every surface would render a confident `0:00`.
+    const seen: unknown[] = [];
+    yt.onMeta = (...a) => seen.push(a);
+
+    yt.load(track());
+    yt.attach(el());
+    made[0]?.events.onReady();
+    yt.tick();
+
+    expect(seen).toHaveLength(0);
+  });
+
+  it('carries title and channel from getVideoData', () => {
+    const seen: Array<Record<string, unknown>> = [];
+    yt.onMeta = (_id, fields) => seen.push(fields);
+
+    playing({}, { title: 'Me at the zoo', author: 'jawed' });
+    yt.tick();
+
+    expect(seen[0]).toMatchObject({ title: 'Me at the zoo', artist: 'jawed' });
+  });
+
+  it('omits a field the player left empty rather than sending a blank', () => {
+    // '' would overwrite nothing (the session patches blanks only), but sending
+    // it makes the payload claim a value it does not have.
+    const seen: Array<Record<string, unknown>> = [];
+    yt.onMeta = (_id, fields) => seen.push(fields);
+
+    playing({}, { title: '   ', author: '' });
+    yt.tick();
+
+    expect(seen[0]).not.toHaveProperty('title');
+    expect(seen[0]).not.toHaveProperty('artist');
+  });
+
+  it('reports ONCE per track, not ten times a second', () => {
+    const seen: unknown[] = [];
+    yt.onMeta = (...a) => seen.push(a);
+
+    playing();
+    for (let i = 0; i < 30; i += 1) yt.tick();
+
+    expect(seen).toHaveLength(1);
+  });
+
+  it('does not re-report a track the queue comes back round to', () => {
+    // The queue survives Stop and Repeat brings it round again; the ledger is
+    // deliberately not cleared by dispose.
+    const seen: unknown[] = [];
+    yt.onMeta = (...a) => seen.push(a);
+
+    playing();
+    yt.tick();
+    yt.dispose();
+
+    playing();
+    yt.tick();
+    expect(seen).toHaveLength(1);
   });
 });
 

@@ -56,6 +56,9 @@
     // ONLY one — there is no `ended` event on a cross-origin iframe to listen
     // for. Same handler, so the queue rules cannot diverge per source.
     yt.onAdvance = onTrackEnded;
+    // docs/06 §2's two backfills. The queue is the session's, so the patch is
+    // the session's too — the store reports, the shell routes (docs/12 §3.3).
+    yt.onMeta = (trackId, fields) => session.patchTrack(trackId, fields);
 
     void settings.load(navigator.language).then((s) => {
       // docs/03 §3: P3 unlocks Playlist, so the remembered mode is finally

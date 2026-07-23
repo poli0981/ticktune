@@ -105,8 +105,13 @@ export async function installFakeYt(page: Page): Promise<void> {
             this.setVolume = record('setVolume');
             this.mute = record('mute');
             this.unMute = record('unMute');
-            this.getDuration = function () { return 0; };
+            // Non-zero, because 0 is the API's "not known yet" and the docs/06
+            // §2 backfill is gated on duration arriving.
+            this.getDuration = function () { return 212.5; };
             this.getCurrentTime = function () { return 0; };
+            this.getVideoData = function () {
+              return { title: 'Từ trình phát', author: 'Kênh trình phát' };
+            };
             this.destroy = function () {
               probe.calls.push('destroy');
               if (frame.parentNode) frame.replaceWith(document.createElement('div'));

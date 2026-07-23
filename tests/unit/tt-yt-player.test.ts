@@ -50,6 +50,7 @@ beforeEach(() => {
     unMute: vi.fn(),
     getDuration: vi.fn().mockReturnValue(0),
     getCurrentTime: vi.fn().mockReturnValue(0),
+    getVideoData: vi.fn().mockReturnValue({}),
     destroy: vi.fn(),
   };
   host = { onAdvance: vi.fn(), onOverlay: vi.fn(), onStatus: vi.fn(), onLog: vi.fn() };

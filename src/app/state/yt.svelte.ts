@@ -50,8 +50,28 @@ class YtStore {
   #durationMs = $state<number | null>(null);
   #online = $state(true);
 
+  /** The track the player was last asked to load, for the docs/06 §2 backfill. */
+  #trackId: string | null = null;
+  /**
+   * Ids already backfilled — the tick runs at 10 Hz and the patch must not.
+   *
+   * Keyed by track rather than a single flag so a queue that comes back round
+   * under Repeat does not re-patch, and so a jump backwards does not either.
+   */
+  readonly #backfilled = new Set<string>();
+
   /** Set by the app shell, exactly as `playback.onEnded` is. */
   onAdvance: (() => void) | null = null;
+  /**
+   * docs/06 §2 — what the player learned about the current track.
+   *
+   * A callback rather than a direct `session.patchTrack` call, for the reason
+   * `docs/12 §3.3` gives: stores do not reach into each other, the shell wires
+   * them. Same shape as `onAdvance` directly above.
+   */
+  onMeta:
+    | ((trackId: string, fields: { durationMs?: number; title?: string; artist?: string }) => void)
+    | null = null;
 
   get overlay(): TtYtOverlayState | null {
     return this.#overlay;
@@ -124,6 +144,7 @@ class YtStore {
   load(track: TtTrack): void {
     this.#positionMs = null;
     this.#durationMs = null;
+    this.#trackId = track.id;
 
     if (this.#player === null) {
       // Held, not dropped. `attach` is the only thing that can act on it, and it
@@ -168,12 +189,41 @@ class YtStore {
     if (this.#player === null) return;
     this.#positionMs = this.#player.positionMs;
     this.#durationMs = this.#player.durationMs;
+    this.#backfill();
+  }
+
+  /**
+   * Hand the track what the player now knows — docs/06 §2.
+   *
+   * Driven from the tick rather than from `onStateChange: PLAYING`, which is
+   * what §2 literally names. PLAYING is too early: `getDuration()` returns 0
+   * until the video has loaded enough to know, so a patch there would land the
+   * spec's own "0 means not known yet" value into the track and every surface
+   * would render a confident `0:00`. Duration arriving is the signal that the
+   * player has finished learning, so it gates the whole patch — by which point
+   * `getVideoData()` is populated too.
+   */
+  #backfill(): void {
+    const id = this.#trackId;
+    const durationMs = this.#durationMs;
+    if (id === null || durationMs === null || this.#backfilled.has(id)) return;
+
+    this.#backfilled.add(id);
+    const { title, author } = this.#player?.videoData ?? { title: null, author: null };
+    this.onMeta?.(id, {
+      durationMs,
+      ...(title === null ? {} : { title }),
+      ...(author === null ? {} : { artist: author }),
+    });
   }
 
   dispose(): void {
     this.#player?.dispose();
     this.#player = null;
     this.#mount = null;
+    this.#trackId = null;
+    // The backfill ledger is NOT cleared: the queue survives Stop (docs/02 §1),
+    // so a track already patched must not be patched again on the next run.
     // A run that was stopped before the rail mounted must not have its track
     // replayed by the NEXT run's attach.
     this.#pending = null;
