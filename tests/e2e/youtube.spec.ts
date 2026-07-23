@@ -6,6 +6,7 @@ import {
   flashSeen,
   gotoYouTubeApp,
   gotoYouTubeAppReturning,
+  mockOembed,
   stageLinks,
   watchForFlash,
   ytCalls,
@@ -364,6 +365,57 @@ test.describe('youtube mode', () => {
       await expect(row).not.toContainText('Từ trình phát');
       // …but the duration, which oEmbed does not carry, still lands.
       await expect(row).toContainText('3:32');
+    });
+  });
+
+  test.describe('the re-check on Start — docs/02 §1, docs/06 §8', () => {
+    test('a pending track that now resolves is named without ever being played', async ({
+      page,
+    }) => {
+      /*
+       * The toast says "sẽ thử lại khi bắt đầu". For a whole phase it was the
+       * only thing in the app that retried anything.
+       *
+       * The pending track is the SECOND one, deliberately. The `06 §2` backfill
+       * fills the PLAYING track from `getVideoData()` within a tick, so asserting
+       * on row 1 would pass whether or not the re-check exists — measured here on
+       * the first run of this spec, where the player won the race and the row read
+       * "Từ trình phát". Row 2 is never cued, so the re-check is the only thing
+       * that can name it.
+       */
+      dismissUnloadDialogs(page);
+      await gotoYouTubeApp(page, {
+        [TWO]: { status: 502, body: { error: 'upstream_unreachable' } },
+      });
+      await stageLinks(page, [ONE, TWO], 2);
+      await expect(page.getByTestId('tt-queue-row').nth(1)).toContainText('N/A');
+
+      // The edge recovers before Start — the ordinary case, since the failure
+      // that made it pending was transient by definition.
+      await mockOembed(page, {});
+      await setDuration(page, 0, 1, 0);
+      await page.getByRole('button', { name: 'Bắt đầu' }).click();
+
+      const second = page.getByTestId('tt-queue-row').nth(1);
+      await expect(second).toContainText(`Video ${TWO}`);
+      await expect(second).not.toContainText('N/A');
+    });
+
+    test('a pending track the video itself has broken is struck through', async ({ page }) => {
+      dismissUnloadDialogs(page);
+      await gotoYouTubeApp(page, {
+        [ONE]: { status: 200 },
+        [TWO]: { status: 502, body: { error: 'upstream_unreachable' } },
+      });
+      await stageLinks(page, [ONE, TWO], 2);
+
+      // …and on the retry the edge answers properly: the video is gone.
+      await mockOembed(page, { [TWO]: { status: 404, body: { error: 'not_found' } } });
+      await setDuration(page, 0, 1, 0);
+      await page.getByRole('button', { name: 'Bắt đầu' }).click();
+
+      const second = page.getByTestId('tt-queue-row').nth(1);
+      await expect(second).toHaveClass(/tt-error/);
     });
   });
 

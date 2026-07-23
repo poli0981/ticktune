@@ -267,6 +267,19 @@
 
     driver.start(durationMs);
 
+    /*
+     * docs/02 §1's "re-checked on Start", kept at last — and kept HERE rather
+     * than inside `session.start()`, which is what made it look impossible.
+     *
+     * `start()` stays synchronous: docs/05 §1's gesture chain is broken by the
+     * first `await`, and the YouTube branch below still has a `playVideo()` to
+     * spend that gesture on. By the time this runs the gesture is already spent,
+     * so the re-check can be as asynchronous as it likes. Not awaited, and it
+     * patches the queue as answers land — safe because the cursor is a track id
+     * (docs/02 §5.1), not an index.
+     */
+    if (session.mode === 'youtube') void session.recheckPending();
+
     const track = session.current;
     if (!force && track) {
       if (session.mode === 'youtube') {

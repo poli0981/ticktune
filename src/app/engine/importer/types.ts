@@ -80,6 +80,8 @@ export type TtImportCode =
   | 'TT-YT-002' // not a YouTube video link
   | 'TT-YT-003' // the 50-link cap would be exceeded
   | 'TT-YT-004' // oEmbed failed for a reason nobody has classified
+  | 'TT-YT-006' // a pending track was re-checked on Start and now resolves
+  | 'TT-YT-007' // a pending track was re-checked and the video itself is the problem
   | 'TT-YT-100' // deleted, never existed, or private
   | 'TT-YT-101'; // embedding disabled by the owner
 

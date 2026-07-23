@@ -12,6 +12,7 @@ import {
   shuffleIds,
   withoutImmediateRepeat,
 } from '../engine/queue/tt-play-order';
+import { ytCauseIsTransient } from '../../lib/tt-yt-cause';
 import { browserYtPorts } from '../engine/youtube/tt-yt-driver';
 import { importLinks } from '../engine/youtube/tt-yt-import';
 import { finishReport } from '../engine/timer/tt-late';
@@ -420,7 +421,22 @@ class SessionStore {
         }),
       );
 
-      for (const s of [...result.skipped, ...result.notes]) ttLog.warn(s.code, '');
+      for (const s of result.skipped) ttLog.warn(s.code, '');
+      /*
+       * Notes carry their track id; skips cannot, because a skipped link never
+       * became a track.
+       *
+       * A note is always a KEPT track (docs/06 §5 — the transient causes), and
+       * `recheckPending` later logs a verdict for that same track. Logging both
+       * with an empty id left nothing to correlate them by: the diagnostics
+       * buffer showed a retry promised and a retry answered with no way to tell
+       * which link either belonged to. `fileName` is the videoId here, which is
+       * what matches a note to the row it produced.
+       */
+      for (const s of result.notes) {
+        const added = result.added.find((t) => t.videoId === s.fileName);
+        ttLog.warn(s.code, '', added?.id);
+      }
 
       if (result.added.length > 0) this.#queue = [...this.#queue, ...result.added];
       this.#syncOrder();
@@ -600,6 +616,68 @@ class SessionStore {
     // Nothing here changes `isPlayable`, but the queue array is new and
     // docs/02 §5.1 rule 5 says reconcile after every mutation rather than
     // deciding case by case which ones could matter.
+    this.#syncOrder();
+  }
+
+  /**
+   * Re-check every `pending` track — docs/02 §1's promise, finally kept.
+   *
+   * ## Why it looks like this
+   *
+   * `02 §1` has said "Re-checked on Start" since the first revision and nothing
+   * implemented it, while `TtToast` told the user *"sẽ thử lại khi bắt đầu"* to
+   * their face. `06 §8` recorded the reason honestly: `start()` is synchronous
+   * by design, because `05 §1`'s autoplay chain is broken by the first `await`,
+   * so nobody had designed a shape that fits.
+   *
+   * This is that shape, and it is the boring one: **the re-check is not part of
+   * Start at all.** `start()` returns, the gesture has already been spent on
+   * `playVideo()`, and the shell then kicks this off without awaiting it. The
+   * queue is patched as answers land, which is safe because the cursor is a
+   * track id (`02 §5.1`) and not an index.
+   *
+   * Sequential, matching the importer, for the reason `06 §3` gives about the
+   * 60 req/min rule — and the track now playing is skipped, because interfering
+   * with it is the one thing this must not do.
+   */
+  async recheckPending(): Promise<void> {
+    const targets = this.#queue.filter((t) => t.status === 'pending' && t.id !== this.#currentId);
+    if (targets.length === 0) return;
+
+    const ports = browserYtPorts();
+    for (const target of targets) {
+      const videoId = target.videoId;
+      if (videoId === undefined) continue;
+
+      const result = await ports.lookup(videoId);
+
+      // The queue is live: the user can remove a track, or the cursor can reach
+      // it, while its answer is in flight. Both mean this answer is stale.
+      const still = this.#queue.find((t) => t.id === target.id);
+      if (still === undefined || still.status !== 'pending') continue;
+      if (this.#currentId === target.id) continue;
+
+      if (result.ok) {
+        this.#queue = this.#queue.map((t) =>
+          t.id === target.id ? { ...t, status: 'ok' as const } : t,
+        );
+        this.patchTrack(target.id, {
+          ...(result.meta.title === null ? {} : { title: result.meta.title }),
+          ...(result.meta.author_name === null ? {} : { artist: result.meta.author_name }),
+        });
+        ttLog.info('TT-YT-006', '', target.id);
+        continue;
+      }
+
+      if (ytCauseIsTransient(result.cause)) continue;
+
+      // Now a property of the video, so it is honest to say so — and `02 §6`'s
+      // struck-through row plus `isPlayable` dropping it from the order are
+      // both already built and waiting for a writer.
+      this.markTrackError(target.id);
+      ttLog.warn('TT-YT-007', '', target.id);
+    }
+
     this.#syncOrder();
   }
 

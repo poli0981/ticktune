@@ -259,15 +259,35 @@ the authority.
 | Any mode, offline | A banner on Setup. Not dismissible — it clears itself when the browser reports a connection, because a dismissed banner would have to reappear anyway |
 | **Local modes** | Nothing else. Files are in RAM (`02 §3`) and playback never touches the network, so an offline Playlist run is fully supported |
 | **YouTube mode, offline** | Start is **blocked**, with the reason stated. Not "allowed and then failing": every track would report `onError 150` five seconds apart while the countdown ran, which is the worst version of this |
-| Reconnect mid-session | The banner clears. Tracks left `pending` are not auto-re-checked — see below |
+| Reconnect mid-session | The banner clears. Tracks left `pending` are not re-checked *here* — the re-check runs on Start, see below |
 
 **The banner may not overlap the player rect.** `03 §2`'s carve-out and `§1.2`
 apply to it exactly as they apply to any other overlay: it renders in the Setup
 column, never over Z4.
 
-⬜ **Not implemented, and stated rather than implied:** a `pending` track is not
-re-checked on reconnect or on Start. `02 §1` promises "re-checked on Start", and
-that promise is currently unkept — `session.start()` is synchronous by design
-(making it async would break the autoplay gesture chain `05 §1` depends on), so
-the re-check needs a shape nobody has designed. Until then a `pending` track is
-simply attempted, and fails like any other if it was never going to work.
+✅ **The re-check on Start is implemented (2026-07-23).** `02 §1` promised it
+from revision 1 and nothing did it, while the TT-YT-001 toast told the user
+*"Chưa kiểm tra được — sẽ thử lại khi bắt đầu"* to their face. The block that
+stood here recorded the honest reason — `session.start()` is synchronous by
+design, because `05 §1`'s autoplay chain is broken by the first `await` — and
+concluded that "the re-check needs a shape nobody has designed".
+
+**The shape is that it is not part of Start at all.** `start()` returns
+synchronously and the gesture is spent on `playVideo()`; the shell then calls
+`session.recheckPending()` **without awaiting it**. Answers patch the queue as
+they land, which is safe because the cursor is a track id (`02 §5.1`) and not an
+index.
+
+| Outcome | What happens |
+|---------|--------------|
+| Resolves 2xx | `pending` → `ok`, blank title/channel filled from the response, **TT-YT-006** |
+| A cause that belongs to the video (400/401/403/404) | marked `error`, which drops it from `order` via `isPlayable` and strikes the row through (`02 §6`), **TT-YT-007** |
+| Still transient (429, 5xx, unreachable) | left `pending`. One retry, not a spin |
+
+Three things it does **not** do, each for a stated reason: it never touches the
+track that is playing; it skips a track whose status changed or that was removed
+while its answer was in flight; and it is sequential, matching the importer, for
+the 60 req/min rule in `§6`.
+
+⬜ **Still not implemented:** a re-check on *reconnect*. `navigator.onLine` is a
+hint (`§8` above), and the natural trigger — Start — is now covered.

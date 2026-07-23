@@ -61,7 +61,7 @@ Status semantics at the Start boundary:
 | `status` | Counts toward validity? | Rationale |
 |----------|------------------------|-----------|
 | `'ok'` | yes | — |
-| `'pending'` | **yes** | YouTube-only, set when the oEmbed pre-check failed on the network rather than on the video (`06 §5` step 4, TT-YT-001). The video is probably fine; blocking Start on a flaky metadata lookup would be wrong. Re-checked on Start; if it then resolves 404 it becomes `'error'` and is dropped per `§6` |
+| `'pending'` | **yes** | YouTube-only, set when the oEmbed pre-check failed on the network rather than on the video (`06 §5` step 4, TT-YT-001). The video is probably fine; blocking Start on a flaky metadata lookup would be wrong. Re-checked **just after** Start — not inside it, which is what made this promise unkept for a phase (`06 §8`) — and if the cause turns out to belong to the video it becomes `'error'` and is dropped per `§6` |
 | `'error'` | **no** | Known-broken. Excluded from the count, and shown struck-through in the queue so the user sees why Start is disabled |
 
 If a queue drops below validity while sitting on Setup (user removes the last
