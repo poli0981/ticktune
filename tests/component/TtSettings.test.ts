@@ -49,10 +49,13 @@ function mount(over: Partial<Parameters<typeof TtSettings>[1]> = {}) {
 }
 
 describe('the groups that ship, and the ones that deliberately do not', () => {
-  it('renders exactly the seven groups slice 2 owns', () => {
+  it('renders the eight groups that have a renderer behind them', () => {
     mount();
     for (const id of [
       'tt-set-general',
+      // Display joined in slice 3, WITH the Z1 renderer — the group ships with
+      // its feature, never before it (docs/03 §6).
+      'tt-set-display',
       'tt-set-countdown',
       'tt-set-audio',
       'tt-set-playback',
@@ -64,15 +67,14 @@ describe('the groups that ship, and the ones that deliberately do not', () => {
     }
   });
 
-  it('renders no Display or Visualizer group — their renderers do not exist yet', () => {
+  it('renders no Visualizer group — its renderer does not exist yet', () => {
     /*
      * The guard against the defect this very panel fixes elsewhere. `03 §6`
-     * lists nine groups; slices 3 and 4 build the other two. Shipping them
-     * disabled would put an inert control in production, which is what
+     * lists nine groups; slice 4 builds the last one. Shipping it disabled
+     * would put an inert control in production, which is what
      * `TtSingleRail`'s loop-style pair was.
      */
     mount();
-    expect(screen.queryByTestId('tt-set-display')).toBeNull();
     expect(screen.queryByTestId('tt-set-visualizer')).toBeNull();
   });
 

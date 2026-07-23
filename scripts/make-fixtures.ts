@@ -209,6 +209,21 @@ track('rejected.aiff', 'TT-IMP-001: outside the docs/02 §4 allow-list');
   track('with-cover.mp3', 'docs/05 §5: embedded cover art');
 }
 
+// Two background pictures for the P5 slice 3 Z1 suite (docs/03 §2).
+//
+// Committed, tiny, self-made — the same rule as every other fixture here. They
+// are deliberately FLAT and very different from each other: the slideshow tests
+// assert which one is showing, and two photographs would make that a question
+// about pixels rather than about the crossfade. A solid colour also makes the
+// adaptive scrim's sampled luminance predictable (docs/03 §2 Z1).
+for (const [name, colour] of [
+  ['bg-a.png', 'black'],
+  ['bg-b.png', 'white'],
+] as const) {
+  ff(['-f', 'lavfi', '-i', `color=c=${colour}:s=64x64`, '-frames:v', '1', join(COMMITTED, name)]);
+  track(name, 'docs/03 §2 Z1: a background picture for the slideshow suite');
+}
+
 // ── spike S3: the Vietnamese tag matrix ─────────────────────────────────────
 // Vorbis and MP4 carry UTF-8 by specification, so ffmpeg's own metadata is the
 // honest representation for those two.

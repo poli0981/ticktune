@@ -141,3 +141,32 @@ export async function dropFiles(page: Page, fixtures: string[]): Promise<void> {
     zone?.dispatchEvent(new DragEvent('drop', { dataTransfer: dt, bubbles: true }));
   }, payload);
 }
+
+/**
+ * The settings row as IndexedDB currently holds it — not as the store holds it.
+ *
+ * `settings.patch()` updates memory synchronously and writes to Dexie
+ * asynchronously, and every call site fires it with `void` (docs/05 §1's gesture
+ * chain is why). So a spec that clicks a control and reloads immediately can
+ * out-run the write and read back the OLD value — which looks exactly like the
+ * setting not persisting at all.
+ *
+ * Poll this before a reload rather than reordering the clicks to hide it:
+ *
+ *     await expect.poll(() => storedSettings(page)).toMatchObject({ scanlines: false });
+ */
+export async function storedSettings(page: Page): Promise<Record<string, unknown> | null> {
+  return page.evaluate(async () => {
+    const db: IDBDatabase = await new Promise((res, rej) => {
+      const req = indexedDB.open('ticktune');
+      req.onsuccess = () => res(req.result);
+      req.onerror = () => rej(req.error);
+    });
+    if (!db.objectStoreNames.contains('settings')) return null;
+    return new Promise<Record<string, unknown> | null>((res, rej) => {
+      const get = db.transaction('settings', 'readonly').objectStore('settings').get('app');
+      get.onsuccess = () => res((get.result as Record<string, unknown> | undefined) ?? null);
+      get.onerror = () => rej(get.error);
+    });
+  });
+}

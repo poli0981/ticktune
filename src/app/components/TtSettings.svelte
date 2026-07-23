@@ -1,7 +1,9 @@
 <script lang="ts">
+  import { backdrop } from '../state/backdrop.svelte';
   import { i18n } from '../state/i18n.svelte';
   import { session } from '../state/session.svelte';
   import { settings } from '../state/settings.svelte';
+  import { gradientCss, gradientStops } from '../engine/visuals/tt-gradient';
   import { ttLog } from '../engine/log/tt-log';
   import type { TtLogEntry, TtLogLevel } from '../engine/log/types';
   import { TT_LEGAL_LINKS } from '../../lib/tt-legal-const';
@@ -9,14 +11,17 @@
   /**
    * docs/03 §6 — the ⚙ Settings panel.
    *
-   * ## Seven groups, not nine
+   * ## Eight groups of nine — a group ships WITH its feature
    *
-   * `03 §6` lists nine. **Display and Visualizer are not rendered here at all**,
-   * because their renderers ship in P5 slices 3 and 4 — and the same rule
-   * removes crossfade and the loop-style selector from Audio while `15 §S4b` is
-   * open. A control whose backing feature does not exist is precisely the defect
-   * this file also fixes in `TtSingleRail`: an inert button, in production,
-   * reading as finished work. The groups arrive with the features.
+   * **Visualizer is not rendered here at all**, because its renderer ships in
+   * P5 slice 4 — and the same rule removes crossfade and the loop-style selector
+   * from Audio while `15 §S4b` is open. A control whose backing feature does not
+   * exist is precisely the defect this file also fixes in `TtSingleRail`: an
+   * inert button, in production, reading as finished work.
+   *
+   * Display followed that rule in the other direction: it was absent through
+   * slice 2 and arrived in slice 3 in the same change as `TtBackdrop`, never
+   * before it.
    *
    * ## A side sheet, and deliberately NOT modal
    *
@@ -29,8 +34,9 @@
    *
    * ## Every control here writes a field something already reads
    *
-   * That is the P5 slice premise (`16 §P5`). `countdownSize` was the one field
-   * with no reader at all, so `TtCountdown` gained one in the same change.
+   * That is the P5 slice premise (`16 §P5`). Slice 2's `countdownSize` and
+   * slice 3's eight Display fields had no reader at all until the change that
+   * added their control — `TtCountdown` and `TtBackdrop` respectively.
    */
 
   interface Props {
@@ -160,6 +166,21 @@
   function setVolume(volume: number) {
     void settings.patch({ volume }).then(onvolume);
   }
+
+  /**
+   * Edit one end of the custom gradient — docs/02 §3.1 stores it as a PAIR.
+   *
+   * Seeded from the active preset rather than from black, so moving one stop
+   * produces a gradient related to what is already on screen instead of a jump
+   * to a colour the user never chose. `clampSettings` rejects anything that is
+   * not `#rrggbb`, and `<input type="color">` only ever emits that.
+   */
+  function setCustom(end: 0 | 1, value: string) {
+    const base =
+      settings.current.gradientCustom ?? gradientStops(settings.current.gradientPreset, null);
+    const next: [string, string] = end === 0 ? [value, base[1]] : [base[0], value];
+    void settings.patch({ gradientCustom: next });
+  }
 </script>
 
 <svelte:window on:keydown={onKeydown} on:pointerdown={onPointerDown} />
@@ -251,6 +272,281 @@
         </div>
       {/if}
     </div>
+  </section>
+
+  <!-- ── Display ───────────────────────────────────────────────────────── -->
+  <section data-testid="tt-set-display">
+    <h3>{i18n.t('settings.group.display')}</h3>
+
+    <div class="tt-row tt-stack">
+      <span>{i18n.t('settings.display.background')}</span>
+      <div class="tt-seg tt-wrap" role="group" aria-label={i18n.t('settings.display.background')}>
+        <button
+          class="tt-opt"
+          class:tt-on={s.background === 'solid'}
+          aria-pressed={s.background === 'solid'}
+          data-testid="tt-set-bg-solid"
+          onclick={() => void settings.patch({ background: 'solid' })}
+          >{i18n.t('settings.display.bgSolid')}</button
+        >
+        <button
+          class="tt-opt"
+          class:tt-on={s.background === 'gradient'}
+          aria-pressed={s.background === 'gradient'}
+          data-testid="tt-set-bg-gradient"
+          onclick={() => void settings.patch({ background: 'gradient' })}
+          >{i18n.t('settings.display.bgGradient')}</button
+        >
+        <button
+          class="tt-opt"
+          class:tt-on={s.background === 'image'}
+          aria-pressed={s.background === 'image'}
+          data-testid="tt-set-bg-image"
+          onclick={() => void settings.patch({ background: 'image' })}
+          >{i18n.t('settings.display.bgImage')}</button
+        >
+        <button
+          class="tt-opt"
+          class:tt-on={s.background === 'slideshow'}
+          aria-pressed={s.background === 'slideshow'}
+          data-testid="tt-set-bg-slideshow"
+          onclick={() => void settings.patch({ background: 'slideshow' })}
+          >{i18n.t('settings.display.bgSlideshow')}</button
+        >
+        <button
+          class="tt-opt"
+          class:tt-on={s.background === 'cover'}
+          aria-pressed={s.background === 'cover'}
+          data-testid="tt-set-bg-cover"
+          onclick={() => void settings.patch({ background: 'cover' })}
+          >{i18n.t('settings.display.bgCover')}</button
+        >
+      </div>
+    </div>
+
+    {#if s.background === 'gradient'}
+      <div class="tt-row tt-stack">
+        <span>{i18n.t('settings.display.preset')}</span>
+        <div class="tt-swatches" role="group" aria-label={i18n.t('settings.display.preset')}>
+          <!--
+            Written out rather than mapped, for the reason docs/08 §3.1 records:
+            the key guard finds callers by grepping for a literal `t('…')`, and
+            the six labels would otherwise be six orphans that fail the build.
+          -->
+          <button
+            class="tt-swatch"
+            class:tt-on={!s.gradientCustom && s.gradientPreset === 0}
+            aria-pressed={!s.gradientCustom && s.gradientPreset === 0}
+            aria-label={i18n.t('settings.display.preset0')}
+            style="background-image: {gradientCss(0)}"
+            data-testid="tt-set-preset-0"
+            onclick={() => void settings.patch({ gradientPreset: 0, gradientCustom: null })}
+          ></button>
+          <button
+            class="tt-swatch"
+            class:tt-on={!s.gradientCustom && s.gradientPreset === 1}
+            aria-pressed={!s.gradientCustom && s.gradientPreset === 1}
+            aria-label={i18n.t('settings.display.preset1')}
+            style="background-image: {gradientCss(1)}"
+            data-testid="tt-set-preset-1"
+            onclick={() => void settings.patch({ gradientPreset: 1, gradientCustom: null })}
+          ></button>
+          <button
+            class="tt-swatch"
+            class:tt-on={!s.gradientCustom && s.gradientPreset === 2}
+            aria-pressed={!s.gradientCustom && s.gradientPreset === 2}
+            aria-label={i18n.t('settings.display.preset2')}
+            style="background-image: {gradientCss(2)}"
+            data-testid="tt-set-preset-2"
+            onclick={() => void settings.patch({ gradientPreset: 2, gradientCustom: null })}
+          ></button>
+          <button
+            class="tt-swatch"
+            class:tt-on={!s.gradientCustom && s.gradientPreset === 3}
+            aria-pressed={!s.gradientCustom && s.gradientPreset === 3}
+            aria-label={i18n.t('settings.display.preset3')}
+            style="background-image: {gradientCss(3)}"
+            data-testid="tt-set-preset-3"
+            onclick={() => void settings.patch({ gradientPreset: 3, gradientCustom: null })}
+          ></button>
+          <button
+            class="tt-swatch"
+            class:tt-on={!s.gradientCustom && s.gradientPreset === 4}
+            aria-pressed={!s.gradientCustom && s.gradientPreset === 4}
+            aria-label={i18n.t('settings.display.preset4')}
+            style="background-image: {gradientCss(4)}"
+            data-testid="tt-set-preset-4"
+            onclick={() => void settings.patch({ gradientPreset: 4, gradientCustom: null })}
+          ></button>
+          <button
+            class="tt-swatch"
+            class:tt-on={!s.gradientCustom && s.gradientPreset === 5}
+            aria-pressed={!s.gradientCustom && s.gradientPreset === 5}
+            aria-label={i18n.t('settings.display.preset5')}
+            style="background-image: {gradientCss(5)}"
+            data-testid="tt-set-preset-5"
+            onclick={() => void settings.patch({ gradientPreset: 5, gradientCustom: null })}
+          ></button>
+        </div>
+      </div>
+
+      <div class="tt-row">
+        <span>{i18n.t('settings.display.custom')}</span>
+        <span class="tt-with-value">
+          <input
+            type="color"
+            aria-label={i18n.t('settings.display.customFrom')}
+            data-testid="tt-set-custom-from"
+            value={s.gradientCustom?.[0] ?? gradientStops(s.gradientPreset, null)[0]}
+            oninput={(e) => setCustom(0, e.currentTarget.value)}
+          />
+          <input
+            type="color"
+            aria-label={i18n.t('settings.display.customTo')}
+            data-testid="tt-set-custom-to"
+            value={s.gradientCustom?.[1] ?? gradientStops(s.gradientPreset, null)[1]}
+            oninput={(e) => setCustom(1, e.currentTarget.value)}
+          />
+          {#if s.gradientCustom}
+            <button
+              class="tt-opt"
+              data-testid="tt-set-custom-clear"
+              onclick={() => void settings.patch({ gradientCustom: null })}
+              >{i18n.t('settings.display.customClear')}</button
+            >
+          {/if}
+        </span>
+      </div>
+    {/if}
+
+    {#if s.background === 'image' || s.background === 'slideshow'}
+      <div class="tt-row tt-stack">
+        <span>{i18n.t('settings.display.pictures')}</span>
+        <input
+          type="file"
+          accept="image/*"
+          multiple={s.background === 'slideshow'}
+          data-testid="tt-set-bg-files"
+          onchange={(e) => {
+            const files = e.currentTarget.files;
+            if (files) backdrop.setImages([...files]);
+          }}
+        />
+        <!--
+          The honest empty state, and it is required rather than polite. Hard
+          invariant 1 keeps these files in RAM only (docs/02 §3), so the CHOICE
+          survives a reload and the pictures do not — leaving a user who
+          selected a slideshow yesterday looking at a gradient today with no
+          explanation. Z1 composites the gradient underneath anyway, so nothing
+          is broken; only unexplained.
+        -->
+        {#if backdrop.images.length === 0}
+          <p class="tt-note" data-testid="tt-set-bg-empty">
+            {i18n.t('settings.display.picturesEmpty')}
+          </p>
+        {:else}
+          <p class="tt-note" data-testid="tt-set-bg-count">
+            {i18n.t('settings.display.picturesCount', { count: backdrop.images.length })}
+          </p>
+          <button
+            class="tt-opt"
+            data-testid="tt-set-bg-clear"
+            onclick={() => backdrop.clearImages()}
+            >{i18n.t('settings.display.picturesClear')}</button
+          >
+        {/if}
+      </div>
+    {/if}
+
+    {#if s.background === 'slideshow'}
+      <label class="tt-row">
+        <span>{i18n.t('settings.display.interval')}</span>
+        <span class="tt-with-value">
+          <input
+            type="range"
+            min="5000"
+            max="60000"
+            step="1000"
+            data-testid="tt-set-interval"
+            value={s.slideshowIntervalMs}
+            oninput={(e) =>
+              void settings.patch({ slideshowIntervalMs: e.currentTarget.valueAsNumber })}
+          />
+          <output data-testid="tt-set-interval-value"
+            >{i18n.t('settings.display.intervalValue', {
+              seconds: Math.round(s.slideshowIntervalMs / 1000),
+            })}</output
+          >
+        </span>
+      </label>
+
+      <div class="tt-row">
+        <span>{i18n.t('settings.display.transition')}</span>
+        <div class="tt-seg" role="group" aria-label={i18n.t('settings.display.transition')}>
+          <button
+            class="tt-opt"
+            class:tt-on={s.slideshowTransition === 'fade'}
+            aria-pressed={s.slideshowTransition === 'fade'}
+            data-testid="tt-set-xfade-fade"
+            onclick={() => void settings.patch({ slideshowTransition: 'fade' })}
+            >{i18n.t('settings.display.transitionFade')}</button
+          >
+          <button
+            class="tt-opt"
+            class:tt-on={s.slideshowTransition === 'kenburns'}
+            aria-pressed={s.slideshowTransition === 'kenburns'}
+            data-testid="tt-set-xfade-kenburns"
+            onclick={() => void settings.patch({ slideshowTransition: 'kenburns' })}
+            >{i18n.t('settings.display.transitionKenBurns')}</button
+          >
+        </div>
+      </div>
+    {/if}
+
+    <label class="tt-row">
+      <span>{i18n.t('settings.display.scrim')}</span>
+      <input
+        type="range"
+        min="0.35"
+        max="0.6"
+        step="0.01"
+        data-testid="tt-set-scrim"
+        value={s.scrimStrength}
+        oninput={(e) => void settings.patch({ scrimStrength: e.currentTarget.valueAsNumber })}
+      />
+    </label>
+
+    <label class="tt-row tt-check">
+      <input
+        type="checkbox"
+        data-testid="tt-set-scrimauto"
+        checked={s.scrimAuto}
+        onchange={(e) => void settings.patch({ scrimAuto: e.currentTarget.checked })}
+      />
+      <span>{i18n.t('settings.display.scrimAuto')}</span>
+    </label>
+    <p class="tt-note">{i18n.t('settings.display.scrimAutoHint')}</p>
+
+    <label class="tt-row tt-check">
+      <input
+        type="checkbox"
+        data-testid="tt-set-scanlines"
+        checked={s.scanlines}
+        onchange={(e) => void settings.patch({ scanlines: e.currentTarget.checked })}
+      />
+      <span>{i18n.t('settings.display.scanlines')}</span>
+    </label>
+
+    <label class="tt-row tt-check">
+      <input
+        type="checkbox"
+        data-testid="tt-set-autotheme"
+        checked={s.autoTheme}
+        onchange={(e) => void settings.patch({ autoTheme: e.currentTarget.checked })}
+      />
+      <span>{i18n.t('settings.display.autoTheme')}</span>
+    </label>
+    <p class="tt-note">{i18n.t('settings.display.autoThemeHint')}</p>
   </section>
 
   <!-- ── Countdown ─────────────────────────────────────────────────────── -->
@@ -664,6 +960,36 @@
   .tt-seg {
     display: flex;
     gap: 0.25rem;
+  }
+  .tt-wrap {
+    flex-wrap: wrap;
+  }
+  .tt-swatches {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+  }
+  .tt-swatch {
+    width: 2.6rem;
+    height: 1.6rem;
+    border: 1px solid var(--color-tt-line);
+    border-radius: 0.25rem;
+  }
+  .tt-swatch.tt-on {
+    border-color: var(--color-tt-signal);
+    outline: 1px solid var(--color-tt-signal);
+  }
+  input[type='color'] {
+    width: 2.2rem;
+    height: 1.6rem;
+    padding: 0;
+    background: transparent;
+    border: 1px solid var(--color-tt-line);
+    border-radius: 0.25rem;
+  }
+  input[type='file'] {
+    font-size: 0.7rem;
+    color: var(--color-tt-muted);
   }
   .tt-opt {
     padding: 0.22rem 0.55rem;
