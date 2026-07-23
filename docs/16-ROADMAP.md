@@ -621,6 +621,32 @@ Also closed here: **`16 §P4`'s deferred exit item**, the Focus/ToS carve-out en
 to end. `TtApp` passed `focusMode={false}` as a literal, so the branch could not
 execute in production; it now can, and is asserted.
 
+#### The live run, and a correction to the ritual
+
+`tests/manual/p5-live-checklist.md` was run on **2026-07-23** and **every line
+passed first time** — including the whole `≥ 1 h` geometry block and a real
+Firefox pass, which this dev box cannot provide.
+
+It was run **before the merge**, against the Cloudflare Workers build of the PR
+branch, and that changes the rule this project has been carrying since P4:
+
+> **The requirement is a real DEPLOYMENT, not specifically a tag.** `astro dev`
+> and `astro preview` are excluded because they do not run the Worker — that part
+> was always right. But the per-PR Cloudflare build is a real deployment too, so
+> the checklist can run *before* the merge. A failure there costs a force-push;
+> the same failure after a tag costs a patch release, which is precisely what
+> v0.5.1 and v0.5.2 were.
+
+Only a short **production re-check** remains tag-scoped, and it is short because
+what a preview cannot speak for is zone-scoped rather than code-scoped: that the
+tag deployed at all, the custom domain's `/api/yt/oembed` route, and the `10 §11`
+headers.
+
+Worth noting against P4's run, which found a real bug on its first line: this one
+found nothing, because **the two defects this release fixes were found by
+measuring during planning instead**. That is the outcome the measure-first step
+exists for, not a sign the checklist was slack.
+
 ### Carried into slice 3 and 4 — what is still open
 
 | | |
