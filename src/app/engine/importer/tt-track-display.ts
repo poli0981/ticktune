@@ -59,7 +59,17 @@ export function bitrateText(kbps: number | null | undefined): string {
 }
 
 export interface TtInfoRow {
-  label: string;
+  /**
+   * An i18n key stem under `player.trackinfo.*`, NOT a label.
+   *
+   * This module is pure and lives under `engine/**`, where docs/12 §3.1 forbids
+   * importing from state at all — so it cannot call `i18n.t` and must not try.
+   * Returning the key and letting the component translate is the same shape
+   * `TtYtOverlayState.key` already uses for the YouTube overlays, and it keeps
+   * the field ORDER (which is docs/02 §8's actual contract) here, where the
+   * unit tests can see it, rather than in markup.
+   */
+  labelKey: string;
   value: string;
 }
 
@@ -70,42 +80,48 @@ export interface TtInfoRow {
  * Labels are hardcoded Vietnamese for P2; the keys are filed under
  * `player.trackinfo.*` in docs/08 §3.1 for P5.
  */
-export function trackInfoRows(t: TtTrack): TtInfoRow[] {
+export function trackInfoRows(t: TtTrack, locale: string): TtInfoRow[] {
   const rows: TtInfoRow[] = [
-    { label: 'Tiêu đề', value: text(t.title) },
-    { label: 'Nghệ sĩ', value: text(t.artist) },
-    { label: 'Album', value: text(t.album) },
-    { label: 'Năm', value: text(t.year) },
-    { label: 'Thể loại', value: text(t.genre) },
-    { label: 'Số thứ tự', value: text(t.trackNo) },
-    { label: 'Thời lượng', value: positionText(t.durationMs) },
+    { labelKey: 'title', value: text(t.title) },
+    { labelKey: 'artist', value: text(t.artist) },
+    { labelKey: 'album', value: text(t.album) },
+    { labelKey: 'year', value: text(t.year) },
+    { labelKey: 'genre', value: text(t.genre) },
+    { labelKey: 'trackNo', value: text(t.trackNo) },
+    { labelKey: 'duration', value: positionText(t.durationMs) },
   ];
 
   if (t.source === 'local') {
     rows.push(
-      { label: 'Codec', value: text(t.codec) },
-      { label: 'Bitrate', value: bitrateText(t.bitrateKbps) },
-      { label: 'Tần số lấy mẫu', value: num(t.sampleRateHz, 'Hz') },
-      { label: 'Số kênh', value: num(t.channels) },
-      { label: 'Kích thước', value: bytesText(t.fileSizeBytes) },
-      { label: 'Tên tệp', value: text(t.fileName) },
+      { labelKey: 'codec', value: text(t.codec) },
+      { labelKey: 'bitrate', value: bitrateText(t.bitrateKbps) },
+      { labelKey: 'sampleRate', value: num(t.sampleRateHz, 'Hz') },
+      { labelKey: 'channels', value: num(t.channels) },
+      { labelKey: 'fileSize', value: bytesText(t.fileSizeBytes) },
+      { labelKey: 'fileName', value: text(t.fileName) },
     );
   } else {
     rows.push(
-      { label: 'Kênh', value: text(t.artist) },
-      { label: 'Video ID', value: text(t.videoId) },
-      { label: 'URL', value: text(t.sourceUrl) },
+      { labelKey: 'channel', value: text(t.artist) },
+      { labelKey: 'videoId', value: text(t.videoId) },
+      { labelKey: 'url', value: text(t.sourceUrl) },
       // docs/02 §8 has listed Thumbnail since the first revision and nothing
       // rendered it — the same declared-but-never-shown shape as coverArtUrl.
-      { label: 'Ảnh thu nhỏ', value: text(t.thumbnailUrl) },
-      { label: 'Trạng thái', value: text(t.status) },
+      { labelKey: 'thumbnail', value: text(t.thumbnailUrl) },
+      { labelKey: 'status', value: text(t.status) },
     );
   }
 
   rows.push(
-    { label: 'Nguồn', value: t.source === 'local' ? 'Tệp cục bộ' : 'YouTube' },
-    { label: 'Đã thêm lúc', value: new Date(t.addedAt).toLocaleString('vi-VN') },
-    { label: 'Ảnh bìa', value: t.coverArtUrl ? 'Có' : TT_NA },
+    // `source` and `coverArt` carry a VALUE that needs translating too, not just
+    // a label — so they take a key on both sides. docs/08 §3.1's "one key per
+    // 02 §8 field" did not anticipate that; the extra three are filed there now.
+    { labelKey: 'source', value: t.source === 'local' ? '@sourceLocal' : '@sourceYoutube' },
+    // The locale is INJECTED rather than read, for the same purity reason the
+    // labels are keys. It was hardcoded 'vi-VN' until 2026-07-23, so an EN user
+    // got Vietnamese dates — docs/08 §3 says "the active locale".
+    { labelKey: 'addedAt', value: new Date(t.addedAt).toLocaleString(locale) },
+    { labelKey: 'coverArt', value: t.coverArtUrl ? '@coverArtYes' : TT_NA },
   );
 
   return rows;

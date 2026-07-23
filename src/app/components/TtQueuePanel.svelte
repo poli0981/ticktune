@@ -1,5 +1,6 @@
 <script lang="ts">
   import TtContextMenu, { type TtMenuItem } from './TtContextMenu.svelte';
+  import { i18n } from '../state/i18n.svelte';
   import { positionText, text } from '../engine/importer/tt-track-display';
   import { TT_MAX_PLAYLIST_TOTAL_MS, queueTotalMs } from '../engine/importer/tt-queue-rules';
   import type { TtTrack } from '../engine/importer/types';
@@ -92,7 +93,11 @@
 
   function announce(id: string, to: number) {
     const t = tracks.find((x) => x.id === id);
-    announcement = `${text(t?.title)} — vị trí ${to + 1} trên ${tracks.length}`;
+    announcement = i18n.t('player.queue.moved', {
+      title: text(t?.title),
+      to: to + 1,
+      total: tracks.length,
+    });
   }
 
   function move(id: string, delta: number) {
@@ -154,10 +159,10 @@
   const menuItems = $derived.by((): TtMenuItem[] => {
     const i = menu === null ? -1 : tracks.findIndex((t) => t.id === menu?.track.id);
     return [
-      { id: 'info', label: 'Thông tin bài' },
-      { id: 'up', label: 'Chuyển lên', disabled: i <= 0 },
-      { id: 'down', label: 'Chuyển xuống', disabled: i < 0 || i >= tracks.length - 1 },
-      { id: 'remove', label: 'Bỏ khỏi danh sách', danger: true },
+      { id: 'info', label: i18n.t('player.menu.info') },
+      { id: 'up', label: i18n.t('player.menu.up'), disabled: i <= 0 },
+      { id: 'down', label: i18n.t('player.menu.down'), disabled: i < 0 || i >= tracks.length - 1 },
+      { id: 'remove', label: i18n.t('player.menu.remove'), danger: true },
     ];
   });
 
@@ -200,7 +205,7 @@
    */
   const totalMs = $derived(queueTotalMs(tracks));
   const capText = positionText(TT_MAX_PLAYLIST_TOTAL_MS);
-  const badge = $derived(capped ? 'DANH SÁCH' : 'YOUTUBE');
+  const badge = $derived(capped ? i18n.t('player.badge.playlist') : i18n.t('player.badge.youtube'));
 </script>
 
 <aside
@@ -211,25 +216,25 @@
 >
   <div class="tt-badge">{badge}</div>
 
-  <div class="tt-toggles" role="group" aria-label="Phát lại">
+  <div class="tt-toggles" role="group" aria-label={i18n.t('player.queue.label')}>
     <button
       class="tt-toggle"
       class:tt-on={shuffle}
       aria-pressed={shuffle}
       data-testid="tt-shuffle"
-      onclick={() => onshuffle(!shuffle)}>Trộn</button
+      onclick={() => onshuffle(!shuffle)}>{i18n.t('player.queue.shuffle')}</button
     >
     <button
       class="tt-toggle"
       class:tt-on={repeat}
       aria-pressed={repeat}
       data-testid="tt-repeat"
-      onclick={() => onrepeat(!repeat)}>Lặp lại</button
+      onclick={() => onrepeat(!repeat)}>{i18n.t('player.queue.repeat')}</button
     >
   </div>
 
   {#if tracks.length === 0}
-    <p class="tt-empty">Chưa có bài nào.</p>
+    <p class="tt-empty">{i18n.t('player.queue.empty')}</p>
   {:else}
     <ul class="tt-rows" bind:this={list}>
       {#each tracks as track, i (track.id)}
@@ -252,7 +257,7 @@
           -->
           <button
             class="tt-grip"
-            aria-label="Kéo để đổi thứ tự {text(track.title)}"
+            aria-label={i18n.t('player.queue.drag', { title: text(track.title) })}
             data-testid="tt-queue-grip"
             onpointerdown={(e) => onHandleDown(e, track.id)}
             onpointermove={onHandleMove}
@@ -280,7 +285,7 @@
           <button
             class="tt-remove"
             data-testid="tt-queue-remove"
-            aria-label="Bỏ {text(track.title)}"
+            aria-label={i18n.t('player.queue.remove', { title: text(track.title) })}
             onclick={() => onremove(track.id)}>×</button
           >
         </li>
@@ -288,15 +293,17 @@
     </ul>
 
     <p class="tt-totals" data-testid="tt-queue-totals">
-      {playable.length} bài · {totalMs === null ? '–' : positionText(totalMs)}{capped
-        ? ` / ${capText}`
-        : ''}
+      {i18n.t('player.queue.totals', { count: playable.length })} · {totalMs === null
+        ? '–'
+        : positionText(totalMs)}{capped ? ` / ${capText}` : ''}
     </p>
   {/if}
 
   {#if exhausted}
     <!-- docs/02 §5 / §5.1 rule 6: the countdown keeps running; only media stops. -->
-    <p class="tt-ended" role="status" data-testid="tt-playlist-ended">Đã hết danh sách</p>
+    <p class="tt-ended" role="status" data-testid="tt-playlist-ended">
+      {i18n.t('player.queue.ended')}
+    </p>
   {/if}
 
   <!-- docs/03 §8: a reorder that only changes the DOM is silent to a screen

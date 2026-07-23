@@ -1,0 +1,206 @@
+{
+  "gate": {
+    "intro": "Before you start, please read and agree:",
+    "point": {
+      "files": "Your music never leaves your machine.",
+      "filesRest": " Files are held in the browser’s memory for this session only and are never uploaded to any server.",
+      "responsibility": "What you open is your responsibility.",
+      "responsibilityRest": " TickTune neither moderates nor stores that content.",
+      "youtube": "YouTube mode uses YouTube’s official player",
+      "youtubeRest": "; by using it you are also bound by YouTube’s and Google’s terms.",
+      "asIs": "The software is provided \"AS IS\", without warranty."
+    },
+    "full": "Full text:",
+    "link": {
+      "eula": "Terms",
+      "disclaimer": "Disclaimer",
+      "privacy": "Privacy",
+      "thirdParty": "Third party"
+    },
+    "agree": "I have read and agree to the terms above.",
+    "accept": "Agree and continue",
+    "stored": "stored locally on your machine"
+  },
+  "setup": {
+    "mode": {
+      "label": "Mode",
+      "single": "Single",
+      "playlist": "Playlist",
+      "youtube": "YouTube"
+    },
+    "offline": {
+      "title": "No network connection.",
+      "youtube": " YouTube mode needs a connection to play.",
+      "local": " Local music still plays normally.",
+      "retry": "Try again"
+    },
+    "drop": {
+      "hint": "MP3 · M4A · AAC · FLAC · WAV · OGG · Opus · WebM — up to 10:02"
+    },
+    "staged": {
+      "remove": "Remove"
+    },
+    "progress": {
+      "label": "Importing files",
+      "text": "Importing {{done}}/{{total}}"
+    },
+    "countdown": {
+      "hours": "hours",
+      "minutes": "minutes",
+      "seconds": "seconds",
+      "match": "Match length",
+      "matchLocked": "Every track in the queue needs a known duration"
+    },
+    "start": "Start",
+    "hint": {
+      "single": "Choose one audio file to begin.",
+      "playlist": "Choose at least one audio file to begin.",
+      "youtubeOffline": "A network connection is required to play YouTube videos.",
+      "range": "The countdown must be between 1 second and 24 hours.",
+      "singleOnly": "Single mode takes exactly one file — remove some, or go back to Playlist.",
+      "unplayable": "The selected file cannot be played."
+    }
+  },
+  "yt": {
+    "setup": {
+      "paste": {
+        "label": "Paste YouTube links — one per line",
+        "submit": "Add to queue"
+      }
+    },
+    "err": {
+      "skip": "Skip now",
+      "skipIn": "Skipping in {{seconds}}s",
+      "ambiguous": " · cause unclear",
+      "blocked": {
+        "title": "Cannot be played here",
+        "cause": "The owner disabled embedding, or the video is age-restricted / region-blocked."
+      },
+      "gone": {
+        "title": "This video is gone",
+        "cause": "The video was deleted or made private."
+      },
+      "invalid": {
+        "title": "Invalid link",
+        "cause": "YouTube does not accept this parameter."
+      },
+      "player": {
+        "title": "Player error",
+        "cause": "The HTML5 player reported an error."
+      }
+    }
+  },
+  "player": {
+    "transport": {
+      "prev": "Previous track",
+      "play": "Play",
+      "pause": "Pause",
+      "next": "Next track",
+      "stop": "Stop",
+      "mute": "Mute",
+      "volume": "Volume"
+    },
+    "loop": {
+      "label": "Loop style",
+      "count": "Loop ×{{count}}",
+      "hard": "Hard cut",
+      "crossfade": "Crossfade",
+      "locked": "Waiting on spike S4b measurements",
+      "hint": "Right-click for track info"
+    },
+    "queue": {
+      "label": "Playback",
+      "shuffle": "Shuffle",
+      "repeat": "Repeat",
+      "empty": "No tracks yet.",
+      "ended": "Playlist ended",
+      "totals": "{{count}} tracks",
+      "drag": "Drag to reorder {{title}}",
+      "remove": "Remove {{title}}",
+      "moved": "{{title}} — position {{to}} of {{total}}"
+    },
+    "menu": {
+      "label": "Track options",
+      "info": "Track info",
+      "up": "Move up",
+      "down": "Move down",
+      "remove": "Remove from queue"
+    },
+    "trackinfo": {
+      "open": "Track info",
+      "close": "Close",
+      "title": "Title",
+      "artist": "Artist",
+      "album": "Album",
+      "year": "Year",
+      "genre": "Genre",
+      "trackNo": "Track no.",
+      "duration": "Duration",
+      "codec": "Codec",
+      "bitrate": "Bitrate",
+      "sampleRate": "Sample rate",
+      "channels": "Channels",
+      "fileSize": "Size",
+      "fileName": "File name",
+      "channel": "Channel",
+      "videoId": "Video ID",
+      "url": "URL",
+      "thumbnail": "Thumbnail",
+      "status": "Status",
+      "source": "Source",
+      "sourceLocal": "Local file",
+      "sourceYoutube": "YouTube",
+      "addedAt": "Added at",
+      "coverArt": "Cover art",
+      "coverArtYes": "Yes"
+    },
+    "badge": {
+      "single": "SINGLE",
+      "playlist": "PLAYLIST",
+      "youtube": "YOUTUBE"
+    }
+  },
+  "toast": {
+    "summary": "Added {{added}} · skipped {{skipped}}",
+    "dismiss": "Dismiss",
+    "skipped": "Skipped",
+    "import": {
+      "TT-IMP-001": "Format not supported",
+      "TT-IMP-002": "Longer than the 10:02 limit",
+      "TT-IMP-003": "Over the 91:00 total",
+      "TT-IMP-004": "Over the track count limit",
+      "TT-IMP-005": "Duplicate of a file already added",
+      "TT-IMP-006": "Tags unreadable — using the file name",
+      "TT-IMP-007": "Tag encoding broken — using the file name",
+      "TT-IMP-008": "Too many entries in the dropped folder",
+      "TT-YT-001": "Could not check — will retry when you start",
+      "TT-YT-002": "Not a YouTube video link",
+      "TT-YT-003": "Over the 50-link limit",
+      "TT-YT-004": "YouTube refused, reason unknown",
+      "TT-YT-100": "Video deleted or private",
+      "TT-YT-101": "The owner does not allow embedding"
+    }
+  },
+  "finished": {
+    "title": "TIME UP",
+    "late": {
+      "at": "at {{time}}",
+      "ago": "{{duration}} ago"
+    },
+    "unit": {
+      "hours": "{{count}} h",
+      "minutes": "{{count}} min",
+      "seconds": "{{count}} s"
+    },
+    "action": {
+      "restart": "Run again",
+      "back": "Back to setup"
+    }
+  },
+  "header": {
+    "lang": {
+      "toVi": "Chuyển sang tiếng Việt",
+      "toEn": "Switch to English"
+    }
+  }
+}

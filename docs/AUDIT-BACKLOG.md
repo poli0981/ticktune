@@ -317,9 +317,22 @@ docs/04-TIMER-ENGINE.md §4: "| **< 60 s** | `SS.mmm` | every rAF frame | `42.18
 
 ---
 
-### 🟡 medium · i18n runtime policy gaps: no fallback/missing-key behavior, self-contradictory detection rule, ambiguous legal links, and undefined VI legal content before P6
+### 🟡 medium · i18n runtime policy gaps: no fallback/missing-key behavior, self-contradictory detection rule, ambiguous legal links, and undefined VI legal content before P6 — ✅ **partly resolved**
 
 **Owner phase:** P5 (i18n) · **Lens:** spec-completeness
+
+> ✅ **Runtime half resolved 2026-07-23 (P5 slice 1).** `08 §2.1` now states
+> `interpolation.escapeValue: false`, `fallbackLng: 'en'` and the missing-key
+> behaviour, each with the reason it is not a default worth inheriting — and
+> the runtime implements all three. The detector sentence is reworded: there is
+> no plugin, only `initialLang`'s one-time sniff, and `08 §2` now says the
+> runtime is *told* the result rather than deciding it twice.
+>
+> ⬜ **Still open: the legal-route half.** Which tree the in-app gate and
+> Settings link to when the app language is toggled on the single `/app/` route
+> is still unstated, and what the VI legal routes serve before P6 is still
+> undefined. Both are P6's — the static trees do not exist yet — and neither
+> blocks the dictionaries.
 
 08 §2 omits two implementer-facing i18next runtime settings that the rest of the suite makes consequential: (a) interpolation.escapeValue — 09 §4 bans {@html} and relies on Svelte's own escaping, so i18next's default escapeValue:true would double-escape interpolated values into visible HTML entities; and (b) missing-key behavior/fallbackLng, which is low-risk given the build-failing en/vi key-diff guard (13 §1) but still undefined for typo'd t() calls, where i18next's default would render raw IDs like 'yt.err.blocked.title'. Separately, 08 §1 defines two static legal trees (/legal/* VI, /en/legal/* EN) while 03 §3 item 2 and 03 §6 refer only to 'links to /legal/*' and 'reopen legal pages' — no doc states which tree the in-app legal gate and Settings link to when the app language is toggled on the single /app/ route. Severity: low-to-medium, doc-only fix. The 'self-contradictory language detector' and 'VI legal content undefined during P1–P5' portions of the original finding are dropped as unfounded.
 

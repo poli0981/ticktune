@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { i18n } from '../state/i18n.svelte';
   import { positionText, text } from '../engine/importer/tt-track-display';
   import type { TtTrack } from '../engine/importer/types';
 
@@ -79,20 +80,20 @@
       class="tt-ctl"
       data-testid="tt-prev"
       disabled={!canPrev}
-      aria-label="Bài trước"
+      aria-label={i18n.t('player.transport.prev')}
       onclick={onprev}>⏮</button
     >
     <button
       class="tt-ctl"
       data-testid="tt-playpause"
-      aria-label={playing ? 'Tạm dừng' : 'Phát'}
+      aria-label={playing ? i18n.t('player.transport.pause') : i18n.t('player.transport.play')}
       onclick={onplaypause}>{playing ? '⏸' : '▶'}</button
     >
     <button
       class="tt-ctl"
       data-testid="tt-next"
       disabled={!canNext}
-      aria-label="Bài sau"
+      aria-label={i18n.t('player.transport.next')}
       onclick={onnext}>⏭</button
     >
 
@@ -102,9 +103,19 @@
       in Z7 — a duplicate row would give two controls the same accessible name,
       which is a real ambiguity for a screen reader, not just for a test.
     -->
-    <button class="tt-ctl" data-testid="tt-stop" aria-label="Dừng hẳn" onclick={onstop}>⏹</button>
+    <button
+      class="tt-ctl"
+      data-testid="tt-stop"
+      aria-label={i18n.t('player.transport.stop')}
+      onclick={onstop}>⏹</button
+    >
 
-    <button class="tt-ctl" data-testid="tt-mute" aria-label="Tắt tiếng" onclick={onmute}>
+    <button
+      class="tt-ctl"
+      data-testid="tt-mute"
+      aria-label={i18n.t('player.transport.mute')}
+      onclick={onmute}
+    >
       {muted ? '🔇' : '🔊'}
     </button>
     <input
@@ -113,7 +124,7 @@
       min="0"
       max="100"
       value={Math.round(volume * 100)}
-      aria-label="Âm lượng"
+      aria-label={i18n.t('player.transport.volume')}
       data-testid="tt-volume"
       oninput={(e) => onvolume(Number(e.currentTarget.value) / 100)}
     />

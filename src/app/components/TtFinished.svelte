@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { i18n } from '../state/i18n.svelte';
   import { splitDuration } from '../engine/timer/tt-late';
   import type { TtFinishReport } from '../engine/timer/types';
 
@@ -45,7 +46,7 @@
 
   const zeroAt = $derived(new Date(report.zeroAtEpoch));
   const clockText = $derived(
-    new Intl.DateTimeFormat('vi-VN', { hour: '2-digit', minute: '2-digit' }).format(zeroAt),
+    new Intl.DateTimeFormat(i18n.locale, { hour: '2-digit', minute: '2-digit' }).format(zeroAt),
   );
 
   // Elapsed since zero, floored at the overshoot we already know about: on the
@@ -55,11 +56,11 @@
 
   const agoText = $derived(
     [
-      ago.h > 0 ? `${ago.h} giờ` : '',
-      ago.m > 0 ? `${ago.m} phút` : '',
+      ago.h > 0 ? i18n.t('finished.unit.hours', { count: ago.h }) : '',
+      ago.m > 0 ? i18n.t('finished.unit.minutes', { count: ago.m }) : '',
       // Seconds are dropped once we are past an hour — "1 giờ 4 phút 12 giây
       // trước" is false precision on a number this soft.
-      ago.h === 0 ? `${ago.s} giây` : '',
+      ago.h === 0 ? i18n.t('finished.unit.seconds', { count: ago.s }) : '',
     ]
       .filter(Boolean)
       .join(' '),
@@ -67,12 +68,14 @@
 </script>
 
 <section class="tt-finished" data-testid="tt-finished" data-variant={report.variant}>
-  <h1 class="tt-title">HẾT GIỜ</h1>
+  <h1 class="tt-title">{i18n.t('finished.title')}</h1>
 
   {#if report.variant === 'late'}
     <!-- docs/03 §3.5: state WHEN, rather than implying now. -->
     <p class="tt-late" data-testid="tt-finished-late">
-      lúc <strong>{clockText}</strong> — {agoText} trước
+      {i18n.t('finished.late.at', { time: clockText })} — {i18n.t('finished.late.ago', {
+        duration: agoText,
+      })}
     </p>
     <p class="tt-why">
       Thẻ chạy nền bị trình duyệt tạm dừng, nên ứng dụng chỉ phản hồi được khi bạn quay lại. Thời
@@ -81,8 +84,12 @@
   {/if}
 
   <div class="tt-actions">
-    <button class="tt-btn" data-testid="tt-finished-restart" onclick={onrestart}>Chạy lại</button>
-    <button class="tt-btn" data-testid="tt-finished-back" onclick={onback}>Về thiết lập</button>
+    <button class="tt-btn" data-testid="tt-finished-restart" onclick={onrestart}
+      >{i18n.t('finished.action.restart')}</button
+    >
+    <button class="tt-btn" data-testid="tt-finished-back" onclick={onback}
+      >{i18n.t('finished.action.back')}</button
+    >
   </div>
 </section>
 

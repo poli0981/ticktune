@@ -17,6 +17,22 @@ export default defineConfig({
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: 'on-first-retry',
+    /*
+     * Pin the browser locale to Vietnamese — docs/08 §2's documented default.
+     *
+     * Not a convenience. Until P5 every string was a hardcoded VI literal, so
+     * the ~100 assertions across this suite that name Vietnamese copy passed
+     * regardless of locale. The moment the dictionaries landed, `initialLang`
+     * started doing its job: Chromium's automation profile reports `en-US`, the
+     * app booted in English, and those assertions began testing a language the
+     * product does not default to.
+     *
+     * The choice is therefore between rewriting a hundred assertions into EN or
+     * telling the browser what the product assumes. This says the second thing
+     * out loud. The EN path is not left unexercised — `i18n.spec.ts` toggles and
+     * asserts the swap, which is the behaviour that can actually regress.
+     */
+    locale: 'vi-VN',
   },
 
   webServer: {

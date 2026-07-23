@@ -14,6 +14,7 @@
   import { TtTimerDriver } from './engine/timer/tt-timer-driver';
   import type { TtTickSample } from './engine/timer/types';
   import { installGlobalCapture, ttLog } from './engine/log/tt-log';
+  import { i18n } from './state/i18n.svelte';
   import { playback } from './state/playback.svelte';
   import { session } from './state/session.svelte';
   import { settings } from './state/settings.svelte';
@@ -61,6 +62,10 @@
     yt.onMeta = (trackId, fields) => session.patchTrack(trackId, fields);
 
     void settings.load(navigator.language).then((s) => {
+      // docs/08 §2 — before anything renders a string. `settings.load` has
+      // already applied `initialLang`'s rule (stored → navigator.language → EN),
+      // so the runtime is told the answer rather than deciding it a second time.
+      i18n.start(s.lang);
       // docs/03 §3: P3 unlocks Playlist, so the remembered mode is finally
       // honoured. P2 deliberately never wrote over it for exactly this moment.
       session.adoptMode(s.lastMode);
@@ -399,6 +404,19 @@
     );
   }
 
+  /**
+   * docs/08 §2 — instant, no reload, persisted.
+   *
+   * Two writes, and the order matters: the runtime switches first so the UI is
+   * already correct when the await yields, and Dexie catches up afterwards. A
+   * user who closes the tab in that window loses the preference, not the switch.
+   */
+  async function switchLang() {
+    const next = i18n.lang === 'vi' ? 'en' : 'vi';
+    i18n.setLang(next);
+    await settings.patch({ lang: next });
+  }
+
   /** Whichever engine is making sound — docs/06 §2. */
   function stopCurrentEngine() {
     if (session.mode === 'youtube') yt.pause();
@@ -578,6 +596,26 @@
     <span class="tt-wordmark">TickTune</span>
   </header>
 
+  <!--
+    docs/03 §2 Z6 — "Settings ⚙, language, fullscreen. Icon buttons, 40 px hit
+    area." The language control lands with the dictionaries it switches; ⚙ and ⤢
+    arrive with the settings panel and Focus mode, which is why this is a header
+    rather than one button floated into the corner.
+
+    The label is written in the language being switched TO, on purpose: someone
+    who cannot read the current interface has to be able to read their way out
+    of it (docs/03 §8, "language of parts").
+  -->
+  <header class="tt-chrome" data-testid="tt-chrome">
+    <button
+      class="tt-icon"
+      data-testid="tt-lang-toggle"
+      lang={i18n.lang === 'vi' ? 'en' : 'vi'}
+      aria-label={i18n.lang === 'vi' ? i18n.t('header.lang.toEn') : i18n.t('header.lang.toVi')}
+      onclick={() => void switchLang()}>{i18n.lang === 'vi' ? 'EN' : 'VI'}</button
+    >
+  </header>
+
   <section class="tt-stage">
     <TtCountdown remainingMs={displayMs} glowIntensity={settings.current.glowIntensity} />
 
@@ -710,6 +748,30 @@
     padding-bottom: 5rem;
   }
 
+  /* docs/03 §2 Z6 — mirrors Z5 on the opposite corner. */
+  .tt-chrome {
+    position: absolute;
+    top: 1.1rem;
+    right: 1.25rem;
+    display: flex;
+    gap: 0.4rem;
+    z-index: 5;
+  }
+  .tt-icon {
+    /* docs/03 §2: "Icon buttons, 40 px hit area." */
+    min-width: 40px;
+    min-height: 40px;
+    font-family: var(--font-mono);
+    font-size: 0.74rem;
+    letter-spacing: 0.06em;
+    color: var(--color-tt-muted);
+    background: transparent;
+    border: 1px solid var(--color-tt-line);
+    border-radius: 0.25rem;
+  }
+  .tt-icon:hover {
+    color: var(--color-tt-text);
+  }
   .tt-brand {
     position: absolute;
     top: 1.1rem;
