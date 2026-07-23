@@ -111,7 +111,9 @@ earlier run explains some disagreements and a real bug explains the rest.
       `onLine` from whether an interface is up, not from whether anything is
       reachable. `06 §8` had always said the import result is the authority and
       only the hint was implemented. **Re-test on v0.5.1**, and note that a
-      queue where nothing reached the edge now blocks Start too.
+      queue where nothing reached the edge now blocks Start too — and the
+      banner then carries a **Thử lại** button, which is the only way out on a
+      machine whose `navigator.onLine` never flips (v0.5.2).
 - [x] **Import while offline, reconnect, then press Bắt đầu.** The rows that
       imported as `N/A / N/A` gain their real title and channel a moment after
       Start — that is the re-check the toast has always promised and never did.
