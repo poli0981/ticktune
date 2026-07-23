@@ -162,7 +162,31 @@ Slice 2 shipped the ⚙ panel (**7 of `03 §6`'s 9 groups**), Focus mode, and
 - **`--tt-yt-reserve` is the one mechanism for "no overlay covers the player".**
   Published on `.tt-main`; every fixed layer insets its right edge by it.
 
-🔴 **The slice's measurement found a ToS bug that was already live in v0.5.2:**
+Slice 3 shipped the Z1 stack (`03 §2`) and the Display group — nine fields, the
+largest block of the fourteen. Three pure engines carry the decisions:
+`tt-gradient.ts`, `tt-contrast.ts`, `tt-dominant-hue.ts`. Four rules from it:
+
+- **`scrimAuto` is solved arithmetic**, not a slider: `scrimFor()` closes the
+  form on 4.5:1, returns the user's floor when the background is already dark
+  (`02 §3.1`'s "never lowers it"), and **reports the 0.60 cap** rather than
+  exceeding the documented range.
+- **Auto-theme is a `hue-rotate`**, never a rebuild of the stops — the presets
+  are dark by design and a unit test asserts they clear 4.5:1 at minimum scrim;
+  rotating hue preserves that, sampling a colour would discard it.
+- **Slideshow pictures are session-only and the panel says so.** The choice
+  persists, the images do not; Z1 composites so the gradient underneath is
+  already painted.
+- **A second `TtUrlLedger` instance** — `05 §3`'s `queueLength + 2` is about the
+  audio graph, and folding backgrounds in would void `09 §5`'s leak canary.
+
+🔴 **Do not build anything derived from the YouTube thumbnail.** `03 §5` used to
+specify hue extraction from it and was corrected in slice 3. S1 measured
+`i.ytimg.com` sending `ACAO: *`, so the canvas is **not** tainted — the technical
+objection is gone and only the unread ToS remains, which makes building it a
+*decision*. YouTube mode gets the generated gradient, per the audit's own
+recommendation. Same ruling covers `06 §6`'s blurred `hqdefault`.
+
+🔴 **Slice 2's measurement found a ToS bug that was already live in v0.5.2:**
 in the `≥ 1 h` countdown regime the YouTube player was pushed **off screen at
 every viewport below 1920 px** — 224 px of 384 at 1280. `8:88:88` is 4.48 em wide
 against `88:88`'s 3.46, no flex item could shrink below min-content, and the
@@ -243,13 +267,13 @@ mechanism measured — hand-mount wins (`docs/01 §3`).
 
 Open items, in the order they block things:
 
-1. **Release v0.6.0 (slices 1 + 2), then P5 slice 3 — backgrounds.** Slice 3
-   wires the eight Display fields; slice 4 is the visualizer plus a11y/perf.
+1. **P5 slice 4 — the visualizer, plus a11y and perf.** Three styles, the tally
+   pulse, reduced motion, and the perf number. It is the last slice of P5.
 
-   Two items still carried, neither belonging to slice 3: **`13 §5` says the
-   perf budget is checked in P7 while `16` makes it a P5 exit criterion** —
-   reconcile before slice 4 · **"a11y milestones announced" is unwritten code**,
-   `03 §8`'s five polite announcements at 10 min / 5 min / 1 min / 10 s / zero.
+   Two items carried into it: **`13 §5` says the perf budget is checked in P7
+   while `16` makes it a P5 exit criterion** — reconcile before leaning on it ·
+   **"a11y milestones announced" is unwritten code**, `03 §8`'s five polite
+   announcements at 10 min / 5 min / 1 min / 10 s / zero.
 
    ✅ **`tests/manual/p5-live-checklist.md` was run on 2026-07-23 and every line
    passed first time**, including the `≥ 1 h` geometry block and a real Firefox

@@ -318,7 +318,40 @@ arrives from one side, which is where a single sample is blind. It samples a gri
 On track change (local): sample the embedded cover art via a 16×16 canvas
 median-cut → derive one dominant hue → tint the gradient background and digit glow
 (never the digit core color; legibility first). Toggle in Settings, default ON.
-Skipped when no cover art or in YouTube mode (thumbnail hue used instead).
+
+**Skipped when there is no cover art, when the art is greyscale, and in YouTube
+mode.** The middle case is not a technicality: a black-and-white sleeve has no
+hue to borrow, and returning one anyway would tint the whole interface off a
+rounding error in a grey gradient. `tt-dominant-hue.ts` returns `null` and the
+caller must handle it.
+
+⚠️ **The YouTube clause changed on 2026-07-23, and the reason is worth keeping.**
+This section used to read *"skipped when no cover art or in YouTube mode
+(thumbnail hue used instead)"* — i.e. it specified deriving a colour from
+YouTube's thumbnail. That is a **modified use of YouTube's image** and it sits
+under an open 🟠 audit finding (`AUDIT-BACKLOG`) that names this very sentence.
+
+Spike S1 measured `i.ytimg.com` responding with `ACAO: *`, so the canvas would
+**not** be tainted and the extraction is perfectly implementable. That removes
+the technical objection and leaves only the licensing one — which makes building
+it a *decision* rather than an oversight, and nobody has read the terms. So
+YouTube mode gets the generated gradient, unmodified, which is what the audit
+finding's own recommendation asks for:
+
+> "drive the ambient background from a generated gradient rather than a
+> blurred/derived version of YouTube's image"
+
+The same ruling covers `06 §6`'s blurred `hqdefault` background. Neither is
+built. If the terms are read later and permit it, this is the paragraph to
+revisit — not the code.
+
+**How the tint is applied**, because "tint the gradient" admits a wrong reading:
+a `hue-rotate` filter over the base layer, **not** a rebuild of the gradient
+stops. The six presets were chosen dark so the digits clear 4.5:1 against them
+at the minimum scrim (`tt-gradient.ts` asserts it), and rotating hue leaves
+luminance untouched — so the contrast guarantee survives the tint. Replacing the
+colours with sampled ones would throw it away, which is what "legibility first"
+above is guarding.
 
 ## 6. Settings (⚙ panel, grouped)
 
@@ -329,7 +362,7 @@ truth. Do not restate a default here; it will drift.
 | Group | Controls | `TtSettings` fields | Ships |
 |-------|----------|---------------------|-------|
 | General | Language EN/VI · reopen legal pages · reset app (clears Dexie) | `lang` | **P5 s2** |
-| Display | Background: Solid / Gradient (6 presets + custom) / Image / Slideshow (multi-upload, interval, fade or Ken Burns) / Cover-art blur · scrim strength · scanlines | `background`, `gradientPreset`, `gradientCustom`, `slideshowIntervalMs`, `slideshowTransition`, `scrimStrength`, `scrimAuto`, `scanlines`, `autoTheme` | P5 s3 |
+| Display | Background: Solid / Gradient (6 presets + custom) / Image / Slideshow (multi-upload, interval, fade or Ken Burns) / Cover-art blur · scrim strength · scanlines · auto-theme | `background`, `gradientPreset`, `gradientCustom`, `slideshowIntervalMs`, `slideshowTransition`, `scrimStrength`, `scrimAuto`, `scanlines`, `autoTheme` | **P5 s3** |
 | Countdown | Glow intensity · size (S/M/L) · **End Behavior**: fade-out duration, chime, flash, and what happens at zero (stay / restart / loop — see `02 §3.3`) | `glowIntensity`, `countdownSize`, `endFadeMs`, `endChime`, `endFlash`, `endAction` | **P5 s2** |
 | Visualizer | Style off/bars/wave/ring · sensitivity | `visualizer`, `visualizerSensitivity` | P5 s4 |
 | Audio | Volume · mute · ~~crossfade~~ · ~~single-mode loop style~~ | `volume`, `muted`, (`crossfadeMs`, `singleLoopStyle` — S4b) | **P5 s2**, partly |
@@ -337,6 +370,19 @@ truth. Do not restate a default here; it will drift.
 | Hotkeys | Read-only reference list | — | **P5 s2** |
 | Diagnostics | Log viewer · Copy Diagnostics · clear log | — | **P5 s2** |
 | About | Version, license, GitHub, third-party notices | — | **P5 s2** |
+
+**Slideshow pictures are capped at `TT_MAX_BACKGROUND_IMAGES` = 20** (P5 slice 3).
+`03 §6` said "multi-upload" and named no ceiling, and an uncapped multi-select is
+a way to put a few hundred full-resolution bitmaps into RAM behind a countdown.
+Twenty is twenty minutes before a repeat at the 60 s maximum interval. Over the
+cap logs **TT-IMG-002** rather than silently truncating.
+
+**The pictures themselves are session-only, and the Display group must say so.**
+Hard invariant 1 keeps them in RAM (`02 §3`), so `background: 'slideshow'`
+survives a reload and the images do not. Z1 composites rather than switches, so
+the gradient underneath is already painted and nothing goes blank — but a user
+who chose a slideshow yesterday would otherwise find a gradient today with no
+explanation, which is why the empty state is copy rather than an absence.
 
 ### A group ships with its feature, never before it
 

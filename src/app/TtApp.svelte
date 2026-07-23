@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onDestroy, onMount } from 'svelte';
+  import TtBackdrop from './components/TtBackdrop.svelte';
   import TtBottomBar from './components/TtBottomBar.svelte';
   import TtCountdown from './components/TtCountdown.svelte';
   import TtDebugPanel from './components/TtDebugPanel.svelte';
@@ -15,6 +16,7 @@
   import { TtTimerDriver } from './engine/timer/tt-timer-driver';
   import type { TtTickSample } from './engine/timer/types';
   import { installGlobalCapture, ttLog } from './engine/log/tt-log';
+  import { backdrop } from './state/backdrop.svelte';
   import { i18n } from './state/i18n.svelte';
   import { playback } from './state/playback.svelte';
   import { session } from './state/session.svelte';
@@ -242,6 +244,9 @@
     driver.dispose();
     playback.dispose();
     yt.dispose();
+    // docs/05 §3 — the backdrop keeps its own object-URL ledger, so it owes the
+    // same revoke on the way out that the audio graph does.
+    backdrop.dispose();
   });
 
   /**
@@ -712,6 +717,13 @@
 
 <svelte:window onkeydown={onKeydown} onpointermove={onActivity} onbeforeunload={onBeforeUnload} />
 
+<!--
+  docs/03 §2 Z1. Outside `<main>` and before it, because it is the page's
+  background on every screen — Setup, Player and Finished alike — and because
+  `main` goes `inert` behind the legal gate while this must keep painting.
+-->
+<TtBackdrop coverArtUrl={playback.track?.coverArtUrl ?? null} {focusMode} />
+
 {#if booted && needsGate}
   <TtLegalGate onaccept={acceptLegal} />
 {/if}
@@ -948,6 +960,15 @@
 
 <style>
   .tt-main {
+    /*
+     * Positioned, and above Z1 — docs/03 §2's stack has the background at the
+     * bottom. A fixed `.tt-z1` at `z-index: 0` would otherwise paint over
+     * static in-flow content, which is the whole page. `position: relative`
+     * does NOT trap the fixed overlays inside (only transform/filter do), so
+     * the bottom bar, the settings sheet and the info modal are unaffected.
+     */
+    position: relative;
+    z-index: 1;
     display: grid;
     align-content: center;
     justify-items: center;
@@ -960,15 +981,15 @@
     padding-bottom: 5rem;
   }
   /*
-   * docs/03 §4 — Focus "dims Z1 further". Z1 is the page background, so this
-   * darkens the stage rather than laying anything over it: an overlay would be
-   * one more thing that could reach the YouTube player (docs/03 §2).
-   *
    * The bottom padding goes with Z7, which is not rendered in Focus.
+   *
+   * docs/03 §4's "dims Z1 further" is NOT here, and that is the point: this
+   * element sits ABOVE Z1 since slice 3, so a background colour on it would
+   * not dim the backdrop — it would hide it. The dim belongs to the layer it
+   * is about, and `TtBackdrop` owns it.
    */
   .tt-main.tt-focus {
     padding-bottom: 2rem;
-    background: color-mix(in srgb, var(--color-tt-void) 60%, #000);
   }
 
   /* docs/03 §2 Z6 — mirrors Z5 on the opposite corner. */

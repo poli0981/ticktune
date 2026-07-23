@@ -98,6 +98,10 @@ describe('the values themselves', () => {
       'header.lang.toEn',
       // Pure interpolation plus a symbol.
       'player.loop.count',
+      // A person's name. "Ken Burns" is what the pan-and-zoom effect is called
+      // in both languages, and translating a proper noun would be inventing a
+      // Vietnamese term for a thing that already has one.
+      'settings.display.transitionKenBurns',
     ]);
 
     const identical = enKeys.filter(

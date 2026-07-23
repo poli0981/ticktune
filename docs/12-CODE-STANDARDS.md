@@ -64,6 +64,8 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-IMP-006 | Metadata parse failed — imported with file-name title |
 | TT-IMP-007 | Tag mojibake detected — file-name fallback |
 | TT-IMP-008 | Rejected: dropped entry count exceeded the pre-scan cap (`02 §4` step 0) |
+| TT-IMG-001 | Background picker: entry rejected, not an image |
+| TT-IMG-002 | Background picker: entries dropped, over the `TT_MAX_BACKGROUND_IMAGES` cap (`03 §6`) |
 | TT-PLY-100 | Playback blocked by the autoplay policy — awaiting a user gesture |
 | TT-PLY-101 | Playback error on local track — skipped/removed |
 | TT-PLY-102 | Playlist exhausted before countdown (repeat off) |
@@ -96,6 +98,15 @@ a count cap too — exactly one track (`02 §1`) — and reusing a playlist-scop
 code for it without saying so here would be the code-before-registration
 violation this section exists to prevent. The cap value stays per-mode; only the
 code's scope widened.
+
+**`TT-IMG-*` is a new family, not a widening of `TT-IMP-*`** (P5 slice 3). The
+background picker rejects for the same two *shapes* of reason as the audio
+importer — wrong type, over a cap — and it was briefly written using
+TT-IMP-001/004 for exactly that reason. That is the violation above wearing a
+convincing disguise: `TT-IMP-*` means the `02 §4` audio pipeline, whose codes
+appear in the import summary toast keyed by code (`08 §3.1`), so a background
+rejection would have surfaced as "Format not supported" in a toast about music.
+Different pipeline, different family.
 
 **Message content rule.** A log `message` carries its code plus non-identifying
 context only — never a raw file name, tag value, track title, or any other user

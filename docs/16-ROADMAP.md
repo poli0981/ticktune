@@ -539,7 +539,7 @@ that the field is genuinely read, not merely present.
 |-------|-------|-----------------|
 | **1 — i18n** ✅ | runtime, both dictionaries, the key guard, Z6, every string migrated | `lang` |
 | **2 — Settings + Focus** ✅ | the ⚙ panel (7 of 9 groups), Focus mode, the missing hotkeys (`F H S ] Esc`) | `countdownSize`, the six Countdown fields, `allowDuplicates`, `singleLoopStyle` |
-| **3 — Backgrounds** | solid / gradient / image / slideshow, scrim, scanlines, auto-theme | the eight Display fields |
+| **3 — Backgrounds** ✅ | solid / gradient / image / slideshow, scrim, scanlines, auto-theme | the eight Display fields |
 | **4 — Visualizer + a11y/perf** | three styles, tally pulse, reduced motion, the perf number | `visualizer`, `visualizerSensitivity` |
 
 ### Slice 1 — i18n · merged 2026-07-23
@@ -647,7 +647,64 @@ found nothing, because **the two defects this release fixes were found by
 measuring during planning instead**. That is the outcome the measure-first step
 exists for, not a sign the checklist was slack.
 
-### Carried into slice 3 and 4 — what is still open
+### Slice 3 — the Z1 background stack · 2026-07-23
+
+`03 §2`'s stack, bottom to top: solid/gradient → image | slideshow → cover-art
+blur → adaptive scrim → scanlines. Nine fields wired, which is the largest block
+of the fourteen `16 §P5` measured as unread.
+
+Three pure engines carry every decision, so no component picks a colour:
+`tt-gradient.ts` (six presets + custom), `tt-contrast.ts` (WCAG luminance and
+the solved scrim alpha), `tt-dominant-hue.ts` (median cut). The coverage gate
+covers them; the store and the component are asserted separately.
+
+**Four things from it that are not taste:**
+
+- **`scrimAuto` is arithmetic, not a slider someone nudged.** `scrimFor()` solves
+  `ratio(text, bg·(1−a)) = 4.5` in closed form and returns the user's own floor
+  whenever the background is already dark enough — which is `02 §3.1`'s "never
+  lowers it" expressed as a function rather than as a comment. It caps at 0.60
+  and **reports the cap** rather than exceeding the documented range.
+- **Auto-theme is a `hue-rotate`, not a rebuild of the gradient stops.** The six
+  presets were chosen dark so the digits clear 4.5:1 at the minimum scrim, and a
+  unit test asserts exactly that; rotating hue leaves luminance alone, so the
+  guarantee survives the tint. Sampling a colour and using it would discard it.
+- **The pictures are session-only and the panel says so.** Hard invariant 1 keeps
+  them in RAM, so `background: 'slideshow'` survives a reload and the images do
+  not. Z1 composites rather than switches, so the gradient underneath is already
+  painted — nothing breaks, but without the copy nothing explains it either.
+- **A second `TtUrlLedger` instance, not a third kind in the first one.**
+  `05 §3`'s bound is `≤ queueLength + 2` and it is a statement about the audio
+  graph; folding backgrounds in would make `withinBound` stop meaning anything,
+  and it is the leak canary `09 §5` relies on.
+
+⚠️ **`03 §5` was corrected, and this is the important part of the slice.** It
+specified deriving the ambient colour from YouTube's thumbnail in YouTube mode —
+a modified use of YouTube's image, named directly by an open 🟠 audit finding.
+S1 measured `i.ytimg.com` sending `ACAO: *`, so the canvas would **not** be
+tainted: the technical objection is gone and only the licensing one remains,
+which makes building it a decision rather than an oversight. Nobody has read the
+terms, so YouTube mode gets the generated gradient — which is the audit
+finding's own recommendation. The same ruling keeps `06 §6`'s blurred
+`hqdefault` background unbuilt.
+
+Also new: `TT_MAX_BACKGROUND_IMAGES = 20` (`03 §6` said "multi-upload" and named
+no ceiling) and the **`TT-IMG-*` log family**. The picker was briefly written
+using TT-IMP-001/004 because it rejects for the same two shapes of reason as the
+audio importer — which is the code-before-registration violation `12 §6` exists
+to prevent, wearing a convincing disguise: `TT-IMP-*` is keyed straight into the
+import summary toast, so a rejected background would have surfaced as "Format
+not supported" in a toast about music.
+
+**Found while testing, and kept rather than worked around:** `settings.patch()`
+writes to Dexie asynchronously and every call site fires it with `void`, so a
+spec that clicks a control and reloads immediately out-runs the write and reads
+back the old value — indistinguishable from the setting never persisting.
+`storedSettings()` in `_helpers.ts` polls the row instead. Also measured:
+`test.use({ reducedMotion: 'reduce' })` did **not** reach `matchMedia` on
+`@playwright/test` 1.61.1 while `page.emulateMedia()` did.
+
+### Carried into slice 4 — what is still open
 
 | | |
 |---|---|
