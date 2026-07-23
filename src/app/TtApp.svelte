@@ -365,6 +365,40 @@
     else playTrack();
   }
 
+  /**
+   * What the transport button reports — docs/06 §2.
+   *
+   * The session's state alone is not the answer in YouTube mode. `06 §1.2`
+   * requires the native controls to stay usable, so the user can pause the video
+   * without the app hearing about it — and the button then offered ⏸ for a video
+   * that was already paused, with the ⏯ hotkey pointing the wrong way.
+   * `yt.playing` has been written on every PLAYING/PAUSED/ENDED since P4 and read
+   * by nothing at all.
+   *
+   * Both clauses are load-bearing: the session's is what makes an app-level
+   * pause take effect instantly, and the player's is what stops a native pause —
+   * or an error overlay, which also reports `false` — being drawn as playback.
+   * The cost is a moment of ▶ while the first video loads, which is honest.
+   */
+  const transportPlaying = $derived(
+    session.mode === 'youtube' ? session.state === 'playing' && yt.playing : playbackPlaying(),
+  );
+
+  /**
+   * The local modes' half, and the same idea: `playback.status` is written on
+   * every engine transition and was likewise read by nobody. It carries two
+   * states the session cannot know — `blocked` (autoplay refused) and `error` —
+   * and both should draw ▶ rather than a pause button over silence.
+   */
+  function playbackPlaying(): boolean {
+    if (session.state !== 'playing') return false;
+    // `idle` is the gap before the first load resolves; treat it as the session
+    // says, so a run does not flicker on every track change.
+    return (
+      playback.status !== 'paused' && playback.status !== 'blocked' && playback.status !== 'error'
+    );
+  }
+
   /** Whichever engine is making sound — docs/06 §2. */
   function stopCurrentEngine() {
     if (session.mode === 'youtube') yt.pause();
@@ -556,6 +590,7 @@
           repeat={settings.current.repeatPlaylist}
           exhausted={session.exhausted}
           overlay={yt.overlay}
+          skipInSeconds={yt.skipInSeconds}
           focusMode={false}
           onmount={(el) => yt.attach(el)}
           onskip={() => yt.skipNow()}
@@ -636,7 +671,7 @@
       track={session.mode === 'youtube' ? session.current : playback.track}
       positionMs={(session.mode === 'youtube' ? yt.positionMs : playback.positionMs) ?? 0}
       durationMs={session.mode === 'youtube' ? yt.durationMs : playback.durationMs}
-      playing={session.state === 'playing'}
+      playing={transportPlaying}
       volume={settings.current.volume}
       muted={settings.current.muted}
       onplaypause={() => (session.state === 'playing' ? onPause() : onResume())}

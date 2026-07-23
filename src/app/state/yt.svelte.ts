@@ -45,6 +45,8 @@ class YtStore {
   #pending: { track: TtTrack; play: boolean } | null = null;
 
   #overlay = $state<TtYtOverlayState | null>(null);
+  /** docs/06 §4's countdown-to-skip, in ms. Null when no card is counting. */
+  #skipInMs = $state<number | null>(null);
   #playing = $state(false);
   #positionMs = $state<number | null>(null);
   #durationMs = $state<number | null>(null);
@@ -75,6 +77,10 @@ class YtStore {
 
   get overlay(): TtYtOverlayState | null {
     return this.#overlay;
+  }
+  /** Whole seconds left before the card skips itself — docs/06 §4. */
+  get skipInSeconds(): number | null {
+    return this.#skipInMs === null ? null : Math.max(0, Math.ceil(this.#skipInMs / 1000));
   }
   get playing(): boolean {
     return this.#playing;
@@ -116,6 +122,9 @@ class YtStore {
       },
       onStatus: (p) => {
         this.#playing = p;
+      },
+      onSkipIn: (ms) => {
+        this.#skipInMs = ms;
       },
       // docs/12 §6's message rule: the code plus an opaque trackId, never a
       // title or a URL.
@@ -228,6 +237,7 @@ class YtStore {
     // replayed by the NEXT run's attach.
     this.#pending = null;
     this.#overlay = null;
+    this.#skipInMs = null;
     this.#playing = false;
     this.#positionMs = null;
     this.#durationMs = null;

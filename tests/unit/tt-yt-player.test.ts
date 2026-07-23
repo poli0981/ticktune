@@ -35,7 +35,10 @@ const track = (over: Partial<TtTrack> = {}): TtTrack => ({
 
 let api: { [K in keyof TtYtPlayerApi]: ReturnType<typeof vi.fn> };
 let events: TtYtPlayerEvents | null;
-let host: { [K in keyof TtYtPlayerHost]: ReturnType<typeof vi.fn> };
+// `Required`, because `onSkipIn` is optional on the interface — the host may
+// ignore the countdown — but this fake always provides it and the assertions
+// read `.mock` off it.
+let host: { [K in keyof Required<TtYtPlayerHost>]: ReturnType<typeof vi.fn> };
 let ports: TtYtPlayerPorts;
 
 beforeEach(() => {
@@ -53,7 +56,13 @@ beforeEach(() => {
     getVideoData: vi.fn().mockReturnValue({}),
     destroy: vi.fn(),
   };
-  host = { onAdvance: vi.fn(), onOverlay: vi.fn(), onStatus: vi.fn(), onLog: vi.fn() };
+  host = {
+    onAdvance: vi.fn(),
+    onOverlay: vi.fn(),
+    onStatus: vi.fn(),
+    onLog: vi.fn(),
+    onSkipIn: vi.fn(),
+  };
   ports = {
     create: (e) => {
       events = e;
@@ -175,6 +184,44 @@ describe('an error shows a card, then moves on by itself', () => {
     });
     expect(host.onLog).toHaveBeenCalledWith('TT-YT-150', 'track-1');
     expect(host.onStatus).toHaveBeenLastCalledWith(false);
+  });
+
+  it('counts the card down every second — docs/06 §4', () => {
+    // §4 lists five parts and the countdown was the one nobody built, so the
+    // card sat still and then vanished: an automatic advance that looked like
+    // the app losing its place.
+    started();
+    events?.onError(150);
+
+    expect(host.onSkipIn).toHaveBeenLastCalledWith(OVERLAY_SKIP_MS);
+    vi.advanceTimersByTime(1_000);
+    expect(host.onSkipIn).toHaveBeenLastCalledWith(OVERLAY_SKIP_MS - 1_000);
+    vi.advanceTimersByTime(2_000);
+    expect(host.onSkipIn).toHaveBeenLastCalledWith(OVERLAY_SKIP_MS - 3_000);
+  });
+
+  it('stops counting the moment the user skips', () => {
+    const p = started();
+    events?.onError(150);
+    vi.advanceTimersByTime(1_000);
+
+    p.skipNow();
+    expect(host.onSkipIn).toHaveBeenLastCalledWith(null);
+
+    // A stray tick afterwards would redraw a counter over a card that is gone.
+    const calls = host.onSkipIn.mock.calls.length;
+    vi.advanceTimersByTime(OVERLAY_SKIP_MS * 2);
+    expect(host.onSkipIn.mock.calls).toHaveLength(calls);
+  });
+
+  it('drives the counter from the SAME injected timer as the skip', () => {
+    // Two clocks would let the card read "1s" for a second after it had gone.
+    started();
+    events?.onError(150);
+    vi.advanceTimersByTime(OVERLAY_SKIP_MS);
+
+    expect(host.onAdvance).toHaveBeenCalledTimes(1);
+    expect(host.onSkipIn).toHaveBeenLastCalledWith(null);
   });
 
   it('does not advance until the skip delay elapses', () => {

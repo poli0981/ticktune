@@ -36,6 +36,7 @@ function mount(props: Partial<Parameters<typeof TtYouTubeRail>[1]> = {}) {
     repeat: true,
     exhausted: false,
     overlay: null,
+    skipInSeconds: null,
     focusMode: false,
     onmount,
     onskip,
@@ -141,6 +142,33 @@ describe('typed overlays — docs/06 §4', () => {
     });
     void fireEvent.click(screen.getByTestId('tt-yt-skip'));
     expect(onskip).toHaveBeenCalled();
+  });
+
+  it("shows the countdown-to-skip docs/06 §4 lists among the card's parts", () => {
+    // Without it the card sat still and then vanished, which reads as the app
+    // losing its place rather than as a decision it announced.
+    mount({
+      overlay: { key: 'yt.err.blocked', code: 'TT-YT-150', ambiguous: true },
+      skipInSeconds: 3,
+    });
+    expect(screen.getByTestId('tt-yt-skip-in').textContent).toContain('3');
+  });
+
+  it('renders no countdown when nothing is counting', () => {
+    mount({ overlay: { key: 'yt.err.gone', code: 'TT-YT-100', ambiguous: false } });
+    expect(screen.queryByTestId('tt-yt-skip-in')).toBeNull();
+  });
+
+  it('marks the one card whose cause cannot be narrowed, and only that one', () => {
+    // `ambiguous` was declared with a paragraph of rationale, written on all four
+    // branches, and read by nothing — a field whose only consumers were tests.
+    mount({ overlay: { key: 'yt.err.blocked', code: 'TT-YT-150', ambiguous: true } });
+    expect(screen.getByTestId('tt-yt-overlay').textContent).toContain('chưa rõ');
+  });
+
+  it('does not hedge a cause the edge named exactly', () => {
+    mount({ overlay: { key: 'yt.err.gone', code: 'TT-YT-100', ambiguous: false } });
+    expect(screen.getByTestId('tt-yt-overlay').textContent).not.toContain('chưa rõ');
   });
 
   it('is announced — role=alert, because it appears without user action', () => {

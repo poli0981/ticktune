@@ -100,6 +100,14 @@ export interface TtYtPlayerHost {
   /** The track finished, or its overlay timed out. Advance the queue. */
   onAdvance: () => void;
   onOverlay: (overlay: TtYtOverlayState | null) => void;
+  /**
+   * Milliseconds until the card skips itself, or null when nothing is counting.
+   *
+   * docs/06 §4 lists a countdown-to-skip among the card's five parts. Without it
+   * the card sat still and then vanished, which reads as the app losing its
+   * place rather than as a decision it announced.
+   */
+  onSkipIn?: (remainingMs: number | null) => void;
   onStatus: (playing: boolean) => void;
   onLog: (code: TtYtOverlayState['code'] | 'TT-YT-005', trackId?: string) => void;
 }
@@ -127,6 +135,7 @@ export class TtYtPlayer {
   #api: TtYtPlayerApi | null = null;
   #track: TtTrack | null = null;
   #skipTimer: number | null = null;
+  #countdownTimer: number | null = null;
   #pendingId: string | null = null;
 
   constructor(ports: TtYtPlayerPorts, host: TtYtPlayerHost) {
@@ -252,10 +261,37 @@ export class TtYtPlayer {
     // user who does not want to wait has the Skip now button.
     this.#clearSkip();
     this.#skipTimer = this.#ports.setTimer(() => {
+      // Cleared through the same path "Bỏ qua ngay" takes, so the two cannot
+      // leave different state behind: without this the counter's last published
+      // value stayed at 1 s after the card had already gone, and the countdown
+      // timer was left pending.
       this.#skipTimer = null;
+      this.#clearSkip();
       this.#host.onOverlay(null);
       this.#host.onAdvance();
     }, OVERLAY_SKIP_MS);
+    // §4 lists a countdown-to-skip among the card's five parts, and it was the
+    // one nobody built: the card simply sat there and then vanished, so the
+    // automatic advance looked like the app losing its place.
+    this.#tickCountdown(OVERLAY_SKIP_MS);
+  }
+
+  /**
+   * Drive the card's remaining-seconds readout — docs/06 §4.
+   *
+   * Uses the same injected timer as the skip itself, so a test that controls one
+   * controls both, and so the two can never disagree about how long is left.
+   */
+  #tickCountdown(remainingMs: number): void {
+    this.#host.onSkipIn?.(remainingMs);
+    if (remainingMs <= 0) return;
+    this.#countdownTimer = this.#ports.setTimer(() => {
+      this.#countdownTimer = null;
+      // Guard: "Bỏ qua ngay" or the next load clears the skip, and a stray tick
+      // afterwards would redraw a counter over a card that is gone.
+      if (this.#skipTimer === null) return;
+      this.#tickCountdown(remainingMs - 1_000);
+    }, 1_000);
   }
 
   /** "Skip now" — the same path the timer takes, minus the wait. */
@@ -268,6 +304,9 @@ export class TtYtPlayer {
   #clearSkip(): void {
     if (this.#skipTimer !== null) this.#ports.clearTimer(this.#skipTimer);
     this.#skipTimer = null;
+    if (this.#countdownTimer !== null) this.#ports.clearTimer(this.#countdownTimer);
+    this.#countdownTimer = null;
+    this.#host.onSkipIn?.(null);
   }
 }
 

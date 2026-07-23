@@ -277,6 +277,13 @@ test.describe('youtube mode', () => {
       await fireYtError(page, 150);
       await expect(page.getByTestId('tt-yt-overlay')).toBeVisible();
 
+      // docs/06 §4 lists a countdown-to-skip among the card's five parts, and it
+      // was the one nobody built: the card sat still and then vanished, which
+      // reads as the app losing its place rather than announcing a decision.
+      await expect(page.getByTestId('tt-yt-skip-in')).toContainText('5');
+      await page.clock.fastForward(2_000);
+      await expect(page.getByTestId('tt-yt-skip-in')).toContainText('3');
+
       await page.clock.fastForward(6_000);
       await expect(page.getByTestId('tt-yt-overlay')).toHaveCount(0);
       await expect(page.getByTestId('tt-queue-row').nth(1)).toHaveClass(/tt-current/);

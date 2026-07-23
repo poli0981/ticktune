@@ -40,6 +40,8 @@
     exhausted: boolean;
     /** docs/06 §4 — the typed card, rendered INSIDE the player area. */
     overlay: TtYtOverlayState | null;
+    /** Seconds until the card skips itself, or null when nothing is counting. */
+    skipInSeconds: number | null;
     /** True while Focus mode is on. The player stays; the queue does not. */
     focusMode: boolean;
     onmount: (el: HTMLElement) => void;
@@ -59,6 +61,7 @@
     repeat,
     exhausted,
     overlay,
+    skipInSeconds,
     focusMode,
     onmount,
     onskip,
@@ -117,8 +120,31 @@
       <div class="tt-overlay" role="alert" data-testid="tt-yt-overlay" data-tt-key={overlay.key}>
         <strong>{TITLES[overlay.key]}</strong>
         <p>{CAUSES[overlay.key]}</p>
+        <!--
+          docs/06 §4 lists FIVE parts and this was the missing one: without the
+          countdown the card sat still and then vanished, which reads as the app
+          losing its place rather than as a decision it announced.
+
+          `aria-live` is off on purpose — the card itself is `role=alert`, so it
+          is announced once on arrival; a per-second counter re-announcing would
+          talk over the reason the user is trying to read.
+        -->
+        {#if skipInSeconds !== null}
+          <p class="tt-skip-in" data-testid="tt-yt-skip-in">
+            Tự bỏ qua sau {skipInSeconds}s
+          </p>
+        {/if}
         <button data-testid="tt-yt-skip" onclick={onskip}>Bỏ qua ngay</button>
-        <code>{overlay.code}</code>
+        <!--
+          `ambiguous` was declared with a paragraph of rationale, written on all
+          four branches, and read by nothing — the coverArtUrl shape in
+          miniature. It marks the one card whose cause genuinely cannot be
+          narrowed (S1: age-restricted and region-blocked are identical from the
+          outside), so it earns a mark the three definite ones do not get.
+        -->
+        <code data-tt-ambiguous={overlay.ambiguous ? '1' : null}>
+          {overlay.code}{overlay.ambiguous ? ' · chưa rõ nguyên nhân' : ''}
+        </code>
       </div>
     {/if}
   </div>
@@ -221,6 +247,11 @@
   .tt-overlay code {
     font-family: var(--font-mono);
     font-size: 0.62rem;
+    color: var(--color-tt-muted);
+  }
+  .tt-skip-in {
+    font-family: var(--font-mono);
+    font-size: 0.68rem;
     color: var(--color-tt-muted);
   }
   .tt-queue {
