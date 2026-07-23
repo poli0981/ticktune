@@ -59,8 +59,12 @@ describe('the player slot is the ToS size — docs/06 §1.2', () => {
     const style = screen.getByTestId('tt-yt-player').getAttribute('style') ?? '';
     expect(style).toContain(`width: ${YT_WIDTH}px`);
     expect(style).toContain(`height: ${YT_HEIGHT}px`);
+    // The ToS floor is SQUARE — 200×200. Deriving the height bound from the
+    // aspect ratio made it 112.5, which passes at 200×113: measured 2026-07-23
+    // by setting YT_HEIGHT to 150, where this file stayed green while the
+    // player was well under the floor. A check that cannot fail is not a check.
     expect(YT_WIDTH).toBeGreaterThanOrEqual(200);
-    expect(YT_HEIGHT).toBeGreaterThanOrEqual(200 * (9 / 16));
+    expect(YT_HEIGHT).toBeGreaterThanOrEqual(200);
   });
 
   it('hands its mount element to the caller exactly once', () => {

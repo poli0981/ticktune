@@ -53,10 +53,12 @@ export interface TtYtPlayerPorts {
   /**
    * Construct the player. **Must** target `youtube-nocookie.com`.
    *
-   * The host is the driver's business, but it is asserted in a test rather than
-   * trusted: `host` defaults to `www.youtube.com` — which sets cookies — and the
-   * shipped CSP still permits that origin in `frame-src`, so a missing option
-   * would violate CLAUDE.md invariant 2 with nothing to catch it.
+   * The host is the driver's business, but it is asserted rather than trusted —
+   * `tests/unit/tt-yt-player-driver.test.ts`. `host` defaults to
+   * `www.youtube.com`, which sets cookies, and the shipped CSP still permits
+   * that origin in `frame-src`, so a missing option would violate CLAUDE.md
+   * invariant 2 with nothing to catch it. (This sentence claimed the assertion
+   * existed for a phase in which it did not; the test is what made it true.)
    */
   create: (events: TtYtPlayerEvents) => TtYtPlayerApi;
   /** Injected so the 5 s skip is drivable by fake timers. */

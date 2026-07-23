@@ -67,7 +67,13 @@ export function browserPlayerPorts(mount: HTMLElement): TtYtPlayerPorts {
            * `host` DEFAULTS to www.youtube.com, which sets cookies — and the
            * shipped CSP still allows that origin in `frame-src` (docs/09 §4),
            * so a missing option would violate the invariant with nothing to
-           * catch it. An E2E asserts no frame is created on that origin.
+           * catch it.
+           *
+           * Asserted in `tests/unit/tt-yt-player-driver.test.ts`. That claim
+           * used to read "An E2E asserts no frame is created on that origin"
+           * and was simply untrue — no test anywhere mentioned the host until
+           * 2026-07-23. The E2E half is real work and lands with the rest of
+           * the YouTube E2E tier; until then this is a unit assertion only.
            */
           host: 'https://www.youtube-nocookie.com',
           width: YT_WIDTH,

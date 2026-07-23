@@ -267,9 +267,22 @@
     const track = session.current;
     if (!force && track) {
       if (session.mode === 'youtube') {
-        // docs/06 §1.4: the gesture chain is gate Accept → Start, so calling
-        // playVideo() from here is within the autoplay policy. There is no
-        // AudioContext to unlock — that is the audio engine's concern only.
+        /*
+         * docs/06 §1.4: the gesture chain is gate Accept → Start, so calling
+         * playVideo() from here is within the autoplay policy.
+         *
+         * The AudioContext still has to be unlocked, and this used to say it
+         * did not. docs/06 §2 promises "chime still plays locally" at zero, and
+         * `playback.runEndBehavior()` returns null when the driver was never
+         * built — which, for a RETURNING user, is exactly what happens: the
+         * legal gate is the only other unlock site and it does not render when
+         * the stored version matches. The whole End Behavior — chime, flash and
+         * `endAction` — was silently dead on every visit after the first.
+         *
+         * Fired first and unawaited, like the branch below: WebKit stops
+         * counting the gesture at the first yield (docs/05 §1).
+         */
+        void playback.unlock();
         yt.load(track);
         yt.play();
       } else {
@@ -328,9 +341,38 @@
 
   /** docs/03 §2 Z7 — ⏭. Advancing past the end wraps or falls silent, as configured. */
   function onNext() {
-    if (session.advance() === 'exhausted') playback.stop();
+    // Same branch as onTrackEnded's exhaustion arm, and for the same reason:
+    // `playback` is the Web Audio engine, and in YouTube mode nothing is routed
+    // through it — so stopping it left the video playing on past the end of a
+    // queue that had already reported itself exhausted.
+    if (session.advance() === 'exhausted') stopCurrentEngine();
     else playTrack();
   }
+
+  /** Whichever engine is making sound — docs/06 §2. */
+  function stopCurrentEngine() {
+    if (session.mode === 'youtube') yt.pause();
+    else playback.stop();
+  }
+
+  /**
+   * The player's lifetime is exactly the rail's — docs/06 §2.
+   *
+   * `TtYouTubeRail` renders behind the `playing | paused` guard below, so every
+   * exit from those two states destroys the iframe with the DOM. The player has
+   * to go with it: it used to survive, still bound to a node that no longer
+   * existed, and `attach` refused to adopt the replacement — so Stop → Start and
+   * Finished → Chạy lại both ran their whole countdown against a black
+   * 384×216 box.
+   *
+   * An effect rather than a call in `onStop`, because there are three ways out
+   * (Stop, the countdown finishing, and Về thiết lập) and a fourth would be
+   * added without anyone remembering this one.
+   */
+  $effect(() => {
+    const live = session.state === 'playing' || session.state === 'paused';
+    if (!live) yt.dispose();
+  });
 
   /** ⏮. Inert at the first track: prevInOrder does not wrap (docs/02 §5.1). */
   function onPrev() {
@@ -361,7 +403,7 @@
   function onStop() {
     session.stop();
     driver.reset();
-    playback.stop();
+    stopCurrentEngine();
   }
 
   // ── media position + bottom-bar wake (docs/03 §2 Z7) ──────────────────────
@@ -568,7 +610,7 @@
       onback={() => {
         session.backToSetup();
         driver.reset();
-        playback.stop();
+        stopCurrentEngine();
       }}
     />
   {/if}
