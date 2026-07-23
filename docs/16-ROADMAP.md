@@ -515,6 +515,72 @@ S1 answered only the CORS half of — the terms were never read. Shipping the
 generated gradient alone needs no ruling; do not let the visualizer substitute be
 what pulls an unreviewed ToS question into the release.
 
+## P5 — Visuals & settings · **in progress**, slice 1 merged, not released
+
+Sliced into four, one release each, because P4's live checklist found a real bug
+on a line nobody expected and a smaller surface per run is what makes that
+useful. Written as it goes, for the reason P4's section gives.
+
+### What P5 actually is
+
+One measurement shaped the whole phase: **14 of the 26 fields in `TtSettings`
+are declared, defaulted, clamped, persisted, unit-tested — and read by nothing.**
+
+`lang`, `background`, `gradientPreset`, `gradientCustom`, `slideshowIntervalMs`,
+`slideshowTransition`, `scrimStrength`, `scrimAuto`, `scanlines`, `autoTheme`,
+`countdownSize`, `visualizer`, `visualizerSensitivity`, `crossfadeMs`.
+
+So P5 is not schema design. It is **wiring up what `02 §3.1` already promised** —
+which is this project's signature bug shape, except deliberate: the schema was
+written ahead and P5 is when it gets consumed. Each slice therefore owes a test
+that the field is genuinely read, not merely present.
+
+| Slice | Scope | Fields it wires |
+|-------|-------|-----------------|
+| **1 — i18n** ✅ | runtime, both dictionaries, the key guard, Z6, every string migrated | `lang` |
+| **2 — Settings + Focus** | the ⚙ panel, Focus mode, the missing hotkeys (`F H S ] Esc`) | `countdownSize`, the six End Behavior fields, `allowDuplicates`, `singleLoopStyle` |
+| **3 — Backgrounds** | solid / gradient / image / slideshow, scrim, scanlines, auto-theme | the eight Display fields |
+| **4 — Visualizer + a11y/perf** | three styles, tally pulse, reduced motion, the perf number | `visualizer`, `visualizerSensitivity` |
+
+### Slice 1 — i18n · merged 2026-07-23
+
+`08 §2`'s runtime, both dictionaries, and the `08 §3` key-diff guard that `13 §1`
+has been filing since P1. ~145 hardcoded Vietnamese literals across 12 components
+became keys; the statics are untouched, because `08 §1`'s route-based EN mirrors
+are P6's.
+
+Three guards, because a dictionary is the easiest place here to create something
+that reads as finished and renders nowhere: `TtKey` derived from `en.json` makes
+a typo a **build** error; the key-diff test covers both directions; and an
+orphan/caller guard covers what `knip` structurally cannot — its `project` globs
+exclude `.json`, so the dictionaries are outside its file set. The third caught
+three keys that had been invented and never called.
+
+Closed the runtime half of an open 🟡 audit finding: `08 §2.1` now states
+`escapeValue: false`, `fallbackLng: 'en'` and the missing-key behaviour. The
+first is not taste — every interpolated value is a track title, and i18next's
+default escapes what Svelte has already escaped.
+
+Also fixed, found on the way: two `Intl` call sites hardcoded `'vi-VN'`, so an EN
+user got Vietnamese dates while `§3` had said "the active locale" all along.
+
+⚠️ **`visualizer`'s default changed to `'off'` in the same release, and needed a
+`schema` 1 → 2 migration to mean anything.** Changing a default reaches nobody
+who has used the app before: `load()` lets the stored row win and `patch()`
+writes the whole object, so `'ring'` was already in every existing row. The full
+reasoning is in `02 §3.2`, and it applies to every default this suite ever
+changes.
+
+### Carried into slice 2 — each verified against the code
+
+| | |
+|---|---|
+| **`TtSingleRail` ships two dead buttons** | The loop-style pair has hardcoded `aria-pressed` and **no `onclick`**. "Cắt thẳng" is not even disabled. An inert control, in production |
+| **`settings.reset()` re-blocks the app** | It deletes the row, so `legalAccepted` goes null and the legal gate blocks at next boot. No doc specifies a confirm dialog |
+| **Focus vs the ToS floor** | `03 §4` grows the countdown ~20% in Focus; `06 §1.2` floors the player at 200×200. Two specs pulling opposite ways — measure before building |
+| **Perf budget: P5 or P7?** | `13 §5` is headed "Performance budget (**checked in P7**)" while `16`'s table makes "perf budget met" a **P5** exit criterion. Reconcile before slice 4 leans on it |
+| **The a11y exit criterion is unwritten code** | "a11y milestones announced" is `03 §8`'s five polite announcements at 10 min / 5 min / 1 min / 10 s / zero. A feature, not a checkbox |
+
 ## Post-1.0 backlog (unordered)
 
 - YouTube Data API v3 proxy on the existing Worker (duration/publish date at

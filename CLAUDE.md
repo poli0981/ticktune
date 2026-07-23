@@ -47,11 +47,16 @@ the reasoning and the numbers are in `docs/01 §3`.
 
 - Components `Tt*.svelte`; TS modules kebab-case; state in `*.svelte.ts` runes
   stores; engines in `src/app/engine/**` are pure TS (no svelte imports).
-- i18n keys `feature.element.state`, added to **both** `en.json` and `vi.json`
-  (CI diff-guard fails otherwise). ⚠️ **Neither the dictionaries nor the guard
-  exist yet** — they land in P5 (`docs/13 §1`), and every shipped string is a
-  hardcoded VI literal until then. Do not claim CI guards a new key. Log codes
-  `TT-AAA-nnn`, registered in `docs/12 §6` before use.
+- i18n keys are stable ids under `docs/08 §3`'s namespaces, added to **both**
+  `src/app/i18n/{en,vi}.json`. ✅ **Live since P5 slice 1**, with three guards:
+  `TtKey` is derived from `en.json` so a typo is a **build** error; the key-diff
+  test covers both directions; and an orphan/caller guard covers what `knip`
+  cannot see (its globs exclude `.json`). A key with no caller **fails the
+  build** — if a lookup cannot be a literal, add a prefix to
+  `CALLED_INDIRECTLY_PREFIX` with a reason, never a blanket exemption.
+  ⚠️ **The statics are still VI literals** (`/`, `/404`, `TtBase.astro`) —
+  `08 §1`'s route-based EN mirrors are P6's.
+  Log codes `TT-AAA-nnn`, registered in `docs/12 §6` before use.
 - Conventional Commits; branches `feat/* fix/* docs/* chore/* spike/*`.
 - CI caller stubs must keep **explicit `permissions:` blocks** (known GitHub
   inheritance bug — see `docs/14`).
@@ -125,6 +130,20 @@ Start, because the banner blocked the only action that could gather the evidence
 to clear it. **When an action is gated on evidence, ask what gathers that
 evidence and whether the gate forbids it.**
 
+**P5 — Visuals & settings is IN PROGRESS.** Slice 1 (i18n) is merged to `main`
+and **not released**; the live site is still v0.5.2. `docs/16 §P5` has the
+four-slice plan and the measurement that shapes the whole phase: **14 of the 26
+`TtSettings` fields are declared, defaulted, clamped, persisted, unit-tested —
+and read by nothing.** P5 is wiring up what `docs/02 §3.1` already promised, not
+schema design, so every slice owes a test that its field is genuinely READ.
+
+Slice 1 shipped `docs/08 §2`'s runtime, both dictionaries, the `§3` key guard,
+Z6's language toggle, and ~145 literals migrated. It also changed
+`visualizer`'s default to `'off'` **with a `schema` 1 → 2 migration**, because
+changing a default reaches nobody who has used the app before — `load()` lets
+the stored row win and `patch()` writes the whole object. That reasoning is in
+`docs/02 §3.2` and applies to every default this suite ever changes.
+
 **Spike S1 PASSED** and rewrote `docs/02 §6`, `03 §2`, `06 §3` and `06 §4`. Its
 load-bearing result: **`onError` does not discriminate** — private,
 age-restricted, region-blocked, deleted, malformed and embed-off all report
@@ -195,13 +214,18 @@ mechanism measured — hand-mount wins (`docs/01 §3`).
 
 Open items, in the order they block things:
 
-1. **P5 is next** — `docs/16` has the scope. Two things P4 deliberately handed
-   forward and both are P5 **exit** items, not new work: **Focus mode** (`TtApp`
-   passes `focusMode={false}` as a literal, so `docs/03 §2`'s ToS carve-out
-   cannot execute in production — its markup and component tests are written and
-   waiting for a real prop and an E2E), and the **i18n dictionaries**, without
-   which every shipped string stays a hardcoded VI literal and the CI diff-guard
-   does not exist.
+1. **P5 slice 2 — the ⚙ Settings panel and Focus mode.** `docs/16 §P5` has the
+   four-slice plan and the measurement behind it: **14 of 26 `TtSettings` fields
+   are declared, clamped, persisted and read by nobody.** P5 is wiring, not
+   schema design, so every slice owes a test that its field is genuinely read.
+
+   Four things carried into slice 2, each verified against the code:
+   **`TtSingleRail` ships two buttons with no `onclick`** (an inert control, in
+   production) · **`settings.reset()` nulls `legalAccepted`**, so the legal gate
+   re-blocks at next boot and no doc specifies a confirm dialog · **Focus grows
+   the countdown ~20% (`03 §4`) while `06 §1.2` floors the player at 200×200** —
+   measure before building · **`13 §5` says the perf budget is checked in P7
+   while `16` makes it a P5 exit criterion** — reconcile before slice 4.
 
    ⚠️ **A release is not done until the live checklist is run.** P4's found a
    real bug on the first line nobody expected — and it can only be run against a
