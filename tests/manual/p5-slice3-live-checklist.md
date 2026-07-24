@@ -18,67 +18,90 @@ Nothing in this slice touches the Worker, so a failure is unlikely to *need* the
 edge — but the YouTube block below does, and that is the block worth not
 skipping.
 
+## ✅ RUN 2026-07-24 — **every line passed, first time**
+
+Run by the user against the Cloudflare preview build of `05fb76d`, **before the
+merge** — which is now the second consecutive slice to use the corrected ritual
+rather than waiting for a tag.
+
+Two blocks are worth recording as genuinely exercised rather than glanced at,
+because both assert something a screenshot cannot show:
+
+- **Reduced motion suppressed the scanlines and left the checkbox ON.** That is
+  the `02 §3.1` rule — "does not rewrite these values" — confirmed on a real OS
+  setting rather than on Playwright's emulation.
+- **A bright picture kept the digits readable, and turning `scrimAuto` off made
+  them harder.** Both directions, which is the only way to tell a working
+  automatic scrim from a background that happened to be dark enough anyway.
+
+Also confirmed on **real Firefox**, which neither CI nor this dev box can do
+(`13 §3`).
+
+**Nothing failed**, so nothing is kept below with a finding attached. Second run
+in a row where the live checklist found no defect — both slices' problems were
+found by measuring during planning instead, which is what that step is for.
+
 ## Blocking — a failure here means don't merge
 
 ### The background is behind the app
 
-- [ ] **The app looks the way it did**, with a slightly warmer dark backdrop
+- [x] **The app looks the way it did**, with a slightly warmer dark backdrop
       behind it. If anything is *covered* — the countdown, the buttons, the setup
       form — stop and report that first. Z1 is full-bleed and fixed, so a paint
       order mistake hides the whole interface.
 
 ### Display → Background
 
-- [ ] **⚙ → Hiển thị exists**, between Chung and Đồng hồ.
-- [ ] **Màu trơn** — the gradient goes, flat near-black remains.
-- [ ] **Chuyển sắc** — press each of the six swatches. All six look **different**,
+- [x] **⚙ → Hiển thị exists**, between Chung and Đồng hồ.
+- [x] **Màu trơn** — the gradient goes, flat near-black remains.
+- [x] **Chuyển sắc** — press each of the six swatches. All six look **different**,
       and all six keep the digits comfortably readable. If one is hard to read,
       say which; the presets were chosen to clear a contrast bound and that is a
       real failure rather than a taste note.
-- [ ] **Màu tự chọn** — pick two colours. The background follows both. Press
+- [x] **Màu tự chọn** — pick two colours. The background follows both. Press
       *Về mẫu có sẵn* and it returns to the swatch you had.
-- [ ] **Ảnh** — choose one picture. It fills the screen behind the countdown.
-- [ ] **Trình chiếu** — choose several. They cross-fade, not cut, roughly every
+- [x] **Ảnh** — choose one picture. It fills the screen behind the countdown.
+- [x] **Trình chiếu** — choose several. They cross-fade, not cut, roughly every
       ten seconds. Move *Đổi sau mỗi* and the rhythm follows.
-- [ ] **Ken Burns** — the picture drifts and slowly zooms. *Mờ dần* stops the
+- [x] **Ken Burns** — the picture drifts and slowly zooms. *Mờ dần* stops the
       drift and keeps the cross-fade.
-- [ ] **Ảnh bìa** — play a local file **that has embedded artwork** (any track
+- [x] **Ảnh bìa** — play a local file **that has embedded artwork** (any track
       whose ⓘ modal shows *Ảnh bìa: Có*). The blurred artwork becomes the
       background. Without artwork, the gradient stays — that is correct.
 
 ### The part that is easy to get wrong
 
-- [ ] **Pick a very BRIGHT picture** — a white or near-white photo. The digits
+- [x] **Pick a very BRIGHT picture** — a white or near-white photo. The digits
       must stay readable: the dimming rises on its own to keep them so. This is
       the one automatic behaviour in the slice, and it is arithmetic rather than
       a guess, so if the digits are hard to read on a bright picture that is a
       genuine defect.
-- [ ] **Turn *Tự tăng độ tối* off** with that same bright picture. The digits get
+- [x] **Turn *Tự tăng độ tối* off** with that same bright picture. The digits get
       harder to read. Turn it back on; they recover. (Both states are correct —
       the point is that the switch does something.)
-- [ ] **Set *Độ tối nền* to its maximum with a DARK background.** Turning
+- [x] **Set *Độ tối nền* to its maximum with a DARK background.** Turning
       *Tự tăng* on must **not** make it lighter. Auto only ever adds.
 
 ### Persistence, and the honest gap
 
-- [ ] **Choose a slideshow, then reload.** The setting is still Trình chiếu, the
+- [x] **Choose a slideshow, then reload.** The setting is still Trình chiếu, the
       pictures are **gone**, and the panel explains that they are not saved. The
       gradient shows in the meantime. This is deliberate — your files never
       leave your machine and are never stored — but it must be *explained*, not
       silently blank.
-- [ ] **Preset, scanlines, dimming and Ken Burns all survive a reload.**
-- [ ] **Try to choose a music file as a background.** It is refused, and
+- [x] **Preset, scanlines, dimming and Ken Burns all survive a reload.**
+- [x] **Try to choose a music file as a background.** It is refused, and
       ⚙ → Chẩn đoán shows **TT-IMG-001**.
 
 ### YouTube mode — the ruling this slice makes
 
-- [ ] **Start a YouTube video.** The background is the plain gradient. There is
+- [x] **Start a YouTube video.** The background is the plain gradient. There is
       **no blurred video thumbnail** behind the countdown, and the background
       does **not** take its colour from the video.
       This is deliberate and it is the one line in this file worth reading twice:
       using YouTube's thumbnail that way is a licensing question nobody has
       answered, so we do not do it. Please do not report it as missing.
-- [ ] **The player is still fully visible** with a picture background behind it
+- [x] **The player is still fully visible** with a picture background behind it
       and with ⚙ open — nothing is drawn over it.
 
 ### Reduced motion
@@ -86,21 +109,21 @@ skipping.
 Turn the OS setting on (Windows: *Settings → Accessibility → Visual effects →
 Animation effects* off).
 
-- [ ] The slideshow **stops moving** and Ken Burns stops drifting.
-- [ ] **Vạch quét disappear.**
-- [ ] **⚙ still shows Vạch quét as ON**, and turning the OS setting back off
+- [x] The slideshow **stops moving** and Ken Burns stops drifting.
+- [x] **Vạch quét disappear.**
+- [x] **⚙ still shows Vạch quét as ON**, and turning the OS setting back off
       brings them back. Your preference is suppressed, never overwritten — if the
       checkbox has cleared itself, that is a real bug.
 
 ## Non-blocking
 
-- [ ] Switch to `EN` and reopen ⚙ → Display reads as English throughout.
-- [ ] Twenty-plus pictures at once: only twenty are kept, and Chẩn đoán shows
+- [x] Switch to `EN` and reopen ⚙ → Display reads as English throughout.
+- [x] Twenty-plus pictures at once: only twenty are kept, and Chẩn đoán shows
       **TT-IMG-002**.
-- [ ] *Lấy tông màu từ ảnh bìa* with a strongly coloured sleeve tints the
+- [x] *Lấy tông màu từ ảnh bìa* with a strongly coloured sleeve tints the
       gradient towards that colour; with a black-and-white sleeve it does not
       tint at all (there is no colour to borrow).
-- [ ] **Real Firefox**, one pass of the slideshow and the bright-picture check.
+- [x] **Real Firefox**, one pass of the slideshow and the bright-picture check.
 
 ## Known-absent — do not report
 
@@ -112,3 +135,15 @@ Animation effects* off).
 | Crossfade — both the loop style and between tracks | Spike S4b is open (`15 §S4`) |
 | EN versions of the landing page and `/404` | `08 §1`'s route-based mirrors are P6 |
 | Background pictures surviving a reload | Hard invariant 1. Session-only RAM, by design, and the panel says so |
+
+## Production re-check — after the tag deploys to `ticktune.net`
+
+Short, and zone-scoped only: the preview ran the same code and the same Worker,
+so everything above carries.
+
+- [ ] `https://ticktune.net/app/` loads and ⚙ → Giới thiệu reads **0.7.0** — the
+      tag deployed, rather than the previous release still serving.
+- [ ] ⚙ → Hiển thị is there, and one gradient swatch visibly changes the
+      background. Ten seconds, and it is the whole slice in one line.
+- [ ] Headers still live (`10 §11`): HSTS present, CSP unchanged. The CSP hash is
+      re-injected at build time, so a stale one would break the gate script.
