@@ -3,8 +3,9 @@
 Version 1.0 · 2026-07-24 · English is the canonical language of this
 document; the Vietnamese translation at `/legal/eula` is provided for
 convenience.
-This draft is written by the developer, not by a lawyer, and is provided for a
-free, open-source, non-commercial web application.
+This document is written by the developer, not by a lawyer, and is provided for a
+free, open-source, non-commercial web application. Version `1.0` means it is no
+longer a draft — it does not mean it has been reviewed by counsel.
 
 ## 1. Acceptance
 
