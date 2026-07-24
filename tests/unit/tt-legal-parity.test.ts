@@ -160,7 +160,7 @@ describe('TT_LEGAL_DOCS — the one route map', () => {
   it('agrees with TT_LEGAL_LINKS', () => {
     // Two tables that can disagree is the defect; this asserts they cannot.
     for (const doc of TT_LEGAL_DOCS) {
-      expect(TT_LEGAL_LINKS[doc.key]).toBe(`/legal/${doc.slug}`);
+      expect(TT_LEGAL_LINKS[doc.key]).toBe(`/legal/${doc.slug}/`);
     }
   });
 
@@ -176,8 +176,8 @@ describe('TT_LEGAL_DOCS — the one route map', () => {
 describe('ttLegalHref — the language prefix', () => {
   it('leaves Vietnamese at the root and prefixes English with /en', () => {
     for (const doc of TT_LEGAL_DOCS) {
-      expect(ttLegalHref(doc.key, 'vi')).toBe(`/legal/${doc.slug}`);
-      expect(ttLegalHref(doc.key, 'en')).toBe(`/en/legal/${doc.slug}`);
+      expect(ttLegalHref(doc.key, 'vi')).toBe(`/legal/${doc.slug}/`);
+      expect(ttLegalHref(doc.key, 'en')).toBe(`/en/legal/${doc.slug}/`);
     }
   });
 

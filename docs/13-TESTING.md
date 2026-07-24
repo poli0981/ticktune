@@ -102,6 +102,16 @@ turn anything red is a claim about the harness before it is a claim about the
 code.** Rebuild, then re-run, before concluding a test is weak. Run
 `pnpm build && pnpm test:e2e`, never `pnpm test:e2e` alone.
 
+⚠️ **`astro preview` is also more permissive than the deployed host, so some
+things are unassertable here by construction.** Measured in P6 slice B: with
+`build.format: 'directory'`, Cloudflare answers `/legal/eula` with a **307** to
+`/legal/eula/`, while `astro preview` serves *both* with a plain 200. A missing
+trailing slash therefore costs a redirect hop on every link in production and is
+**invisible to this suite at any status assertion**. What guards it instead is an
+exact-href equality assertion (the value, not the response) plus a `curl` block
+in the live checklist. Before writing a guard, ask whether the harness can even
+produce the failure — otherwise it is a test that can only pass.
+
 | Flow | Assertions |
 |------|------------|
 | Gate → Setup → Single | accept unlocks; fixture plays — asserted as **`dataset.ttAudio === 'running'` and peak Analyser RMS > 0**, because "no error thrown" passes identically on a silent app; loop counter increments across a wrap; countdown reaches <60 s regime (short timer) and shows `SS.mmm`; Finished screen; **chime ran**, observed via `data-tt-chime-count` (the chime is synthesised, so there is no request to observe — and counting the run is the stronger assertion anyway, `05 §7`) |

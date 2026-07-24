@@ -53,12 +53,23 @@ export type TtLegalKey = (typeof TT_LEGAL_DOCS)[number]['key'];
  *
  * ⚠️ These are the **Vietnamese** routes. Anything rendering for an English
  * reader must go through `ttLegalHref()` — see the warning there.
+ *
+ * ⚠️ **The trailing slash is required, not cosmetic.** `build.format` is
+ * `'directory'`, so the built route is `dist/legal/eula/index.html` and the host
+ * answers `/legal/eula` with a **307** to `/legal/eula/`. Without the slash every
+ * legal link in the app costs an extra round trip. It is also the convention the
+ * rest of the site already follows (`/en/`, `/app/`).
+ *
+ * 🔴 A test asserting `status === 200` will **not** catch a missing slash:
+ * Playwright follows redirects by default and reports the final response, so the
+ * assertion passes on the redirected page. `tests/e2e/legal.spec.ts` pins
+ * `maxRedirects: 0` for exactly this reason.
  */
 export const TT_LEGAL_LINKS = {
-  eula: '/legal/eula',
-  disclaimer: '/legal/disclaimer',
-  privacy: '/legal/privacy',
-  thirdParty: '/legal/third-party',
+  eula: '/legal/eula/',
+  disclaimer: '/legal/disclaimer/',
+  privacy: '/legal/privacy/',
+  thirdParty: '/legal/third-party/',
   repo: 'https://github.com/poli0981/ticktune',
 } as const;
 
