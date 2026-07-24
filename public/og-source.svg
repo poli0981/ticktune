@@ -1,0 +1,67 @@
+<!--
+  Source for the Open Graph card. Rasterised to public/og/ticktune.png at
+  1200×630 by scripts/make-brand-assets.mjs — the PNG is what ships, because no
+  social platform renders SVG cards.
+
+  Kept as SVG so the card is editable text rather than an opaque binary nobody
+  can change without a design tool.
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="TickTune">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#08090C" />
+      <stop offset="100%" stop-color="#10131A" />
+    </linearGradient>
+  </defs>
+
+  <rect width="1200" height="630" fill="url(#bg)" />
+
+  <!-- Tally + wordmark -->
+  <circle cx="96" cy="92" r="9" fill="#FF5D5D" />
+  <text x="120" y="100" fill="#8A93A3" font-family="system-ui, sans-serif" font-size="24"
+    letter-spacing="4">TICKTUNE</text>
+
+  <!-- The countdown is the product; it carries the card. -->
+  <text
+    x="600"
+    y="360"
+    fill="#E7EBF2"
+    font-family="'JetBrains Mono', ui-monospace, monospace"
+    font-size="180"
+    letter-spacing="6"
+    text-anchor="middle"
+  >09:41</text>
+
+  <text
+    x="600"
+    y="440"
+    fill="#8A93A3"
+    font-family="system-ui, sans-serif"
+    font-size="30"
+    text-anchor="middle"
+  >A full-screen countdown with your own music</text>
+
+  <text
+    x="600"
+    y="492"
+    fill="#4FD1FF"
+    font-family="system-ui, sans-serif"
+    font-size="24"
+    text-anchor="middle"
+  >Runs entirely in your browser · ticktune.net</text>
+
+  <!-- Visualizer hint along the bottom -->
+  <g fill="#4FD1FF" opacity="0.4">
+    <rect x="440" y="560" width="12" height="26" />
+    <rect x="464" y="544" width="12" height="42" />
+    <rect x="488" y="518" width="12" height="68" />
+    <rect x="512" y="552" width="12" height="34" />
+    <rect x="536" y="530" width="12" height="56" />
+    <rect x="560" y="506" width="12" height="80" />
+    <rect x="584" y="530" width="12" height="56" />
+    <rect x="608" y="552" width="12" height="34" />
+    <rect x="632" y="518" width="12" height="68" />
+    <rect x="656" y="544" width="12" height="42" />
+    <rect x="680" y="560" width="12" height="26" />
+  </g>
+</svg>

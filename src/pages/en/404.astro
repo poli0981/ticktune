@@ -1,0 +1,9 @@
+---
+// The EN 404 mirror — docs/08 §1 lists 404 among the `/en/` mirrors.
+// Reachable and indexable-as-noindex, but NOT the fallback for unknown `/en/*`
+// paths: Cloudflare serves the single dist/404.html. See TtNotFound.astro.
+import TtNotFound from '../../components/landing/TtNotFound.astro';
+import { en } from '../../i18n/static/en';
+---
+
+<TtNotFound t={en} lang="en" />

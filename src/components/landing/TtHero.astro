@@ -1,0 +1,137 @@
+---
+import type { StaticDict } from '../../i18n/static/en';
+
+/**
+ * Landing hero — docs/03 §3 item 1.
+ *
+ * "hero with looping demo capture (placeholder asset until core is done, per
+ * spec)". The placeholder is same-origin (`img-src 'self'`), so it needs no CSP
+ * change, and it is labelled as a placeholder on the page rather than passed off
+ * as the product — docs/16's standing rule tracks it as a `placeholder` issue to
+ * be cleared before v1.0.
+ *
+ * Zero JS, like every static section: the site ships exactly one inline script
+ * (the mobile gate in TtBase) and `scripts/inject-csp-hash.ts` fails the build
+ * on a second one.
+ */
+
+interface Props {
+  t: StaticDict['landing'];
+  common: StaticDict['common'];
+}
+
+const { t, common } = Astro.props;
+---
+
+<section class="tt-hero">
+  <div class="tt-hero-copy">
+    <div class="tt-brand">
+      <!-- The tally dot, static here — the beat-reactive one lives in the app
+           (docs/03 §1). Decorative, so it is hidden from assistive tech. -->
+      <span class="tt-dot" aria-hidden="true"></span>
+      <span class="tt-wordmark">TickTune</span>
+    </div>
+
+    <h1>{t.heroHeadline}</h1>
+    <p class="tt-sub">{t.heroSub}</p>
+
+    <a class="tt-cta" href="/app/">{common.openApp}</a>
+  </div>
+
+  <figure class="tt-hero-media">
+    <!--
+      Placeholder until P7 replaces it with the real capture. `loading="eager"`
+      and explicit dimensions: this is the LCP element, and giving the browser
+      the box up front is most of what keeps CLS at zero for the Lighthouse ≥ 95
+      exit criterion.
+    -->
+    <img
+      src="/hero-placeholder.svg"
+      alt={t.heroMediaAlt}
+      width="960"
+      height="540"
+      loading="eager"
+      decoding="async"
+    />
+    <figcaption>{t.heroPlaceholderNote}</figcaption>
+  </figure>
+</section>
+
+<style>
+  .tt-hero {
+    display: grid;
+    gap: 2.5rem;
+    align-items: center;
+    padding: 4rem 0 3rem;
+  }
+  @media (min-width: 60rem) {
+    .tt-hero {
+      grid-template-columns: 1fr 1fr;
+      gap: 3.5rem;
+    }
+  }
+
+  .tt-brand {
+    display: flex;
+    gap: 0.5rem;
+    align-items: center;
+    margin-bottom: 1.25rem;
+  }
+  .tt-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--color-tt-danger);
+    box-shadow: 0 0 8px var(--color-tt-danger);
+  }
+  .tt-wordmark {
+    font-size: 0.78rem;
+    letter-spacing: 0.16em;
+    color: var(--color-tt-muted);
+  }
+
+  h1 {
+    font-size: clamp(2rem, 5vw, 3.25rem);
+    line-height: 1.1;
+    letter-spacing: -0.01em;
+    text-wrap: balance;
+  }
+  .tt-sub {
+    max-width: 34rem;
+    margin-top: 1rem;
+    font-size: 1.05rem;
+    line-height: 1.6;
+    color: var(--color-tt-muted);
+    text-wrap: pretty;
+  }
+
+  .tt-cta {
+    display: inline-block;
+    margin-top: 1.75rem;
+    padding: 0.7rem 1.4rem;
+    font-weight: 500;
+    color: var(--color-tt-signal);
+    background: var(--color-tt-surface);
+    border: 1px solid var(--color-tt-line);
+    border-radius: 0.375rem;
+    transition: border-color var(--duration-tt-base) var(--ease-tt);
+  }
+  .tt-cta:hover {
+    border-color: var(--color-tt-signal);
+  }
+
+  .tt-hero-media {
+    margin: 0;
+  }
+  .tt-hero-media img {
+    width: 100%;
+    height: auto;
+    border: 1px solid var(--color-tt-line);
+    border-radius: 0.5rem;
+  }
+  figcaption {
+    margin-top: 0.6rem;
+    font-size: 0.7rem;
+    color: var(--color-tt-muted);
+  }
+</style>

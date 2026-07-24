@@ -1,0 +1,8 @@
+---
+// The English landing — docs/08 §1's `/en/` mirror. Same component as `/`,
+// different dictionary; the reciprocal hreflang pair is built inside TtLanding.
+import TtLanding from '../../components/landing/TtLanding.astro';
+import { en } from '../../i18n/static/en';
+---
+
+<TtLanding t={en} lang="en" />

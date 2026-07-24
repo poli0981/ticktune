@@ -293,9 +293,21 @@ mechanism measured — hand-mount wins (`docs/01 §3`).
 
 Open items, in the order they block things:
 
-1. **P6 — the landing pages and the EN mirrors.** P5 is complete: all four
-   slices shipped, all fourteen fields wired, all nine `03 §6` groups exist, and
-   `16 §P5` carries the exit review. Nothing carries out of the phase.
+1. **P6 — landing + legal, two slices. Slice A is built; slice B is next.**
+   Slice B = the four `/legal/*` routes in both languages, the VI translations
+   under `legal/vi/`, and re-pointing `TT_LEGAL_LINKS` from GitHub blob URLs to
+   the local routes (with `/en/legal/*` for EN users).
+
+   From slice A, do not re-derive: **static key parity is a COMPILE error**
+   (`vi.ts` is annotated against `typeof en`; `en.ts` is deliberately not
+   `as const`, which would forbid translating) · **hreflang lives in the page,
+   asserted as reciprocity**, and `@astrojs/sitemap`'s i18n mode is unused
+   because VI has no path prefix · **the fonts are finally installed** — they
+   were named in `03 §1`/`11 §2` for four phases while nothing shipped them.
+
+   ⚠️ **knip cannot see CSS imports**, so both `@fontsource` packages sit in
+   `ignoreDependencies` beside `tailwindcss`. Removing them restores the silent
+   `system-ui` fallback.
 
    Two decisions from slice 4 worth not re-deriving: **the perf budget is P7's**
    (settled 2026-07-24 — `13 §5` was right, `16`'s table was wrong; a number

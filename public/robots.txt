@@ -1,0 +1,14 @@
+# TickTune — docs/07 §5, docs/08 §1.
+#
+# Deliberately permissive. The mobile gate already devalues search ranking
+# (docs/07 §5 accepts that trade), and adding Disallow rules on top would not
+# help: Disallow does not de-index a page that is linked from elsewhere, it only
+# stops the crawler reading it — which is how a URL ends up indexed with no
+# description at all. Pages that should stay out carry `noindex` instead, via
+# TtBase's prop (/app/, /404, /en/404, the spikes), and the sitemap filter keeps
+# them out of the URL list.
+
+User-agent: *
+Allow: /
+
+Sitemap: https://ticktune.net/sitemap-index.xml

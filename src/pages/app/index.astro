@@ -2,7 +2,15 @@
 import TtBase from '../../layouts/TtBase.astro';
 ---
 
-<TtBase title="TickTune">
+{
+  /*
+  `noindex` since P6: the app is an empty shell to a crawler — the island is
+  hand-mounted client-side, so there is no content here to index, and an
+  indexed blank page competes with the landing that is meant to rank. The
+  landing links to it, which is how people arrive.
+*/
+}
+<TtBase title="TickTune" noindex>
   <div id="tt-app"></div>
 
   {

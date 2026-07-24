@@ -1,5 +1,32 @@
 @import 'tailwindcss';
 
+/* ─────────────────────────────────────────────────────────────────────────────
+   UI fonts — self-hosted, docs/03 §1 and the privacy posture in docs/09.
+
+   Installed in P6. Until then `--font-ui` and `--font-mono` NAMED these families
+   while nothing shipped them, so every surface silently fell back to
+   `system-ui`. That was never a privacy problem — `font-src 'self'` forbids a
+   third-party font fetch outright, and a missing family just falls through —
+   but it did mean the Vietnamese diacritics rendered in the OS font rather than
+   the one the design was drawn for, on the very release that publishes the
+   Privacy Policy claiming the fonts are self-hosted.
+
+   These are the FULL weight files, not the `latin-*` subsets, and that is the
+   efficient choice rather than the lazy one: each carries `unicode-range` per
+   subset, so a browser on `/en/` downloads only latin, and one on `/` adds the
+   vietnamese subset — roughly 8 KB — only because the page actually contains
+   those code points. Importing `latin-400.css` + `vietnamese-400.css` instead
+   would drop the ranges and fetch both everywhere.
+
+   Only the three weights the interface uses. `font-display: swap` comes from
+   fontsource and is right for prose; DSEG7 below stays `block` because swapping
+   a proportional fallback into the countdown mid-run would reflow the digits.
+   ──────────────────────────────────────────────────────────────────────────── */
+@import '@fontsource/be-vietnam-pro/400.css';
+@import '@fontsource/be-vietnam-pro/500.css';
+@import '@fontsource/be-vietnam-pro/600.css';
+@import '@fontsource/jetbrains-mono/400.css';
+
 /* DSEG7 Classic — vendored, self-hosted, OFL 1.1. Provenance, hashes and the
    Reserved Font Name constraint: public/fonts/dseg7/PROVENANCE.md.
 

@@ -24,7 +24,7 @@ function recordJs(page: Page) {
   return seen;
 }
 
-const ROUTES = ['/', '/app/', '/does-not-exist'];
+const ROUTES = ['/', '/en/', '/app/', '/does-not-exist'];
 
 test.describe('blocked viewports', () => {
   test.skip(({ isMobile }) => !isMobile, 'mobile projects only');
@@ -48,12 +48,28 @@ test.describe('blocked viewports', () => {
     });
   }
 
-  test('/ keeps its content in the DOM for crawlers (docs/07 §5)', async ({ page }) => {
-    await page.goto('/');
-    // Visually hidden, but present and readable — never swapped out.
-    await expect(page.locator('main')).toBeAttached();
-    expect(await page.locator('main').textContent()).toContain('TickTune');
-  });
+  /*
+   * docs/07 §5's SEO mitigation, now that there is real content to mitigate for.
+   *
+   * Google crawls mobile-first, so its renderer sees the gate. The trade the
+   * doc accepts is that the page's HTML **stays in the DOM underneath**,
+   * visually hidden rather than swapped out — so the landing copy is still
+   * crawlable text. Before P6 that was one stub page; it is now the whole
+   * marketing surface in two languages, which makes this the assertion that
+   * protects it.
+   */
+  for (const [route, marker] of [
+    ['/', 'Đồng hồ của bạn'],
+    ['/en/', 'Your countdown'],
+  ] as const) {
+    test(`${route} keeps its content in the DOM for crawlers (docs/07 §5)`, async ({ page }) => {
+      await page.goto(route);
+      await expect(page.locator('.tt-mobile-gate')).toBeVisible();
+      // Visually hidden, but present and readable — never swapped out.
+      await expect(page.locator('main')).toBeAttached();
+      expect(await page.locator('main').textContent()).toContain(marker);
+    });
+  }
 });
 
 test.describe('desktop viewports', () => {

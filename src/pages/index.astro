@@ -1,42 +1,9 @@
 ---
-// P1 stub. The real bilingual landing (hero, feature grid, limits table, FAQ)
-// is P6 — docs/16 §P6, docs/03 §3.1.
-import TtBase from '../layouts/TtBase.astro';
+// The Vietnamese landing — docs/03 §3 item 1, docs/08 §1's `/` = VI.
+// The P1 stub that stood here is gone; the markup now lives once in
+// TtLanding.astro and `/en/index.astro` renders the same component in English.
+import TtLanding from '../components/landing/TtLanding.astro';
+import { vi } from '../i18n/static/vi';
 ---
 
-<TtBase title="TickTune — đếm ngược với nhạc của bạn">
-  <main class="grid min-h-dvh place-items-center p-8">
-    <div class="flex flex-col items-center gap-6 text-center">
-      <div class="flex items-center gap-2">
-        <span class="bg-tt-danger inline-block size-2.5 rounded-full" aria-hidden="true"></span>
-        <span class="text-2xl font-semibold tracking-wide">TickTune</span>
-      </div>
-
-      <p class="text-tt-muted max-w-md text-balance">
-        Đếm ngược toàn màn hình với nhạc của riêng bạn. Mọi thứ chạy trong trình duyệt — không có
-        tệp nào rời khỏi máy bạn.
-      </p>
-
-      <a
-        href="/app/"
-        class="border-tt-line bg-tt-surface text-tt-signal hover:border-tt-signal rounded-md border px-5 py-2.5 font-medium transition-colors"
-      >
-        Mở TickTune →
-      </a>
-
-      {
-        /*
-        Present from the very first deploy: this is the GPL-3.0 §6 source offer
-        for the hosted build, and the real landing page keeps it in the footer.
-      */
-      }
-      <a
-        href="https://github.com/poli0981/ticktune"
-        rel="noopener noreferrer"
-        class="text-tt-muted hover:text-tt-text font-mono text-xs underline underline-offset-4"
-      >
-        Mã nguồn — GPL-3.0
-      </a>
-    </div>
-  </main>
-</TtBase>
+<TtLanding t={vi} lang="vi" />

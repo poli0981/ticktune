@@ -1,0 +1,83 @@
+---
+import type { StaticDict } from '../../i18n/static/en';
+
+/**
+ * Landing FAQ — docs/03 §3 item 1, and the home of one specific requirement.
+ *
+ * ⚠️ **docs/04 §2 item 6** — of the six things the S2 decision demanded, this is
+ * the only one that lives outside the app:
+ *
+ * > "Say it where users decide to trust it — the landing FAQ states the
+ * >  visible/hidden distinction plainly rather than burying it in the EULA."
+ *
+ * S2 measured a hidden tab finishing **2 m 57 s late**, and the remedy failed
+ * too, so the promise was re-scoped rather than the bug fixed (`04 §2` option
+ * 3). The first FAQ entry is that disclosure. It is asserted by
+ * `tests/e2e/landing.spec.ts` in both languages — if it is ever edited away,
+ * that spec goes red, which is the point.
+ *
+ * `<details>` is used rather than a JS accordion: the site ships exactly one
+ * inline script and this needs none. Every answer is in the DOM for crawlers
+ * (docs/07 §5) whether or not it is open.
+ */
+
+interface Props {
+  t: StaticDict['landing'];
+  faq: StaticDict['faq'];
+}
+
+const { t, faq } = Astro.props;
+---
+
+<section class="tt-section" aria-labelledby="tt-faq">
+  <h2 id="tt-faq">{t.faqTitle}</h2>
+  <div class="tt-faq">
+    {
+      faq.map((item, i) => (
+        <details open={i === 0}>
+          <summary>{item.q}</summary>
+          <p>{item.a}</p>
+        </details>
+      ))
+    }
+  </div>
+</section>
+
+<style>
+  .tt-section {
+    padding: 2.5rem 0;
+  }
+  h2 {
+    margin-bottom: 1.25rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-tt-muted);
+  }
+  .tt-faq {
+    display: grid;
+    gap: 0.5rem;
+    max-width: 48rem;
+  }
+  details {
+    padding: 0.9rem 1.1rem;
+    background: color-mix(in srgb, var(--color-tt-surface) 70%, transparent);
+    border: 1px solid var(--color-tt-line);
+    border-radius: 0.5rem;
+  }
+  summary {
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+  }
+  summary::marker {
+    color: var(--color-tt-signal);
+  }
+  details p {
+    margin-top: 0.7rem;
+    font-size: 0.85rem;
+    line-height: 1.65;
+    color: var(--color-tt-muted);
+    text-wrap: pretty;
+  }
+</style>
