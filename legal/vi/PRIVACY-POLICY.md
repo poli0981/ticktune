@@ -5,6 +5,30 @@ bản dịch cung cấp cho thuận tiện.
 
 TickTune được xây dựng để biết về bạn càng ít càng tốt.
 
+## 0. Ai đứng sau dự án này, và liên hệ ở đâu
+
+TickTune là một dự án nguồn mở độc lập, phi thương mại, do một người phát triển
+duy nhất vận hành — **poli0981** — không phải một công ty. Không có tổ chức,
+không có pháp nhân, không có nhân sự.
+
+- **Liên hệ:** **`contact@ticktune.net`** cho những việc riêng tư, hoặc
+  `https://github.com/poli0981/ticktune/issues` nếu bạn muốn trao đổi công khai.
+  Địa chỉ này là một bí danh Cloudflare Email Routing, nên thư gửi tới đó sẽ đi
+  qua Cloudflare trước khi tới hộp thư cá nhân — vẫn là nhà cung cấp được mô tả
+  ở `§4`, và được nói rõ ở đây vì bản thân một địa chỉ liên hệ cũng là một luồng
+  dữ liệu.
+- **Chúng tôi giữ gì về bạn:** như `§1`–`§4.1` đã nêu, **không có gì nhận dạng
+  được bạn**. Không tài khoản, không hồ sơ, không bản ghi phía máy chủ về danh
+  tính của bạn — nên cũng không có dữ liệu cá nhân nào để xuất, sửa hay xoá theo
+  yêu cầu, đơn giản vì chưa từng thu thập. Những thứ duy nhất được lưu đều nằm
+  trên **thiết bị của chính bạn**, và "Đặt lại ứng dụng" trong phần Cài đặt xoá
+  sạch chúng mà không cần hỏi ai.
+- **Thời hạn lưu:** thiết lập tồn tại trên máy bạn cho tới khi bạn xoá; hàng chờ
+  và các tệp biến mất khi tải lại trang; nhật ký API mô tả ở `§4.1` được
+  Cloudflare xoá sau **3 ngày**.
+- **Ở đâu:** trang web được phục vụ từ mạng lưới toàn cầu của Cloudflare, nên một
+  yêu cầu có thể được xử lý ở bất kỳ quốc gia nào họ hoạt động.
+
 ## 1. Những điều chúng tôi KHÔNG làm
 
 - Không tài khoản, không đăng nhập.
@@ -21,10 +45,15 @@ TickTune được xây dựng để biết về bạn càng ít càng tốt.
 ## 2. Dữ liệu lưu trên thiết bị của bạn
 
 Các thiết lập (ngôn ngữ, giao diện, tùy chọn phát) và việc bạn chấp nhận ở Cổng
-pháp lý được lưu cục bộ qua IndexedDB/localStorage trên thiết bị của bạn. Danh
-sách phát và các tệp của bạn chỉ tồn tại trong bộ nhớ cho phiên làm việc hiện
-tại và biến mất khi tải lại. Chức năng "Đặt lại ứng dụng" trong phần Cài đặt sẽ
-xóa toàn bộ dữ liệu lưu cục bộ.
+pháp lý được lưu cục bộ trong **IndexedDB** trên thiết bị của bạn — một cơ sở dữ
+liệu tên `ticktune`, chứa đúng một dòng thiết lập. Danh sách phát và các tệp của
+bạn chỉ tồn tại trong bộ nhớ cho phiên làm việc hiện tại và biến mất khi tải
+lại. Chức năng "Đặt lại ứng dụng" trong phần Cài đặt sẽ xóa toàn bộ dữ liệu lưu
+cục bộ.
+
+TickTune **không dùng `localStorage` và cũng không dùng `sessionStorage`** — tài
+liệu này từng ghi tên chúng cho tới ngày 2026-07-24, và điều đó là sai: chuẩn mã
+nguồn của dự án cấm dùng chúng, và ứng dụng chưa bao giờ gọi tới.
 
 ## 3. Các yêu cầu mạng mà ứng dụng thực hiện
 
@@ -38,11 +67,21 @@ xóa toàn bộ dữ liệu lưu cục bộ.
 
 ## 4. Bên thứ ba
 
-- **YouTube / Google.** Chỉ khi bạn dùng chế độ YouTube: trình phát nhúng chính
-  thức (dùng máy chủ tăng cường quyền riêng tư `youtube-nocookie.com`) sẽ tải mã
-  của Google và có thể đặt cookie cũng như thu thập dữ liệu như mô tả trong
-  Chính sách quyền riêng tư của Google, kể từ khi bạn tương tác với trình phát.
-  Các chế độ chạy trên máy không tạo yêu cầu nào tới Google.
+- **YouTube / Google.** Chỉ khi bạn dùng chế độ YouTube, và khi đó có **hai** tên
+  miền của Google tham gia chứ không phải một:
+  - **mã kịch bản IFrame Player API** được tải từ `https://www.youtube.com`, vì
+    đó là địa chỉ duy nhất YouTube công bố cho nó;
+  - còn **bản thân trình phát** được tạo trên máy chủ tăng cường quyền riêng tư
+    **`youtube-nocookie.com`**. Đây là lựa chọn có chủ đích: mặc định của API là
+    `www.youtube.com`, và mặc định đó có đặt cookie. Một unit test kiểm tra rằng
+    tuỳ chọn này luôn được truyền vào, vì nếu bỏ sót thì hệ thống sẽ âm thầm quay
+    về mặc định.
+
+  Mã của Google được tải theo cách này có thể đặt cookie và thu thập dữ liệu như
+  mô tả trong Chính sách quyền riêng tư của Google, kể từ khi bạn tương tác với
+  trình phát. **Các chế độ chạy trên máy không tạo bất kỳ yêu cầu nào tới
+  Google** — không tên miền nào trong hai tên miền trên được liên hệ, trừ khi
+  bạn thêm một liên kết YouTube.
 - **Cloudflare.** Trang web được phân phối bởi Cloudflare, bên xử lý dữ liệu kỹ
   thuật của yêu cầu (chẳng hạn địa chỉ IP) ở tầng mạng để phục vụ và bảo vệ trang
   web, theo tài liệu về quyền riêng tư của Cloudflare. Các biện pháp chống lạm

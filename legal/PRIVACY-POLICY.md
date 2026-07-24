@@ -4,6 +4,28 @@ Version 1.1-draft · 2026-07-24 · English canonical; Vietnamese at `/legal/priv
 
 TickTune is built to know as little about you as possible.
 
+## 0. Who is behind this, and how to reach them
+
+TickTune is an independent, non-commercial open-source project run by one
+developer — **poli0981** — not a company. There is no organisation, no legal
+entity, and no staff.
+
+- **Contact:** **`contact@ticktune.net`** for anything private, or
+  `https://github.com/poli0981/ticktune/issues` in the open. The address is a
+  Cloudflare Email Routing alias, so mail sent to it passes through Cloudflare on
+  its way to a personal inbox — the same provider described in `§4`, mentioned
+  here because a contact address is itself a data flow.
+- **What we hold about you:** as `§1`–`§4.1` set out, **nothing that identifies
+  you**. There is no account, no profile, no server-side record of who you are —
+  so there is no personal data to export, correct or delete on request, because
+  none was ever collected. The only things stored are on **your own device** and
+  "Reset app" in Settings erases them without asking anyone.
+- **Retention:** settings persist on your device until you clear them; the queue
+  and your files vanish on reload; the API logs described in `§4.1` are deleted
+  by Cloudflare after **3 days**.
+- **Where:** the site is served from Cloudflare's global network, so a request
+  may be handled in any country it operates in.
+
 ## 1. What we do NOT do
 
 - No accounts, no sign-in.
@@ -18,9 +40,14 @@ TickTune is built to know as little about you as possible.
 ## 2. Data stored on your device
 
 Settings (language, appearance, playback preferences) and your Legal Gate
-acceptance are stored locally via IndexedDB/localStorage on your device. Your
-playlist and files exist only in memory for the current session and disappear on
-reload. "Reset app" in Settings clears all locally stored data.
+acceptance are stored locally in **IndexedDB** on your device — one database,
+`ticktune`, holding a single settings row. Your playlist and files exist only in
+memory for the current session and disappear on reload. "Reset app" in Settings
+clears all locally stored data.
+
+TickTune uses **no `localStorage` and no `sessionStorage`** — this document
+named them until 2026-07-24, and it was wrong: the code standards forbid them
+and the app has never called either.
 
 ## 3. Network requests the app makes
 
@@ -32,10 +59,19 @@ reload. "Reset app" in Settings clears all locally stored data.
 
 ## 4. Third parties
 
-- **YouTube / Google.** Only if you use YouTube mode: the official embedded
-  player (privacy-enhanced `youtube-nocookie.com` host) loads Google code and
-  may set cookies and collect data as described in Google's Privacy Policy once
-  you interact with the player. Local modes make no Google requests.
+- **YouTube / Google.** Only if you use YouTube mode, and then **two** Google
+  origins are involved, not one:
+  - the **IFrame Player API script** is fetched from `https://www.youtube.com`,
+    because that is the only address YouTube publishes it at;
+  - the **player itself** is created on the privacy-enhanced
+    **`youtube-nocookie.com`** host, which is a deliberate choice — the API's
+    default is `www.youtube.com`, and that default sets cookies. A unit test
+    asserts the option is passed, because omitting it would silently fall back.
+
+  Google code loaded this way may set cookies and collect data as described in
+  Google's Privacy Policy once you interact with the player. **Local modes make
+  no Google requests at all** — neither origin is contacted unless you add a
+  YouTube link.
 - **Cloudflare.** The site is delivered by Cloudflare, which processes technical
   request data (such as IP addresses) at the network level to serve and protect
   the site, per Cloudflare's privacy documentation. Basic abuse protections such
