@@ -75,6 +75,38 @@ app actually enforces:
 - [x] **Lighthouse ≥ 95** on `/` and `/en/` — desktop, all four categories
       (Performance, Accessibility, Best Practices, SEO). This is the P6 exit
       criterion; report any category that falls short and its top finding.
+
+      ⚠️ **It took three runs, and the first two failed on the same number for
+      two different reasons.** Kept here in full because the shortfall was
+      three points both times — exactly the size of gap that gets rounded up to
+      "all green", and both times it was a real live defect.
+
+      | Run | P / A / **BP** / SEO | Cause of the BP shortfall |
+      |---|---|---|
+      | 1 | 99 / 100 / **92** / 100 | Four console errors. **Three** were fontsource subsets Vite inlined as `url(data:font;base64,…)` under its ~4 KB default, refused by `font-src 'self'`. Fixed in `eb45be8` by refusing to inline fonts — **not** by adding `data:` to the policy |
+      | 2 | 100 / 100 / **92** / 100 | The **fourth** error, which run 1 had wrongly folded in with the fonts. An inline script at `(index):19` — **not ours**. Cloudflare **JavaScript Detections** injecting its `/cdn-cgi/challenge-platform` loader into our HTML, on `/`, `/en/` *and* `/app/` |
+      | 3 | **100 / 100 / 100 / 100** | ✅ Pass |
+
+      **The score not moving between runs 1 and 2 was the tell** that the
+      symptom had two causes. Confirmation that #2 was Cloudflare's and not
+      ours: the injected script embeds a per-request token
+      (`__CF$cv$params = {r:…, t:…}`), so three measurements demanded three
+      different hashes (`82UoSh…`, `XsgfYB…`, `qED2jw…`). **A script that
+      varies per request is unhashable by construction** — no CSP hash could
+      ever have allowed it, and `unsafe-inline` would have gutted the policy
+      for a script we do not want.
+
+      Fixed at the **zone**, not in the CSP: `enable_js: false`,
+      `fight_mode: false`. That also restores two promises the CSP was the only
+      thing holding up — `legal/PRIVACY-POLICY.md §1`'s "no … fingerprinting"
+      and §4's "transiently **at the network level**" — so no legal text needed
+      changing and the gate does not re-prompt anyone.
+
+      Verified after the toggle by **hashing the served bytes**, which is the
+      method that works: `/`, `/en/` and `/app/` contain exactly **one** inline
+      script, its `sha256-cuTkHuZ…` equals the `script-src` hash, and the CSP
+      header is byte-identical. ⚠️ A browser console reporting no errors is
+      **not** evidence of a clean CSP — it was silent on this violation.
 - [x] Real Firefox: one pass of `/` and `/en/`.
 - [x] The hero illustration looks intentional rather than broken.
 
@@ -90,6 +122,19 @@ app actually enforces:
 
 ## Production re-check — after the tag deploys to `ticktune.net`
 
-- [x] `ticktune.net/` and `ticktune.net/en/` both serve, with the right language.
-- [x] `ticktune.net/sitemap-index.xml` and `/robots.txt` resolve.
-- [x] Headers still live (`10 §11`): HSTS present, CSP unchanged.
+⚠️ **These were ticked before the tag existed, and are reset here.** Everything
+above genuinely ran against `ticktune.net` — but that was the *branch*, because
+Cloudflare's own Workers Build deploys every pushed branch straight to
+production. So the three lines below were answered by a deploy that was not the
+tag's, which is the one thing this block exists to check. Re-run them after
+`v0.9.0` deploys.
+
+- [ ] `ticktune.net/` and `ticktune.net/en/` both serve, with the right language.
+- [ ] `ticktune.net/sitemap-index.xml` and `/robots.txt` resolve.
+- [ ] Headers still live (`10 §11`): HSTS present, CSP unchanged.
+- [ ] `/api/yt/oembed` answers on the custom domain — the one thing no preview
+      can speak for, since it is the Worker route rather than an asset.
+- [ ] Exactly **one** inline script site-wide, and its hash equals the
+      `script-src` hash. Added after run 2 above: this is the check that would
+      have caught the Cloudflare injection on day one, and it is three lines of
+      shell rather than a Lighthouse run.
