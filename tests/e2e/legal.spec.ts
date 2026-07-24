@@ -42,8 +42,18 @@ test.describe('legal pages', () => {
         // The body arrived: the markdown's own H1, not the layout's title.
         await expect(page.getByRole('heading', { level: 1 })).toBeVisible();
 
-        // docs/02 §3.1 — the version the gate stores acceptance against.
-        await expect(page.getByTestId('tt-legal-version')).toContainText(TT_LEGAL_VERSION);
+        /*
+         * docs/02 §3.1 — the version the gate stores acceptance against.
+         *
+         * `toHaveText` with the label, NOT `toContainText(TT_LEGAL_VERSION)`.
+         * The looser assertion passed for two releases while the page rendered
+         * "Version1.0" — Astro collapses whitespace between adjacent
+         * expressions, and a substring match cannot see a missing space.
+         */
+        const label = (lang === 'en' ? en : vi).legal.versionLabel;
+        await expect(page.getByTestId('tt-legal-version')).toHaveText(
+          `${label} ${TT_LEGAL_VERSION}`,
+        );
       });
     }
   }
