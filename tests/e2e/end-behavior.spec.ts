@@ -1,5 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
-import { gotoApp, setDuration, stageSingle, dismissUnloadDialogs } from './_helpers';
+import {
+  gotoApp,
+  setDuration,
+  stageSingle,
+  dismissUnloadDialogs,
+  skipWithoutAudio,
+} from './_helpers';
 
 /**
  * docs/02 §5 — the End Behavior — and P2 exit criterion 2.
@@ -26,7 +32,7 @@ test.describe('end behavior', () => {
     page.evaluate(() => Number(document.documentElement.dataset['ttChimeCount'] ?? 0));
 
   test('the fade completes and the chime sounds exactly once', async ({ page, browserName }) => {
-    test.skip(browserName === 'firefox', 'the chime cannot sound without an output device');
+    skipWithoutAudio(browserName);
     await runToZero(page);
     await expect(page.getByTestId('tt-finished')).toBeVisible({ timeout: 10_000 });
 
@@ -76,7 +82,7 @@ test.describe('end behavior', () => {
    * never which path fired it.
    */
   test('fade and chime survive a hidden run', async ({ page, context, browserName }) => {
-    test.skip(browserName === 'firefox', 'the chime cannot sound without an output device');
+    skipWithoutAudio(browserName);
     await runToZero(page, 3);
 
     const other = await context.newPage();

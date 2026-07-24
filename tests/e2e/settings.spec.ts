@@ -5,6 +5,7 @@ import {
   setDuration,
   stageSingle,
   storedSettings,
+  skipWithoutAudio,
 } from './_helpers';
 
 /**
@@ -169,7 +170,8 @@ test.describe('settings panel', () => {
 test.describe('End Behavior, driven from the panel', () => {
   test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
 
-  test('endAction: restart re-runs the countdown exactly once', async ({ page }) => {
+  test('endAction: restart re-runs the countdown exactly once', async ({ browserName, page }) => {
+    skipWithoutAudio(browserName);
     /*
      * docs/02 §3.3. The engine has honoured all three values since P2 and had
      * no UI at all — `16` records that as "engine-complete, no UI until the P5
@@ -193,7 +195,8 @@ test.describe('End Behavior, driven from the panel', () => {
     await expect(page.getByTestId('tt-finished')).toBeVisible({ timeout: 8000 });
   });
 
-  test('endFlash off by default, on when the panel turns it on', async ({ page }) => {
+  test('endFlash off by default, on when the panel turns it on', async ({ browserName, page }) => {
+    skipWithoutAudio(browserName);
     dismissUnloadDialogs(page);
     await page.addInitScript(() => {
       (window as unknown as { __ttFlash?: number }).__ttFlash = 0;

@@ -65,6 +65,26 @@ export default defineConfig({
       },
     },
 
+    /*
+     * Desktop WebKit — added P7 slice B.
+     *
+     * `docs/16`'s P7 row has said "cross-browser sweep incl. WebKit" since the
+     * roadmap was written, and until now the only WebKit here was `iPhone 14`,
+     * which runs every spec's `test.skip(isMobile)` and therefore exercised the
+     * mobile gate and nothing else. Safari is the engine most likely to differ
+     * on the two things this app is built out of — Web Audio and IndexedDB —
+     * and it was the one desktop engine never running them.
+     *
+     * ⚠️ Audio expectations here are NOT assumed to match Chromium's. WebKit's
+     * autoplay policy has no equivalent of Firefox's `media.autoplay.default`
+     * pref, so if `AudioContext.resume()` turns out not to survive the
+     * gate-Accept gesture in the automation build, the affected specs get the
+     * `docs/13 §3` treatment: skipped **for the stated real reason**, naming
+     * which browser still covers the assertion. Never skip to make a suite
+     * green.
+     */
+    { name: 'webkit', use: { ...devices['Desktop Safari'] } },
+
     // docs/07 §6 / docs/13 §3: on a blocked viewport the overlay must show AND
     // the app bundle must never be requested. Both a small viewport and a
     // touch-only pointer profile, because TT_GATE tests both conditions.

@@ -17,7 +17,7 @@
   import { TtTimerDriver } from './engine/timer/tt-timer-driver';
   import { milestoneFor } from './engine/timer/tt-milestones';
   import type { TtTickSample } from './engine/timer/types';
-  import { installGlobalCapture, ttLog } from './engine/log/tt-log';
+  import { errorName, installGlobalCapture, ttLog } from './engine/log/tt-log';
   import { backdrop } from './state/backdrop.svelte';
   import { i18n } from './state/i18n.svelte';
   import { playback } from './state/playback.svelte';
@@ -90,17 +90,60 @@
   });
 
   /**
-   * docs/02 §1 / docs/05 §1: this click is the autoplay-unlock gesture.
+   * The autoplay-unlock gesture, at all three `docs/05 §1` sites — and it can
+   * never take anything else down with it.
    *
-   * `unlock()` is fired FIRST and deliberately not awaited: WebKit only counts
-   * a `resume()` reached before the gesture task yields, and the `await` below
-   * yields. It is one of three unlock sites — the gate only renders when the
-   * stored legal version differs, so a returning user reaches playback without
-   * ever passing through here (docs/05 §1).
+   * 🔴 **Every call used to be a bare `void playback.unlock()`, and each one was
+   * a single point of failure for the feature around it.** `unlock()` reaches
+   * `#ensure()` **synchronously**, so in a browser where constructing an
+   * `AudioContext` throws, the error escaped past the rest of the handler:
+   *
+   * - at the gate, `session.gateAccepted()` never ran, so `needsGate` stayed
+   *   true and the user was **trapped at the consent screen**, permanently, on
+   *   every reload;
+   * - at Start in **YouTube mode**, `yt.load()` and `yt.play()` never ran, so
+   *   the player never mounted — in a mode that uses **no Web Audio at all**.
+   *   The unlock is there only so the local chime works for a returning user
+   *   (`06 §2`), i.e. a secondary concern was killing the primary one, and the
+   *   primary one is the element YouTube's terms require to be visible;
+   * - at Start in local modes, `playback.load()` never ran.
+   *
+   * `void` is no protection: it discards a *promise*, not a synchronous throw.
+   * `try` covers the throw and `.catch` the rejection; the old code was exposed
+   * to both.
+   *
+   * Found in P7 slice B by running desktop WebKit for the first time — 130 of
+   * 166 specs failed, all on this. Playwright's WebKit build has no
+   * `AudioContext`, which is a harness limitation; that a missing audio stack
+   * could brick consent and the YouTube player is not.
+   *
+   * Stays synchronous inside the gesture: `docs/05 §1` — WebKit only counts the
+   * gesture if `resume()` is reached before the task yields, and neither a
+   * function call nor a `try` yields. Audio here is opportunistic and retried at
+   * the next site; consent and playback are not.
+   */
+  function unlockAudio(site: 'gate' | 'start'): void {
+    try {
+      void playback.unlock().catch((err: unknown) => {
+        ttLog.warn('TT-SYS-206', `audio unlock rejected at ${site}: ${errorName(err)}`);
+      });
+    } catch (err) {
+      ttLog.warn('TT-SYS-206', `audio unlock threw at ${site}: ${errorName(err)}`);
+    }
+  }
+
+  /**
+   * docs/02 §1 / docs/05 §1: this click is the autoplay-unlock gesture — one of
+   * three unlock sites. The gate only renders when the stored legal version
+   * differs, so a returning user reaches playback without passing through here.
+   *
+   * 🔴 **`session.gateAccepted()` comes FIRST, and the order is load-bearing** —
+   * `needsGate` derives from it, so anything that can throw ahead of it can trap
+   * the user at the consent screen. `unlockAudio` explains what did.
    */
   async function acceptLegal(version: string) {
-    void playback.unlock();
     session.gateAccepted();
+    unlockAudio('gate');
     await settings.patch({ legalAccepted: { version, acceptedAt: Date.now() } });
     ttLog.info('TT-USR-100', `legal accepted v${version}`);
   }
@@ -201,10 +244,27 @@
       }
     },
     onDone: (info) => {
-      // FIRST, before anything else in this handler: the Finished screen
-      // reconstructs the instant zero was reached from the wall clock read here
-      // minus the overshoot (docs/04 §2), and the case it exists for is exactly
-      // the one where this thread has been stalled.
+      /*
+       * docs/03 §8's zero announcement, before the state leaves `playing`.
+       *
+       * ⚠️ It used to depend on a TICK landing exactly at 0 while still
+       * running, which is a race the tick does not always win: `onDone` is the
+       * authoritative "zero was reached" signal, and once `session.finished()`
+       * runs, `announceMilestone` bails on its `state !== 'playing'` guard.
+       * Chromium happened to win it; desktop WebKit did not, and a 12 s
+       * countdown announced "ten seconds" and then nothing — the screen reader
+       * never heard the run end.
+       *
+       * Announcing from here makes it deterministic. The crossing rule still
+       * decides whether anything is said, so a run already announced at zero
+       * says it once.
+       */
+      announceMilestone(0);
+
+      // FIRST after that: the Finished screen reconstructs the instant zero was
+      // reached from the wall clock read here minus the overshoot (docs/04 §2),
+      // and the case it exists for is exactly the one where this thread has
+      // been stalled.
       session.finished(info);
       phase = 'done';
       remainingMs = 0;
@@ -327,14 +387,20 @@
          *
          * Fired first and unawaited, like the branch below: WebKit stops
          * counting the gesture at the first yield (docs/05 §1).
+         *
+         * 🔴 Guarded since P7 slice B. A bare `void playback.unlock()` here
+         * threw synchronously on a browser with no `AudioContext` and the two
+         * lines below never ran — no player, in the one mode whose player the
+         * YouTube terms require to be visible. The chime this unlock exists for
+         * is not worth the rail.
          */
-        void playback.unlock();
+        unlockAudio('start');
         yt.load(track);
         yt.play();
       } else {
         // Unlock first and unawaited — this call is still inside the click's task
         // and WebKit stops counting the gesture at the first yield (docs/05 §1).
-        void playback.unlock();
+        unlockAudio('start');
         void playback.load(track, session.mode === 'single').then(() => playback.play());
       }
     }

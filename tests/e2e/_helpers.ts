@@ -1,6 +1,37 @@
-import { expect, type Page } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+
+/**
+ * Skip a test that genuinely needs Web Audio, stating **which** reason applies.
+ *
+ * `docs/13 §3`: skip for the real reason or not at all. The two browsers fail
+ * differently and conflating them would misreport the matrix:
+ *
+ * - **Firefox** has the API but no output **device** on the CI runner, so
+ *   `AudioContext.resume()` hangs. Measured 2026-07-21.
+ * - **WebKit** — added P7 slice B — has no `AudioContext` **at all** in
+ *   Playwright's build: `ReferenceError: Can't find variable: AudioContext`.
+ *   Real Safari has had it since 14.1, so this is a harness limitation and says
+ *   nothing about the product.
+ *
+ * ⚠️ Chromium is the only project asserting audible output. Say that rather
+ * than implying four-browser coverage.
+ *
+ * The WebKit half is guarded by `webkit-assumptions.spec.ts`, which fails if a
+ * future Playwright build gains `AudioContext` — a skip whose stated reason has
+ * quietly stopped being true is worse than no skip.
+ */
+export function skipWithoutAudio(browserName: string): void {
+  test.skip(
+    browserName === 'firefox',
+    'CI Firefox has no audio output device — AudioContext.resume() hangs (docs/13 §3)',
+  );
+  test.skip(
+    browserName === 'webkit',
+    "Playwright's WebKit build exposes no AudioContext at all (docs/13 §3)",
+  );
+}
 
 /**
  * Get past the legal gate.

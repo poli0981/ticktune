@@ -128,7 +128,17 @@ export function installGlobalCapture(target: Window, log: TtLog = ttLog): () => 
   };
 }
 
-function errorName(err: unknown): string {
+/**
+ * The error's **name**, never its message — `docs/12 §6`.
+ *
+ * A message can carry a filename, a track title or a URL the user chose, and
+ * the log is what `Copy Diagnostics` puts on a clipboard. The name cannot.
+ *
+ * Exported since P7 slice B: `TtApp.acceptLegal` needs the same sanitisation
+ * when it reports a failed audio unlock, and two implementations of "log the
+ * name only" is one too many.
+ */
+export function errorName(err: unknown): string {
   if (err instanceof Error) return err.name;
   if (typeof err === 'string') return 'string';
   return typeof err;

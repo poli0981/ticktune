@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { dismissUnloadDialogs, setDuration } from './_helpers';
+import { dismissUnloadDialogs, setDuration, skipWithoutAudio } from './_helpers';
 import {
   fireYt,
   fireYtError,
@@ -291,7 +291,11 @@ test.describe('youtube mode', () => {
   });
 
   test.describe('the countdown ending', () => {
-    test('pauses the video and fires the End Behavior for a RETURNING user', async ({ page }) => {
+    test('pauses the video and fires the End Behavior for a RETURNING user', async ({
+      browserName,
+      page,
+    }) => {
+      skipWithoutAudio(browserName);
       /*
        * Two assertions in one run because they share the one condition that made
        * both fail: the audio driver is built lazily, and in YouTube mode nothing

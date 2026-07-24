@@ -1,5 +1,11 @@
 import { test, expect } from '@playwright/test';
-import { gotoApp, setDuration, stageSingle, dismissUnloadDialogs } from './_helpers';
+import {
+  gotoApp,
+  setDuration,
+  stageSingle,
+  dismissUnloadDialogs,
+  skipWithoutAudio,
+} from './_helpers';
 
 /**
  * docs/13 §3 "Gate → Setup → Single" — P2 exit criterion 1.
@@ -37,7 +43,7 @@ test.describe('single mode', () => {
   test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
 
   test('imports a file, plays it audibly, and loops', async ({ page, browserName }) => {
-    test.skip(browserName === 'firefox', 'no audio output device on the CI runner');
+    skipWithoutAudio(browserName);
     dismissUnloadDialogs(page);
     await gotoApp(page, '/app/?ttdebug=1');
 
@@ -75,7 +81,7 @@ test.describe('single mode', () => {
   });
 
   test('the loop counter increments across a wrap', async ({ page, browserName }) => {
-    test.skip(browserName === 'firefox', 'no audio output device on the CI runner');
+    skipWithoutAudio(browserName);
     dismissUnloadDialogs(page);
     await gotoApp(page);
     await stageSingle(page);
@@ -87,7 +93,11 @@ test.describe('single mode', () => {
     await expect(page.getByTestId('tt-loop-count')).toHaveText('Loop ×2', { timeout: 20_000 });
   });
 
-  test('the bottom bar shows the track and auto-hides after 4 s idle', async ({ page }) => {
+  test('the bottom bar shows the track and auto-hides after 4 s idle', async ({
+    browserName,
+    page,
+  }) => {
+    skipWithoutAudio(browserName);
     dismissUnloadDialogs(page);
     await gotoApp(page);
     await stageSingle(page);
@@ -137,7 +147,11 @@ test.describe('single mode', () => {
     await expect(page.getByTestId('tt-staged')).toBeVisible();
   });
 
-  test('the track info modal lists every field and returns focus on Esc', async ({ page }) => {
+  test('the track info modal lists every field and returns focus on Esc', async ({
+    browserName,
+    page,
+  }) => {
+    skipWithoutAudio(browserName);
     dismissUnloadDialogs(page);
     await gotoApp(page);
     await stageSingle(page);

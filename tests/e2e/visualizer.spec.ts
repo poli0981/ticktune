@@ -5,6 +5,7 @@ import {
   setDuration,
   stageSingle,
   storedSettings,
+  skipWithoutAudio,
 } from './_helpers';
 import { gotoYouTubeApp, stageLinks } from './_helpers-yt';
 
@@ -93,10 +94,7 @@ test.describe('the visualizer canvas', () => {
   // which keeps a failure attributable to the style that caused it.
   for (const style of ['bars', 'wave', 'ring'] as const) {
     test(`${style} renders and paints real pixels`, async ({ browserName, page }) => {
-      test.skip(
-        browserName === 'firefox',
-        'needs audible output; AudioContext.resume() hangs on the CI Firefox (docs/13 §3)',
-      );
+      skipWithoutAudio(browserName);
       await play(page, style);
       await expect(page.getByTestId('tt-visualizer')).toHaveAttribute('data-tt-style', style);
       // Ink, not merely a mounted element: a canvas that renders nothing looks
@@ -110,7 +108,7 @@ test.describe('the visualizer canvas', () => {
     browserName,
     page,
   }) => {
-    test.skip(browserName === 'firefox', 'needs audible output (docs/13 §3)');
+    skipWithoutAudio(browserName);
     await play(page, 'bars');
     await expect.poll(() => canvasHasInk(page), { timeout: 8000 }).toBe(true);
 
@@ -132,6 +130,7 @@ test.describe('the tally light keeps the beat — docs/03 §1, docs/05 §6', () 
     browserName,
     page,
   }) => {
+    skipWithoutAudio(browserName);
     /*
      * `05 §6`: "even Visualizer: off keeps one live beat element". If the beat
      * were published by the canvas's draw path, turning the style off would
@@ -139,7 +138,6 @@ test.describe('the tally light keeps the beat — docs/03 §1, docs/05 §6', () 
      * That is why the beat is a separate channel and why this test exists at
      * the `off` setting rather than at a pretty one.
      */
-    test.skip(browserName === 'firefox', 'needs audible output (docs/13 §3)');
     await play(page, 'off');
     await expect(page.getByTestId('tt-visualizer')).toHaveCount(0);
     await expect.poll(() => beat(page), { timeout: 8000 }).toBeGreaterThan(0);
