@@ -114,28 +114,41 @@ test.describe('legal pages', () => {
      */
     await page.goto('/');
     expect([...(await legalHrefs(page, 'footer'))].sort()).toEqual(
-      TT_LEGAL_DOCS.map((d) => `/legal/${d.slug}`).sort(),
+      TT_LEGAL_DOCS.map((d) => `/legal/${d.slug}/`).sort(),
     );
 
     await page.goto('/en/');
     expect([...(await legalHrefs(page, 'footer'))].sort()).toEqual(
-      TT_LEGAL_DOCS.map((d) => `/en/legal/${d.slug}`).sort(),
+      TT_LEGAL_DOCS.map((d) => `/en/legal/${d.slug}/`).sort(),
     );
   });
 
-  test('every route the app links to actually resolves', async ({ page, request }) => {
-    // The in-app-links-resolve check: drive it from the constant the gate and
-    // the settings panel read, not from a list written out here.
+  test('every route the app links to resolves WITHOUT a redirect', async ({ request }) => {
+    /*
+     * The in-app-links-resolve check: driven from the constant the gate and the
+     * settings panel read, not from a list written out here.
+     *
+     * `maxRedirects: 0` so a route that only resolves *after* a hop fails here
+     * rather than reporting the redirected 200.
+     *
+     * 🔴 **But do not trust this one to catch a missing trailing slash.**
+     * `build.format` is `'directory'`, and the deployed host answers
+     * `/legal/eula` with a **307** to `/legal/eula/` — while `astro preview`,
+     * which is what this suite runs against, serves both with a plain 200.
+     * Measured, after the missing slash shipped: production redirects, the
+     * harness does not, so no assertion here can see the difference. What
+     * actually guards the slash is the exact-href comparison in the footer test
+     * below, plus a line in the slice B live checklist. The lesson is the
+     * general one: a guard is only as good as the harness's fidelity to
+     * production, and `astro preview` is more permissive than the Worker.
+     */
     for (const doc of TT_LEGAL_DOCS) {
       for (const lang of ['vi', 'en'] as const) {
         const href = ttLegalHref(doc.key, lang);
-        const res = await request.get(href);
-        expect(res.status(), `${href} is linked in-app but does not resolve`).toBe(200);
+        const res = await request.get(href, { maxRedirects: 0 });
+        expect(res.status(), `${href} is linked in-app but redirects or 404s`).toBe(200);
       }
     }
-    // `page` is unused above by design — this is a link-integrity check, not a
-    // rendering one. Touch it so the fixture is not misreported as needed.
-    expect(page).toBeTruthy();
   });
 
   test('the language switch round-trips', async ({ page }) => {
