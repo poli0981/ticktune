@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { storedSettings } from './_helpers';
 
 /**
  * Legal gate + settings persistence — docs/02 §1, §3.2, docs/03 §3.2.
@@ -39,6 +40,18 @@ test.describe('legal gate', () => {
     await accept(page).click();
     await expect(gate(page)).toBeHidden();
     await expect(page.locator('.tt-countdown')).toBeVisible();
+
+    /*
+     * The gate hides synchronously (`session.gateAccepted()`) while the Dexie
+     * write is awaited afterwards — deliberately, so the click never lags. That
+     * leaves a window in which the screen has moved on and the row has not, and
+     * reloading inside it re-shows the gate. Latent here since P1 and never
+     * observed; the identical shape went flaky on CI in `settings.spec.ts`
+     * once a slow runner finally lost the race.
+     */
+    await expect
+      .poll(() => storedSettings(page))
+      .toMatchObject({ legalAccepted: expect.objectContaining({ version: expect.any(String) }) });
 
     await page.reload();
     await expect(page.locator('.tt-countdown')).toBeVisible();

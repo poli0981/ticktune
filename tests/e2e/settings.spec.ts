@@ -1,5 +1,11 @@
 import { test, expect, type Page } from '@playwright/test';
-import { dismissUnloadDialogs, gotoApp, setDuration, stageSingle } from './_helpers';
+import {
+  dismissUnloadDialogs,
+  gotoApp,
+  setDuration,
+  stageSingle,
+  storedSettings,
+} from './_helpers';
 
 /**
  * docs/13 §3 — the ⚙ panel and the hotkeys it documents (P5 slice 2).
@@ -81,6 +87,19 @@ test.describe('settings panel', () => {
     await page.keyboard.press('s');
     await page.getByTestId('tt-set-size-s').click();
     const small = await fontSize(page);
+
+    /*
+     * ⚠️ Wait for the WRITE, not for the paint. `settings.patch()` updates
+     * memory synchronously and Dexie asynchronously, and the call site fires it
+     * with `void` — so a reload straight after the click can out-run the write
+     * and read back the default, which is indistinguishable from the setting
+     * never persisting.
+     *
+     * This shipped in v0.6.0 without the poll and went flaky on CI at the first
+     * slow runner: expected 179.2 (S), received 230.4 (M, the default). It
+     * passed on every fast machine, which is what made it survive review.
+     */
+    await expect.poll(() => storedSettings(page)).toMatchObject({ countdownSize: 's' });
 
     await page.reload();
     await page.waitForFunction(() => !!document.documentElement.dataset['ttBooted']);

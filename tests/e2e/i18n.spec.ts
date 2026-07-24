@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoApp } from './_helpers';
+import { gotoApp, storedSettings } from './_helpers';
 
 /**
  * docs/13 §3's i18n row, verbatim: "toggle EN↔VI swaps visible strings without
@@ -65,22 +65,7 @@ test.describe('language toggle — docs/08 §2', () => {
      * would lose the preference to. The trade-off is deliberate (`TtApp`), so
      * the test waits for the thing it actually claims to be testing.
      */
-    await expect
-      .poll(() =>
-        page.evaluate(
-          async () =>
-            await new Promise<string>((res, rej) => {
-              const req = indexedDB.open('ticktune');
-              req.onerror = () => rej(req.error);
-              req.onsuccess = () => {
-                const get = req.result.transaction('settings').objectStore('settings').get('app');
-                get.onsuccess = () => res(String(get.result?.lang ?? ''));
-                get.onerror = () => rej(get.error);
-              };
-            }),
-        ),
-      )
-      .toBe(chosen);
+    await expect.poll(() => storedSettings(page)).toMatchObject({ lang: chosen });
 
     await page.reload();
     await page.waitForFunction(() => !!document.documentElement.dataset['ttBooted']);
