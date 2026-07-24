@@ -11,6 +11,23 @@
     // no zone feature needed (docs/10 §3).
     "not_found_handling": "404-page",
   },
+  // 🔴 This setting is DISCLOSED in legal/PRIVACY-POLICY.md §4.1. It is not a
+  // free debug toggle: enabled, it writes one invocation log per Worker call —
+  // request, response, and Cloudflare's country — retained 3 days on this plan,
+  // and it does so even though worker/index.ts never calls console.log.
+  //
+  // The policy once said we store "no server-side logs of its own about you"
+  // while this was on. That cost a TT_LEGAL_VERSION bump to 1.1-draft and
+  // re-prompted every existing user, because consent to an inaccurate
+  // description is not consent.
+  //
+  // Kept on deliberately: it is the only way to see WHY an oEmbed lookup failed
+  // in production, which is the endpoint's entire job (docs/06 §3, spike S1).
+  // Its blast radius is small because `run_worker_first` is unset — static pages
+  // are served without invoking the Worker, so browsing the site logs nothing.
+  //
+  // Changing this line changes the privacy policy. Do one without the other and
+  // the document is false again.
   "observability": {
     "enabled": true,
   },

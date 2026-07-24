@@ -79,6 +79,29 @@ for p in eula disclaimer privacy third-party; do
 done   # every line must read 200, never 307
 ```
 
+## Blocking — the privacy disclosure and the gate re-prompt
+
+Added after the first pass through this checklist, when documenting what the site
+owner can see turned up a sentence in `PRIVACY-POLICY.md` that was **not true**:
+it said TickTune stores "no server-side logs of its own about you", while
+`wrangler.jsonc` had `observability.enabled` retaining one log per
+`/api/yt/oembed` call for three days. `TT_LEGAL_VERSION` is therefore
+`1.1-draft`, and the gate comes back for everyone.
+
+- [ ] **Read `/legal/privacy` §4.1 in Vietnamese** and check it against §1's
+      claim of "không có mã phân tích hành vi". The two must not read as
+      contradicting each other: §1 is about scripts in your browser, §4.1 about
+      aggregates at the network layer. If that distinction does not come across,
+      the wording needs work — it is the whole point of the section.
+- [ ] **§7's changelog entry explains why the gate returned**, in both languages.
+      A user who is re-prompted deserves to know what changed and that the app's
+      behaviour did not.
+- [ ] 🔴 **The gate actually re-appears for a returning user.** Open `/app/` in a
+      profile that has accepted before — it must show again, and accepting must
+      stick across a reload. This is the mechanism `§7` promises and it has never
+      fired in production before.
+- [ ] **Every page reads `Phiên bản 1.1-draft`**, all eight, both languages.
+
 ## Blocking — the in-app links moved
 
 This is the part with a real failure mode, so check both languages.
@@ -114,7 +137,7 @@ This is the part with a real failure mode, so check both languages.
 | A lawyer's review | These are developer-written drafts and say so. Version stays `1.0-draft`; promoting to `1.0` is a P7 launch decision |
 | A legal page in the sitemap | Deliberate — the sitemap filter keeps them out; they are linked, not landing pages |
 | A language-correct 404 under `/en/*` | Cloudflare serves one 404 file site-wide (`docs/07`); unchanged from slice A |
-| A re-prompt of the Legal Gate | `TT_LEGAL_VERSION` is unchanged on purpose. Publishing a translation of an unchanged document changes nobody's rights, and re-prompting every user over it would be the larger harm |
+| ~~A re-prompt of the Legal Gate~~ | ⚠️ **No longer absent — see the block below.** The translations alone would not have justified a bump; a false statement in `PRIVACY-POLICY.md` did |
 | A real demo video in the hero | **P7** |
 | An axe scan / a bundle-size number | **P7** (`13 §5`, `13 §6`) |
 

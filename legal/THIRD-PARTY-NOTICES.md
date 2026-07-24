@@ -1,6 +1,6 @@
 # TickTune — Third-Party Notices (Draft)
 
-Version 1.0-draft · 2026-07-21 · English canonical; Vietnamese at
+Version 1.1-draft · 2026-07-24 · English canonical; Vietnamese at
 `/legal/third-party`. Rendered there and linked from the Legal Gate and About
 panel. Process rule: any new dependency is added here in the same PR that
 introduces it, after a GPL-3.0 compatibility check (`docs/11 §5`).

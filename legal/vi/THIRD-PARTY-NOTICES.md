@@ -1,6 +1,6 @@
 # TickTune — Thông báo về thành phần của bên thứ ba (Bản nháp)
 
-Version 1.0-draft · 2026-07-21 · Bản tiếng Anh là bản gốc có hiệu lực; đây là
+Version 1.1-draft · 2026-07-24 · Bản tiếng Anh là bản gốc có hiệu lực; đây là
 bản dịch cung cấp cho thuận tiện. Hiển thị tại `/legal/third-party` và được liên
 kết từ Cổng pháp lý cùng bảng Giới thiệu. Quy tắc quy trình: mọi phụ thuộc mới
 đều được thêm vào đây trong chính PR giới thiệu nó, sau khi đã kiểm tra tính

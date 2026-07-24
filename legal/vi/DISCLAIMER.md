@@ -1,6 +1,6 @@
 # TickTune — Tuyên bố miễn trừ trách nhiệm (Bản nháp)
 
-Version 1.0-draft · 2026-07-21 · Bản tiếng Anh là bản gốc có hiệu lực; đây là
+Version 1.1-draft · 2026-07-24 · Bản tiếng Anh là bản gốc có hiệu lực; đây là
 bản dịch cung cấp cho thuận tiện. Bản tóm tắt hiển thị tại Cổng pháp lý; toàn
 văn tại `/legal/disclaimer` và trong kho mã nguồn.
 
