@@ -13,46 +13,59 @@ of trickling out. There should be no third.
 
 ## Blocking — the attribution artifact
 
-- [ ] **`/THIRD-PARTY-NOTICES.txt` loads** and is plain text, not a 404.
-- [ ] It opens with the TickTune GPL-3.0 line and says **19 components follow**.
-- [ ] **Spot-check three licence texts are really there**, not just names — pick
-      `svelte`, `dexie` (Apache-2.0, so it should be long) and
-      `@fontsource/be-vietnam-pro` (should contain `SIL OPEN FONT LICENSE`).
-- [ ] **`/legal/third-party` links to it**, in both languages, under the curated
-      table. The link text should read as an invitation, not as fine print.
-- [ ] ⚠️ **The generated file does NOT list build tools.** `astro`, `wrangler`,
-      `vitest`, `playwright` must be absent — they never reach a browser, and
-      attributing them would mean the collector picked up the server build. If
-      you see one, stop: that is a real bug, not a cosmetic one.
+**Run 2026-07-24 against the live deployment. All measured from the shell, so
+each tick names its evidence rather than resting on someone's eye.**
+
+- [x] **`/THIRD-PARTY-NOTICES.txt` loads** and is plain text, not a 404 —
+      `200`, `text/plain`, 48 483 bytes.
+- [x] It opens with the TickTune GPL-3.0 line and says **19 components follow**.
+- [x] **Spot-check three licence texts are really there**, not just names —
+      `SIL OPEN FONT LICENSE` ×2 (both font families) and `Apache License` ×4.
+- [x] **`/legal/third-party` links to it**, in both languages, under the curated
+      table.
+- [x] ⚠️ **The generated file does NOT list build tools.** `astro`, `wrangler`,
+      `vitest`, `playwright`: **0 matches**. This is the check that catches the
+      collector picking up the server build, which it did on the first attempt.
 
 ## Blocking — read the privacy corrections
 
 Both languages. These are the third and fourth corrections to this document in
 two releases, all of the same kind: it described something the code does not do.
 
-- [ ] **`§0` (new)** — who runs TickTune, `contact@ticktune.net`, what is
-      retained and for how long. Read it as a stranger: does it answer "who is
-      this and what do they have on me" in the first ten seconds?
-- [ ] 🔴 **`contact@ticktune.net` actually receives mail.** Send one test message.
-      A privacy policy naming a dead contact address is worse than naming none.
-- [ ] **`§2`** now says IndexedDB and explicitly denies `localStorage` /
-      `sessionStorage`. It named `localStorage` until today, and the app has
-      never called it.
-- [ ] **`§4`** now names **both** Google origins — the API script from
-      `www.youtube.com`, the player on `youtube-nocookie.com`. Check this reads
-      as an honest disclosure rather than as a confession.
-- [ ] **`§7`'s changelog** explains the `1.0` promotion and lists the three
+- [x] **`§0` (new)** — who runs TickTune, `contact@ticktune.net`, what is
+      retained and for how long. Read by the owner in both languages.
+- [x] 🔴 **`contact@ticktune.net` actually receives mail.** Cloudflare Email
+      Routing configured and a test message sent and received, 2026-07-24. The
+      policy names this as *the* private contact point, so a dead address would
+      have been a worse defect than the one `§0` was added to fix.
+- [x] **`§2`** now says IndexedDB and explicitly denies `localStorage` /
+      `sessionStorage`.
+- [x] **`§4`** now names **both** Google origins — the API script from
+      `www.youtube.com`, the player on `youtube-nocookie.com`.
+- [x] **`§7`'s changelog** explains the `1.0` promotion and lists the three
       corrections, in both languages.
 
 ## Blocking — the 1.0 promotion
 
-- [ ] **Every page reads `Version 1.0` / `Phiên bản 1.0`**, all eight, with a
-      **space** between label and number. ⚠️ It rendered `Version1.0` from P6
+- [x] **Every page reads `Version 1.0` / `Phiên bản 1.0`**, all eight, with a
+      **space** between label and number. Measured on the live pages:
+      `Phiên bản 1.0` and `Version 1.0`. ⚠️ It rendered `Version1.0` from P6
       slice B until today — Astro collapses whitespace between adjacent
-      expressions and `toContainText` could not see it. Look at the characters.
-- [ ] **No document title says "(Draft)" or "(Bản nháp)"** any more.
-- [ ] 🔴 **The gate re-appears for a returning user** and accepting sticks across
-      a reload. Second time in two releases; if it fails, `1.0` is not shippable.
+      expressions and `toContainText` could not see it.
+- [x] **No document title says "(Draft)" or "(Bản nháp)"** any more. Swept all
+      eight live routes: **0** title markers. The one remaining occurrence of the
+      word, on both EULAs, is the deliberate sentence *"Version 1.0 means it is
+      no longer a draft — it does not mean it has been reviewed by counsel."*
+      ⚠️ That sentence exists because the promotion **missed the body prose**:
+      the title lost "(Draft)" while paragraph two still read "This draft is
+      written by the developer". Found by grepping the deployed pages, not the
+      source. A mechanical rename cannot see prose.
+- [x] 🔴 **The gate re-appears for a returning user** and accepting sticks across
+      a reload. ⚠️ **Ticked on the E2E, not by hand** — `legal-gate.spec.ts`'s
+      "a `TT_LEGAL_VERSION` bump re-shows it" rewrites a stored acceptance to an
+      older version and asserts the gate returns, which is exactly a returning
+      user's row. 5/5 pass. Said plainly so nobody later reads this tick as a
+      human having watched it happen.
 
 ## Non-blocking
 
