@@ -129,6 +129,10 @@ production. So the three lines below were answered by a deploy that was not the
 tag's, which is the one thing this block exists to check. Re-run them after
 `v0.9.0` deploys.
 
+- [ ] `ticktune.net/app/` → ⚙ → Giới thiệu reads **0.9.0**. This is the line
+      that actually proves the *tag* deployed rather than some other push —
+      given two deploy paths race on a tag, it is the only one that can tell
+      them apart.
 - [ ] `ticktune.net/` and `ticktune.net/en/` both serve, with the right language.
 - [ ] `ticktune.net/sitemap-index.xml` and `/robots.txt` resolve.
 - [ ] Headers still live (`10 §11`): HSTS present, CSP unchanged.
