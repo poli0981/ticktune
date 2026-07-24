@@ -119,6 +119,35 @@ widens its peer range — both must land, since either alone still breaks
   which of the two applies when adding a dependency; "dev-only, no notice row" is
   a claim a reviewer should be able to check, not a shrug.
 
+  ✅ **Since P7 slice A the claim is checked by the build, not by the reviewer.**
+  `scripts/make-notices.ts` emits `dist/THIRD-PARTY-NOTICES.txt` containing the
+  **full licence text** of every package whose code is in the shipped client
+  bundle, and **fails the build** if any of them has no licence text to
+  reproduce. That closes the `AUDIT-BACKLOG` release blocker, whose point was
+  that a hand-kept table structurally cannot carry the obligation: `music-metadata`
+  alone brings `strtok3`, `token-types`, `@borewit/text-codec`,
+  `@tokenizer/inflate`, `file-type` and `uint8array-extras` into the bundle, and
+  nobody was ever going to add those rows by hand. **19 components** are
+  attributed where the curated table lists 12.
+
+  ⚠️ **Which packages comes from the build, not from `package.json`.** The
+  `ttBundledPackages` plugin in `astro.config.mjs` reads the module graph of the
+  **client** environment only. Collecting the server pass too — the first
+  version's bug — attributed `astro`, `zod` and `cookie` as if a browser had
+  downloaded them, and `pnpm licenses list --prod` on its own reports **233**
+  packages including the Astro compiler. Attribution attaches to what is
+  distributed; that is the whole distinction this section is about.
+
+  ⚠️ **The two `@fontsource` families are added by name in that script**, because
+  woff2 arrives through a CSS `@import` and never appears as a JS module. It is
+  the same blind spot that makes `knip` need them in `ignoreDependencies`. Two
+  workarounds for one cause: move them together, or the OFL text silently stops
+  shipping.
+
+  `legal/THIRD-PARTY-NOTICES.md` remains the **curated human overview** and is
+  not generated. Two artifacts, two jobs: one is read by a person deciding
+  whether to trust the app, the other satisfies a licence.
+
 ## 6. Deliberately absent
 
 GSAP (non-FOSS license, D7) · music-metadata-browser (deprecated; main package
