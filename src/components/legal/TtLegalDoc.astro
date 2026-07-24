@@ -83,9 +83,14 @@ const home = lang === 'vi' ? '/' : '/en/';
       )
     }
 
+    {
+      /* One expression, not two: Astro collapses the whitespace between adjacent
+        expressions, so `{label}\n{version}` rendered as "Version1.0". Shipped
+        that way from P6 slice B until P7 — `toContainText` passes on it, which
+        is why only reading the built HTML caught it. */
+    }
     <p class="tt-version" data-testid="tt-legal-version">
-      {t.legal.versionLabel}
-      {TT_LEGAL_VERSION}
+      {`${t.legal.versionLabel} ${TT_LEGAL_VERSION}`}
     </p>
   </main>
 </TtBase>

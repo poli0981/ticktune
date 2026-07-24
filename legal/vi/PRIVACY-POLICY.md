@@ -1,6 +1,6 @@
-# TickTune — Chính sách quyền riêng tư (Bản nháp)
+# TickTune — Chính sách quyền riêng tư
 
-Version 1.1-draft · 2026-07-24 · Bản tiếng Anh là bản gốc có hiệu lực; đây là
+Version 1.0 · 2026-07-24 · Bản tiếng Anh là bản gốc có hiệu lực; đây là
 bản dịch cung cấp cho thuận tiện.
 
 TickTune được xây dựng để biết về bạn càng ít càng tốt.
@@ -143,6 +143,21 @@ tính năng nào giới hạn theo độ tuổi.
 
 Những thay đổi trọng yếu sẽ kích hoạt lại Cổng pháp lý. Lịch sử tài liệu có thể
 xem trong kho Git: `https://github.com/poli0981/ticktune`.
+
+**1.0 — 2026-07-24.** Phiên bản chính thức đầu tiên, không còn là bản nháp. Ba
+điểm được sửa, và cả ba đều cùng một dạng — tài liệu mô tả một điều mà mã nguồn
+không hề làm:
+
+- `§2` có nhắc tới **`localStorage`**, thứ mà ứng dụng này chưa bao giờ gọi tới
+  và chuẩn mã nguồn của chính dự án thì cấm. Thiết lập nằm trong IndexedDB, và
+  không ở đâu khác.
+- `§4` chỉ mô tả `youtube-nocookie.com`. Thực tế có **hai** tên miền của Google:
+  mã kịch bản IFrame API được tải từ `www.youtube.com`, còn chỉ riêng trình phát
+  mới được tạo trên máy chủ tăng cường quyền riêng tư. Một người mở tab Network
+  ra xem sẽ thấy một tên miền mà tài liệu này không hề nhắc tới.
+- `§0` là mục mới — ai vận hành TickTune, liên hệ bằng cách nào, dữ liệu được giữ
+  những gì và trong bao lâu. Một chính sách dù không thu thập gì thì vẫn nợ bạn
+  những thông tin đó.
 
 **1.1-draft — 2026-07-24.** Bổ sung `§4.1`. Bản trước có câu rằng TickTune
 "không tự lưu bất kỳ nhật ký phía máy chủ nào về bạn", và **câu đó không đúng**:

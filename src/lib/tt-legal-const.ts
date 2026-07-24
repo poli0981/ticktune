@@ -22,9 +22,14 @@
  * inaccurate description is not consent. `PRIVACY-POLICY.md §7` promises the
  * gate returns for exactly this, so it does.
  *
- * Promoting `1.1-draft` → `1.0` is still a P7 launch decision.
+ * ✅ **`1.1-draft` → `1.0` in P7 slice A**, the launch promotion. It is the last
+ * commit of that slice **on purpose**: three separate corrections landed in the
+ * same release — the `localStorage` the app never used, the second Google origin
+ * `§4` omitted, and a `§0` that finally names who runs this — and promoting in a
+ * later release would have re-prompted every user a second time for changes they
+ * had already accepted. Batch legal changes; the gate is a cost, not a feature.
  */
-export const TT_LEGAL_VERSION = '1.1-draft';
+export const TT_LEGAL_VERSION = '1.0';
 
 /**
  * The legal set, as one table.

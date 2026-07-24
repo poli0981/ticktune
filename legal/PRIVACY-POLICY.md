@@ -1,6 +1,6 @@
-# TickTune — Privacy Policy (Draft)
+# TickTune — Privacy Policy
 
-Version 1.1-draft · 2026-07-24 · English canonical; Vietnamese at `/legal/privacy`.
+Version 1.0 · 2026-07-24 · English canonical; Vietnamese at `/legal/privacy`.
 
 TickTune is built to know as little about you as possible.
 
@@ -129,6 +129,18 @@ age-gated features.
 
 Material changes re-trigger the Legal Gate. Document history is visible in the
 Git repository: `https://github.com/poli0981/ticktune`.
+
+**1.0 — 2026-07-24.** First non-draft version. Three corrections, all of the
+same kind — the document describing something the code does not do:
+
+- `§2` named **`localStorage`**, which this app has never called and the project's
+  own code standards forbid. Settings live in IndexedDB and nowhere else.
+- `§4` described only `youtube-nocookie.com`. There are **two** Google origins:
+  the IFrame API script is fetched from `www.youtube.com`, and only the player is
+  created on the privacy-enhanced host. A reader checking their network tab would
+  have found an origin this document did not mention.
+- `§0` is new — who runs TickTune, how to reach them, what is retained and for
+  how long. A policy that collects nothing still owes you that.
 
 **1.1-draft — 2026-07-24.** Added `§4.1`. The previous version stated that
 TickTune "stores no server-side logs of its own about you", and **that was not
