@@ -61,12 +61,15 @@ path under `/en/`, so you can compare side by side.
 - [x] **`← Về trang chủ`** goes to `/`, and its English counterpart to `/en/`.
 - [x] **The wide licence table on `/legal/third-party` scrolls inside its own
       box** and does not make the page scroll sideways.
-- [x] 🔴 **No route answers a 307.** Every legal link must land directly, with no
+- [ ] 🔴 **No route answers a 307.** Every legal link must land directly, with no
       redirect hop. This one **cannot be checked by the test suite**: the site
       builds directory routes, so the deployed host redirects `/legal/eula` to
       `/legal/eula/` — while `astro preview`, which the E2E runs against, serves
       both with a plain 200. The harness is more permissive than production, so
       the shell below is the only place this is visible.
+      ⚠️ **Reset 2026-07-24 — it was ticked while still failing.** Measured at
+      the time of ticking: all eight routes answered **307**, because the fix
+      (`6e43021`) had not been pushed yet. Re-run once the deployment carries it.
 
 ```bash
 for p in eula disclaimer privacy third-party; do
@@ -117,16 +120,34 @@ This is the part with a real failure mode, so check both languages.
 
 ## Production re-check — after the tag deploys to `ticktune.net`
 
-- [x] `ticktune.net/app/` → ⚙ → Giới thiệu reads **0.10.0**. The line that
-      proves the *tag* deployed rather than the branch push that preceded it.
-- [x] All eight `/legal/*` routes return 200 on the custom domain.
-- [x] Headers unchanged (`10 §11`), and still exactly one inline script whose
+🔴 **Do not tick this block before `v0.10.0` exists.** It was ticked once while
+the tag did not exist, which is the same thing that happened to slice A's and is
+why that one had to be reset. Everything above can legitimately be ticked from
+the branch deploy; **nothing here can**, because this block's only job is to say
+something about the *tag's* deployment.
+
+⚠️ **And the version number alone cannot do that job.** The bump ships inside the
+PR (the project's pattern since v0.7.0), so the branch deploy already serves the
+new version — measured 2026-07-24: `ticktune.net` reported `0.10.0` from a branch
+push while no `v0.10.0` tag existed anywhere. A version check is **necessary and
+not sufficient**; the evidence that the tag deployed is out-of-band:
+
+```bash
+gh run list --workflow=deploy.yml --limit 3 --json headBranch,status,conclusion,createdAt
+# headBranch must read v0.10.0, conclusion success, createdAt AFTER the tag push
+```
+
+- [ ] `deploy.yml` has a **successful run whose `headBranch` is `v0.10.0`**, dated
+      after the tag was pushed. This is the actual proof; the rest is corroboration.
+- [ ] `ticktune.net/app/` → ⚙ → Giới thiệu reads **0.10.0**.
+- [ ] All eight `/legal/*` routes return **200, not 307**, on the custom domain.
+- [ ] Headers unchanged (`10 §11`), and still exactly one inline script whose
       hash equals the `script-src` hash.
 
 ```bash
 for p in eula disclaimer privacy third-party; do
   for pre in "" "/en"; do
-    printf '%-28s %s\n' "$pre/legal/$p" "$(curl -s -o /dev/null -w '%{http_code}' "https://ticktune.net$pre/legal/$p")"
+    printf '%-28s %s\n' "$pre/legal/$p/" "$(curl -s -o /dev/null -w '%{http_code}' "https://ticktune.net$pre/legal/$p/")"
   done
 done
 ```
