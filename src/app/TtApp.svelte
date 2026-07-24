@@ -11,9 +11,11 @@
   import TtSetup from './components/TtSetup.svelte';
   import TtSingleRail from './components/TtSingleRail.svelte';
   import TtTrackInfo from './components/TtTrackInfo.svelte';
+  import TtVisualizer from './components/TtVisualizer.svelte';
   import TtYouTubeRail from './components/TtYouTubeRail.svelte';
   import type { TtTrack } from './engine/importer/types';
   import { TtTimerDriver } from './engine/timer/tt-timer-driver';
+  import { milestoneFor } from './engine/timer/tt-milestones';
   import type { TtTickSample } from './engine/timer/types';
   import { installGlobalCapture, ttLog } from './engine/log/tt-log';
   import { backdrop } from './state/backdrop.svelte';
@@ -165,6 +167,11 @@
 
   const driver = new TtTimerDriver({
     onRemaining: (ms) => {
+      // docs/03 §8's polite milestones. Driven from the tick rather than from a
+      // timer of its own, so an announcement can never claim a moment the
+      // countdown has not reached — and the crossing rule (tt-milestones.ts)
+      // is what keeps a throttled tab from firing four of them at once.
+      announceMilestone(ms);
       remainingMs = ms;
       phase = driver.phase;
       if (debug && driver.phase === 'running') {
@@ -275,6 +282,18 @@
     lastHiddenAt = 0;
     runStartedAt = performance.now();
     nowMs = runStartedAt;
+
+    /*
+     * Seed the baseline, and clear the last run's announcement.
+     *
+     * Verified by mutation, and the result corrected the comment that was here
+     * first: removing the SEED alone changes nothing, because `announceMilestone`
+     * assigns `milestoneFromMs` on every call and self-corrects after one tick.
+     * What the clear does is load-bearing — without it the live region still
+     * holds "Hết giờ" from the previous run when the next one starts.
+     */
+    milestoneFromMs = durationMs;
+    milestone = '';
 
     driver.start(durationMs);
 
@@ -564,6 +583,73 @@
 
   const onPlayerScreen = $derived(session.state === 'playing' || session.state === 'paused');
 
+  // ── docs/03 §8 milestone announcements, and docs/03 §1's tally pulse ───────
+
+  /**
+   * The polite region the countdown itself deliberately does not have.
+   *
+   * `TtCountdown` carries no `aria-live` — announcing every tick is
+   * screen-reader spam — so the five milestones live here instead, in the
+   * shell that owns the timer. Separate from `TtQueuePanel`'s region: two
+   * `aria-live` areas with different subjects are how a reader is told which
+   * one changed.
+   */
+  let milestone = $state<string>('');
+
+  /**
+   * The previous remaining value, kept for the crossing test — and kept
+   * SEPARATELY from `remainingMs`.
+   *
+   * Reusing the display value looked equivalent and was not: `remainingMs` is
+   * initialised to 90 000 for the idle preview and only moves once the timer
+   * ticks, so the first tick of a 12-second run compared 90 000 against 12 000,
+   * decided it had just crossed the one-minute mark, and announced "one minute
+   * remaining" to someone who had asked for twelve seconds.
+   *
+   * The pure rule was right and the argument was wrong — this project's
+   * signature defect shape, caught by E2E because no unit test of
+   * `milestoneFor` can see which values the shell hands it. Confirmed by
+   * mutation: restoring `remainingMs` here turns the 12-second spec red with
+   * exactly the spurious "one minute remaining" it shipped with.
+   */
+  let milestoneFromMs = 0;
+
+  function announceMilestone(currentMs: number) {
+    if (session.state !== 'playing') return;
+    const crossed = milestoneFor(milestoneFromMs, currentMs);
+    milestoneFromMs = currentMs;
+    if (!crossed) return;
+    /*
+     * Cleared first, then set in a microtask. A live region whose text is
+     * replaced with a DIFFERENT string announces reliably, but 10 s and zero
+     * can arrive close together and some readers coalesce two rapid mutations
+     * into one — blanking between them makes each a distinct change.
+     */
+    milestone = '';
+    queueMicrotask(() => {
+      milestone =
+        crossed === 'min10'
+          ? i18n.t('player.milestone.min10')
+          : crossed === 'min5'
+            ? i18n.t('player.milestone.min5')
+            : crossed === 'min1'
+              ? i18n.t('player.milestone.min1')
+              : crossed === 'sec10'
+                ? i18n.t('player.milestone.sec10')
+                : i18n.t('player.milestone.zero');
+    });
+  }
+
+  /**
+   * docs/03 §1 / docs/05 §6 — the tally light pulses to the beat.
+   *
+   * Published by `TtVisualizer` on every analyser frame **including when the
+   * style is `off`**, which is the whole reason the beat is a separate channel:
+   * "even Visualizer: off keeps one live beat element". Steady in YouTube mode,
+   * where there is no Analyser to read at all.
+   */
+  let beat = $state(0);
+
   /**
    * docs/03 §2's carve-out, and the reason it is a `$derived` rather than a
    * branch at each call site: the rail holds the YouTube player, and `06 §1.2`
@@ -724,6 +810,20 @@
 -->
 <TtBackdrop coverArtUrl={playback.track?.coverArtUrl ?? null} {focusMode} />
 
+<!--
+  docs/03 §2 Z2 — above Z1, below everything else. Mounted whenever the player
+  is up, even with the style `off`: it is also the only thing reading the
+  analyser, and the Z5 tally light's pulse comes from it (docs/05 §6).
+
+  `available={session.mode !== 'youtube'}` is the hard platform limit, not a
+  preference — cross-origin media gives no Analyser access at all.
+-->
+<TtVisualizer
+  available={session.mode !== 'youtube'}
+  playing={onPlayerScreen && session.state === 'playing'}
+  onbeat={(energy) => (beat = energy)}
+/>
+
 {#if booted && needsGate}
   <TtLegalGate onaccept={acceptLegal} />
 {/if}
@@ -757,10 +857,21 @@
   -->
   {#if !focusMode}
     <header class="tt-brand" data-testid="tt-brand">
+      <!--
+        docs/03 §1: "Playing: tt-danger, pulsing to the beat (Analyser energy)
+        in local modes; steady in YouTube mode." The pulse arrived with the
+        visualizer in P5 slice 4, as docs/05 §6 said it would — P2 shipped the
+        two-state dot rather than a fake pulse.
+
+        Driven by a CSS custom property rather than a class, because the beat is
+        continuous: a class would quantise it to on/off and read as a blink.
+      -->
       <span
         class="tt-tally"
         class:tt-live={session.state === 'playing'}
+        style:--tt-beat={beat}
         data-testid="tt-tally"
+        data-tt-beat={beat > 0 ? '1' : null}
         aria-hidden="true"
       ></span>
       <span class="tt-wordmark">TickTune</span>
@@ -944,6 +1055,14 @@
     way out of Focus, and why `]` did nothing in YouTube mode. One region, so
     they cannot stack on top of each other.
   -->
+  <!--
+    docs/03 §8's five polite milestones. The countdown itself has no `aria-live`
+    — announcing every tick is spam — so this is where 10 min / 5 min / 1 min /
+    10 s / zero are spoken. Visually hidden, never `display: none`, which would
+    take it out of the accessibility tree along with the announcement.
+  -->
+  <p class="tt-sr" role="status" aria-live="polite" data-testid="tt-milestone">{milestone}</p>
+
   {#if hint === 'focus'}
     <p class="tt-hint-chip" role="status" data-testid="tt-hint">{i18n.t('player.focus.hint')}</p>
   {:else if hint === 'railLocked'}
@@ -1030,9 +1149,47 @@
     border-radius: 50%;
     background: var(--color-tt-muted);
   }
+  /*
+   * docs/03 §1's beat-reactive tally. `--tt-beat` is 0–1 from the analyser, and
+   * both the glow and the scale ride it continuously — a class toggle would
+   * quantise the beat to a blink.
+   *
+   * The transition is short on purpose: at 150 ms a kick still reads as a hit
+   * rather than as a fade, and the value is refreshed every animation frame
+   * anyway. In YouTube mode `--tt-beat` stays 0 and this is the steady dot
+   * docs/03 §1 specifies.
+   */
   .tt-live {
     background: var(--color-tt-danger);
-    box-shadow: 0 0 8px var(--color-tt-danger);
+    box-shadow: 0 0 calc(8px + var(--tt-beat, 0) * 14px) var(--color-tt-danger);
+    scale: calc(1 + var(--tt-beat, 0) * 0.5);
+    transition:
+      box-shadow var(--duration-tt-fast) linear,
+      scale var(--duration-tt-fast) linear;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    /* docs/03 §8 lists the tally pulse among what reduced motion disables. The
+       visualizer stops publishing a beat there too, so this is the second of
+       two guards rather than the only one. */
+    .tt-live {
+      scale: 1;
+      box-shadow: 0 0 8px var(--color-tt-danger);
+      transition: none;
+    }
+  }
+
+  /* Visually hidden, still announced — the same technique TtQueuePanel uses.
+     Never `display: none`, which removes it from the accessibility tree. */
+  .tt-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
   }
   .tt-wordmark {
     font-size: 0.78rem;

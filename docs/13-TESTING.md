@@ -99,6 +99,7 @@ non-empty queue must also handle the `beforeunload` guard (`02 §3`) or they han
 | Playlist playback (`02 §5.1`) | Three ~5 s fixtures play in sequence with **no click between them** — asserted as peak Analyser RMS > 0 both **before and after** the advance, because one that moved the highlight while loading a dead deck would pass on the highlight alone. Repeat off at exhaustion: media stops, "Đã hết danh sách" shows, and the countdown **keeps running** (`04 §5`). Removing the playing row advances rather than restarting. Shuffle mid-run leaves the current track playing. Right-click opens the info modal for the row that was targeted, not for track 1 |
 | Hotkeys | Space/M/F/H/]/S behave; disabled while typing. Satisfied in two parts: P2 shipped `Space`/`↑↓`/`M`/`Esc` with the Player screen; **P5 slice 2 completed the set** — `S` opens the panel and returns focus to ⚙, `H` hides Z4–Z7 and grows the digits, `]` collapses a local rail, and all of them are inert while the legal gate is up or the panel is open |
 | Settings panel (`03 §6`) | `countdownSize` is **genuinely read** — the computed `font-size` is strictly ordered S < M < L and survives a reload; `glowIntensity` changes the rendered `text-shadow` (compared, never pattern-matched: Chromium serialises `color-mix` as `color(srgb …)` and Firefox as `rgba(…)`); `endAction: 'restart'` re-runs the countdown exactly once and `endFlash` fires; Diagnostics shows the real TT-USR-100 the gate logged; reset needs two presses and lands back on the gate |
+| Visualizer + a11y (`05 §6`, `03 §8`) | Its own file. Each style **paints real pixels** — sampled from the canvas rather than asserted as "the element mounted", because a canvas that draws nothing looks identical to one working on a quiet passage. The tally pulse is asserted **at `Visualizer: off`**, which is where a beat published from inside the draw path would silently die. Reduced motion removes canvas *and* pulse while leaving the stored style untouched. The five milestones are driven by a **real** 12-second countdown — `page.clock` does not reach the timer worker, so a fast-forward would prove only that the component has an `if` — and the spec asserts exactly two announcements fire, which is what catches a spurious one from a stale baseline. Audio-dependent assertions skip on Firefox **per assertion, with the real reason** |
 | **YouTube visibility** (`06 §1.2`, `03 §2`) | Its own file, `yt-visibility.spec.ts`, because the P4 suite could not express it: the countdown is swept across 1920→1024 px **in the ≥ 1 h regime**, which is 4.48 em wide against `MM:SS`'s 3.46 and is the regime every other YouTube spec skips. Asserts the player box ≥ 200×200, computed opacity exactly `1`, fully inside the viewport, no horizontal scroll, and **nothing painted over it** — sampled on a 5×5 grid, because a centre-only probe stayed green while the digits overlapped the player's left edge by 79 px. Covers Focus, `]`, the settings sheet and the info modal. ⚠️ Never `checkVisibility({checkOpacity:true})`: S1 measured it `true` at opacity 0.06 |
 | i18n | toggle EN↔VI swaps visible strings without reload |
 | Mobile gate (`07 §6`) | mobile project: overlay visible, **zero component/framework chunks** in the network log (the ≈200 B guard chunk is expected and is not the app bundle — `01 §3`); desktop project: island mounts |
@@ -160,6 +161,17 @@ for the import-pipeline E2E instead of hitting YouTube.
   YT-mode entry.
 - Visualizer steady-state: no long tasks > 50 ms while playing (Performance
   panel spot-check); adaptive degrade path exercised by forcing 6× CPU throttle.
+
+**P7, confirmed 2026-07-24.** `16`'s P5 exit row used to read "perf budget met"
+and contradicted this heading; the roadmap was corrected rather than this
+chapter. A budget is only meaningful against the finished surface — P6 adds the
+landing pages and P7 the polish — so a number fixed in P5 would have to be
+re-measured anyway.
+
+What **P5 owes** is separate and is a behaviour rather than a number: the
+visualizer must *have* the adaptive-degrade path (`05 §6`), and slice 4 ships it
+with a unit test over the decision. Whether the frame budget is actually met on
+real hardware is what P7 measures.
 
 ## 6. Accessibility pass (P7)
 

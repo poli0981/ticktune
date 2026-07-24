@@ -49,13 +49,20 @@ function mount(over: Partial<Parameters<typeof TtSettings>[1]> = {}) {
 }
 
 describe('the groups that ship, and the ones that deliberately do not', () => {
-  it('renders the eight groups that have a renderer behind them', () => {
+  it('renders all nine of docs/03 §6’s groups, each with a renderer behind it', () => {
+    /*
+     * Complete as of P5 slice 4, and the ORDER of arrival is the point: every
+     * group landed in the same change as the feature it configures — Display
+     * with `TtBackdrop` in slice 3, Visualizer with `TtVisualizer` in slice 4.
+     * Never before. That is `03 §6`'s rule, and the defect it guards against is
+     * `TtSingleRail`'s loop-style pair: an inert control, in production,
+     * reading as finished work.
+     */
     mount();
     for (const id of [
       'tt-set-general',
-      // Display joined in slice 3, WITH the Z1 renderer — the group ships with
-      // its feature, never before it (docs/03 §6).
       'tt-set-display',
+      'tt-set-visualizer',
       'tt-set-countdown',
       'tt-set-audio',
       'tt-set-playback',
@@ -67,15 +74,38 @@ describe('the groups that ship, and the ones that deliberately do not', () => {
     }
   });
 
-  it('renders no Visualizer group — its renderer does not exist yet', () => {
-    /*
-     * The guard against the defect this very panel fixes elsewhere. `03 §6`
-     * lists nine groups; slice 4 builds the last one. Shipping it disabled
-     * would put an inert control in production, which is what
-     * `TtSingleRail`'s loop-style pair was.
-     */
+  it('still hides the S4b-gated Audio controls, which have no implementation', () => {
+    // The rule outlives the last group: crossfade and the loop-style selector
+    // stay absent while docs/15 §S4b is open.
     mount();
-    expect(screen.queryByTestId('tt-set-visualizer')).toBeNull();
+    expect(screen.queryByTestId('tt-set-crossfade')).toBeNull();
+    expect(screen.queryByTestId('tt-set-loopstyle')).toBeNull();
+  });
+
+  it('writes every visualizer style, and the sensitivity', async () => {
+    mount();
+    await fireEvent.click(screen.getByTestId('tt-set-viz-bars'));
+    expect(patch).toHaveBeenCalledWith({ visualizer: 'bars' });
+    await fireEvent.click(screen.getByTestId('tt-set-viz-wave'));
+    expect(patch).toHaveBeenCalledWith({ visualizer: 'wave' });
+    await fireEvent.click(screen.getByTestId('tt-set-viz-ring'));
+    expect(patch).toHaveBeenCalledWith({ visualizer: 'ring' });
+    await fireEvent.click(screen.getByTestId('tt-set-viz-off'));
+    expect(patch).toHaveBeenCalledWith({ visualizer: 'off' });
+
+    await fireEvent.input(screen.getByTestId('tt-set-viz-sensitivity'), {
+      target: { value: '1.7' },
+    });
+    expect(patch).toHaveBeenCalledWith({ visualizerSensitivity: 1.7 });
+  });
+
+  it('states both limits rather than leaving them to be discovered', () => {
+    // The YouTube one is a platform fact (docs/05 §6), and the tally line is
+    // what makes `off` a real choice rather than "no reaction at all".
+    mount();
+    const group = screen.getByTestId('tt-set-visualizer');
+    expect(group.textContent).toMatch(/YouTube/);
+    expect(group.textContent).toMatch(/nhịp|beat/i);
   });
 
   it('offers no crossfade or loop-style control while spike S4b is open', () => {

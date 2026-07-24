@@ -48,8 +48,16 @@ light, faint scanlines. Distinct from the portfolio's other systems (RepoLens
 - **Tally light**: 10 px dot, top-left next to the wordmark. Idle: `tt-muted`.
   Playing: `tt-danger`, pulsing to the beat (Analyser energy) in local modes;
   steady in YouTube mode. This is the beat-reactive element that survives even
-  when the visualizer is off. **The pulse ships with the visualizer in P5**
-  (`05 §6`); P2 ships the two-state dot, steady in both states.
+  when the visualizer is off. ✅ **The pulse shipped with the visualizer in P5
+  slice 4** (`05 §6`); P2 shipped the two-state dot, steady in both states.
+
+  Driven by a CSS custom property carrying the 0–1 energy, **not** by a class:
+  the beat is continuous, and a class toggle quantises it to on/off, which reads
+  as a blink rather than as a pulse. Both the glow radius and the scale ride the
+  same value. Suppressed under `prefers-reduced-motion` in two places — the
+  visualizer stops publishing a beat at all, and the CSS pins the dot — because
+  the first is the real mechanism and the second is what catches a future
+  refactor that keeps the value flowing.
 - Fonts are **self-hosted** (privacy §09): `@fontsource/be-vietnam-pro`,
   `@fontsource/jetbrains-mono`; DSEG7 Classic vendored in `public/fonts/dseg7/`
   with its OFL license file. DSEG covers digits + `:` `.` `-` only — exactly what
@@ -364,7 +372,7 @@ truth. Do not restate a default here; it will drift.
 | General | Language EN/VI · reopen legal pages · reset app (clears Dexie) | `lang` | **P5 s2** |
 | Display | Background: Solid / Gradient (6 presets + custom) / Image / Slideshow (multi-upload, interval, fade or Ken Burns) / Cover-art blur · scrim strength · scanlines · auto-theme | `background`, `gradientPreset`, `gradientCustom`, `slideshowIntervalMs`, `slideshowTransition`, `scrimStrength`, `scrimAuto`, `scanlines`, `autoTheme` | **P5 s3** |
 | Countdown | Glow intensity · size (S/M/L) · **End Behavior**: fade-out duration, chime, flash, and what happens at zero (stay / restart / loop — see `02 §3.3`) | `glowIntensity`, `countdownSize`, `endFadeMs`, `endChime`, `endFlash`, `endAction` | **P5 s2** |
-| Visualizer | Style off/bars/wave/ring · sensitivity | `visualizer`, `visualizerSensitivity` | P5 s4 |
+| Visualizer | Style off/bars/wave/ring · sensitivity | `visualizer`, `visualizerSensitivity` | **P5 s4** |
 | Audio | Volume · mute · ~~crossfade~~ · ~~single-mode loop style~~ | `volume`, `muted`, (`crossfadeMs`, `singleLoopStyle` — S4b) | **P5 s2**, partly |
 | Playback | Shuffle · Repeat playlist · allow duplicates | `shuffle`, `repeatPlaylist`, `allowDuplicates` | **P5 s2** |
 | Hotkeys | Read-only reference list | — | **P5 s2** |
@@ -387,9 +395,11 @@ explanation, which is why the empty state is copy rather than an absence.
 ### A group ships with its feature, never before it
 
 **A group whose renderer does not exist is not rendered — not even disabled.**
-Display and Visualizer are absent from the panel until slices 3 and 4, and inside
-Audio the crossfade slider and the loop-style selector are absent while `15 §S4b`
-is open; the group carries one line of prose saying so instead.
+✅ **All nine groups now exist**, and the order of arrival is the point: Display
+landed with `TtBackdrop` in slice 3, Visualizer with `TtVisualizer` in slice 4,
+neither a moment earlier. Inside Audio the crossfade slider and the loop-style
+selector are **still absent** while `15 §S4b` is open — the rule outlives the
+last group — and that group carries one line of prose saying so instead.
 
 The rule is written here because the alternative had already shipped: `TtSingleRail`
 carried a loop-style pair with hardcoded `aria-pressed` and **no `onclick` at all**
@@ -461,6 +471,31 @@ player and the player may never be hidden (`§2` carve-out, `06 §1.2`).
   `tt-muted` used only ≥ 14 px.
 - Countdown `aria-live`: **off** for per-second ticks (screen-reader spam);
   polite announcements at 10 min / 5 min / 1 min / 10 s / zero.
+  ✅ **Written in P5 slice 4** — it had been a sentence with no code behind it
+  since suite 1.0, and `16` listed it as a P5 exit criterion for that reason.
+
+  Three rules the sentence does not state, each ruling out a wrong
+  announcement (`tt-milestones.ts`, and each has a unit test):
+
+  1. **Downward crossings only.** A 30-second countdown starts already below the
+     one-minute threshold, and announcing "one minute remaining" at the moment
+     the user pressed Start would be nonsense. It also keeps a paused timer
+     silent.
+  2. **Only the lowest threshold, when one tick crosses several.** `04 §2` is
+     explicit that a backgrounded tab can be throttled for minutes, so a tick
+     genuinely can run 12 min → 30 s. Four announcements back to back would talk
+     over each other and the only one still true would arrive last.
+  3. **Zero is `<= 0`, not `== 0`.** The timer overshoots by design, routinely by
+     a whole throttled interval, so equality would silently never fire the one
+     announcement that matters most.
+
+  ⚠️ **The wiring was the defect, not the rule** — this project's signature
+  shape, and it shipped for the length of one E2E run. The shell first passed
+  the *display* value as "previous", and that value is initialised to 90 000 for
+  the idle preview, so the first tick of a 12-second run compared 90 000 against
+  12 000 and announced "one minute remaining". The pure function was correct
+  throughout. A dedicated baseline fixed it; reverting it turns the spec red
+  with exactly that spurious announcement.
 - Full keyboard support: queue rows focusable, context-menu equivalent via `Menu`
   key / `Shift+F10`, visible focus ring (`tt-signal`, 2 px offset).
 - Language of parts: `lang` attribute switches with i18n so screen readers use the

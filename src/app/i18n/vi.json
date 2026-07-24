@@ -113,6 +113,13 @@
       "hint": "Bấm H để thoát chế độ tập trung",
       "railLocked": "Trình phát phải luôn hiển thị — điều khoản YouTube"
     },
+    "milestone": {
+      "min10": "Còn mười phút",
+      "min5": "Còn năm phút",
+      "min1": "Còn một phút",
+      "sec10": "Còn mười giây",
+      "zero": "Hết giờ"
+    },
     "queue": {
       "label": "Phát lại",
       "shuffle": "Trộn",
@@ -216,6 +223,7 @@
     "group": {
       "general": "Chung",
       "display": "Hiển thị",
+      "visualizer": "Hiệu ứng nhạc",
       "countdown": "Đồng hồ",
       "audio": "Âm thanh",
       "playback": "Phát lại",
@@ -281,6 +289,16 @@
       "endActionStay": "Dừng lại",
       "endActionRestart": "Chạy thêm một lần",
       "endActionLoop": "Lặp đến khi bạn dừng"
+    },
+    "visualizer": {
+      "style": "Kiểu",
+      "off": "Tắt",
+      "bars": "Cột",
+      "wave": "Sóng",
+      "ring": "Vòng",
+      "sensitivity": "Độ nhạy",
+      "youtubeHint": "Không có ở chế độ YouTube — âm thanh video thuộc trình phát của YouTube nên không đo được.",
+      "tallyHint": "Chấm đèn cạnh tên ứng dụng vẫn nhấp theo nhịp ngay cả khi tắt hiệu ứng."
     },
     "audio": {
       "volume": "Âm lượng",

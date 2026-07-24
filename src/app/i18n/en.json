@@ -113,6 +113,13 @@
       "hint": "Press H to leave focus mode",
       "railLocked": "The player must stay visible — YouTube terms"
     },
+    "milestone": {
+      "min10": "Ten minutes remaining",
+      "min5": "Five minutes remaining",
+      "min1": "One minute remaining",
+      "sec10": "Ten seconds remaining",
+      "zero": "Time is up"
+    },
     "queue": {
       "label": "Playback",
       "shuffle": "Shuffle",
@@ -216,6 +223,7 @@
     "group": {
       "general": "General",
       "display": "Display",
+      "visualizer": "Visualizer",
       "countdown": "Countdown",
       "audio": "Audio",
       "playback": "Playback",
@@ -281,6 +289,16 @@
       "endActionStay": "Stop",
       "endActionRestart": "Run once more",
       "endActionLoop": "Repeat until stopped"
+    },
+    "visualizer": {
+      "style": "Style",
+      "off": "Off",
+      "bars": "Bars",
+      "wave": "Wave",
+      "ring": "Ring",
+      "sensitivity": "Sensitivity",
+      "youtubeHint": "Not available in YouTube mode — the video's audio belongs to YouTube's player and cannot be measured.",
+      "tallyHint": "The dot beside the wordmark keeps the beat even with the visualizer off."
     },
     "audio": {
       "volume": "Volume",

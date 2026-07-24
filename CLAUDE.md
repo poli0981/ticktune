@@ -135,12 +135,19 @@ Start, because the banner blocked the only action that could gather the evidence
 to clear it. **When an action is gated on evidence, ask what gathers that
 evidence and whether the gate forbids it.**
 
-**P5 — Visuals & settings is IN PROGRESS.** Slices 1–2 are merged to `main` and
-**not released**; the live site is still v0.5.2. `docs/16 §P5` has the four-slice
-plan and the measurement that shapes the whole phase: **14 of the 26
-`TtSettings` fields are declared, defaulted, clamped, persisted, unit-tested —
-and read by nothing.** P5 is wiring up what `docs/02 §3.1` already promised, not
-schema design, so every slice owes a test that its field is genuinely READ.
+**P5 — Visuals & settings is COMPLETE (4/4 slices).** v0.6.0 (i18n + ⚙ panel +
+Focus), v0.7.0 (Z1 backgrounds), v0.8.0 (visualizer + a11y). Exit review in
+`docs/16 §P5`; nothing carries out of the phase.
+
+The measurement that shaped it, and it held up: **14 of the 26 `TtSettings`
+fields were declared, defaulted, clamped, persisted, unit-tested — and read by
+nothing.** All fourteen are consumed now, and each slice shipped a test that its
+field is genuinely READ rather than merely present.
+
+⚠️ **The habit that found the rest:** grepping for the **READ**, not the
+declaration, also turned up the whole `02 §7` diagnostics API, `ttLog.subscribe`
+and `__TT_VERSION__` — three more things declared and consumed by nobody. Apply
+it to any API a doc describes, not just to schema fields.
 
 Slice 1 shipped `docs/08 §2`'s runtime, both dictionaries, the `§3` key guard,
 Z6's language toggle, and ~145 literals migrated. It also changed
@@ -161,6 +168,25 @@ Slice 2 shipped the ⚙ panel (**7 of `03 §6`'s 9 groups**), Focus mode, and
   player, so the page behind genuinely stays live and the ARIA must not lie.
 - **`--tt-yt-reserve` is the one mechanism for "no overlay covers the player".**
   Published on `.tt-main`; every fixed layer insets its right edge by it.
+
+Slice 4 shipped the visualizer (`05 §6`), the beat-reactive tally (`03 §1`) and
+`03 §8`'s five spoken milestones. Two rules from it:
+
+- **The beat is published BEFORE the style is consulted.** `05 §6`'s "even
+  Visualizer: off keeps one live beat element" is why `TtVisualizer` still
+  mounts at `off` and still reads the analyser. Publishing from inside the draw
+  path would make `off` silently kill the tally, so the E2E asserts the pulse
+  **at the `off` setting**.
+- **Adaptive degrade measures this component's own work**, never the gap between
+  frames — a page at 30 fps for unrelated reasons would otherwise degrade the
+  visualizer forever over someone else's cost.
+
+⚠️ **And the signature defect recurred, in the milestones.** The pure rule was
+right and unit-tested at every boundary; the shell passed it the **display**
+value as the crossing baseline, which is initialised to 90 000 for the idle
+preview — so a 12-second run announced *"one minute remaining"*. Caught by E2E
+on its first run. No unit test of a pure function can see the arguments its
+caller chooses.
 
 Slice 3 shipped the Z1 stack (`03 §2`) and the Display group — nine fields, the
 largest block of the fourteen. Three pure engines carry the decisions:
@@ -267,13 +293,15 @@ mechanism measured — hand-mount wins (`docs/01 §3`).
 
 Open items, in the order they block things:
 
-1. **P5 slice 4 — the visualizer, plus a11y and perf.** Three styles, the tally
-   pulse, reduced motion, and the perf number. It is the last slice of P5.
+1. **P6 — the landing pages and the EN mirrors.** P5 is complete: all four
+   slices shipped, all fourteen fields wired, all nine `03 §6` groups exist, and
+   `16 §P5` carries the exit review. Nothing carries out of the phase.
 
-   Two items carried into it: **`13 §5` says the perf budget is checked in P7
-   while `16` makes it a P5 exit criterion** — reconcile before leaning on it ·
-   **"a11y milestones announced" is unwritten code**, `03 §8`'s five polite
-   announcements at 10 min / 5 min / 1 min / 10 s / zero.
+   Two decisions from slice 4 worth not re-deriving: **the perf budget is P7's**
+   (settled 2026-07-24 — `13 §5` was right, `16`'s table was wrong; a number
+   fixed two phases before the surface is final is a number that gets
+   re-measured) · **the a11y milestones are written** and their rule is in
+   `03 §8`, including the three cases the one-line spec did not state.
 
    ✅ **`tests/manual/p5-live-checklist.md` was run on 2026-07-23 and every line
    passed first time**, including the `≥ 1 h` geometry block and a real Firefox

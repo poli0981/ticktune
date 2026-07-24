@@ -11,7 +11,7 @@ Durations are effort estimates, not calendar promises. **v1.0 target: late Q3
 | **P2 · Local audio + Single** (~1 wk) | Audio graph, import pipeline (single), metadata modal, bottom bar, loop styles, end behavior default, **+ the S2 late-finish variant of the Finished screen (`04 §2` option 3, decided)** — scope notes below | Single mode E2E passes; fade+chime works with tab hidden; a hidden run past `LATE_THRESHOLD_MS` shows the actual finish time rather than implying "now" |
 | **P3 · Playlist** (~1 wk) | Queue panel, drag-reorder, shuffle/repeat, dedupe + limits + summary toasts, context menu, import progress · ~~crossfade~~ (`15 §S4b`, see below) | Playlist limits tests pass; 95-file batch import OK — amended in the scope notes below |
 | **P4 · YouTube** (~1 wk) | `/api/yt/oembed` Worker route, player rail, error overlays, YT import pipeline, offline panel | Manual yt-matrix passes; rate-limit path handled |
-| **P5 · Visuals & settings** (~1 wk) | Visualizer (3 styles), backgrounds + slideshow, auto-theme, focus mode, full settings, i18n dictionaries complete + key-diff guard | Reduced-motion + a11y milestones announced; perf budget met |
+| **P5 · Visuals & settings** (~1 wk) | Visualizer (3 styles), backgrounds + slideshow, auto-theme, focus mode, full settings, i18n dictionaries complete + key-diff guard | Reduced-motion + a11y milestones announced. **Perf budget is P7's** — decided 2026-07-24, see below |
 | **P6 · Landing + legal** (~0.5–1 wk) | Landing VI/EN (hero uses **placeholder** capture until core is stable — per spec), legal pages from `legal/*` drafts, **VI translation of legal**, 404, FAQ | Lighthouse ≥ 95 static pages; hreflang correct |
 | **P7 · Hardening + launch** (~1 wk) | CSP Report-Only → enforce, a11y pass, perf pass, cross-browser sweep incl. WebKit, live-site smoke checklist, domain + CF checklist (`10 §11`), demo capture replaces placeholder | v1.0.0 tag; notify fan-out |
 
@@ -540,7 +540,7 @@ that the field is genuinely read, not merely present.
 | **1 — i18n** ✅ | runtime, both dictionaries, the key guard, Z6, every string migrated | `lang` |
 | **2 — Settings + Focus** ✅ | the ⚙ panel (7 of 9 groups), Focus mode, the missing hotkeys (`F H S ] Esc`) | `countdownSize`, the six Countdown fields, `allowDuplicates`, `singleLoopStyle` |
 | **3 — Backgrounds** ✅ | solid / gradient / image / slideshow, scrim, scanlines, auto-theme | the eight Display fields |
-| **4 — Visualizer + a11y/perf** | three styles, tally pulse, reduced motion, the perf number | `visualizer`, `visualizerSensitivity` |
+| **4 — Visualizer + a11y** ✅ | three styles, tally pulse, reduced motion, the milestone announcements | `visualizer`, `visualizerSensitivity` |
 
 ### Slice 1 — i18n · merged 2026-07-23
 
@@ -729,15 +729,85 @@ Two runs in a row where the live checklist found nothing — and both slices'
 defects were found by *measuring during planning* instead. That is the
 measure-first step earning its place, not the checklist going slack.
 
-### Carried into slice 4 — what is still open
+### Slice 4 — the visualizer, the pulse and the announcements · 2026-07-24
+
+The last slice of P5. `05 §6`'s three styles, `03 §1`'s beat-reactive tally, and
+`03 §8`'s five polite milestones — the last of which had been **a sentence with
+no code behind it since suite 1.0** and was the phase's stated exit criterion.
+
+**All fourteen fields are now read.** `visualizer` and `visualizerSensitivity`
+close the list `16 §P5` opened the phase with.
+
+Decisions worth keeping:
+
+- **The beat is published before the style is consulted.** `05 §6` says "even
+  Visualizer: off keeps one live beat element", so the component still mounts at
+  `off` and still reads the analyser — it simply draws nothing. The obvious
+  arrangement, publishing from inside the draw path, would have made `off`
+  silently kill the tally light, and nothing else in the app would have noticed.
+  The E2E asserts the pulse **at the `off` setting** for exactly that reason.
+- **Adaptive degrade measures the component's own work**, not the gap between
+  frames. A page at 30 fps for unrelated reasons reports 33 ms every frame, and
+  a gap-based rule would degrade the visualizer forever in response to someone
+  else's cost. Recovery is asymmetric — two strikes down, one frame up.
+- **The tally rides a CSS custom property, not a class.** The beat is
+  continuous; a class quantises it to a blink.
+- **Milestones announce only the lowest threshold crossed.** A throttled tab can
+  tick 12 min → 30 s (`04 §2`), and four announcements back to back would talk
+  over each other with the only true one arriving last.
+
+⚠️ **One defect, and it is the signature shape again.** The milestone rule was
+pure, unit-tested at every boundary, and correct. The shell handed it the
+**display** value as "previous" — which is initialised to 90 000 for the idle
+preview — so a 12-second run compared 90 000 to 12 000 and announced *"one
+minute remaining"* to someone who had asked for twelve seconds. Caught by the
+E2E on its first run, because no unit test of a pure function can see which
+arguments the caller passes it.
+
+Also worth recording: **the first mutation check targeted the wrong line.**
+Removing the baseline *seed* changed nothing (the handler self-corrects after
+one tick); reverting to the display value is what turns the spec red. The
+comment in the code says so, rather than claiming credit for the seed.
+
+### P5 exit review
+
+| Criterion (`16` table) | Status |
+|---|---|
+| Visualizer, 3 styles | ✅ bars / wave / ring, slice 4 |
+| Backgrounds + slideshow | ✅ slice 3 |
+| Auto-theme | ✅ slice 3, cover art only — `03 §5`'s thumbnail clause was **removed**, not implemented |
+| Focus mode | ✅ slice 2, with the ToS carve-out asserted end to end |
+| Full settings | ✅ all nine `03 §6` groups, each shipped with its feature |
+| i18n dictionaries + key-diff guard | ✅ slice 1, three guards |
+| Reduced motion | ✅ suppresses scanlines, Ken Burns, the visualizer and the tally pulse — **at render time**, never rewriting the stored value |
+| a11y milestones announced | ✅ slice 4 |
+| ~~Perf budget met~~ | **Moved to P7** (2026-07-24). `13 §5` was right; a budget fixed two phases before the surface is final would only be re-measured |
+
+**What the phase was actually about**, restated because it held up: 14 of 26
+`TtSettings` fields were declared, defaulted, clamped, persisted, unit-tested —
+and read by nothing. Every one is now consumed, and each slice shipped a test
+that its field is genuinely *read* rather than merely present.
+
+Three more declared-and-never-consumed items turned up on the way, all found by
+grepping for the READ rather than the declaration: the whole `02 §7` diagnostics
+API, `ttLog.subscribe`, and `__TT_VERSION__`. That habit is the phase's most
+portable lesson.
+
+### Carried out of P5 — what is still open
 
 | | |
 |---|---|
 | ~~`TtSingleRail` ships two dead buttons~~ | ✅ Fixed in slice 2. `aria-pressed` derives from the **effective** style, "Cắt thẳng" has a real handler, and a stored `'crossfade'` renders the visible notice `05 §2` promised — until now it was a log line only |
 | ~~`settings.reset()` re-blocks the app~~ | ✅ Resolved in slice 2, in favour of the honest reading: a full reset **is** a fresh profile, so the gate returning is correct and the confirmation says so before it happens (`03 §6`). Logged as TT-USR-101 |
 | ~~Focus vs the ToS floor~~ | ✅ Measured and resolved — the ToS floor wins, enforced by layout rather than a YouTube branch (`03 §4`) |
-| **Perf budget: P5 or P7?** | Still open. `13 §5` is headed "Performance budget (**checked in P7**)" while `16`'s table makes "perf budget met" a **P5** exit criterion. Reconcile before slice 4 leans on it |
-| **The a11y exit criterion is unwritten code** | Still open. "a11y milestones announced" is `03 §8`'s five polite announcements at 10 min / 5 min / 1 min / 10 s / zero. A feature, not a checkbox — slice 4 |
+| ~~Perf budget: P5 or P7?~~ | ✅ **Resolved 2026-07-24 — it is P7's.** `13 §5` was right and this table was wrong; the row above now says so. The reasoning is that a budget is only meaningful against the finished surface: P6 adds the landing pages and P7 the polish, so measuring `/app/` at ≤ 250 KB gz in P5 would fix a number to a bundle two phases from final, and a "pass" recorded here would have to be re-run anyway. What P5 **does** owe is that the visualizer has an adaptive-degrade path at all (`05 §6`), which is a behaviour rather than a number and is implemented in slice 4 |
+| ~~The a11y exit criterion is unwritten code~~ | ✅ **Written in slice 4.** `tt-milestones.ts` plus a polite region in the shell. Its wiring shipped one defect — the display value passed as the crossing baseline — caught by E2E and recorded in `03 §8` |
+
+**Nothing carries out of P5 into P6.** Every row above is closed, and the two
+open items that predate the phase are unchanged and belong elsewhere: **S4b**
+(`15 §S4`, gates crossfade only, and its harness needs fixing before a sweep
+means anything) and the **CodeQL Default setup** dashboard item (`10 §11`,
+zone-side, unfixable from this repository).
 
 ## Post-1.0 backlog (unordered)
 

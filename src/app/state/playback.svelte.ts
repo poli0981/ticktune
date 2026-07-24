@@ -56,6 +56,30 @@ class PlaybackStore {
     return this.#driver?.peakRms ?? 0;
   }
 
+  /**
+   * The visualizer's window onto the analyser — docs/05 §6.
+   *
+   * Deliberately NOT reactive. These are read from a `requestAnimationFrame`
+   * loop sixty times a second, and a `$state` field written at that rate would
+   * schedule sixty Svelte flushes per second across the whole component tree
+   * for a value only one canvas reads. The rune stores own state that the UI
+   * derives from; a frame buffer is neither.
+   *
+   * Returns 0 / no-ops before the driver is built, which is the state every
+   * page view starts in and the one a visualizer mounted at boot would hit.
+   */
+  get binCount(): number {
+    return this.#driver?.binCount ?? 0;
+  }
+
+  readFrequencyData(into: Uint8Array<ArrayBuffer>): void {
+    this.#driver?.readFrequencyData(into);
+  }
+
+  readTimeDomainData(into: Uint8Array<ArrayBuffer>): void {
+    this.#driver?.readTimeDomainData(into);
+  }
+
   #ensure(): TtAudioDriver {
     this.#driver ??= new TtAudioDriver({
       onLog: (code, detail) => {
