@@ -9,12 +9,22 @@
  * Bump in the same PR that materially changes any `legal/*.md`. Do not bump for
  * typos: every bump re-prompts every existing user.
  *
- * ⚠️ P6 slice B added the Vietnamese translations and did **not** bump this.
- * Publishing a translation of an unchanged document changes nobody's rights, and
- * re-prompting every existing user over it would be the larger harm. Promoting
- * `1.0-draft` → `1.0` is a P7 launch decision.
+ * ⚠️ P6 slice B added the Vietnamese translations and deliberately did **not**
+ * bump for them: publishing a translation of an unchanged document changes
+ * nobody's rights, and re-prompting every user over it would be the larger harm.
+ *
+ * 🔴 **It bumped `1.0-draft` → `1.1-draft` for a different reason**, and the
+ * distinction is what this constant is for. `PRIVACY-POLICY.md` stated that
+ * TickTune "stores no server-side logs of its own about you" while
+ * `wrangler.jsonc` had `observability.enabled` — which retains one log entry per
+ * `/api/yt/oembed` call for three days. That is not a typo: users accepted a
+ * description of our data handling that was **untrue**, and consent given to an
+ * inaccurate description is not consent. `PRIVACY-POLICY.md §7` promises the
+ * gate returns for exactly this, so it does.
+ *
+ * Promoting `1.1-draft` → `1.0` is still a P7 launch decision.
  */
-export const TT_LEGAL_VERSION = '1.0-draft';
+export const TT_LEGAL_VERSION = '1.1-draft';
 
 /**
  * The legal set, as one table.

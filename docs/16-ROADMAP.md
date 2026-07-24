@@ -929,10 +929,27 @@ belongs here is what was decided rather than defaulted.
   in-repo markdown has neither half of what the ban is about. Retyping four
   legal documents as HTML would have been strictly worse: the canonical text
   would then exist twice.
-- **The `TT_LEGAL_VERSION` bump was declined.** Publishing a translation of an
-  unchanged document changes nobody's rights, and every bump re-prompts every
-  existing user (`02 §3.1`). Promoting `1.0-draft` → `1.0` stays a P7 launch
-  decision.
+- **The `TT_LEGAL_VERSION` bump was declined _for the translations_.** Publishing
+  a translation of an unchanged document changes nobody's rights, and every bump
+  re-prompts every existing user (`02 §3.1`).
+- 🔴 **Then it was bumped anyway, `1.0-draft` → `1.1-draft`, for something else
+  entirely — and that is the more useful finding.** Asked to document what the
+  site owner can see in Cloudflare's dashboard, the answer turned out to include
+  something the policy actively denied: `wrangler.jsonc` has
+  `observability.enabled`, which retains **one log per `/api/yt/oembed` call for
+  3 days**, while `PRIVACY-POLICY.md` said TickTune "stores no server-side logs
+  of its own about you". Not a typo — users had accepted a description of our
+  data handling that was untrue, and `§7` promises the gate returns for exactly
+  that. New `§4.1` states both surfaces precisely: Cloudflare's dashboard is
+  **aggregates only** (no per-request IP or User-Agent — raw logs are an
+  enterprise feature this zone does not have), and the Worker logs cover **API
+  calls only**, because `run_worker_first` is unset so static pages never invoke
+  the Worker. `wrangler.jsonc` now carries the coupling in a comment: changing
+  that line changes the privacy policy.
+  ⚠️ The general shape: **the audit that finds a false statement is the one that
+  asks what a document promises and then goes and measures it.** Four `docs/*`
+  claims have now failed that test in two days — `03 §1`'s self-hosted fonts,
+  `docs/14`'s tag-only deploy, `docs/10`'s HSTS max-age, and this.
 - **`THIRD-PARTY-NOTICES` lost its Motion row.** It read "from P5; not yet
   installed" — and P5 shipped without it, so for four releases the notices file
   promised attribution for something no user ever received. A row means
