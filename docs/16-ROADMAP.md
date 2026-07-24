@@ -704,6 +704,31 @@ back the old value — indistinguishable from the setting never persisting.
 `test.use({ reducedMotion: 'reduce' })` did **not** reach `matchMedia` on
 `@playwright/test` 1.61.1 while `page.emulateMedia()` did.
 
+⚠️ **That same race was already live in v0.6.0, and CI caught it here.** The
+slice 3 run reported `1 flaky` — `settings.spec.ts` "the chosen size survives a
+reload", expecting 179.2 (size S) and receiving 230.4 (the default). It had
+passed every local run; the first slow runner lost the race. Grepping the shape
+found a **third** instance, latent since P1: `legal-gate.spec.ts` reloads
+immediately after Accept, and the gate hides synchronously while the write is
+awaited afterwards. All three now poll the row.
+
+The lesson is about the signal, not the fix: **`retries: 2` means a flake
+reports as `pass`**, so a green check is not evidence of a stable suite. The
+run's *duration* is what prompted the look — 21m54s against the usual 6m — and
+that turned out to be runner queueing, with the real Playwright time at 4.3m.
+The flake was found by reading the log rather than the badge.
+
+### Slice 3's live run — 2026-07-24
+
+`tests/manual/p5-slice3-live-checklist.md` run against the **PR preview before
+the merge**, second consecutive slice to use the corrected ritual. Every line
+passed first time, including a real-Firefox pass and both directions of the
+adaptive scrim. Released as **v0.7.0**.
+
+Two runs in a row where the live checklist found nothing — and both slices'
+defects were found by *measuring during planning* instead. That is the
+measure-first step earning its place, not the checklist going slack.
+
 ### Carried into slice 4 — what is still open
 
 | | |
