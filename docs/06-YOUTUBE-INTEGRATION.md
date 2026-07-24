@@ -14,7 +14,29 @@ Suite 1.0 · 2026-07-21 · Locked decision D1
    tooling anywhere in the project.
 4. Playback starts only from a user gesture chain (gate Accept → Start), so
    programmatic `playVideo()` is within autoplay policy.
-5. These rules are restated in `CLAUDE.md` so AI-assisted changes cannot drift.
+5. **Attribution and identification** — the YouTube API Services duties, added
+   P7 slice A after `AUDIT-BACKLOG` found this list silent on them. Three things
+   follow from embedding the player, and all three are satisfied by *not*
+   interfering rather than by adding anything:
+   - **The player's own branding, title and controls are never hidden or
+     covered.** Rule 2 already forbids obscuring the player, so this is the same
+     requirement seen from the licence side rather than the layout side — which
+     is why the `03 §2` carve-out is a compliance rule and not a design taste.
+   - **Metadata is attributed to YouTube and never presented as ours.** Titles
+     and author names come from oEmbed and are shown as the video's own; the
+     track-info modal labels the source (`02 §8`). We never re-caption a video.
+   - **Nothing derived from YouTube data is stored beyond the session or shown
+     out of context.** The queue is session-only by design; oEmbed answers are
+     cached at the edge for 6 h and are not a datastore.
+
+   ⚠️ **The thumbnail ruling belongs here too.** `03 §5` once specified a
+   blurred/recoloured `hqdefault` background. S1 proved the CORS objection was
+   wrong — `i.ytimg.com` sends `ACAO: *`, so the canvas is untainted — which
+   turned it from *impossible* into *a decision*. It stays unbuilt because
+   modifying thumbnail imagery is exactly what the attribution duties constrain
+   and the terms were never read. Generated gradients ship instead.
+
+6. These rules are restated in `CLAUDE.md` so AI-assisted changes cannot drift.
 
 ## 2. Player lifecycle
 
