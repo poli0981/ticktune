@@ -62,9 +62,20 @@ async function play(page: Page, style: 'off' | 'bars' | 'wave' | 'ring'): Promis
   await stageSingle(page);
   await setDuration(page, 0, 5, 0);
   await page.getByRole('button', { name: 'Bắt đầu' }).click();
-  await expect
-    .poll(() => page.evaluate(() => document.documentElement.dataset['ttAudio']))
-    .toBe('running');
+
+  /*
+   * Wait for the PLAYER SCREEN, not for `ttAudio === 'running'`.
+   *
+   * On the CI Firefox `AudioContext.resume()` hangs (docs/13 §3), so `ttAudio`
+   * stays `suspended` there forever — and two of the tests below need no
+   * audible output at all (the canvas being absent at `off`, and reduced
+   * motion). Gating `play()` on `running` failed both for an environment
+   * reason rather than a product one. The tally goes `tt-live` the instant
+   * `session.state` is `playing`, which is synchronous with the click; the
+   * tests that DO need real audio poll `canvasHasInk`/`beat` themselves and
+   * skip Firefox on their own line.
+   */
+  await expect(page.getByTestId('tt-tally')).toHaveClass(/tt-live/);
 }
 
 test.describe('the visualizer canvas', () => {
