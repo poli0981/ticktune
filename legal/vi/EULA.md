@@ -1,9 +1,10 @@
 # TickTune — Thỏa thuận cấp phép người dùng cuối / Điều khoản sử dụng
 
 Version 1.0 · 2026-07-24 · Tiếng Anh là ngôn ngữ gốc có hiệu lực của tài
-liệu này; bản dịch tiếng Việt được cung cấp cho thuận tiện. Bản nháp này do nhà
+liệu này; bản dịch tiếng Việt được cung cấp cho thuận tiện. Văn bản này do nhà
 phát triển soạn, không phải do luật sư, và dành cho một ứng dụng web nguồn mở,
-miễn phí, phi thương mại.
+miễn phí, phi thương mại. Phiên bản `1.0` nghĩa là nó không còn là bản nháp —
+chứ không có nghĩa là đã được luật sư rà soát.
 
 ## 1. Chấp nhận
 
