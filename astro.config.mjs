@@ -52,6 +52,75 @@ function ttLegalLinksPlugin() {
   return { name: 'tt-legal-links', link: rewrite, definition: rewrite };
 }
 
+/**
+ * Record which third-party packages actually end up in the shipped bundle —
+ * P7 slice A, the input to `scripts/make-notices.ts`.
+ *
+ * ## Why the bundle and not the dependency list
+ *
+ * Attribution obligations attach to what is **distributed**, and the two sets
+ * are not the same here. `pnpm licenses list --prod --json` returns **233**
+ * packages including `@astrojs/compiler-binding` — a build tool that never
+ * reaches a browser. Shipping a notice for it would also contradict
+ * `docs/11 §5`'s own rule that dev tooling gets no row.
+ *
+ * So the package set comes from the module graph the bundler actually emitted,
+ * which cannot drift from reality: if code is in the bundle, its id passed
+ * through here. `scripts/make-notices.ts` then looks up the licence text.
+ *
+ * ⚠️ **The fonts are invisible to this** and must be added by hand in that
+ * script. woff2 arrives through a CSS `@import`, so no JS module id ever names
+ * `@fontsource/*` — the same blind spot that made `knip` report both packages
+ * as unused dependencies (see `knip.json`). One cause, two workarounds, and
+ * neither is optional: the OFL requires its text to accompany the font.
+ */
+function ttBundledPackages() {
+  /** .pnpm layout: …/node_modules/.pnpm/<pkg>@<ver>_<hash>/node_modules/<pkg>/… */
+  const owner = (moduleId) => {
+    const id = moduleId.replace(/\\/g, '/');
+    const at = id.lastIndexOf('/node_modules/');
+    if (at === -1) return null;
+    // The LAST `/node_modules/` segment is what makes scoped packages
+    // (`@astrojs/svelte`) and nested copies resolve to the right owner.
+    const rest = id.slice(at + '/node_modules/'.length).split('/');
+    const name = rest[0]?.startsWith('@') ? `${rest[0]}/${rest[1]}` : rest[0];
+    return name && !name.startsWith('.') ? name : null;
+  };
+
+  return {
+    name: 'tt-bundled-packages',
+    apply: 'build',
+
+    generateBundle(_options, bundle) {
+      /*
+       * ⚠️ Astro builds TWICE — "Building static entrypoints" (server, to render
+       * the pages) then the client bundle. Collecting across both is wrong and
+       * was the first version's bug: it reported `astro`, `zod`, `cookie` and a
+       * dozen other server-render helpers as if a browser downloaded them.
+       *
+       * Only the CLIENT environment ships to a user, so only it creates an
+       * attribution obligation.
+       */
+      if (this.environment?.name !== 'client') return;
+
+      const seen = new Set();
+      for (const out of Object.values(bundle)) {
+        if (out.type !== 'chunk') continue;
+        for (const id of out.moduleIds ?? []) {
+          const name = owner(id);
+          if (name) seen.add(name);
+        }
+      }
+
+      this.emitFile({
+        type: 'asset',
+        fileName: 'tt-bundled-packages.json',
+        source: JSON.stringify([...seen].sort(), null, 2),
+      });
+    },
+  };
+}
+
 // Normative copy lives in docs/01 §5. Keep the two in sync.
 export default defineConfig({
   // No SSR — docs/01 §6 non-goal. Exactly one dynamic route exists and it is a
@@ -103,7 +172,7 @@ export default defineConfig({
   },
 
   vite: {
-    plugins: [tailwindcss()],
+    plugins: [tailwindcss(), ttBundledPackages()],
 
     build: {
       /*

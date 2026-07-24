@@ -23,9 +23,33 @@ narrowed claim is what is recorded here, not the original.
 
 ## Open
 
-### 🔴 blocker · Third-party notices reproduce no license texts or copyright holders, and the fallback claim about lockfiles is factually wrong
+### ✅ ~~🔴 blocker~~ · Third-party notices reproduce no license texts or copyright holders, and the fallback claim about lockfiles is factually wrong
 
-**Owner phase:** P6 legal pass — BLOCKS first public release · **Lens:** legal-compliance
+**CLOSED in P7 slice A, 2026-07-24.** `scripts/make-notices.ts` emits
+`dist/THIRD-PARTY-NOTICES.txt` with the full licence text and copyright line of
+every package in the shipped client bundle — **19 components** where the curated
+table lists 12 — and **fails the build** if any of them has no licence text to
+reproduce (mutation-verified: exit 1, naming the package).
+
+The recommendation was followed with one correction. It said "generate from the
+lockfile"; the lockfile is the wrong input. `pnpm licenses list --prod --json`
+returns **233** packages including `@astrojs/compiler-binding`, which no browser
+receives — so the package set comes from the **client** module graph
+(`ttBundledPackages` in `astro.config.mjs`) and only the licence *text* comes
+from pnpm. Collecting the server pass as well was this fix's own first bug and
+attributed `astro`, `zod` and `cookie`.
+
+The transitive chain the finding named is now covered: `strtok3`, `token-types`,
+`@borewit/text-codec`, `@tokenizer/inflate`, `file-type`, `uint8array-extras`.
+
+⚠️ Two parts of the finding were **already stale** when it was picked up: the
+lockfile-metadata sentence had been rewritten, and `docs/11 §5` already said
+"compatibility **and** attribution/notice obligations". Its (c) half — the two
+`@fontsource` families shipping with no OFL text — was **not** stale and had
+become live in P6 when they first became real dependencies; it is closed by the
+same artifact.
+
+**Owner phase:** ~~P6 legal pass~~ → closed P7 slice A · **Lens:** legal-compliance
 
 Narrowed to a real must-fix-before-first-deploy (not a pre-implementation blocker): legal/THIRD-PARTY-NOTICES.md reproduces no copyright lines or license texts for the distributed components, and the suite's process rules never require it. Specifically: (a) the MIT deps (astro, svelte, @astrojs/svelte, tailwindcss, motion, music-metadata, i18next, nanoid) need their copyright + permission notice carried into the shipped output; (b) dexie (Apache-2.0) needs a copy of the License per §4(a) and NOTICE retention per §4(d); (c) Be Vietnam Pro and JetBrains Mono ship woff2 via @fontsource with no OFL text stated as shipped — DSEG7 is already compliant because docs/01 §4 and docs/03 §1 vendor OFL.txt with it, so the auditor's "no license text for anything" is wrong; (d) transitive bundled code (music-metadata's strtok3/token-types chain, etc.) is never covered by a hand-maintained 12-row table, so the fix is a generated NOTICES artifact from the actual bundle at build time, wired into docs/14 §1 and the P1 scaffold, rather than more table rows. The lockfile sentence at lines 27-29 is a separate, minor wording fix — pnpm-lock.yaml genuinely records no license fields, but it describes non-distributed dev tooling that carries no notice obligation, so it is cosmetic, not the blocker the auditor frames it as. Actionable now only as a doc/process amendment (docs/11 §5, CONTRIBUTING.md PR checklist, docs/14 workflow inventory); the artifact itself cannot exist until the dependency tree does.
 

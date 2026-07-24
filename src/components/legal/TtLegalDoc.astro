@@ -65,6 +65,24 @@ const home = lang === 'vi' ? '/' : '/en/';
       <slot />
     </article>
 
+    {
+      /*
+        P7 slice A — the generated attribution artifact.
+        The prose above is a curated overview; a hand-kept table cannot carry a
+        notice obligation for transitive code (music-metadata alone pulls in six
+        packages). scripts/make-notices.ts emits the full text of every licence
+        in the shipped bundle at build time, and this is where a reader finds it.
+        Linked rather than inlined because it is generated AFTER astro build.
+      */
+      docKey === 'thirdParty' && (
+        <p class="tt-generated">
+          <a href="/THIRD-PARTY-NOTICES.txt" data-testid="tt-legal-generated">
+            {t.legal.generatedNotices}
+          </a>
+        </p>
+      )
+    }
+
     <p class="tt-version" data-testid="tt-legal-version">
       {t.legal.versionLabel}
       {TT_LEGAL_VERSION}
@@ -102,6 +120,19 @@ const home = lang === 'vi' ? '/' : '/en/';
     background: var(--color-tt-surface);
     color: var(--color-tt-muted);
     font-size: 0.8rem;
+  }
+
+  .tt-generated {
+    margin-top: 2rem;
+    border-left: 2px solid var(--color-tt-signal);
+    padding: 0.65rem 0.9rem;
+    background: var(--color-tt-surface);
+    font-size: 0.82rem;
+  }
+  .tt-generated a {
+    color: var(--color-tt-signal);
+    text-decoration: underline;
+    text-underline-offset: 3px;
   }
 
   .tt-version {

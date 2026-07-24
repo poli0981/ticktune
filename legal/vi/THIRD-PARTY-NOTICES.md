@@ -14,6 +14,20 @@ lời câu hỏi "tôi đang thực sự chạy những gì", không phải mộ
 
 Mã nguồn của chính TickTune: **GPL-3.0-only** — © 2026 poli0981.
 
+## Ghi công đầy đủ
+
+**Trang này chỉ là bản tóm lược có biên tập. Bản ghi công đầy đủ — toàn văn giấy
+phép và dòng bản quyền của mọi gói có mặt trong bản dựng, kể cả các gói phụ
+thuộc gián tiếp — được sinh ra lúc build và phục vụ tại
+[`/THIRD-PARTY-NOTICES.txt`](/THIRD-PARTY-NOTICES.txt).**
+
+Hai tệp tồn tại vì hai lý do khác nhau và không thay thế cho nhau. Bảng dưới đây
+viết cho người đang cân nhắc có tin ứng dụng này hay không; còn tệp được sinh ra
+mới là thứ mà các giấy phép MIT, Apache-2.0 và OFL thực sự yêu cầu phải đi kèm
+bản phân phối. Một bảng viết tay không làm được việc thứ hai: riêng
+`music-metadata` đã kéo thêm sáu gói nữa vào bản dựng, và sẽ không ai nhận ra
+chúng bị thiếu.
+
 ## Thành phần được đóng gói / nhúng kèm
 
 | Thành phần | Giấy phép | Ghi chú |

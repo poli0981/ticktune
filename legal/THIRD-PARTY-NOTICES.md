@@ -13,6 +13,20 @@ slice B. Do not add a row ahead of the dependency: this file is the answer to
 
 TickTune's own code: **GPL-3.0-only** — © 2026 poli0981.
 
+## Full attribution
+
+**This page is a curated overview. The complete notice — the full licence text
+and copyright line of every package in the shipped bundle, transitive ones
+included — is generated at build time and served at
+[`/THIRD-PARTY-NOTICES.txt`](/THIRD-PARTY-NOTICES.txt).**
+
+The two exist for different reasons and neither replaces the other. The table
+below is written for a person deciding whether to trust this app; the generated
+file is what the MIT, Apache-2.0 and OFL licences actually require to travel
+with a distribution. A hand-kept table cannot do the second job: `music-metadata`
+alone pulls six further packages into the bundle, and no reviewer was ever going
+to notice their absence.
+
 ## Bundled / vendored components
 
 | Component | License | Notes |

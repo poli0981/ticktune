@@ -146,6 +146,7 @@ export const en = {
     canonicalEn: 'This English text is the canonical version of this document.',
     canonicalVi:
       'This is a translation provided for convenience. The English version is canonical for interpretation.',
+    generatedNotices: 'Full licence texts for every bundled component →',
     versionLabel: 'Version',
     docs: {
       eula: 'Terms of Use',

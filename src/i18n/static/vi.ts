@@ -118,6 +118,7 @@ export const vi: StaticDict = {
     canonicalEn: 'Bản tiếng Anh này là bản gốc có hiệu lực của văn bản.',
     canonicalVi:
       'Đây là bản dịch để tiện theo dõi. Bản tiếng Anh mới là bản có hiệu lực khi cần diễn giải.',
+    generatedNotices: 'Toàn văn giấy phép của mọi thành phần được đóng gói →',
     versionLabel: 'Phiên bản',
     docs: {
       eula: 'Điều khoản sử dụng',

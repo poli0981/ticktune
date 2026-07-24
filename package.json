@@ -17,7 +17,7 @@
   },
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build && node scripts/inject-csp-hash.ts",
+    "build": "astro build && node scripts/inject-csp-hash.ts && node scripts/make-notices.ts",
     "preview": "astro preview",
     "lint": "eslint . && prettier --check .",
     "format": "prettier --write .",
