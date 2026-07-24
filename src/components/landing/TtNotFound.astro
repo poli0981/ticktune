@@ -1,0 +1,67 @@
+---
+import TtBase from '../../layouts/TtBase.astro';
+import type { StaticDict } from '../../i18n/static/en';
+
+/**
+ * 404 — docs/03 §3 item 8, "static Astro page, On Air styled".
+ *
+ * ⚠️ **Only the VI page is the actual fallback.** `wrangler.jsonc` sets
+ * `not_found_handling: "404-page"`, which serves `dist/404.html` — one file, the
+ * Vietnamese one — for every unknown path, including under `/en/`. `/en/404` is
+ * a reachable, indexable mirror (docs/08 §1 lists 404 among the mirrors) but it
+ * is not what an unknown `/en/*` path lands on. Serving a language-correct 404
+ * would need a Worker route, and the Worker exists only for `/api` (docs/10 §3).
+ * Deliberate, and recorded here so nobody reads it as a bug.
+ *
+ * `noindex` on both: a 404 that gets indexed is a soft-404 in Search Console.
+ */
+
+interface Props {
+  t: StaticDict;
+  lang: 'vi' | 'en';
+}
+
+const { t, lang } = Astro.props;
+---
+
+<TtBase title={t.notFound.title} description={t.notFound.body} {lang} noindex>
+  <main class="tt-404">
+    <p class="tt-code font-digit" aria-hidden="true">404</p>
+    <h1>{t.notFound.heading}</h1>
+    <p class="tt-body">{t.notFound.body}</p>
+    <a href={lang === 'vi' ? '/' : '/en/'}>{t.common.backHome}</a>
+  </main>
+</TtBase>
+
+<style>
+  .tt-404 {
+    display: grid;
+    place-content: center;
+    justify-items: center;
+    gap: 0.6rem;
+    min-height: 100dvh;
+    padding: 2rem;
+    text-align: center;
+  }
+  .tt-code {
+    font-size: 3.75rem;
+    color: var(--color-tt-danger);
+    font-variant-numeric: tabular-nums;
+  }
+  h1 {
+    font-size: 1.125rem;
+    font-weight: 500;
+  }
+  .tt-body {
+    font-size: 0.85rem;
+    color: var(--color-tt-muted);
+  }
+  a {
+    margin-top: 0.75rem;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-tt-signal);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+</style>

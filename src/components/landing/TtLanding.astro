@@ -1,0 +1,83 @@
+---
+import TtBase from '../../layouts/TtBase.astro';
+import TtHero from './TtHero.astro';
+import TtFeatureGrid from './TtFeatureGrid.astro';
+import TtModeExplainer from './TtModeExplainer.astro';
+import TtLimitsTable from './TtLimitsTable.astro';
+import TtFaq from './TtFaq.astro';
+import TtFooter from './TtFooter.astro';
+import type { StaticDict } from '../../i18n/static/en';
+
+/**
+ * The landing page itself — docs/03 §3 item 1, docs/08 §1.
+ *
+ * Both `/` and `/en/` render THIS, differing only in the dictionary they hand
+ * over and the `lang`. That is what "one component per page, strings from typed
+ * dictionaries" means in `08 §1`: the markup exists once, so the two languages
+ * cannot drift structurally — only their text differs, and that difference is
+ * type-checked.
+ *
+ * The alternates are built here rather than at each page, so the reciprocal
+ * pair can never be half-updated.
+ */
+
+interface Props {
+  t: StaticDict;
+  lang: 'vi' | 'en';
+}
+
+const { t, lang } = Astro.props;
+
+/** docs/08 §1 — `/` is VI and the x-default; `/en/` is the EN mirror. */
+const alternates = [
+  { hreflang: 'vi', href: new URL('/', Astro.site).href },
+  { hreflang: 'en', href: new URL('/en/', Astro.site).href },
+  { hreflang: 'x-default', href: new URL('/', Astro.site).href },
+];
+
+const otherHref = lang === 'vi' ? '/en/' : '/';
+---
+
+<TtBase title={t.landing.title} description={t.landing.description} {lang} {alternates}>
+  <main class="tt-page">
+    <!--
+      The language switch is a LINK, not a toggle: these are separate routes
+      (docs/08 §1), so switching language here is navigation. The app island's
+      in-place toggle is a different mechanism for a different surface.
+      `hreflang` on the anchor tells assistive tech the target language.
+    -->
+    <nav class="tt-lang" aria-label={t.common.switchToLabel}>
+      <a href={otherHref} hreflang={lang === 'vi' ? 'en' : 'vi'} lang={lang === 'vi' ? 'en' : 'vi'}>
+        {t.common.switchTo}
+      </a>
+    </nav>
+
+    <TtHero t={t.landing} common={t.common} />
+    <TtFeatureGrid t={t.landing} />
+    <TtModeExplainer t={t.landing} />
+    <TtLimitsTable t={t.landing} />
+    <TtFaq t={t.landing} faq={t.faq} />
+    <TtFooter t={t.landing} common={t.common} legal={t.legal} />
+  </main>
+</TtBase>
+
+<style>
+  .tt-page {
+    width: min(72rem, 100% - 3rem);
+    margin-inline: auto;
+  }
+  .tt-lang {
+    display: flex;
+    justify-content: flex-end;
+    padding-top: 1.25rem;
+    font-size: 0.78rem;
+  }
+  .tt-lang a {
+    color: var(--color-tt-muted);
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+  .tt-lang a:hover {
+    color: var(--color-tt-text);
+  }
+</style>

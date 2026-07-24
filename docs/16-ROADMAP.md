@@ -809,6 +809,52 @@ open items that predate the phase are unchanged and belong elsewhere: **S4b**
 means anything) and the **CodeQL Default setup** dashboard item (`10 §11`,
 zone-side, unfixable from this repository).
 
+## P6 — Landing + legal · **in progress**, slice A built
+
+Two slices, one release each (2026-07-24 decision, with the user):
+**A** = landing + SEO + fonts · **B** = legal pages + VI translations + the
+in-app link re-point.
+
+### Slice A — the bilingual landing · 2026-07-24
+
+`/`, `/en/`, `/404`, `/en/404` from `src/i18n/static/{en,vi}.ts`, plus the SEO
+plumbing the site has never had: hreflang, sitemap, robots, favicon, Open Graph.
+Zero JS on every new page — the site still ships exactly one inline script and
+`inject-csp-hash.ts` reported the same hash on 8/8 pages after the change.
+
+Four decisions worth not re-deriving:
+
+- **Key parity is a compile error, not a test.** `vi.ts` is annotated against
+  `typeof en`, so drift fails `pnpm check` in both directions — stronger than
+  the island's JSON guard, and free. ⚠️ `en.ts` is deliberately **not**
+  `as const`: literal types would require the Vietnamese text to be
+  byte-identical to the English, i.e. forbid translating. The value-level test
+  is left with what a type cannot express — array lengths, empty strings, and
+  text left untranslated.
+- **hreflang lives in the page, and is asserted as reciprocity.** Both routes
+  advertise the same `vi`/`en`/`x-default` set, built once in `TtLanding.astro`
+  so it cannot be half-updated. `@astrojs/sitemap`'s i18n mode is **not** used —
+  it assumes locales are path prefixes and Vietnamese lives at the root, so its
+  pairing would be wrong. One mechanism rather than two that can disagree.
+- **The fonts were finally installed.** `03 §1` claimed self-hosting from suite
+  1.0 and `11 §2` pinned both packages, but neither was ever a dependency — so
+  every surface fell back to `system-ui`. Not a privacy defect (`font-src 'self'`
+  forbids a third-party fetch), a fidelity one, closed on the release that first
+  shows the product to strangers.
+- **The hero is a labelled illustration, not a screenshot.** A stale screenshot
+  of a half-built app ages badly and quietly misrepresents; the caption says it
+  is a placeholder, and P7 replaces it.
+
+⚠️ **Two build-time traps, both caught by looking rather than by a green exit
+code.** The brand-asset script wrote blank white PNGs because its `data:text/html`
+URL contained `#08090C` and `#` starts the fragment — it exited 0 and produced
+files the whole time. And knip flagged both fonts as unused dependencies because
+it parses JS imports and they arrive via CSS `@import`; they now sit in
+`ignoreDependencies` beside `tailwindcss`, which is there for the same reason.
+
+**Slice A exit:** Lighthouse ≥ 95 on `/` and `/en/`; hreflang reciprocal.
+Verified by hand against the PR preview (`13 §5`), not in CI.
+
 ## Post-1.0 backlog (unordered)
 
 - YouTube Data API v3 proxy on the existing Worker (duration/publish date at

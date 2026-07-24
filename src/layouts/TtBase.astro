@@ -7,6 +7,20 @@ interface Props {
   lang?: 'vi' | 'en';
   /** Throwaway spike pages set this — they are not product surface. */
   noindex?: boolean;
+  /**
+   * docs/08 §1's "hreflang alternates + lang attribute per route".
+   *
+   * Each page passes its own reciprocal set including `x-default`, e.g. the VI
+   * landing passes vi→`/`, en→`/en/`, x-default→`/`. Defaults to empty so
+   * `/app/` and the spike pages emit nothing and are unaffected.
+   *
+   * In-page `rel="alternate"` is what search engines read, and it is the
+   * "hreflang correct" P6 exit criterion — the sitemap deliberately does not
+   * duplicate it (see astro.config.mjs).
+   */
+  alternates?: { hreflang: string; href: string }[];
+  /** Social-card image, same-origin. Overridable per page. */
+  ogImage?: string;
 }
 
 const {
@@ -14,9 +28,14 @@ const {
   description = 'Đếm ngược toàn màn hình với nhạc của riêng bạn. Chạy hoàn toàn trên máy bạn.',
   lang = 'vi',
   noindex = false,
+  alternates = [],
+  ogImage = '/og/ticktune.png',
 } = Astro.props;
 
 const repo = 'https://github.com/poli0981/ticktune';
+
+const canonical = new URL(Astro.url.pathname, Astro.site);
+const ogImageUrl = new URL(ogImage, Astro.site);
 ---
 
 <!doctype html>
@@ -26,8 +45,36 @@ const repo = 'https://github.com/poli0981/ticktune';
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>{title}</title>
     <meta name="description" content={description} />
-    <link rel="canonical" href={new URL(Astro.url.pathname, Astro.site)} />
+    <link rel="canonical" href={canonical} />
     {noindex && <meta name="robots" content="noindex, nofollow" />}
+
+    {/* docs/08 §1 — reciprocal per route; empty on /app/ and the spikes. */}
+    {alternates.map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
+
+    {
+      /*
+      Open Graph + Twitter. Pure <meta>, so no CSP implication: the image is
+      fetched by the crawler from our origin, never by this page.
+    */
+    }
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="TickTune" />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:url" content={canonical} />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:locale" content={lang === 'vi' ? 'vi_VN' : 'en_US'} />
+    <meta name="twitter:card" content="summary_large_image" />
+
+    {
+      /*
+      Favicon — self-hosted, the "On Air" tally dot. SVG first with a PNG
+      fallback for the browsers and crawlers that ignore SVG icons.
+    */
+    }
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/favicon.png" sizes="96x96" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
     {
       /*

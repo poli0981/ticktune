@@ -185,6 +185,22 @@ the computed opacity and the box, not ask the platform whether it is visible.
 1. **Landing** (`/`, `/en/`) — hero with looping demo capture (placeholder asset
    until core is done, per spec), feature grid, mode explainer, limits table, FAQ,
    legal links, "Open TickTune →" CTA. Static, indexable (07 §3).
+   ✅ **Built in P6 slice A**, both languages, zero JS on the page.
+
+   Two things it carries that are requirements rather than copy:
+
+   - **The FAQ states the visible-vs-hidden countdown promise** (`04 §2` item 6)
+     — the one deliverable of the S2 decision that lives outside the app. It is
+     asserted in both languages by `tests/e2e/landing.spec.ts` and again at the
+     source by `tests/unit/tt-static-i18n.test.ts`, so a translation pass cannot
+     quietly drop it.
+   - **The GPL-3.0 §6 source-offer link** stays in the footer. It has been on
+     the page since the first deploy because the hosted build must offer its
+     corresponding source; it is a licence obligation, not decoration.
+
+   The hero media is a **placeholder** (`16` standing rule) — an illustration
+   rather than a screenshot, labelled as such on the page, and same-origin so
+   `img-src 'self'` needs no change. P7 replaces it with the real capture.
 2. **Legal Gate** — first run at `/app/`: blocking modal, summary of
    EULA/Disclaimer/Privacy + links to `/legal/*` and GitHub; single checkbox +
    Accept. Accept = autoplay-unlock gesture (`02 §1`). Re-shown if legal version

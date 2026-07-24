@@ -1,0 +1,88 @@
+---
+import type { StaticDict } from '../../i18n/static/en';
+
+/**
+ * Limits table — docs/03 §3 item 1.
+ *
+ * ⚠️ These are the numbers the importer actually enforces (`02 §1`, `06 §5`),
+ * and CLAUDE.md's invariant 4 calls them "spec, not suggestions". They live in
+ * the dictionary as prose rather than being imported from the engine constants
+ * on purpose: the engine values are milliseconds and counts, the page needs
+ * "up to 10:02" in two languages, and deriving one from the other would put
+ * formatting logic on a static page to save copying six rows. The live
+ * checklist re-reads them against the app.
+ */
+
+interface Props {
+  t: StaticDict['landing'];
+}
+
+const { t } = Astro.props;
+---
+
+<section class="tt-section" aria-labelledby="tt-limits">
+  <h2 id="tt-limits">{t.limitsTitle}</h2>
+  <table>
+    <thead>
+      <tr>
+        <th scope="col">{t.limitsHead.what}</th>
+        <th scope="col">{t.limitsHead.limit}</th>
+      </tr>
+    </thead>
+    <tbody>
+      {
+        t.limits.map((row) => (
+          <tr>
+            <th scope="row">{row.what}</th>
+            <td>{row.limit}</td>
+          </tr>
+        ))
+      }
+    </tbody>
+  </table>
+  <p class="tt-note">{t.limitsNote}</p>
+</section>
+
+<style>
+  .tt-section {
+    padding: 2.5rem 0;
+  }
+  h2 {
+    margin-bottom: 1.25rem;
+    font-size: 0.72rem;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-tt-muted);
+  }
+  table {
+    width: 100%;
+    max-width: 40rem;
+    border-collapse: collapse;
+    font-size: 0.85rem;
+  }
+  th,
+  td {
+    padding: 0.5rem 0.6rem;
+    text-align: left;
+    border-bottom: 1px solid var(--color-tt-line);
+  }
+  thead th {
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-tt-muted);
+  }
+  tbody th {
+    font-weight: 400;
+    color: var(--color-tt-text);
+  }
+  td {
+    font-family: var(--font-mono);
+    color: var(--color-tt-signal);
+  }
+  .tt-note {
+    margin-top: 0.9rem;
+    font-size: 0.78rem;
+    color: var(--color-tt-muted);
+  }
+</style>

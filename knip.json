@@ -12,6 +12,8 @@
   "ignore": ["dist/**", ".astro/**", "test/**"],
   "ignoreDependencies": [
     "@astrojs/check",
+    "@fontsource/be-vietnam-pro",
+    "@fontsource/jetbrains-mono",
     "prettier-plugin-astro",
     "prettier-plugin-svelte",
     "prettier-plugin-tailwindcss",

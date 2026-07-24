@@ -23,8 +23,8 @@ latest-or-LTS everywhere, no components with known critical CVEs.
 | music-metadata | 11.14.0 | MIT | `parseBlob` tag/cover extraction. **Production dependency**, dynamically imported at first import action so it stays off the boot chunk (`13 §5` budget) |
 | dexie | 4.4.4 | Apache-2.0 | Settings persistence (Apache-2.0 → GPL-3.0 compatible, one-way) |
 | i18next | 26.3.6 | MIT | App runtime i18n. **Not installed until P5** — `04 §2` item 5 authorises hardcoded VI + filed keys for P2 (`08 §3.1`) |
-| @fontsource/be-vietnam-pro | 5.3.0 | OFL-1.1 (pkg MIT) | UI font, VI diacritics |
-| @fontsource/jetbrains-mono | 5.3.0 | OFL-1.1 (pkg MIT) | Mono/meta font |
+| @fontsource/be-vietnam-pro | 5.3.0 | OFL-1.1 (pkg MIT) | UI font, VI diacritics. **Installed in P6 slice A** — see the note below |
+| @fontsource/jetbrains-mono | 5.3.0 | OFL-1.1 (pkg MIT) | Mono/meta font. **Installed in P6 slice A** |
 | DSEG7 Classic (vendored) | **v0.46** ✅ *verified 2026-07-21 via GitHub Releases API — latest **stable** release, published 2020-03-15. A `v0.50beta1` tag exists but is not a release; do not vendor a beta into a distributed font.* | OFL-1.1 | Seven-segment digits; `public/fonts/dseg7/` + OFL.txt |
 
 ## 3. Dev dependencies
@@ -44,6 +44,33 @@ latest-or-LTS everywhere, no components with known critical CVEs.
 | @vitest/coverage-v8 | 4.1.10 | Coverage provider — the docs/13 §1 threshold is enforced, so it must exist |
 | ffmpeg-static | 5.3.0 | **Dev-only fixture generation** (`scripts/make-fixtures.ts`). Its postinstall downloads a prebuilt ffmpeg (GPL); never imported by shipped code and never distributed, so no notice obligation follows (`§5`). Requires an explicit `allowBuilds` entry in `pnpm-workspace.yaml` — pnpm blocks postinstall scripts by default and we keep that guard. |
 | @cloudflare/workers-types | 5.x | Worker globals. Kept in a separate program (`tsconfig.worker.json`) because it conflicts with the DOM lib |
+| @astrojs/sitemap | 3.7.3 | **Dev-only, no notice row** (`§5`) — MIT, runs at build and emits static XML; nothing of it reaches the bundle, exactly like Astro/Vite/Tailwind. Added in P6 slice A because the sitemap is derived from the routes actually built: a hand-authored one is a second source of truth that rots the first time someone adds a page. Its `i18n` option is **not** used — it assumes locales are path prefixes (`/vi/`) and Vietnamese lives at the root, so hreflang stays in the page (`08 §1`) |
+
+### The fonts were named for four phases before they were installed
+
+This table pinned both `@fontsource` packages from suite 1.0 and `03 §1` said
+"fonts are self-hosted (privacy §09)" — but **neither was actually a dependency
+until P6 slice A**, so `--font-ui` and `--font-mono` named families the build
+never shipped and every surface fell back to `system-ui`.
+
+It was never a privacy defect: `font-src 'self'` forbids a third-party font
+fetch outright, and a missing family simply falls through to the next in the
+stack. It was a **fidelity** one — Vietnamese diacritics rendered in the OS font
+rather than the face the design was drawn for. It was closed on the release that
+publishes the landing page, because that is the first surface a stranger sees
+and the same release publishes the Privacy Policy making the self-hosted claim.
+
+Imported as the **full weight files** (`400.css`, `500.css`, `600.css`), not the
+`latin-*` subsets: each carries `unicode-range` per subset, so `/en/` fetches
+only latin while `/` adds the ~8 KB vietnamese subset because the page genuinely
+contains those code points. Importing the subset files instead would drop the
+ranges and fetch everything everywhere.
+
+⚠️ **knip cannot see these.** They are reached by `@import` from
+`src/styles/global.css`, and knip parses JS/TS imports, not CSS — so both sit in
+`knip.json`'s `ignoreDependencies` beside `tailwindcss`, which is there for the
+same reason. Removing either "unused" entry would silently restore the
+`system-ui` fallback this note exists to explain.
 
 ## 4. TypeScript version — ✅ RESOLVED 2026-07-21: pinned `~5.9`
 

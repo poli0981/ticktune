@@ -106,6 +106,7 @@ non-empty queue must also handle the `beforeunload` guard (`02 §3`) or they han
 | Offline | context.setOffline → banner; YT mode blocked panel |
 | Late finish (`04 §2`) | drive a real countdown past its deadline with Playwright's `page.clock` and assert the Finished screen states the actual finish time; below the threshold assert the normal screen is unchanged. **Not** a shipped `?ttovershoot=` hook — a production affordance that lets any URL render a false finish time would prove only that the component has an `if`.<br>Verified 2026-07-21 on `@playwright/test@1.61.1`: `clock.fastForward` moves `Date.now()` and `performance.now()` in step (skew 0), so `04 §1`'s drift rule correctly does **not** re-anchor, and an 8-minute fast-forward on a 5-minute countdown produced a 390 001 ms overshoot. Note it fires with `late: false` and **no TT-SYS-203** — the worker keeps ticking on the real clock because `page.clock` does not reach the worker realm — so the threshold, not the latch, is what this spec exercises |
 | 404 | unknown path serves styled 404 |
+| Landing (`03 §3`, `08 §1`) | `landing.spec.ts`, P6 slice A. **hreflang asserted as RECIPROCITY, not presence** — both pages must advertise the same pair, because a page that merely has alternates can still point them somewhere wrong, and that is the failure Search Console reports weeks later. Plus: each page canonicalises to itself; the FAQ carries the `04 §2` item 6 countdown promise **in both languages**; the CTA reaches `/app/`; the GPL source-offer link is present with `rel=noopener`; the hero placeholder is same-origin and labelled; `/app/` is `noindex` while the landing is not. The `docs/07 §5` crawler-content assertion in `mobile-gate.spec.ts` now covers `/en/` too |
 
 Browsers: CI on Chromium + Firefox every PR; WebKit added on the release branch
 (Safari audio quirks are covered mainly by Spike S3/S4 + manual pass).
@@ -161,6 +162,12 @@ for the import-pipeline E2E instead of hitting YouTube.
   YT-mode entry.
 - Visualizer steady-state: no long tasks > 50 ms while playing (Performance
   panel spot-check); adaptive degrade path exercised by forcing 6× CPU throttle.
+
+**Lighthouse ≥ 95 is P6's gate and is checked by hand**, not in CI — against the
+Cloudflare PR preview, desktop, on `/` and `/en/`, all four categories. Its SEO
+category validates canonical + hreflang + robots + meta-description, so it
+doubles as the "hreflang correct" exit check. The **bundle-size number** below
+stays P7's.
 
 **P7, confirmed 2026-07-24.** `16`'s P5 exit row used to read "perf budget met"
 and contradicted this heading; the roadmap was corrected rather than this
