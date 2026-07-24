@@ -102,6 +102,35 @@ export class TtAudioDriver {
   }
 
   /**
+   * How many frequency bins a frame carries — `fftSize / 2` (docs/05 §6).
+   *
+   * Published so the visualizer can size its buffer ONCE rather than allocating
+   * per frame. A 1 KB allocation sixty times a second is exactly the kind of
+   * pressure that shows up later as the jank the adaptive-degrade path is
+   * trying to explain.
+   */
+  get binCount(): number {
+    return this.#analyser.frequencyBinCount;
+  }
+
+  /**
+   * Fill a caller-supplied buffer with the current frame — docs/05 §6.
+   *
+   * Fill rather than return, for the allocation reason above, and a pair of
+   * plain methods rather than exposing the `AnalyserNode` because docs/12 §3.2
+   * keeps Web Audio types out of every component. What crosses this seam is a
+   * byte array; `tt-visualizer.ts` turns it into numbers to draw, and it is
+   * pure precisely because this method is the only impure part.
+   */
+  readFrequencyData(into: Uint8Array<ArrayBuffer>): void {
+    this.#analyser.getByteFrequencyData(into);
+  }
+
+  readTimeDomainData(into: Uint8Array<ArrayBuffer>): void {
+    this.#analyser.getByteTimeDomainData(into);
+  }
+
+  /**
    * MUST be called synchronously inside the gesture handler, before any
    * `await` — WebKit does not count a resume that happens after the task has
    * yielded (docs/05 §1).

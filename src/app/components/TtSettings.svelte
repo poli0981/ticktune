@@ -667,6 +667,72 @@
     </div>
   </section>
 
+  <!-- ── Visualizer ────────────────────────────────────────────────────── -->
+  <section data-testid="tt-set-visualizer">
+    <h3>{i18n.t('settings.group.visualizer')}</h3>
+
+    <div class="tt-row tt-stack">
+      <span>{i18n.t('settings.visualizer.style')}</span>
+      <div class="tt-seg tt-wrap" role="group" aria-label={i18n.t('settings.visualizer.style')}>
+        <button
+          class="tt-opt"
+          class:tt-on={s.visualizer === 'off'}
+          aria-pressed={s.visualizer === 'off'}
+          data-testid="tt-set-viz-off"
+          onclick={() => void settings.patch({ visualizer: 'off' })}
+          >{i18n.t('settings.visualizer.off')}</button
+        >
+        <button
+          class="tt-opt"
+          class:tt-on={s.visualizer === 'bars'}
+          aria-pressed={s.visualizer === 'bars'}
+          data-testid="tt-set-viz-bars"
+          onclick={() => void settings.patch({ visualizer: 'bars' })}
+          >{i18n.t('settings.visualizer.bars')}</button
+        >
+        <button
+          class="tt-opt"
+          class:tt-on={s.visualizer === 'wave'}
+          aria-pressed={s.visualizer === 'wave'}
+          data-testid="tt-set-viz-wave"
+          onclick={() => void settings.patch({ visualizer: 'wave' })}
+          >{i18n.t('settings.visualizer.wave')}</button
+        >
+        <button
+          class="tt-opt"
+          class:tt-on={s.visualizer === 'ring'}
+          aria-pressed={s.visualizer === 'ring'}
+          data-testid="tt-set-viz-ring"
+          onclick={() => void settings.patch({ visualizer: 'ring' })}
+          >{i18n.t('settings.visualizer.ring')}</button
+        >
+      </div>
+    </div>
+
+    <label class="tt-row">
+      <span>{i18n.t('settings.visualizer.sensitivity')}</span>
+      <input
+        type="range"
+        min="0.5"
+        max="2"
+        step="0.1"
+        data-testid="tt-set-viz-sensitivity"
+        value={s.visualizerSensitivity}
+        oninput={(e) =>
+          void settings.patch({ visualizerSensitivity: e.currentTarget.valueAsNumber })}
+      />
+    </label>
+
+    <!--
+      Two limits stated rather than left to be discovered. The YouTube one is a
+      platform fact (docs/05 §6: no Analyser on cross-origin media), and the
+      tally line is what makes `off` a real choice rather than "no reaction at
+      all" — the light keeps the beat either way.
+    -->
+    <p class="tt-note">{i18n.t('settings.visualizer.youtubeHint')}</p>
+    <p class="tt-note">{i18n.t('settings.visualizer.tallyHint')}</p>
+  </section>
+
   <!-- ── Audio ─────────────────────────────────────────────────────────── -->
   <section data-testid="tt-set-audio">
     <h3>{i18n.t('settings.group.audio')}</h3>

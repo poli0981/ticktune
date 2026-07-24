@@ -246,11 +246,32 @@ of a broken track. Matrix re-verified during Spike S3.
 - Canvas sized to CSS px × `min(devicePixelRatio, 2)`; renders only when visible
   and not reduced-motion; skips frames if the frame budget is exceeded twice
   in a row (adaptive degrade).
+
+  **Two details P5 slice 4 had to decide, because this line does not:**
+
+  - **What is measured is this component's OWN work**, not the gap between
+    frames. The gap is the wrong number: a page running at 30 fps for reasons
+    that have nothing to do with the visualizer reports 33 ms every frame, and
+    it would degrade itself forever in response to someone else's cost.
+  - **Recovery is asymmetric.** Two consecutive overruns to degrade, one frame
+    under budget to recover fully. Symmetric hysteresis would leave a machine
+    that hiccuped once permanently worse.
+
+  Both live in `tt-visualizer.ts` as a pure function over `(lastFrameMs,
+  strikes)`, so the rule is unit-tested rather than eyeballed on a fast laptop.
+  **Whether the budget is actually met on real hardware is P7's** (`13 §5`) —
+  P5 owes the path, not the number.
 - Beat energy (low-band average) also drives the tally-light pulse (03 §1) — so
-  even `Visualizer: off` keeps one live beat element. **Deferred to P5 with the
-  rest of the visualizer:** P2 ships the tally as a static two-state dot (idle
-  `tt-muted` / playing `tt-danger`). Stated here so the P2 Player screen does not
-  read as having dropped it.
+  even `Visualizer: off` keeps one live beat element. ✅ **Shipped in P5 slice 4**
+  (P2 shipped the static two-state dot, as this line promised).
+
+  **That sentence shaped the implementation.** The beat is published by the
+  visualizer component on every analyser frame *before* the style is consulted,
+  and the component still mounts (drawing nothing) at `Visualizer: off`. Putting
+  the publish inside the draw path would have been the obvious arrangement and
+  would have made "off" silently kill the tally — a defect nothing else in the
+  app would have noticed, because the light would simply have stopped moving.
+  The E2E asserts the pulse **at the `off` setting** for that reason.
 - **Unavailable in YouTube mode** (cross-origin media, no Analyser access) —
   UI substitutes thumbnail-blur + slow gradient drift; this is a hard platform
   limit, documented to the user in the FAQ.
