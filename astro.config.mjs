@@ -52,6 +52,27 @@ export default defineConfig({
 
   vite: {
     plugins: [tailwindcss()],
+
+    build: {
+      /*
+       * Never inline a font as a `data:` URL — docs/09 §4.
+       *
+       * Vite inlines assets under ~4 KB by default, and several of the
+       * fontsource subsets fall under it. The CSP says `font-src 'self'` with
+       * **no `data:`**, so the browser blocked every inlined face: three failed
+       * requests and four console errors on the live landing page, which is
+       * what pulled Lighthouse "Best Practices" down to 92 against a ≥ 95 exit
+       * criterion. The page still rendered — the non-inlined faces covered it —
+       * so nothing looked wrong.
+       *
+       * Fixed here rather than by adding `data:` to `font-src`: the CSP is
+       * deliberately tight (docs/09), and `data:` in `font-src` would be a real
+       * loosening to work around a bundler default. Emitting every face as a
+       * file also lets the `/_astro/*` immutable cache rule apply to it.
+       */
+      assetsInlineLimit: (filePath) =>
+        /\.(woff2?|ttf|otf|eot)$/i.test(filePath) ? false : undefined,
+    },
     define: {
       // Read by the About panel (docs/03 §6) and the diagnostics payload
       // (docs/02 §7). package.json is the single source of the version;
