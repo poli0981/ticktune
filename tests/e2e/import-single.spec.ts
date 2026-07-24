@@ -1,5 +1,5 @@
 import { test, expect } from '@playwright/test';
-import { gotoSingleMode, dismissUnloadDialogs, dropFiles } from './_helpers';
+import { gotoSingleMode, dismissUnloadDialogs, dropFiles, skipWithoutAudio } from './_helpers';
 
 /**
  * docs/13 §3 "Playlist limits", the Single-mode half — every rejection the
@@ -31,7 +31,11 @@ test.describe('single-mode import', () => {
     await expect(page.getByRole('button', { name: 'Bắt đầu' })).toBeDisabled();
   });
 
-  test('a multi-file DROP takes one and reports the rest (TT-IMP-004)', async ({ page }) => {
+  test('a multi-file DROP takes one and reports the rest (TT-IMP-004)', async ({
+    browserName,
+    page,
+  }) => {
+    skipWithoutAudio(browserName);
     // The picker is single-select in Single mode, so this path is reachable
     // only by dropping — which is also the path that has to survive the
     // capacity check being hoisted ahead of the per-file work (docs/02 §4).
@@ -80,7 +84,8 @@ test.describe('single-mode import', () => {
     await expect(page.getByTestId('tt-staged')).toContainText('vi-id3v1-only');
   });
 
-  test('embedded cover art is extracted and shown (docs/05 §5)', async ({ page }) => {
+  test('embedded cover art is extracted and shown (docs/05 §5)', async ({ browserName, page }) => {
+    skipWithoutAudio(browserName);
     dismissUnloadDialogs(page);
     await gotoSingleMode(page);
     await page.getByTestId('tt-file-input').setInputFiles(pick('with-cover.mp3'));
@@ -102,7 +107,8 @@ test.describe('single-mode import', () => {
     expect(await img.evaluate((el: HTMLImageElement) => el.naturalWidth)).toBeGreaterThan(0);
   });
 
-  test('a file with no cover still reports N/A', async ({ page }) => {
+  test('a file with no cover still reports N/A', async ({ browserName, page }) => {
+    skipWithoutAudio(browserName);
     dismissUnloadDialogs(page);
     await gotoSingleMode(page);
     await page.getByTestId('tt-file-input').setInputFiles(pick('tone-5s.mp3'));

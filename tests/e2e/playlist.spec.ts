@@ -5,6 +5,7 @@ import {
   setDuration,
   stageManyTracks,
   stagePlaylist,
+  skipWithoutAudio,
 } from './_helpers';
 
 /**
@@ -59,7 +60,7 @@ test.describe('playlist mode', () => {
   });
 
   test('plays the queue in order, audibly, advancing on its own', async ({ page, browserName }) => {
-    test.skip(browserName === 'firefox', 'no audio output device on the CI runner');
+    skipWithoutAudio(browserName);
     dismissUnloadDialogs(page);
     await gotoApp(page, '/app/?ttdebug=1');
     await stagePlaylist(page, THREE);
@@ -192,7 +193,11 @@ test.describe('playlist mode', () => {
    * Asserted as geometry rather than as a screenshot: what makes it a bug is
    * that the rail leaves the viewport and covers Z7, and that is measurable.
    */
-  test('a long queue scrolls inside the rail instead of overflowing it', async ({ page }) => {
+  test('a long queue scrolls inside the rail instead of overflowing it', async ({
+    browserName,
+    page,
+  }) => {
+    skipWithoutAudio(browserName);
     dismissUnloadDialogs(page);
     await gotoApp(page);
     await stageManyTracks(page, 24);
@@ -240,7 +245,8 @@ test.describe('playlist mode', () => {
    * tall, and Start ended up far past the fold. The `setup` variant caps it, and
    * Start stays reachable — which is the property worth pinning, not the pixel.
    */
-  test('on Setup the panel is capped so Start stays reachable', async ({ page }) => {
+  test('on Setup the panel is capped so Start stays reachable', async ({ browserName, page }) => {
+    skipWithoutAudio(browserName);
     dismissUnloadDialogs(page);
     await gotoApp(page);
     await stageManyTracks(page, 24);
@@ -272,7 +278,11 @@ test.describe('playlist mode', () => {
    * TT-IMP-005s. That test would be green, fast, and about dedupe rather than
    * about capacity.
    */
-  test('imports a 95-file batch and refuses the 96th (TT-IMP-004)', async ({ page }) => {
+  test('imports a 95-file batch and refuses the 96th (TT-IMP-004)', async ({
+    browserName,
+    page,
+  }) => {
+    skipWithoutAudio(browserName);
     test.slow(); // 95 sequential parses; generous rather than flaky under CI workers:1
     dismissUnloadDialogs(page);
     await gotoApp(page);

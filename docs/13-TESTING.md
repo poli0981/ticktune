@@ -102,6 +102,45 @@ turn anything red is a claim about the harness before it is a claim about the
 code.** Rebuild, then re-run, before concluding a test is weak. Run
 `pnpm build && pnpm test:e2e`, never `pnpm test:e2e` alone.
 
+### Desktop WebKit — added P7 slice B, and what it found
+
+`docs/16`'s P7 row asked for a "cross-browser sweep incl. WebKit" from the
+beginning. The only WebKit project was `iPhone 14`, which every spec skips via
+`test.skip(isMobile)` — so WebKit had exercised the mobile gate and nothing else,
+while the roadmap read as though Safari were covered.
+
+**The first run failed 130 of 166 specs, all on one line**, and the cause was a
+product defect rather than a browser difference. Playwright's WebKit build
+exposes **no `AudioContext` at all**, and `playback.unlock()` reaches `#ensure()`
+**synchronously**, so a bare `void playback.unlock()` threw past the rest of its
+handler. `void` discards a promise, not a synchronous throw. Three call sites,
+three failures, each killing something that had nothing to do with audio:
+
+| Site | What died |
+|---|---|
+| Legal gate | `session.gateAccepted()` never ran — the user was **trapped at the consent screen**, permanently, on every reload |
+| Start, YouTube mode | `yt.load()`/`yt.play()` never ran — **no player**, in the mode whose player the ToS requires to be visible, and which uses no Web Audio at all |
+| Start, local modes | `playback.load()` never ran |
+
+All three now go through one guarded `unlockAudio()` (`try` for the throw,
+`.catch` for the rejection), logging **TT-SYS-206**. Audio at these sites is
+opportunistic and retried later; consent and playback are not.
+
+A fourth defect surfaced once the app could run: **the zero milestone
+announcement was racing `onDone`.** It fired from the tick, and
+`announceMilestone` bails once state leaves `playing` — so it needed a tick to
+land exactly at 0 first. Chromium won that race, WebKit did not, and a 12 s
+countdown announced "ten seconds" and then nothing. Now announced from `onDone`,
+which is the authoritative zero. Mutation-verified.
+
+**Skips are honest and guarded.** `skipWithoutAudio()` states the *right* reason
+per browser — Firefox has the API but no output **device** on CI; WebKit has no
+API at all — because conflating them would misreport the matrix. Real Safari has
+had `AudioContext` since 14.1, so the WebKit skips describe the harness, not the
+product. `webkit-assumptions.spec.ts` **fails if a future Playwright build gains
+`AudioContext`**: a skip is a claim, and a claim whose reason has quietly stopped
+being true is worse than no skip.
+
 ⚠️ **`astro preview` is also more permissive than the deployed host, so some
 things are unassertable here by construction.** Measured in P6 slice B: with
 `build.format: 'directory'`, Cloudflare answers `/legal/eula` with a **307** to
