@@ -6,7 +6,7 @@
   import { gradientCss, gradientStops } from '../engine/visuals/tt-gradient';
   import { ttLog } from '../engine/log/tt-log';
   import type { TtLogEntry, TtLogLevel } from '../engine/log/types';
-  import { TT_LEGAL_LINKS } from '../../lib/tt-legal-const';
+  import { TT_LEGAL_LINKS, ttLegalHref } from '../../lib/tt-legal-const';
 
   /**
    * docs/03 §6 — the ⚙ Settings panel.
@@ -237,14 +237,20 @@
 
     <div class="tt-row">
       <span>{i18n.t('settings.general.legal')}</span>
+      <!--
+        ttLegalHref, not TT_LEGAL_LINKS: these now point at on-site routes and
+        the EN reader needs the /en prefix. Reading i18n.lang inside the markup
+        is also the subscription, so the hrefs re-derive when the language
+        toggles — the same rule as `t()` (docs/08 §2).
+      -->
       <div class="tt-links">
-        <a href={TT_LEGAL_LINKS.eula} target="_blank" rel="noopener noreferrer"
+        <a href={ttLegalHref('eula', i18n.lang)} target="_blank" rel="noopener noreferrer"
           >{i18n.t('gate.link.eula')}</a
         >
-        <a href={TT_LEGAL_LINKS.disclaimer} target="_blank" rel="noopener noreferrer"
+        <a href={ttLegalHref('disclaimer', i18n.lang)} target="_blank" rel="noopener noreferrer"
           >{i18n.t('gate.link.disclaimer')}</a
         >
-        <a href={TT_LEGAL_LINKS.privacy} target="_blank" rel="noopener noreferrer"
+        <a href={ttLegalHref('privacy', i18n.lang)} target="_blank" rel="noopener noreferrer"
           >{i18n.t('gate.link.privacy')}</a
         >
       </div>
@@ -930,10 +936,11 @@
       <dd>GPL-3.0-only</dd>
     </dl>
     <div class="tt-links">
+      <!-- `repo` stays absolute — it is the GPL-3.0 §6 source offer. -->
       <a href={TT_LEGAL_LINKS.repo} target="_blank" rel="noopener noreferrer"
         >{i18n.t('settings.about.repo')}</a
       >
-      <a href={TT_LEGAL_LINKS.thirdParty} target="_blank" rel="noopener noreferrer"
+      <a href={ttLegalHref('thirdParty', i18n.lang)} target="_blank" rel="noopener noreferrer"
         >{i18n.t('settings.about.thirdParty')}</a
       >
     </div>

@@ -809,11 +809,15 @@ open items that predate the phase are unchanged and belong elsewhere: **S4b**
 means anything) and the **CodeQL Default setup** dashboard item (`10 §11`,
 zone-side, unfixable from this repository).
 
-## P6 — Landing + legal · **in progress**, slice A released as v0.9.0
+## P6 — Landing + legal · **COMPLETE**, two slices · v0.9.0 → v0.10.0
 
 Two slices, one release each (2026-07-24 decision, with the user):
 **A** = landing + SEO + fonts · **B** = legal pages + VI translations + the
 in-app link re-point.
+
+**Exit criteria met:** Lighthouse ≥ 95 on the static pages (100/100/100/100 on
+the third run) and hreflang correct, asserted as reciprocity in
+`tests/e2e/landing.spec.ts` rather than as presence.
 
 ### Slice A — the bilingual landing · 2026-07-24 · **v0.9.0**
 
@@ -910,6 +914,75 @@ Neither is code, and neither blocked the release:
   `31536000`.** The zone is right — the preload list requires ≥ 1 year, so the
   doc asks for `preload` with a max-age that would disqualify the domain.
   Doc-only correction, filed for slice B.
+
+### Slice B — the legal pages · 2026-07-24 · **v0.10.0**
+
+Eight routes, four Vietnamese translations, and `TT_LEGAL_LINKS` moved off
+GitHub and onto the site. The mechanism is written up in `docs/08 §1.1`; what
+belongs here is what was decided rather than defaulted.
+
+- **The canonical documents stayed where they were.** `legal/*.md` is what the
+  licence links point at and what a reviewer reads on GitHub, so the EN pages
+  render *that file* through a content-collection `glob()` loader with a `base`
+  outside `src/` — zero-drift by construction rather than by discipline.
+- **`<Content />` is not the `{@html}` ban** (`09 §5`). Build-time compilation of
+  in-repo markdown has neither half of what the ban is about. Retyping four
+  legal documents as HTML would have been strictly worse: the canonical text
+  would then exist twice.
+- **The `TT_LEGAL_VERSION` bump was declined _for the translations_.** Publishing
+  a translation of an unchanged document changes nobody's rights, and every bump
+  re-prompts every existing user (`02 §3.1`).
+- 🔴 **Then it was bumped anyway, `1.0-draft` → `1.1-draft`, for something else
+  entirely — and that is the more useful finding.** Asked to document what the
+  site owner can see in Cloudflare's dashboard, the answer turned out to include
+  something the policy actively denied: `wrangler.jsonc` has
+  `observability.enabled`, which retains **one log per `/api/yt/oembed` call for
+  3 days**, while `PRIVACY-POLICY.md` said TickTune "stores no server-side logs
+  of its own about you". Not a typo — users had accepted a description of our
+  data handling that was untrue, and `§7` promises the gate returns for exactly
+  that. New `§4.1` states both surfaces precisely: Cloudflare's dashboard is
+  **aggregates only** (no per-request IP or User-Agent — raw logs are an
+  enterprise feature this zone does not have), and the Worker logs cover **API
+  calls only**, because `run_worker_first` is unset so static pages never invoke
+  the Worker. `wrangler.jsonc` now carries the coupling in a comment: changing
+  that line changes the privacy policy.
+  ⚠️ The general shape: **the audit that finds a false statement is the one that
+  asks what a document promises and then goes and measures it.** Four `docs/*`
+  claims have now failed that test in two days — `03 §1`'s self-hosted fonts,
+  `docs/14`'s tag-only deploy, `docs/10`'s HSTS max-age, and this.
+- **`THIRD-PARTY-NOTICES` lost its Motion row.** It read "from P5; not yet
+  installed" — and P5 shipped without it, so for four releases the notices file
+  promised attribution for something no user ever received. A row means
+  *distributed with the app*; the file answers "what am I running", not "what is
+  planned". A test now asserts every non-font row names a real dependency.
+
+⚠️ **Two traps, and neither was in the plan.**
+
+**Astro 7 replaced the Markdown processor.** `markdown.remarkPlugins` now
+requires installing `@astrojs/markdown-remark` to switch the pipeline back to
+unified — for two link rewrites. Sätteri's `mdastPlugins` is the native seam and
+costs nothing, so the plugin is an mdast visitor instead of a remark plugin. The
+one dependency added (`@astrojs/markdown-satteri`) is build-time, pinned to the
+exact version Astro already resolves so it dedupes to a single copy, and gets no
+`THIRD-PARTY-NOTICES` row per `11 §5`.
+
+🔴 **`astro preview` serves `dist/` without rebuilding, so a local E2E run can
+test the previous build.** Caught while mutation-verifying the footer: the
+injected bug produced a *green* suite. It was green because the binary under
+test was stale. CI is unaffected — it builds before the E2E job — but a local
+edit-then-test loop silently measures the wrong artifact. **Rebuild before
+trusting a local E2E result**, and treat a mutation that fails to turn anything
+red as a claim about the harness before it is a claim about the code.
+
+**Mutation-verified:** dropping `lang` from `TtFooter.astro` — so it reads
+`TT_LEGAL_LINKS` directly again — turns exactly one test red, its own, while the
+other thirteen stay green. The EN footer then links all four documents to their
+Vietnamese versions: every value correct, every link resolving, all four wrong.
+
+**Slice B exit:** all 8 routes 200 in both languages; in-app links resolve
+on-site and language-correct; version rendered. The one thing no test can
+answer — whether the Vietnamese says what the English says — is the first
+blocking section of `tests/manual/p6-slice-b-live-checklist.md`.
 
 ## Post-1.0 backlog (unordered)
 

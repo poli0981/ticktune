@@ -89,6 +89,29 @@ over the whole `testDir` with no per-project `testMatch`, and on a blocked
 viewport the island never mounts (`07 §6`). Specs that navigate away from a
 non-empty queue must also handle the `beforeunload` guard (`02 §3`) or they hang.
 
+🔴 **The harness serves `dist/`, and does not build it.** `webServer` runs
+`astro preview`, which is deliberate — the mobile-gate assertions are about
+which bundles the browser actually requests — but it means **a local
+edit-then-test loop measures the previous build**. CI is safe (it builds before
+the E2E job); a developer is not. Found in P6 slice B while mutation-testing the
+legal footer: the injected bug produced a fully green suite, because the bug had
+never been compiled.
+
+The general form is worth more than the instance: **a mutation that fails to
+turn anything red is a claim about the harness before it is a claim about the
+code.** Rebuild, then re-run, before concluding a test is weak. Run
+`pnpm build && pnpm test:e2e`, never `pnpm test:e2e` alone.
+
+⚠️ **`astro preview` is also more permissive than the deployed host, so some
+things are unassertable here by construction.** Measured in P6 slice B: with
+`build.format: 'directory'`, Cloudflare answers `/legal/eula` with a **307** to
+`/legal/eula/`, while `astro preview` serves *both* with a plain 200. A missing
+trailing slash therefore costs a redirect hop on every link in production and is
+**invisible to this suite at any status assertion**. What guards it instead is an
+exact-href equality assertion (the value, not the response) plus a `curl` block
+in the live checklist. Before writing a guard, ask whether the harness can even
+produce the failure — otherwise it is a test that can only pass.
+
 | Flow | Assertions |
 |------|------------|
 | Gate → Setup → Single | accept unlocks; fixture plays — asserted as **`dataset.ttAudio === 'running'` and peak Analyser RMS > 0**, because "no error thrown" passes identically on a silent app; loop counter increments across a wrap; countdown reaches <60 s regime (short timer) and shows `SS.mmm`; Finished screen; **chime ran**, observed via `data-tt-chime-count` (the chime is synthesised, so there is no request to observe — and counting the run is the stronger assertion anyway, `05 §7`) |
@@ -106,6 +129,7 @@ non-empty queue must also handle the `beforeunload` guard (`02 §3`) or they han
 | Offline | context.setOffline → banner; YT mode blocked panel |
 | Late finish (`04 §2`) | drive a real countdown past its deadline with Playwright's `page.clock` and assert the Finished screen states the actual finish time; below the threshold assert the normal screen is unchanged. **Not** a shipped `?ttovershoot=` hook — a production affordance that lets any URL render a false finish time would prove only that the component has an `if`.<br>Verified 2026-07-21 on `@playwright/test@1.61.1`: `clock.fastForward` moves `Date.now()` and `performance.now()` in step (skew 0), so `04 §1`'s drift rule correctly does **not** re-anchor, and an 8-minute fast-forward on a 5-minute countdown produced a 390 001 ms overshoot. Note it fires with `late: false` and **no TT-SYS-203** — the worker keeps ticking on the real clock because `page.clock` does not reach the worker realm — so the threshold, not the latch, is what this spec exercises |
 | 404 | unknown path serves styled 404 |
+| Legal pages (`03 §3`, `08 §1.1`) | `legal.spec.ts`, P6 slice B. Every case is driven off `TT_LEGAL_DOCS`, so a fifth document extends the suite instead of quietly going uncovered: all 8 routes 200 with their heading and `TT_LEGAL_VERSION`; the canonical banner picks `canonicalEn` vs `canonicalVi` — **asserted against the dictionaries, not against English prose**, because the failure worth catching is the two being swapped, whereas a hardcoded substring just fails on the VI page for being in Vietnamese; no rendered legal href ends in `.md`; the EULA's cross-links stay in their own language. 🔴 **The load-bearing case is the landing footer**, checked on `/en/` as well as `/`: `TtFooter.astro` is the one legal-link call site with no runtime `i18n.lang`, so dropping its `lang` prop yields four valid links that all 200 in the wrong language. **Mutation-verified** — that revert turns exactly this test red and no other |
 | Landing (`03 §3`, `08 §1`) | `landing.spec.ts`, P6 slice A. **hreflang asserted as RECIPROCITY, not presence** — both pages must advertise the same pair, because a page that merely has alternates can still point them somewhere wrong, and that is the failure Search Console reports weeks later. Plus: each page canonicalises to itself; the FAQ carries the `04 §2` item 6 countdown promise **in both languages**; the CTA reaches `/app/`; the GPL source-offer link is present with `rel=noopener`; the hero placeholder is same-origin and labelled; `/app/` is `noindex` while the landing is not. The `docs/07 §5` crawler-content assertion in `mobile-gate.spec.ts` now covers `/en/` too |
 
 Browsers: CI on Chromium + Firefox every PR; WebKit added on the release branch

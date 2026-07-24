@@ -1,0 +1,16 @@
+---
+// VI — renders legal/vi/PRIVACY-POLICY.md via the legalVi collection.
+// docs/08 §1: VI at the root, EN under /en/. The page owns the entry lookup;
+// TtLegalDoc owns everything around the body.
+import { getEntry, render } from 'astro:content';
+import TtLegalDoc from '../../components/legal/TtLegalDoc.astro';
+import { vi } from '../../i18n/static/vi';
+
+const entry = await getEntry('legalVi', 'privacy-policy');
+if (!entry) throw new Error('Missing legalVi entry: privacy-policy');
+const { Content } = await render(entry);
+---
+
+<TtLegalDoc t={vi} lang="vi" docKey="privacy">
+  <Content />
+</TtLegalDoc>

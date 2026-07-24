@@ -1,7 +1,8 @@
 # TickTune — End User License Agreement / Terms of Use (Draft)
 
-Version 1.0-draft · 2026-07-21 · English is the canonical language of this
-document; the Vietnamese translation is provided for convenience (P6 task).
+Version 1.1-draft · 2026-07-24 · English is the canonical language of this
+document; the Vietnamese translation at `/legal/eula` is provided for
+convenience.
 This draft is written by the developer, not by a lawyer, and is provided for a
 free, open-source, non-commercial web application.
 

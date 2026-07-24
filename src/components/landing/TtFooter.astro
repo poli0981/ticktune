@@ -1,6 +1,6 @@
 ---
 import type { StaticDict } from '../../i18n/static/en';
-import { TT_LEGAL_LINKS } from '../../lib/tt-legal-const';
+import { TT_LEGAL_LINKS, ttLegalHref } from '../../lib/tt-legal-const';
 
 /**
  * Landing footer — legal links + the GPL-3.0 source offer.
@@ -10,24 +10,30 @@ import { TT_LEGAL_LINKS } from '../../lib/tt-legal-const';
  * its corresponding source, and `src/pages/index.astro`'s original stub carried
  * a comment saying the real landing must keep it in the footer. Do not remove it.
  *
- * The `/legal/*` routes themselves land in P6 slice B; until then these point
- * wherever `TT_LEGAL_LINKS` points, which is the single source both this page
- * and the in-app legal gate read. One constant, so the two can never disagree.
+ * 🔴 **`lang` is not decoration.** P6 slice B pointed `TT_LEGAL_LINKS` at on-site
+ * routes, and those constants are the **Vietnamese** ones. This component is the
+ * only one of the three legal-link call sites that cannot read `i18n.lang` —
+ * there is no runtime here, so the language has to be handed down from the page.
+ * Read the constant directly and the VI footer keeps working by accident while
+ * the EN footer links every document to its Vietnamese version: four valid URLs,
+ * four 200s, all four wrong. `tests/e2e/legal.spec.ts` asserts the EN footer for
+ * exactly this reason.
  */
 
 interface Props {
   t: StaticDict['landing'];
   common: StaticDict['common'];
   legal: StaticDict['legal'];
+  lang: 'vi' | 'en';
 }
 
-const { t, common, legal } = Astro.props;
+const { t, common, legal, lang } = Astro.props;
 
 const docs = [
-  { href: TT_LEGAL_LINKS.eula, label: legal.docs.eula },
-  { href: TT_LEGAL_LINKS.disclaimer, label: legal.docs.disclaimer },
-  { href: TT_LEGAL_LINKS.privacy, label: legal.docs.privacy },
-  { href: TT_LEGAL_LINKS.thirdParty, label: legal.docs.thirdParty },
+  { href: ttLegalHref('eula', lang), label: legal.docs.eula },
+  { href: ttLegalHref('disclaimer', lang), label: legal.docs.disclaimer },
+  { href: ttLegalHref('privacy', lang), label: legal.docs.privacy },
+  { href: ttLegalHref('thirdParty', lang), label: legal.docs.thirdParty },
 ];
 ---
 
