@@ -1,6 +1,6 @@
 # TickTune — Disclaimer (Draft)
 
-Version 1.0-draft · 2026-07-21 · English canonical; VI translation in P6.
+Version 1.0-draft · 2026-07-21 · English canonical; Vietnamese at `/legal/disclaimer`.
 Shown in summary at the Legal Gate; full text at `/legal/disclaimer` and in the
 repository.
 

@@ -1,9 +1,15 @@
 # TickTune — Third-Party Notices (Draft)
 
-Version 1.0-draft · 2026-07-21 · Rendered at `/legal/third-party` and linked
-from the Legal Gate and About panel. Process rule: any new dependency is added
-here in the same PR that introduces it, after a GPL-3.0 compatibility check
-(`docs/11 §5`).
+Version 1.0-draft · 2026-07-21 · English canonical; Vietnamese at
+`/legal/third-party`. Rendered there and linked from the Legal Gate and About
+panel. Process rule: any new dependency is added here in the same PR that
+introduces it, after a GPL-3.0 compatibility check (`docs/11 §5`).
+
+⚠️ A row here means the component is **distributed with the app**. Motion had a
+row reading "from P5; not yet installed" — P5 shipped without it, so the table
+was promising attribution for something no user ever received. Removed in P6
+slice B. Do not add a row ahead of the dependency: this file is the answer to
+"what am I actually running", not a plan.
 
 TickTune's own code: **GPL-3.0-only** — © 2026 poli0981.
 
@@ -15,7 +21,6 @@ TickTune's own code: **GPL-3.0-only** — © 2026 poli0981.
 | Svelte | MIT | UI runtime |
 | @astrojs/svelte | MIT | integration |
 | Tailwind CSS | MIT | styling |
-| Motion | MIT | animation (from P5; not yet installed) |
 | music-metadata | MIT | audio tag parsing |
 | Dexie.js | Apache-2.0 | IndexedDB wrapper (Apache-2.0 code combined into a GPL-3.0 project — one-way compatible) |
 | i18next | MIT | i18n runtime (26.3.6, installed in P5) |

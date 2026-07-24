@@ -122,23 +122,37 @@ app actually enforces:
 
 ## Production re-check — after the tag deploys to `ticktune.net`
 
-⚠️ **These were ticked before the tag existed, and are reset here.** Everything
+⚠️ **These were once ticked before the tag existed, and were reset.** Everything
 above genuinely ran against `ticktune.net` — but that was the *branch*, because
 Cloudflare's own Workers Build deploys every pushed branch straight to
-production. So the three lines below were answered by a deploy that was not the
-tag's, which is the one thing this block exists to check. Re-run them after
-`v0.9.0` deploys.
+production. A block that exists to verify the tag's deploy cannot be answered by
+a different one.
 
-- [ ] `ticktune.net/app/` → ⚙ → Giới thiệu reads **0.9.0**. This is the line
+✅ **Re-run 2026-07-24 after `v0.9.0` deployed, and every line passed.** All six
+were measured from the shell rather than by eye, so they are reproducible:
+
+- [x] `ticktune.net/app/` → ⚙ → Giới thiệu reads **0.9.0**. This is the line
       that actually proves the *tag* deployed rather than some other push —
       given two deploy paths race on a tag, it is the only one that can tell
-      them apart.
-- [ ] `ticktune.net/` and `ticktune.net/en/` both serve, with the right language.
-- [ ] `ticktune.net/sitemap-index.xml` and `/robots.txt` resolve.
-- [ ] Headers still live (`10 §11`): HSTS present, CSP unchanged.
-- [ ] `/api/yt/oembed` answers on the custom domain — the one thing no preview
-      can speak for, since it is the Worker route rather than an asset.
-- [ ] Exactly **one** inline script site-wide, and its hash equals the
+      them apart. Measured in the deployed island bundle, where
+      `Qi.textContent = "0.9.0"` **is** the About panel's `tt-set-version` node:
+      one occurrence of `0.9.0`, zero of `0.8.0`.
+- [x] `ticktune.net/` and `ticktune.net/en/` both serve, with the right language
+      (`<html lang="vi">` and `<html lang="en">`).
+- [x] `ticktune.net/sitemap-index.xml` and `/robots.txt` resolve (200, 200), and
+      `robots.txt` is byte-identical to the repo's — worth checking because a
+      Cloudflare-managed `robots.txt` would silently replace it
+      (`is_robots_txt_managed: false`).
+- [x] Headers still live (`10 §11`): CSP, HSTS, Permissions-Policy,
+      Referrer-Policy, X-Content-Type-Options all present.
+- [x] `/api/yt/oembed` answers on the custom domain — 200,
+      `application/json; charset=utf-8`. The one thing no preview can speak for,
+      since it is the Worker route rather than an asset.
+- [x] Exactly **one** inline script site-wide, and its hash equals the
       `script-src` hash. Added after run 2 above: this is the check that would
       have caught the Cloudflare injection on day one, and it is three lines of
       shell rather than a Lighthouse run.
+
+```bash
+curl -s https://ticktune.net/ -o /tmp/p.html && node -e "const f=require('fs'),c=require('crypto');const h=f.readFileSync('/tmp/p.html','utf8');const r=/<script(?![^>]*\ssrc=)[^>]*>([\s\S]*?)<\/script>/g;let m;while((m=r.exec(h)))console.log('sha256-'+c.createHash('sha256').update(m[1]).digest('base64'))"
+```
