@@ -1,0 +1,16 @@
+---
+// EN — renders legal/DISCLAIMER.md via the legalEn collection.
+// docs/08 §1: VI at the root, EN under /en/. The page owns the entry lookup;
+// TtLegalDoc owns everything around the body.
+import { getEntry, render } from 'astro:content';
+import TtLegalDoc from '../../../components/legal/TtLegalDoc.astro';
+import { en } from '../../../i18n/static/en';
+
+const entry = await getEntry('legalEn', 'disclaimer');
+if (!entry) throw new Error('Missing legalEn entry: disclaimer');
+const { Content } = await render(entry);
+---
+
+<TtLegalDoc t={en} lang="en" docKey="disclaimer">
+  <Content />
+</TtLegalDoc>

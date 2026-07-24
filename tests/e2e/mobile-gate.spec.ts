@@ -61,6 +61,11 @@ test.describe('blocked viewports', () => {
   for (const [route, marker] of [
     ['/', 'Đồng hồ của bạn'],
     ['/en/', 'Your countdown'],
+    // P6 slice B — the legal bodies are indexable prose too, and they are the
+    // pages most likely to be linked from outside. One per language is enough:
+    // all eight render through the same component.
+    ['/legal/privacy', 'quyền riêng tư'],
+    ['/en/legal/privacy', 'Privacy Policy'],
   ] as const) {
     test(`${route} keeps its content in the DOM for crawlers (docs/07 §5)`, async ({ page }) => {
       await page.goto(route);

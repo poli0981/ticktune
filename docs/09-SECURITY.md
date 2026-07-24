@@ -96,6 +96,17 @@ Notes:
 
 - All user-visible strings from files/YouTube (titles, artists) are treated as
   untrusted text — Svelte escapes by default; `{@html}` is banned repo-wide.
+  ⚠️ **The legal pages' `<Content />` is not an exception to this, because it is
+  not the same thing.** The ban exists because `{@html}` renders an
+  **unsanitised string at runtime**. `<Content />` is a build-time compilation of
+  markdown that lives **in this repository**, checked in and reviewed like any
+  other source: no runtime, no untrusted input, and a malformed document fails
+  the build rather than reaching a browser. It is the same trust level as
+  hand-writing the markup, and the alternative — retyping four legal documents
+  as HTML — would be strictly worse, since the canonical text would then exist
+  twice. Added P6 slice B; see `docs/08 §1.1`.
+- ✅ **P6 slice B changed no origin, so the CSP is unchanged.** The legal pages
+  are same-origin HTML with no scripts, no images and no fonts of their own.
 - `rel="noopener noreferrer"` on every external link.
 - No `eval`, no `new Function` (CSP enforces).
 - Object-URL accounting assert (`05 §3`) doubles as a leak canary.

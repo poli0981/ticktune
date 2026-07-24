@@ -1,6 +1,6 @@
 # TickTune — Privacy Policy (Draft)
 
-Version 1.0-draft · 2026-07-21 · English canonical; VI translation in P6.
+Version 1.0-draft · 2026-07-21 · English canonical; Vietnamese at `/legal/privacy`.
 
 TickTune is built to know as little about you as possible.
 

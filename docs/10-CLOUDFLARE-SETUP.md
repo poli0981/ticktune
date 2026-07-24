@@ -18,9 +18,21 @@ Registrar is fine — and the zone is on the **Free** plan unless noted.
 - Mode: **Full (Strict)** — harmless and correct even with no origin.
 - Edge Certificates: Always Use HTTPS **On** · Minimum TLS **1.2** ·
   TLS 1.3 **On** · Automatic HTTPS Rewrites **On**.
-- **HSTS**: enable, `max-age=15552000` (6 months), includeSubDomains On,
+- **HSTS**: enable, `max-age=31536000` (1 year), includeSubDomains On,
   preload **Off** initially (turn on + submit to the preload list only after a
   stable month — preload is effectively irreversible).
+  ⚠️ **Corrected 2026-07-24.** This said `15552000` (6 months) while asking for
+  `preload` in the same breath, and the two are contradictory: the HSTS preload
+  list requires **`max-age ≥ 31536000`**, so a zone configured exactly as
+  written would have been rejected from the list it was being prepared for. The
+  live zone was already serving a year; the document was the wrong half.
+- 🔴 **JavaScript Detections / Bot Fight Mode: OFF, and they must stay off.**
+  They inject an inline `<script>` into every served page, which `docs/09 §4`'s
+  `script-src` blocks — and it **cannot** be allow-listed, because the injected
+  loader carries a per-request token (`__CF$cv$params`) so its hash changes on
+  every request. Turning either on costs a console error on every page, ~8
+  Lighthouse points, and a contradiction with `legal/PRIVACY-POLICY.md §1`'s
+  "no … fingerprinting". Found in P6 slice A; see `16 §P6`.
 
 ## 3. Worker deploy (Workers Static Assets)
 
@@ -160,11 +172,19 @@ Zone-side, still to do:
 - [x] **Cloudflare Web Analytics auto-injection disabled** — re-measured
       2026-07-22 against the live `/`: **zero** occurrences of
       `cloudflareinsights` or `beacon.min.js` in the served HTML (`§10`)
-- [x] **HSTS** — live as of 2026-07-22:
-      `max-age=15552000; includeSubDomains; preload`, exactly what `§2` asks for
+- [x] **HSTS** — re-measured 2026-07-24:
+      `max-age=31536000; includeSubDomains; preload`. ⚠️ This row used to read
+      `15552000` "exactly what `§2` asks for", and it was wrong in the direction
+      that matters least and is hardest to see: the **zone** was right and the
+      **document** was wrong. Corrected in `§2`
+- [x] **Cloudflare JavaScript Detections + Bot Fight Mode disabled** —
+      2026-07-24, `enable_js: false`, `fight_mode: false`. Verified by hashing
+      the served bytes: `/`, `/en/` and `/app/` each contain exactly **one**
+      inline script, whose `sha256` equals the `script-src` hash. See `§2` for
+      why this is not optional
 - [x] Custom domain attached, cert active, `https://ticktune.net` 200
 - [ ] 61 rapid calls to `/api/*` → 429
-- [ ] Bot Fight Mode on · [ ] rate-limit rule active
+- [ ] rate-limit rule active
 - [ ] `www` redirect (if configured) works
 
 Everything domain-independent was verified locally against `wrangler dev` on

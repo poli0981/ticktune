@@ -3,9 +3,54 @@ import { defineConfig } from 'astro/config';
 import svelte from '@astrojs/svelte';
 import sitemap from '@astrojs/sitemap';
 import tailwindcss from '@tailwindcss/vite';
+import { satteri } from '@astrojs/markdown-satteri';
 import { readFileSync } from 'node:fs';
+import { TT_LEGAL_DOCS } from './src/lib/tt-legal-const.ts';
 
 const { version } = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf8'));
+
+/**
+ * Rewrite the legal documents' `.md` cross-links to site routes — P6 slice B.
+ *
+ * `legal/EULA.md` links to `./DISCLAIMER.md` and `./PRIVACY-POLICY.md` so that
+ * the drafts read correctly on GitHub, which is where they are reviewed. Left
+ * alone those two links 404 on the rendered page, so they are rewritten here
+ * rather than in the source — editing the source would fix the page and break
+ * the review surface.
+ *
+ * Language comes from the **file path**: `legal/vi/*.md` is only ever rendered
+ * by a `/legal/*` route and `legal/*.md` only by `/en/legal/*`, so the file
+ * already knows which prefix it needs. That is why this can be one plugin
+ * instead of a per-page option.
+ *
+ * The filename → slug mapping is NOT derivable (`PRIVACY-POLICY.md` →
+ * `privacy`), so it comes from the one table in `tt-legal-const.ts` that the
+ * pages and the tests read too. `tests/e2e/legal.spec.ts` asserts no rendered
+ * legal href ends in `.md`, which fails if a new cross-link appears that this
+ * does not know about.
+ *
+ * ⚠️ This is an **mdast plugin for Sätteri**, not a remark plugin. Astro 7 made
+ * Sätteri the default Markdown processor, and `markdown.remarkPlugins` now
+ * requires installing `@astrojs/markdown-remark` to switch the pipeline back to
+ * unified. Adding a dependency and changing the processor to rewrite two links
+ * is the wrong trade — `mdastPlugins` is the native seam and costs nothing.
+ * `link` and `definition` are the only two mdast nodes that carry a `url`.
+ */
+function ttLegalLinksPlugin() {
+  const bySource = new Map(TT_LEGAL_DOCS.map((d) => [d.file.toLowerCase(), d.slug]));
+
+  /** `legal/vi/EULA.md` → `/legal`, `legal/EULA.md` → `/en/legal`. */
+  const prefixFor = (ctx) =>
+    /\/legal\/vi\//.test(String(ctx.fileURL ?? '')) ? '/legal' : '/en/legal';
+
+  const rewrite = (node, ctx) => {
+    const [, name, hash = ''] = /([^/]+\.md)(#.*)?$/i.exec(String(node.url ?? '')) ?? [];
+    const slug = name && bySource.get(name.toLowerCase());
+    if (slug) ctx.setProperty(node, 'url', `${prefixFor(ctx)}/${slug}${hash}`);
+  };
+
+  return { name: 'tt-legal-links', link: rewrite, definition: rewrite };
+}
 
 // Normative copy lives in docs/01 §5. Keep the two in sync.
 export default defineConfig({
@@ -49,6 +94,13 @@ export default defineConfig({
         !page.includes('/app') && !page.includes('/spike/') && !page.includes('/404'),
     }),
   ],
+
+  markdown: {
+    // P6 slice B — see ttLegalLinksPlugin above. The legal bodies are the only
+    // markdown this project renders. Passed as a factory so its closure is
+    // rebuilt per compile rather than shared across documents.
+    processor: satteri({ mdastPlugins: [ttLegalLinksPlugin] }),
+  },
 
   vite: {
     plugins: [tailwindcss()],

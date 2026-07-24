@@ -1,6 +1,6 @@
 <script lang="ts">
   import { i18n } from '../state/i18n.svelte';
-  import { TT_LEGAL_LINKS, TT_LEGAL_VERSION } from '../../lib/tt-legal-const';
+  import { ttLegalHref, TT_LEGAL_VERSION } from '../../lib/tt-legal-const';
 
   /**
    * Legal gate — docs/03 §3.2, docs/02 §1.
@@ -69,19 +69,24 @@
 
     <p class="text-tt-muted mb-4 text-xs">
       {i18n.t('gate.full')}
-      <a href={TT_LEGAL_LINKS.eula} rel="noopener noreferrer" target="_blank"
+      <!--
+        target="_blank" is deliberate and survives the move to on-site routes:
+        leaving /app/ destroys the session-only queue (docs/02 §1), and this
+        gate is shown before anything exists to lose only on a first run.
+      -->
+      <a href={ttLegalHref('eula', i18n.lang)} rel="noopener noreferrer" target="_blank"
         >{i18n.t('gate.link.eula')}</a
       >
       ·
-      <a href={TT_LEGAL_LINKS.disclaimer} rel="noopener noreferrer" target="_blank"
+      <a href={ttLegalHref('disclaimer', i18n.lang)} rel="noopener noreferrer" target="_blank"
         >{i18n.t('gate.link.disclaimer')}</a
       >
       ·
-      <a href={TT_LEGAL_LINKS.privacy} rel="noopener noreferrer" target="_blank"
+      <a href={ttLegalHref('privacy', i18n.lang)} rel="noopener noreferrer" target="_blank"
         >{i18n.t('gate.link.privacy')}</a
       >
       ·
-      <a href={TT_LEGAL_LINKS.thirdParty} rel="noopener noreferrer" target="_blank"
+      <a href={ttLegalHref('thirdParty', i18n.lang)} rel="noopener noreferrer" target="_blank"
         >{i18n.t('gate.link.thirdParty')}</a
       >
     </p>
