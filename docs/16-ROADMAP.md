@@ -809,13 +809,13 @@ open items that predate the phase are unchanged and belong elsewhere: **S4b**
 means anything) and the **CodeQL Default setup** dashboard item (`10 §11`,
 zone-side, unfixable from this repository).
 
-## P6 — Landing + legal · **in progress**, slice A built
+## P6 — Landing + legal · **in progress**, slice A released as v0.9.0
 
 Two slices, one release each (2026-07-24 decision, with the user):
 **A** = landing + SEO + fonts · **B** = legal pages + VI translations + the
 in-app link re-point.
 
-### Slice A — the bilingual landing · 2026-07-24
+### Slice A — the bilingual landing · 2026-07-24 · **v0.9.0**
 
 `/`, `/en/`, `/404`, `/en/404` from `src/i18n/static/{en,vi}.ts`, plus the SEO
 plumbing the site has never had: hreflang, sitemap, robots, favicon, Open Graph.
@@ -853,7 +853,63 @@ it parses JS imports and they arrive via CSS `@import`; they now sit in
 `ignoreDependencies` beside `tailwindcss`, which is there for the same reason.
 
 **Slice A exit:** Lighthouse ≥ 95 on `/` and `/en/`; hreflang reciprocal.
-Verified by hand against the PR preview (`13 §5`), not in CI.
+Verified by hand against the live deployment (`13 §5`), not in CI.
+
+### Slice A's live run — three Lighthouse attempts, two causes
+
+**Met on the third run: 100 / 100 / 100 / 100.** The two before it both read
+**Best Practices 92**, and the full record is in
+`tests/manual/p6-slice-a-live-checklist.md`. Three things came out of it that
+outlive the slice.
+
+**A number three points under a threshold is a lead, not a rounding error.**
+Twice. Run 1's 92 was `font-src 'self'` refusing fontsource subsets that Vite had
+inlined as `data:` URLs under its ~4 KB default — a live CSP violation whose only
+symptom was the score, because the faces that stayed as files covered the text.
+Fixed by refusing to inline fonts (`assetsInlineLimit` returns `false` for font
+extensions), **not** by adding `data:` to the policy: a bundler default is a poor
+reason to loosen a CSP, and emitting every face as a file lets the `/_astro/*`
+immutable rule apply. `tests/unit/tt-csp-assets.test.ts` guards it by reading the
+built CSS, and skips when `dist/` is absent rather than passing vacuously.
+
+⚠️ **A score that does not move after a real fix means the symptom had two
+causes.** Run 2 still read 92. The fourth console error had been folded in with
+the three font ones and was never a font: an inline script at `(index):19` that
+is **not ours**, injected by **Cloudflare JavaScript Detections** into `/`,
+`/en/` *and* `/app/`. It could never have been hashed — the injected loader
+embeds a per-request token (`__CF$cv$params`), so three measurements demanded
+three different hashes. Fixed at the zone (`enable_js: false`,
+`fight_mode: false`), which also restored two promises the CSP was the only thing
+still holding up: `PRIVACY-POLICY §1`'s "no … fingerprinting" and `§4`'s
+"transiently **at the network level**". No legal text changed, so the gate does
+not re-prompt anyone. This is the **second** Cloudflare feature to inject into
+our HTML — Web Analytics was the first (`10 §11`). Ask it of every zone feature:
+*does this put bytes in my document?*
+
+🔴 **Verify a CSP by hashing the served bytes, never by a quiet console.** Fetch
+the HTML, extract every inline `<script>`, hash each, compare against
+`script-src`. That found the injection in one command, after a browser console
+had reported no errors at all on the same page. It is now a line in the
+production re-check block.
+
+### Two Cloudflare findings the slice surfaced, both for slice B
+
+Neither is code, and neither blocked the release:
+
+- 🔴 **`docs/14`'s "deploy is tag-only" is false.** Cloudflare's own Workers
+  Build deploys **every pushed branch straight to production**, so slice A was
+  live on `ticktune.net` while its PR sat open and unreviewed. `wrangler
+  deployments list` shows every deployment at `(100%)` — no version-only upload
+  exists on this Worker. Worse, **a tagged release deploys twice and the two
+  paths race**: v0.8.0's two deployments landed 105 ms apart. They have always
+  built the same commit, so nothing has broken; a tag on anything but the branch
+  tip would deploy whichever won. ⚠️ Fixing it removes the surface the live
+  checklists run on, so the config change and the checklist re-point ship
+  together or not at all.
+- **`docs/10 §2`/`§11` state HSTS `max-age=15552000`; the zone serves
+  `31536000`.** The zone is right — the preload list requires ≥ 1 year, so the
+  doc asks for `preload` with a max-age that would disqualify the domain.
+  Doc-only correction, filed for slice B.
 
 ## Post-1.0 backlog (unordered)
 
