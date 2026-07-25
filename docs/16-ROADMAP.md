@@ -984,6 +984,113 @@ on-site and language-correct; version rendered. The one thing no test can
 answer — whether the Vietnamese says what the English says — is the first
 blocking section of `tests/manual/p6-slice-b-live-checklist.md`.
 
+## P7 — Hardening + launch · **COMPLETE**, three slices · v0.11.0 → v1.0.0
+
+**A** compliance and the 1.0 legal set · **B** hardening · **C** launch.
+
+### What the phase was actually for
+
+The roadmap row promised "CSP Report-Only → enforce, a11y pass, perf pass,
+cross-browser sweep incl. WebKit, live-site smoke checklist, demo capture". Two
+of those turned out **not to exist as work**:
+
+- the **CSP Report-Only → enforce** release was a **no-op**. The policy has been
+  enforcing since the first deploy; `10 §11` had recorded that in P1 while
+  `09 §4` and `14 §5` still described a rollout, so the suite contradicted itself
+  for six phases. Deleted rather than performed (`09 §4`).
+- the **"notify fan-out"** exit criterion had nothing behind it. No `notify.yml`
+  ever existed and `gh release list` was empty at v0.12.0 — **twelve tagged
+  releases with no release page**, unnoticed because a working deploy looks
+  identical either way. Replaced with a GitHub Release from the signed tag.
+
+### Slice A — compliance · v0.11.0
+
+Closed the `AUDIT-BACKLOG` 🔴 **release blocker**, the last thing formally
+standing between this project and a public release.
+`scripts/make-notices.ts` emits the full licence text of **19 components** where
+the curated table lists 12, and **fails the build** when a shipped package has no
+licence text to reproduce.
+
+⚠️ **The finding's own recommendation — "generate from the lockfile" — was the
+wrong input.** `pnpm licenses --prod` returns 233 packages including the Astro
+compiler, which no browser receives. Attribution attaches to what is
+**distributed**, so the package set comes from the client module graph and only
+the licence *text* comes from pnpm. Collecting the server pass too was this
+fix's own first bug, and it attributed `astro`, `zod` and `cookie`.
+
+It also closed an obligation **P6 created**: installing the two `@fontsource`
+families made them real dependencies for the first time, and OFL §2 requires the
+licence to accompany the font. Fifteen woff2 files had been shipping with no
+licence text anywhere except vendored DSEG7's.
+
+Three privacy claims were corrected the same way `§4.1` was: by measuring. `§2`
+named `localStorage`, which the code standards forbid and the app has never
+called; `§4` described only `youtube-nocookie.com` while the IFrame API is
+fetched from `www.youtube.com`; `§0` — controller, contact, retention — did not
+exist. The `1.0` promotion went **last in the slice**, so one gate re-prompt
+covered every change rather than three.
+
+### Slice B — hardening · v0.12.0
+
+**Adding one browser found four defects, two of them live in production.**
+`docs/16` had asked for a WebKit sweep since the roadmap was written; the only
+WebKit project was `iPhone 14`, which every spec skips via `test.skip(isMobile)`.
+
+The first run failed **130 of 166 specs on one line**. `void playback.unlock()`
+threw synchronously on a browser with no `AudioContext` — `void` discards a
+promise, not a throw — so at the gate the user was **trapped at the consent
+screen permanently**, and at Start in YouTube mode the **player never mounted at
+all**, in the one mode whose player the ToS requires to be visible.
+
+A fourth surfaced once the app could run: the zero milestone announcement raced
+`onDone` and needed a tick to land exactly at 0. Chromium won that race, WebKit
+did not, and a 12-second countdown ended in silence for a screen reader.
+
+**Three CI rounds each found something the local run could not**, and all three
+were unverified claims of mine about browsers:
+
+1. a skip that **named a browser instead of checking a capability** — Playwright's
+   WebKit has no `AudioContext` on Windows and does on Linux, so ~20 audio specs
+   were skipped on CI for a reason that was not happening. Caught by a guard
+   written the day before, which justified itself in a day;
+2. a **synthetic `DataTransfer` cannot be filesystem-backed** — established by
+   probing both engines rather than assuming, and a harness limit rather than a
+   product defect;
+3. a poll **timed for a dev box**, surfaced only by the `flaky` line in a job
+   whose badge was green.
+
+Net: WebKit gained **21 audio specs** of real coverage.
+
+⚠️ **The a11y scan's first clean result was wrong by omission.** Zero violations
+across seven surfaces — under the `wcag*` tags, which do not cover heading rules.
+Adding `best-practice` found that **Setup and the Player had no `<h1>` at all**.
+
+### Slice C — launch · v1.0.0
+
+The hero is a **recording of the shipped app**, produced by driving it. Four
+things the capture taught: recording at the hero's own 960 px fails because
+`TT_GATE.minWidth` is 1024; the first run came out **in English** because the
+locale was not pinned; three sine tones make a spectrum analyser look broken; and
+the sparse middle was **not** a bug — `05 §6` specifies mirrored bins, checked
+before changing anything.
+
+Shipped as one H.264 file after measurement: the VP9/WebM alternative encoded
+**larger** and **stalled WebKit**, so a second format cost bytes and
+compatibility and bought nothing.
+
+### The lesson of the phase, and it is the same one
+
+**Ask what a document promises, then go and measure it.** Six documented claims
+failed that test in P7 alone — the CSP rollout, the notify fan-out, `localStorage`,
+the second Google origin, an EULA still calling itself a draft after promotion,
+and a `webkitGetAsEntry` comment wrong since P2. None was found by a test suite;
+every one was found by checking a sentence against the thing it described.
+
+The corollary arrived twice, and is worth as much: **a guard that misunderstands
+its subject manufactures work.** The doc-reference resolver's first run reported
+23 broken citations of which **21 were correct**, and acting on it would have
+vandalised twenty-one working pointers.
+
 ## Post-1.0 backlog (unordered)
 
 - YouTube Data API v3 proxy on the existing Worker (duration/publish date at
