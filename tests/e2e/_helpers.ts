@@ -157,10 +157,28 @@ export function dismissUnloadDialogs(page: Page): void {
  * Drop real files on the Setup drop zone.
  *
  * Playwright cannot synthesise a native drag, so the files are read here and
- * reconstructed in the page. Note the resulting `DataTransfer.items` have no
- * `webkitGetAsEntry`, which means this also exercises the importer's documented
- * fallback to the flat `dt.files` list (docs/02 §4 step 0) — the path older
- * Firefox and every synthetic event take.
+ * reconstructed in the page.
+ *
+ * ⚠️ **What that exercises is engine-dependent, and the previous note here was
+ * wrong.** It claimed the synthetic `DataTransfer.items` "have no
+ * `webkitGetAsEntry`". Measured 2026-07-25: both Chromium and WebKit expose the
+ * method. What differs is what it *returns*:
+ *
+ * | | `webkitGetAsEntry()` | so the driver takes |
+ * |---|---|---|
+ * | Chromium | `null` | the flat `dt.files` fallback — works |
+ * | WebKit | a real `FileSystemFileEntry` | the **entry-walking** path |
+ *
+ * and on WebKit the walk then fails: `entry.file()` calls back with
+ * `NotFoundError: Path does not exist`, because a `File` built in JS has no
+ * filesystem behind it for the entry to resolve against.
+ *
+ * 🔴 **That is a harness limit, not a product defect.** A real drag in Safari
+ * hands over entries backed by real paths and `entry.file()` succeeds; nothing
+ * reachable from JS can fake that. It is the same shape as `docs/13 §3`'s
+ * pointer-events reorder decision — the browser will not let a script forge a
+ * native drag. The real Safari drop path is therefore a **live-checklist** line,
+ * not an automatable one.
  */
 export async function dropFiles(page: Page, fixtures: string[]): Promise<void> {
   const payload = fixtures.map((name) => ({
