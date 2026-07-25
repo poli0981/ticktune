@@ -133,13 +133,33 @@ land exactly at 0 first. Chromium won that race, WebKit did not, and a 12 s
 countdown announced "ten seconds" and then nothing. Now announced from `onDone`,
 which is the authoritative zero. Mutation-verified.
 
-**Skips are honest and guarded.** `skipWithoutAudio()` states the *right* reason
-per browser — Firefox has the API but no output **device** on CI; WebKit has no
-API at all — because conflating them would misreport the matrix. Real Safari has
-had `AudioContext` since 14.1, so the WebKit skips describe the harness, not the
-product. `webkit-assumptions.spec.ts` **fails if a future Playwright build gains
-`AudioContext`**: a skip is a claim, and a claim whose reason has quietly stopped
-being true is worse than no skip.
+### Skip on the capability, never on a proxy for it
+
+`skipWithoutAudio()` first skipped on `browserName === 'webkit'`, stating that
+"Playwright's WebKit build exposes no `AudioContext`". That is true on **Windows**
+— it is how 130 of 166 specs failed above — and **false on the Linux CI runner**,
+which has it.
+
+🔴 **`harness-assumptions.spec.ts` caught that on the first CI run after it was
+written.** The guard was added on the theory that "a future Playwright build
+might gain `AudioContext`"; what it found was that the assumption was **already
+false on another platform**, one day later. A skip is a claim, and this one was
+wrong about the machine that matters most.
+
+The fix was not to make the guard platform-aware. It was to stop guessing:
+the helper now **feature-tests** `AudioContext` and skips on the capability. A
+feature test cannot drift from the platform, so the thing being guarded no longer
+needs guarding — and the spec was repurposed to assert the check is
+**load-bearing**, i.e. that Chromium really does expose `AudioContext`. A suite
+where every audio test skips everywhere reports green and proves nothing.
+
+Firefox stays name-based, and that asymmetry is the point: its constructor
+**exists and lies** — `resume()` hangs on a runner with no output device — so
+there is nothing to feature-test. Skip on a capability where one is detectable;
+name a browser only where the failure is invisible to detection.
+
+⚠️ Chromium remains the only project asserting audible **output**. Say that
+rather than implying four-browser coverage.
 
 ⚠️ **`astro preview` is also more permissive than the deployed host, so some
 things are unassertable here by construction.** Measured in P6 slice B: with

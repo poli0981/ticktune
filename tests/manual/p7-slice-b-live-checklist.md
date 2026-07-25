@@ -72,7 +72,8 @@ best-practice. What it cannot tell you is whether the app is *usable*.
 | The real demo capture | **Slice C.** The hero is still the labelled placeholder |
 | A GitHub Release | **Slice C.** None has ever existed |
 | The Cloudflare branch-deploy fix | **Slice C**, deliberately last: it removes the surface these checklists run on, so it ships with the re-point or not at all |
-| Audio assertions on WebKit/Firefox in CI | Genuinely impossible there — Playwright's WebKit has no `AudioContext`, CI Firefox has no output device. Chromium alone covers audible output, and `webkit-assumptions.spec.ts` fails if that ever stops being true |
+| Audio assertions on Firefox in CI | Its `AudioContext` constructor exists and lies — `resume()` hangs with no output device — so it is skipped by name. Chromium alone asserts audible output |
+| Audio assertions on WebKit | Skipped **only where the capability is genuinely absent**, feature-tested per build rather than assumed: Playwright's WebKit has no `AudioContext` on Windows and does have it on the Linux CI runner. `harness-assumptions.spec.ts` asserts the check is load-bearing, so the tier cannot silently skip everywhere |
 | A CSP Report-Only period | It never happened and the release it promised was a no-op — the policy has been enforcing since day one (`09 §4`) |
 
 ## Production re-check — after the tag deploys to `ticktune.net`

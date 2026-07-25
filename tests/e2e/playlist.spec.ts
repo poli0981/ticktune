@@ -60,7 +60,7 @@ test.describe('playlist mode', () => {
   });
 
   test('plays the queue in order, audibly, advancing on its own', async ({ page, browserName }) => {
-    skipWithoutAudio(browserName);
+    await skipWithoutAudio(page, browserName);
     dismissUnloadDialogs(page);
     await gotoApp(page, '/app/?ttdebug=1');
     await stagePlaylist(page, THREE);
@@ -197,7 +197,7 @@ test.describe('playlist mode', () => {
     browserName,
     page,
   }) => {
-    skipWithoutAudio(browserName);
+    await skipWithoutAudio(page, browserName);
     dismissUnloadDialogs(page);
     await gotoApp(page);
     await stageManyTracks(page, 24);
@@ -246,7 +246,7 @@ test.describe('playlist mode', () => {
    * Start stays reachable — which is the property worth pinning, not the pixel.
    */
   test('on Setup the panel is capped so Start stays reachable', async ({ browserName, page }) => {
-    skipWithoutAudio(browserName);
+    await skipWithoutAudio(page, browserName);
     dismissUnloadDialogs(page);
     await gotoApp(page);
     await stageManyTracks(page, 24);
@@ -282,7 +282,7 @@ test.describe('playlist mode', () => {
     browserName,
     page,
   }) => {
-    skipWithoutAudio(browserName);
+    await skipWithoutAudio(page, browserName);
     test.slow(); // 95 sequential parses; generous rather than flaky under CI workers:1
     dismissUnloadDialogs(page);
     await gotoApp(page);

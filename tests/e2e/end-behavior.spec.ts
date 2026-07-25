@@ -32,7 +32,7 @@ test.describe('end behavior', () => {
     page.evaluate(() => Number(document.documentElement.dataset['ttChimeCount'] ?? 0));
 
   test('the fade completes and the chime sounds exactly once', async ({ page, browserName }) => {
-    skipWithoutAudio(browserName);
+    await skipWithoutAudio(page, browserName);
     await runToZero(page);
     await expect(page.getByTestId('tt-finished')).toBeVisible({ timeout: 10_000 });
 
@@ -82,7 +82,7 @@ test.describe('end behavior', () => {
    * never which path fired it.
    */
   test('fade and chime survive a hidden run', async ({ page, context, browserName }) => {
-    skipWithoutAudio(browserName);
+    await skipWithoutAudio(page, browserName);
     await runToZero(page, 3);
 
     const other = await context.newPage();

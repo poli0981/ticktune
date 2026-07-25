@@ -43,7 +43,7 @@ test.describe('single mode', () => {
   test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
 
   test('imports a file, plays it audibly, and loops', async ({ page, browserName }) => {
-    skipWithoutAudio(browserName);
+    await skipWithoutAudio(page, browserName);
     dismissUnloadDialogs(page);
     await gotoApp(page, '/app/?ttdebug=1');
 
@@ -81,7 +81,7 @@ test.describe('single mode', () => {
   });
 
   test('the loop counter increments across a wrap', async ({ page, browserName }) => {
-    skipWithoutAudio(browserName);
+    await skipWithoutAudio(page, browserName);
     dismissUnloadDialogs(page);
     await gotoApp(page);
     await stageSingle(page);
@@ -97,7 +97,7 @@ test.describe('single mode', () => {
     browserName,
     page,
   }) => {
-    skipWithoutAudio(browserName);
+    await skipWithoutAudio(page, browserName);
     dismissUnloadDialogs(page);
     await gotoApp(page);
     await stageSingle(page);
@@ -151,7 +151,7 @@ test.describe('single mode', () => {
     browserName,
     page,
   }) => {
-    skipWithoutAudio(browserName);
+    await skipWithoutAudio(page, browserName);
     dismissUnloadDialogs(page);
     await gotoApp(page);
     await stageSingle(page);
