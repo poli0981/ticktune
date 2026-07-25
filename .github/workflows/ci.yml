@@ -46,6 +46,14 @@ jobs:
       - name: Unused code (knip)
         run: pnpm knip
 
+      # docs/13 §8 — resolve every `NN §M` citation against the target file's
+      # real sections. The suite carries ~700 of them and they rot silently:
+      # renumbering a section invalidates every citation of it elsewhere and
+      # nothing fails. Runs here rather than in audit.yml, which only triggers
+      # on lockfile changes and would never see a docs-only PR.
+      - name: Doc cross-references
+        run: node scripts/check-doc-refs.ts
+
       - name: Unit + component tests
         run: pnpm test
 

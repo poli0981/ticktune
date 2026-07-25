@@ -89,8 +89,27 @@ Notes:
   and appends `'sha256-…'` to `script-src` (small `_headers` templating step in
   the build; documented in `10 §7`).
 - `blob:` in `img/media-src` covers cover art + local playback object URLs.
-- Rollout: ship first as `Content-Security-Policy-Report-Only` during P7
-  hardening week, watch console on the live site, then enforce.
+- ~~Rollout: ship first as `Content-Security-Policy-Report-Only` during P7
+  hardening week, watch console on the live site, then enforce.~~
+  🔴 **This never happened, and P7 slice B deleted the plan rather than
+  performing it.** `public/_headers` has shipped `Content-Security-Policy:` since
+  the first deploy — measured on the live site, which answers
+  `content-security-policy`, not `…-report-only`. `10 §11` had already recorded
+  "**CSP enforcing** (not Report-Only)" back in P1, so the suite has contradicted
+  itself for six phases. The "switch to enforcing" release `14 §5` promised would
+  have been a **no-op**.
+
+  **The observation window the plan wanted was taken anyway, live, and it worked
+  — twice.** P6 slice A's blocked `data:` fonts and the Cloudflare-injected
+  script were both caught by the enforcing policy doing its job: refusing them,
+  visibly, on a page that still rendered. Report-Only would have logged the same
+  two findings and shipped the violations to users while we read the console.
+
+  What made that survivable is that the policy has been strict from the first
+  commit and the site ships **one** inline script whose hash the build injects
+  and asserts (`10 §7`). A Report-Only phase is for retrofitting a CSP onto a
+  site that already has inline handlers and third-party scripts — neither of
+  which this project has ever had.
 
 ## 5. Client hardening details
 
