@@ -117,8 +117,42 @@ test.describe('youtube mode', () => {
     });
 
     test('creates no frame on the cookie-setting origin', async ({ page }) => {
-      const origins = page.frames().map((f) => f.url());
-      expect(origins.some((u) => u.startsWith('https://www.youtube.com'))).toBe(false);
+      /*
+       * Compare the HOST, never a URL prefix.
+       *
+       * This read `u.startsWith('https://www.youtube.com')`, which CodeQL
+       * flagged as `js/incomplete-url-substring-sanitization` — the prefix also
+       * matches `https://www.youtube.com.example/`, because nothing anchors the
+       * end of the host.
+       *
+       * ⚠️ It was **not** exploitable, and saying so matters more than the fix:
+       * the assertion requires the result to be `false`, so an over-match makes
+       * this test *stricter* rather than weaker, and `frame-src` permits only
+       * `www.youtube.com` and `www.youtube-nocookie.com` anyway. Dismissing it
+       * would have been defensible.
+       *
+       * Fixed rather than dismissed for two reasons. A high alert left open in
+       * the security tab is noise that hides the next real one. And the prefix
+       * was a **proxy** for "the host is X" while host equality checks the
+       * actual thing — the same distinction that made `skipWithoutAudio` a
+       * capability test instead of a browser-name test (`13 §3`).
+       *
+       * It also closes a real gap: the old check **missed** a frame on
+       * `https://youtube.com` without the `www.`, which is exactly what this
+       * assertion should notice if the CSP ever widened. The shipped parser has
+       * always used an exact-host `Set` (`tt-yt-url.ts`) — this brings the test
+       * up to the standard the source code already met.
+       */
+      const hosts = page.frames().map((f) => {
+        try {
+          return new URL(f.url()).host;
+        } catch {
+          return ''; // about:blank and srcdoc frames have no parseable host
+        }
+      });
+
+      expect(hosts).not.toContain('www.youtube.com');
+      expect(hosts).not.toContain('youtube.com');
     });
 
     test('renders the player at or above the 200×200 floor', async ({ page }) => {
