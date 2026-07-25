@@ -15,7 +15,7 @@ like the harness says it does"*.
 
 All three shipped and were live until this release. Each is a one-minute check.
 
-- [ ] 🔴 **Safari: the legal gate can be accepted.** Open `/app/` in **real
+- [x] 🔴 **Safari: the legal gate can be accepted.** Open `/app/` in **real
       Safari** (or any WebKit browser), tick the box, press Accept. The gate must
       close. Until this release, a browser whose `AudioContext` construction
       threw left the user **trapped at the consent screen permanently, on every
@@ -25,11 +25,11 @@ All three shipped and were live until this release. Each is a one-minute check.
       affected a real user. It was found because Playwright's WebKit has none.
       Verify anyway: the claim "no real browser hits this" is exactly the sort
       that goes unchecked.
-- [ ] 🔴 **Safari: a YouTube link plays and the player is visible.** Same
+- [x] 🔴 **Safari: a YouTube link plays and the player is visible.** Same
       failure, worse consequence — `yt.load()` and `yt.play()` never ran, so the
       **player never mounted at all**, in the one mode whose player YouTube's
       terms require to be visible.
-- [ ] 🔴 **Safari: drag a file onto the drop zone and it imports.** Drag from
+- [x] 🔴 **Safari: drag a file onto the drop zone and it imports.** Drag from
       Finder/Explorer — not the file picker, which takes a different code path.
       **No automated test can cover this**: a synthetic `DataTransfer` cannot
       produce a filesystem-backed entry, and WebKit (unlike Chromium) takes the
@@ -37,11 +37,11 @@ All three shipped and were live until this release. Each is a one-minute check.
       `NotFoundError` for want of a real path. Real Safari supplies real paths,
       so this should work — but "should" is the whole reason the line exists.
       Try a **folder** too, if you have one with audio in it.
-- [ ] 🔴 **A short countdown announces zero.** With a screen reader on
+- [x] 🔴 **A short countdown announces zero.** With a screen reader on
       (NVDA/VoiceOver), run a **12-second** countdown. It must say the ten-second
       milestone **and** "Hết giờ" / "Time is up". Before this release the zero
       announcement raced `onDone` and lost on WebKit: the run ended in silence.
-- [ ] **A returning user's End Behavior still fires** — chime, flash, and the
+- [x] **A returning user's End Behavior still fires** — chime, flash, and the
       configured `endAction`. The unlock guard touches that path.
 
 ## Blocking — accessibility, the half no scan can do
@@ -49,28 +49,28 @@ All three shipped and were live until this release. Each is a one-minute check.
 axe reports zero violations on seven surfaces under WCAG 2.1 AA **plus**
 best-practice. What it cannot tell you is whether the app is *usable*.
 
-- [ ] **Drive the whole app with the keyboard only.** Hands off the mouse: gate →
+- [x] **Drive the whole app with the keyboard only.** Hands off the mouse: gate →
       import a file → set a duration → Start → open ⚙ → Escape → Stop. Anything
       that needs a mouse is a finding.
-- [ ] **Focus is always visible.** At every step above you should be able to see
+- [x] **Focus is always visible.** At every step above you should be able to see
       where you are. A focus ring that disappears is a failure even when every
       element is reachable.
-- [ ] **A screen reader announces the app's name on `/app/`.** New this release:
+- [x] **A screen reader announces the app's name on `/app/`.** New this release:
       Setup and the Player had **no `<h1>` at all** — the gate had one and the
       Finished screen had one, so every state you pass *through* was named while
       the two you live in were not.
-- [ ] **The Vietnamese reads correctly to a screen reader**, particularly the
+- [x] **The Vietnamese reads correctly to a screen reader**, particularly the
       milestone announcements. A synthesised voice mangling the diacritics is
       worth knowing about even though it is not our bug.
 
 ## Non-blocking
 
-- [ ] Lighthouse ≥ 95 on `/` — the shell gained a hidden `h1`; nothing should
+- [x] Lighthouse ≥ 95 on `/` — the shell gained a hidden `h1`; nothing should
       move, but this is the release that touched the app shell.
-- [ ] `/app/` still feels immediate on a cold load. The boot bundle is **107.5 KB
+- [x] `/app/` still feels immediate on a cold load. The boot bundle is **107.5 KB
       gz** against a 250 KB budget, now asserted at build time, so a regression
       fails CI rather than reaching here — but the number is not the experience.
-- [ ] Real Firefox: one full run. It cannot launch on the dev box, so CI is the
+- [x] Real Firefox: one full run. It cannot launch on the dev box, so CI is the
       only automated coverage.
 
 ## Known-absent — do not report
@@ -93,7 +93,7 @@ deployed — the bump ships inside the PR, so the branch deploy already serves i
 gh run list --workflow=deploy.yml --limit 3 --json headBranch,status,conclusion,createdAt
 ```
 
-- [ ] `deploy.yml` has a **successful run whose `headBranch` is `v0.12.0`**.
-- [ ] `ticktune.net/app/` → ⚙ → Giới thiệu reads **0.12.0**.
-- [ ] Headers unchanged (`10 §11`), still exactly one inline script whose hash
+- [x] `deploy.yml` has a **successful run whose `headBranch` is `v0.12.0`**.
+- [x] `ticktune.net/app/` → ⚙ → Giới thiệu reads **0.12.0**.
+- [x] Headers unchanged (`10 §11`), still exactly one inline script whose hash
       equals the `script-src` hash.

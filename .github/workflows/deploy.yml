@@ -5,8 +5,10 @@ on:
     tags: ['v*']
   workflow_dispatch:
 
+# Explicit, never inherited — the known GitHub inheritance bug (docs/14 §2).
+# `contents: write` is needed by the release step below and by nothing else here.
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   deploy:
@@ -37,3 +39,24 @@ jobs:
           # public repo's secrets is the single worst exposure in this project.
           CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+
+      # docs/14 §5 — P7 slice C.
+      #
+      # `16` listed "notify fan-out" as a P7 exit criterion and there was never
+      # anything behind it: no `notify.yml` has ever existed and `gh release
+      # list` was empty at v0.12.0. Rather than build a broadcast pipeline for an
+      # audience that does not exist yet, this publishes the one artifact a
+      # release actually needs — a GitHub Release carrying the SIGNED tag's own
+      # message.
+      #
+      # ⚠️ `--verify-tag` is the point of the step, not decoration. GitHub's
+      # rebase-merge produces unsigned commits on `main` (docs/14 §3), so the tag
+      # is the only signed artifact of a release; publishing a release for a tag
+      # that does not exist, or drifted, would launder that away.
+      #
+      # `--notes-from-tag` rather than generated notes: the annotated tag message
+      # is written by hand at release time and is the more considered text.
+      - name: Publish the GitHub Release
+        run: gh release create "$GITHUB_REF_NAME" --verify-tag --notes-from-tag --title "$GITHUB_REF_NAME"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

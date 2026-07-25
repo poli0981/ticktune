@@ -48,8 +48,6 @@ export const en = {
     heroSub:
       'A large seven-segment countdown, your own audio behind it, and nothing uploaded anywhere.',
     heroMediaAlt: 'TickTune running a countdown with a visualizer behind it',
-    /** docs/16 standing rule: placeholder media is labelled as such until P7. */
-    heroPlaceholderNote: 'Placeholder capture — the real demo lands before v1.0.',
 
     featuresTitle: 'What it does',
     features: [

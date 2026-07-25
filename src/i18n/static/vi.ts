@@ -28,7 +28,6 @@ export const vi: StaticDict = {
     heroSub:
       'Một đồng hồ đếm ngược bảy đoạn cỡ lớn, nhạc của bạn phía sau, và không có gì được tải lên đâu cả.',
     heroMediaAlt: 'TickTune đang đếm ngược với hiệu ứng nhạc phía sau',
-    heroPlaceholderNote: 'Ảnh minh hoạ tạm — bản demo thật sẽ có trước v1.0.',
 
     featuresTitle: 'TickTune làm được gì',
     features: [

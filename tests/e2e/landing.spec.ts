@@ -109,14 +109,48 @@ test.describe('landing', () => {
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   });
 
-  test('the hero placeholder is same-origin and labelled as a placeholder', async ({ page }) => {
-    // docs/16's standing rule: placeholder media ships, but it is tracked and
-    // must not pass itself off as the real capture. Same-origin keeps CSP
-    // `img-src 'self'` satisfied with no policy change.
+  test('the hero is the real capture, same-origin, with a reduced-motion still', async ({
+    page,
+  }) => {
+    /*
+     * P7 slice C retired the placeholder. `docs/16`'s standing rule is now
+     * satisfied by there being no placeholder left rather than by labelling one.
+     *
+     * Same-origin throughout keeps `img-src`/`media-src 'self'` satisfied with
+     * no CSP change — the check that would have caught a CDN sneaking in.
+     */
     await page.goto('/');
-    const img = page.getByRole('img').first();
-    await expect(img).toHaveAttribute('src', /^\/hero-placeholder/);
-    await expect(page.getByText(/Ảnh minh hoạ tạm/)).toBeVisible();
+
+    const video = page.locator('video.tt-hero-video');
+    await expect(video).toHaveAttribute('poster', /^\/demo\//);
+    // Muted is not decoration: an unmuted autoplay video is blocked outright,
+    // so losing this attribute means the hero silently stops playing.
+    await expect(video).toHaveAttribute('muted', '');
+    await expect(video).toHaveAttribute('loop', '');
+
+    /*
+     * One source, H.264, same-origin. A VP9/WebM `<source>` was tried and
+     * removed: it encoded larger AND stalled WebKit's `load` event, timing out
+     * every spec in this file. Asserting the count keeps a second format from
+     * creeping back without someone re-reading why.
+     */
+    await expect(video).toHaveAttribute('src', /^\/demo\/.*\.mp4$/);
+    expect(await video.locator('source').count()).toBe(0);
+
+    // docs/03 §8 — the still exists so reduced motion has something to show.
+    await expect(page.locator('img.tt-hero-still')).toHaveAttribute('src', /^\/demo\//);
+  });
+
+  test('reduced motion swaps the looping hero for a still — docs/03 §8', async ({ page }) => {
+    /*
+     * A hero that loops forever is decoration in motion, which `03 §8` says to
+     * suppress. The swap is pure CSS because the landing ships zero JS.
+     */
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/');
+
+    await expect(page.locator('video.tt-hero-video')).toBeHidden();
+    await expect(page.locator('img.tt-hero-still')).toBeVisible();
   });
 
   test('Open Graph and the favicon are wired, same-origin', async ({ page }) => {
