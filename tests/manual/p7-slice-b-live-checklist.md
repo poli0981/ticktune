@@ -29,6 +29,14 @@ All three shipped and were live until this release. Each is a one-minute check.
       failure, worse consequence — `yt.load()` and `yt.play()` never ran, so the
       **player never mounted at all**, in the one mode whose player YouTube's
       terms require to be visible.
+- [ ] 🔴 **Safari: drag a file onto the drop zone and it imports.** Drag from
+      Finder/Explorer — not the file picker, which takes a different code path.
+      **No automated test can cover this**: a synthetic `DataTransfer` cannot
+      produce a filesystem-backed entry, and WebKit (unlike Chromium) takes the
+      entry-walking path for dropped items, where `.file()` then fails with
+      `NotFoundError` for want of a real path. Real Safari supplies real paths,
+      so this should work — but "should" is the whole reason the line exists.
+      Try a **folder** too, if you have one with audio in it.
 - [ ] 🔴 **A short countdown announces zero.** With a screen reader on
       (NVDA/VoiceOver), run a **12-second** countdown. It must say the ten-second
       milestone **and** "Hết giờ" / "Time is up". Before this release the zero

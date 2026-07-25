@@ -36,6 +36,25 @@ test.describe('single-mode import', () => {
     page,
   }) => {
     await skipWithoutAudio(page, browserName);
+    /*
+     * 🔴 Skipped on WebKit for a reason that is about the harness, not the app.
+     *
+     * A synthetic `DataTransfer` cannot produce a filesystem-backed entry.
+     * Chromium returns `null` from `webkitGetAsEntry()` for such an item, so the
+     * driver falls back to the flat `dt.files` list and this passes; WebKit
+     * returns a real-looking `FileSystemFileEntry` whose `.file()` then fails
+     * with `NotFoundError: Path does not exist` — there is no file on disk for
+     * it to resolve. Measured on both engines, see `dropFiles`.
+     *
+     * A real drag in Safari hands over entries with real paths and works. The
+     * only honest coverage for it is a human dropping a file, which is why it is
+     * a line in the P7 slice B live checklist.
+     */
+    test.skip(
+      browserName === 'webkit',
+      'a synthetic DataTransfer cannot back a FileSystemEntry with a real path (docs/13 §3)',
+    );
+
     // The picker is single-select in Single mode, so this path is reachable
     // only by dropping — which is also the path that has to survive the
     // capacity check being hoisted ahead of the per-file work (docs/02 §4).
