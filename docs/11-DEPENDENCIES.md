@@ -9,7 +9,7 @@ latest-or-LTS everywhere, no components with known critical CVEs.
 |-----------|---------------------|---------|-------|
 | Node.js | **24.x (Active LTS)** | LTS | Enters maintenance 2026-10-20; Node 26 becomes LTS 2026-10-28 — plan the bump then. EOL v24: 2028-04-30. `engines` + `.nvmrc` pinned. |
 | pnpm | 11.15.1 | latest | Portfolio used 10.x this month; 11 is current major — adopt for new repo, migration is trivial. |
-| Wrangler | 4.112.0 | latest | `compatibility_date: 2026-07-01`. |
+| Wrangler | **4.114.0** | latest | `compatibility_date: 2026-07-01`. ⚠️ Bumped from 4.112.0 for a **security** reason, not a feature one: its `miniflare` pinned `sharp@0.34.5` **exactly**, and `sharp <0.35.0` carries four libvips CVEs (GHSA-f88m-g3jw-g9cj). An exact pin cannot be moved by `pnpm update`, so the choice was an override or an upstream bump — see `§5` |
 
 ## 2. Application dependencies
 
@@ -106,6 +106,28 @@ widens its peer range — both must land, since either alone still breaks
   `javascript-typescript` + Dependabot weekly grouped PRs (`14 §2`).
 - **Policy:** patch/minor updates auto-PR'd; majors get a short written check in
   the PR (breaking changes + license re-check). Security releases jump the queue.
+
+  ⚠️ **`pnpm audit --prod` is deliberately narrower than "no vulnerabilities",
+  and the first advisory after 1.0 showed the gap.** CodeQL flagged four libvips
+  CVEs in `sharp <0.35.0` (GHSA-f88m-g3jw-g9cj) while `pnpm audit --prod` was
+  **clean** — correctly, because the vulnerable copy came in via
+  `wrangler → miniflare`, a **devDependency**, and `astro`'s own `sharp` was
+  already on a patched 0.35.x. The CI gate is about what ships to users; a
+  dev-only advisory still runs on developer machines and in CI, so it is worth
+  fixing, just not worth failing the production gate over. Run
+  `pnpm audit --audit-level high` (no `--prod`) when triaging one of these.
+
+  **Prefer an upstream bump to an override.** `miniflare` pinned `sharp@0.34.5`
+  *exactly*, so `pnpm update` could not move it and the options were a
+  `pnpm.overrides` entry — forcing a version past a pin its author chose — or a
+  newer `wrangler`. `4.114.0` ships `miniflare@4.20260722.0` with `sharp@0.35.2`,
+  so the fix is the one upstream intended and nothing is forced. Verified with
+  `wrangler deploy --dry-run` before merge, because a build tool that installs
+  is not the same as one that still works.
+
+  ⚠️ **Still open, same class:** `brace-expansion ≤5.0.7` (GHSA-mh99-v99m-4gvg)
+  reaches the tree through **eslint** over 37 paths. Dev-only, no shipped code
+  touches it, and it clears when eslint updates its `minimatch`.
 - Licenses of any new dependency are checked for GPL-3.0 compatibility **and for
   attribution/notice obligations** before merge, and appended to
   `legal/THIRD-PARTY-NOTICES.md`.
