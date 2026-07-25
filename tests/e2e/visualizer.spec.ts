@@ -24,6 +24,24 @@ import { gotoYouTubeApp, stageLinks } from './_helpers-yt';
  * rather than a product one. Everything that reads no analyser runs on both.
  */
 
+/**
+ * How long to wait for the analyser to produce its first non-silent frame.
+ *
+ * These assertions are about **whether a pulse happens at all**, never about how
+ * quickly — `05 §6` promises a live beat, not a latency bound. The number only
+ * has to exceed the worst realistic start-up, so it is set for the slowest
+ * environment rather than the fastest.
+ *
+ * ⚠️ Raised from 8 s in P7 slice B. Linux WebKit — which only began running
+ * these when the audio skip became a capability check — flaked here once on CI:
+ * beat `0` on the first attempt, `>0` on the retry, while its twenty sibling
+ * audio specs passed. That is a cold decode plus a throttled rAF on a loaded
+ * runner, not a missing capability, so the fix is patience rather than a skip.
+ * A `retries: 2` green would have hidden it; the `flaky` line in the log is what
+ * surfaced it (`docs/13 §3`).
+ */
+const AUDIO_SETTLE_MS = 20_000;
+
 /** Whether the canvas has drawn any non-transparent pixel. */
 async function canvasHasInk(page: Page): Promise<boolean> {
   return page.evaluate(() => {
@@ -100,7 +118,7 @@ test.describe('the visualizer canvas', () => {
       // Ink, not merely a mounted element: a canvas that renders nothing looks
       // identical to one that is working on a quiet passage, and only a real
       // analyser frame can put pixels down.
-      await expect.poll(() => canvasHasInk(page), { timeout: 8000 }).toBe(true);
+      await expect.poll(() => canvasHasInk(page), { timeout: AUDIO_SETTLE_MS }).toBe(true);
     });
   }
 
@@ -110,7 +128,7 @@ test.describe('the visualizer canvas', () => {
   }) => {
     await skipWithoutAudio(page, browserName);
     await play(page, 'bars');
-    await expect.poll(() => canvasHasInk(page), { timeout: 8000 }).toBe(true);
+    await expect.poll(() => canvasHasInk(page), { timeout: AUDIO_SETTLE_MS }).toBe(true);
 
     const ok = await page.evaluate(() => {
       const c = document.querySelector('[data-testid=tt-visualizer]') as HTMLCanvasElement;
@@ -140,7 +158,7 @@ test.describe('the tally light keeps the beat — docs/03 §1, docs/05 §6', () 
      */
     await play(page, 'off');
     await expect(page.getByTestId('tt-visualizer')).toHaveCount(0);
-    await expect.poll(() => beat(page), { timeout: 8000 }).toBeGreaterThan(0);
+    await expect.poll(() => beat(page), { timeout: AUDIO_SETTLE_MS }).toBeGreaterThan(0);
   });
 
   test('is steady at zero in YouTube mode — no Analyser exists there', async ({ page }) => {
