@@ -901,6 +901,28 @@
   style:--tt-yt-reserve={ytReserve}
   inert={booted && needsGate}
 >
+  <!--
+    The page's top-level heading — found missing in P7 slice B by the axe scan.
+
+    Setup and the Player had NO `<h1>` at all: the Legal Gate has one and so does
+    the Finished screen, so every state a user passes *through* was named while
+    the two they spend their time in were not. A screen-reader user landing on
+    Setup had nothing to orient from, and "skip to the heading" reached nothing.
+
+    Visually hidden rather than rendered: the design's anchor is the wordmark and
+    the countdown itself, and `03 §1` gives the digits their own treatment. Never
+    `display: none`, which would remove it from the accessibility tree and undo
+    the fix.
+
+    A literal, like `TtLegalGate`'s: the wordmark is a proper noun and is never
+    translated (`08 §3`, `i18n/static/en.ts`).
+
+    ⚠️ Only the `wcag*` tags were scanned at first and they do **not** report a
+    missing `h1` — `page-has-heading-one` is `best-practice`. The scan was green
+    over this until the tag set was widened.
+  -->
+  <h1 class="tt-sr">TickTune</h1>
+
   {#if debug}
     <TtDebugPanel
       {samples}
