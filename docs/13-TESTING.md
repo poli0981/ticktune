@@ -243,10 +243,38 @@ visualizer must *have* the adaptive-degrade path (`05 §6`), and slice 4 ships i
 with a unit test over the decision. Whether the frame budget is actually met on
 real hardware is what P7 measures.
 
-## 6. Accessibility pass (P7)
+## 6. Accessibility pass — ✅ **built in P7 slice B**
 
 Keyboard-only full journey; axe scan on Landing/Setup/Player/Settings; reduced-
 motion mode visual check; contrast spot-checks under brightest background preset.
+
+`tests/e2e/a11y.spec.ts` owns the first two; reduced motion is already covered in
+`backgrounds.spec.ts` and is not duplicated. `@axe-core/playwright` is **MPL-2.0**
+(GPL-3.0 compatible) and test-only, so it gets no notices row — and
+`make-notices.ts` proves that rather than asserting it: the generated artifact is
+built from the client bundle, and axe does not appear in it.
+
+🔴 **The `wcag*` tags alone are narrower than "accessible", and the gap is
+invisible.** The first version scanned `wcag2a/2aa/21a/21aa` and reported zero
+violations across seven surfaces — a clean result that was **wrong by omission**.
+Demoting the landing's `<h1>` to `<h4>` produced no finding at all, because
+heading rules are `best-practice` rather than a success criterion. With
+`best-practice` added, the scan immediately found that **Setup and the Player had
+no `<h1>` at all**: the Legal Gate has one and so does Finished, so every state a
+user passes *through* was named while the two they spend their time in were not.
+Fixed with a visually-hidden `h1` in the shell.
+
+⚠️ **Verify an a11y scan by mutation like any other guard**, and rebuild first —
+one attempt here "passed" against a stale `dist/` because a `grep -c` returning 0
+broke the `&&` chain before `pnpm build` ran. Confirmed working by removing an
+`alt`: exit 1, `image-alt`, on both landings.
+
+**axe is only half of it.** It cannot tell you whether the app is *operable* — a
+page can be perfectly labelled and still trap a keyboard user at the first
+dialog, which is precisely what the `AudioContext` defect above did to the legal
+gate. The keyboard-only specs are that half, and they locate controls **by
+accessible label** (`getByLabel`, `getByRole`) rather than by testid, so they fail
+for the same reason a real user would.
 
 ## 7. Live-site smoke checklist (spec: "test directly on the live site")
 
