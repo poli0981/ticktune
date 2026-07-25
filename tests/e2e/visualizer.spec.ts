@@ -94,7 +94,7 @@ test.describe('the visualizer canvas', () => {
   // which keeps a failure attributable to the style that caused it.
   for (const style of ['bars', 'wave', 'ring'] as const) {
     test(`${style} renders and paints real pixels`, async ({ browserName, page }) => {
-      skipWithoutAudio(browserName);
+      await skipWithoutAudio(page, browserName);
       await play(page, style);
       await expect(page.getByTestId('tt-visualizer')).toHaveAttribute('data-tt-style', style);
       // Ink, not merely a mounted element: a canvas that renders nothing looks
@@ -108,7 +108,7 @@ test.describe('the visualizer canvas', () => {
     browserName,
     page,
   }) => {
-    skipWithoutAudio(browserName);
+    await skipWithoutAudio(page, browserName);
     await play(page, 'bars');
     await expect.poll(() => canvasHasInk(page), { timeout: 8000 }).toBe(true);
 
@@ -130,7 +130,7 @@ test.describe('the tally light keeps the beat — docs/03 §1, docs/05 §6', () 
     browserName,
     page,
   }) => {
-    skipWithoutAudio(browserName);
+    await skipWithoutAudio(page, browserName);
     /*
      * `05 §6`: "even Visualizer: off keeps one live beat element". If the beat
      * were published by the canvas's draw path, turning the style off would

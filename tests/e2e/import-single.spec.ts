@@ -35,7 +35,7 @@ test.describe('single-mode import', () => {
     browserName,
     page,
   }) => {
-    skipWithoutAudio(browserName);
+    await skipWithoutAudio(page, browserName);
     // The picker is single-select in Single mode, so this path is reachable
     // only by dropping — which is also the path that has to survive the
     // capacity check being hoisted ahead of the per-file work (docs/02 §4).
@@ -85,7 +85,7 @@ test.describe('single-mode import', () => {
   });
 
   test('embedded cover art is extracted and shown (docs/05 §5)', async ({ browserName, page }) => {
-    skipWithoutAudio(browserName);
+    await skipWithoutAudio(page, browserName);
     dismissUnloadDialogs(page);
     await gotoSingleMode(page);
     await page.getByTestId('tt-file-input').setInputFiles(pick('with-cover.mp3'));
@@ -108,7 +108,7 @@ test.describe('single-mode import', () => {
   });
 
   test('a file with no cover still reports N/A', async ({ browserName, page }) => {
-    skipWithoutAudio(browserName);
+    await skipWithoutAudio(page, browserName);
     dismissUnloadDialogs(page);
     await gotoSingleMode(page);
     await page.getByTestId('tt-file-input').setInputFiles(pick('tone-5s.mp3'));

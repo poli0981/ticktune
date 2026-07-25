@@ -295,7 +295,7 @@ test.describe('youtube mode', () => {
       browserName,
       page,
     }) => {
-      skipWithoutAudio(browserName);
+      await skipWithoutAudio(page, browserName);
       /*
        * Two assertions in one run because they share the one condition that made
        * both fail: the audio driver is built lazily, and in YouTube mode nothing
