@@ -28,7 +28,8 @@
     "test:e2e": "playwright test",
     "guard": "node scripts/guard-no-corpus.mjs",
     "verify:csp": "node scripts/verify-csp.mjs",
-    "fixtures": "node scripts/make-fixtures.ts"
+    "fixtures": "node scripts/make-fixtures.ts",
+    "demo": "node scripts/make-demo.ts"
   },
   "dependencies": {
     "@astrojs/svelte": "9.0.1",

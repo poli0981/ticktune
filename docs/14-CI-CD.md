@@ -22,7 +22,7 @@ matching the May 2026 portfolio-wide fix.
 | `e2e.yml` | PR to main | **self-contained** | Playwright chromium + firefox + webkit, report artifact |
 | `codeql.yml` | push main + weekly cron | caller → `reusable-codeql.yml` | `javascript-typescript` |
 | `audit.yml` | weekly cron + PR touching lockfile/package.json | **self-contained** | `pnpm audit --prod --audit-level high` |
-| `deploy.yml` | push tag `v*` (+ manual dispatch) | **self-contained** | build (incl. CSP-hash injection) + `wrangler deploy` |
+| `deploy.yml` | push tag `v*` (+ manual dispatch) | **self-contained** | build (incl. CSP-hash injection) + `wrangler deploy` + GitHub Release (P7 slice C) |
 | `notify.yml` | — | **deferred** | see below |
 
 Why self-contained rather than callers:
@@ -153,11 +153,12 @@ jobs:
 |--------|-------------|
 | ci / e2e / audit | `contents: read` |
 | codeql | `actions: read` · `contents: read` · `security-events: write` |
-| deploy | `contents: read` (+ CF secrets) |
+| deploy | `contents: **write**` (+ CF secrets) — raised in P7 slice C for `gh release create`, and for nothing else |
 | notify | `contents: read` · `actions: read` |
 
-Rule of thumb: nothing gets `write` except `security-events` for CodeQL. Deploy
-authenticates to Cloudflare via secret token, not GitHub permissions.
+Rule of thumb: nothing gets `write` except `security-events` for CodeQL and
+`contents` on deploy, which publishes the Release. Deploy authenticates to
+Cloudflare via a secret token, not via GitHub permissions.
 
 ## 4. Secrets
 
@@ -173,15 +174,17 @@ authenticates to Cloudflare via secret token, not GitHub permissions.
 3. Tag `vX.Y.Z` → `deploy.yml` builds, runs `scripts/inject-csp-hash.ts`
    (`10 §7`) and deploys.
 
-   ⚠️ **The GitHub Release and the fan-out do not exist.** This step read "then
-   GitHub Release with generated notes → `notify.yml` fans out" until v0.3.0;
-   `deploy.yml` has only a Build step and a Deploy step, there is no
-   `notify.yml`, and `gh release list` was empty after both v0.2.0 and v0.3.0.
-   Nobody noticed because a deploy that works looks identical either way — the
-   site updates, the workflow is green, and the missing artifact is one nobody
-   goes looking for. Filed as a gap rather than quietly implemented at release
-   time: whether releases are announced at all is a decision, and `notify.yml`
-   has no owner phase.
+   ✅ **The GitHub Release exists from P7 slice C** — see the section at the end
+   of this chapter. The fan-out does **not**, deliberately.
+
+   ⚠️ It was missing for **twelve tagged releases**, and the reason is worth
+   keeping: this step read "then GitHub Release with generated notes →
+   `notify.yml` fans out" from suite 1.0, while `deploy.yml` had only a Build and
+   a Deploy step and no `notify.yml` ever existed. `gh release list` was empty
+   after v0.2.0, v0.3.0 — and still at v0.12.0. **Nobody noticed because a deploy
+   that works looks identical either way**: the site updates, the workflow is
+   green, and the missing artifact is one nobody goes looking for. That is the
+   same shape as every other claim this suite has had to measure.
 
    **Tags are signed** (`git tag -s`), and the signature is worth verifying
    rather than assuming: `tag.gpgsign = true` was already set when **v0.2.0 was
@@ -197,3 +200,31 @@ authenticates to Cloudflare via secret token, not GitHub permissions.
    `Content-Security-Policy:`, and the live site answers with that header name.
    `09 §4` carries the reasoning and why the enforcing-first choice was the right
    one anyway.
+
+### The GitHub Release — added P7 slice C
+
+`16`'s P7 row asked for a "notify fan-out" and **nothing was ever behind it**: no
+`notify.yml` has existed at any point, and `gh release list` was empty as late as
+v0.12.0. Twelve tagged releases had produced no release page.
+
+Rather than build a broadcast pipeline for an audience that does not exist, the
+deploy workflow now publishes the one artifact a release genuinely needs:
+
+```yaml
+gh release create "$GITHUB_REF_NAME" --verify-tag --notes-from-tag
+```
+
+Two flags carry the reasoning.
+
+**`--verify-tag`** is the point of the step. GitHub's rebase-merge produces
+**unsigned** commits on `main` (`§3`), so the *tag* is the only signed artifact a
+release has — publishing a release for a tag that is missing or has drifted would
+launder that guarantee away silently.
+
+**`--notes-from-tag`** rather than auto-generated notes. The annotated tag message
+is written by hand at release time and says why the release exists; a generated
+commit list says what changed and not what it means. The project already invests
+in those messages, so the release should carry them rather than replace them.
+
+⚠️ `permissions:` moves to `contents: write` for this step and this step only.
+The block stays **explicit** — never inherited — for the reason in `§2`.

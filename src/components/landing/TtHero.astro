@@ -5,10 +5,12 @@ import type { StaticDict } from '../../i18n/static/en';
  * Landing hero — docs/03 §3 item 1.
  *
  * "hero with looping demo capture (placeholder asset until core is done, per
- * spec)". The placeholder is same-origin (`img-src 'self'`), so it needs no CSP
- * change, and it is labelled as a placeholder on the page rather than passed off
- * as the product — docs/16's standing rule tracks it as a `placeholder` issue to
- * be cleared before v1.0.
+ * spec)". ✅ **P7 slice C cleared the placeholder** — this is now a real
+ * recording of the shipped app, produced by `scripts/make-demo.ts`, and
+ * `docs/16`'s standing rule is satisfied by there being nothing left to track.
+ *
+ * Everything is same-origin (`img-src`/`media-src 'self'`), so the CSP is
+ * unchanged — the same reason the placeholder needed none.
  *
  * Zero JS, like every static section: the site ships exactly one inline script
  * (the mobile gate in TtBase) and `scripts/inject-csp-hash.ts` fails the build
@@ -40,20 +42,60 @@ const { t, common } = Astro.props;
 
   <figure class="tt-hero-media">
     <!--
-      Placeholder until P7 replaces it with the real capture. `loading="eager"`
-      and explicit dimensions: this is the LCP element, and giving the browser
-      the box up front is most of what keeps CLS at zero for the Lighthouse ≥ 95
-      exit criterion.
+      The real capture — P7 slice C, replacing the P6 placeholder.
+
+      Recorded by `scripts/make-demo.ts` driving the SHIPPED build: gate, import,
+      visualizer, a running countdown. Nothing here is a mock-up, so the hero
+      cannot claim behaviour the app does not have — if the visualizer breaks,
+      the next capture breaks with it.
+
+      Explicit `width`/`height` and the same 960×540 box as the placeholder: this
+      is the LCP element, and reserving the box up front is most of what keeps
+      CLS at zero for the Lighthouse ≥ 95 exit criterion (`13 §5`).
+
+      No audio track at all — it is muted, so those bytes would be pure waste.
+      `poster` is a real frame, so something paints before the video arrives.
+
+      ⚠️ **One source, H.264 only, and that was measured rather than assumed.**
+      This shipped briefly with a VP9/WebM `<source>` first on the usual "WebM
+      for size, MP4 for reach" reasoning. Both halves were wrong here: the WebM
+      encoded LARGER (140 KB vs 119 KB) at equivalent quality, and WebKit stalled
+      on it — every landing spec timed out in `page.goto` waiting for `load`,
+      thirteen of them, because Safari sat on the first source instead of falling
+      through. A second format cost bytes AND compatibility and bought nothing.
+    -->
+    <video
+      class="tt-hero-video"
+      src="/demo/hero.mp4"
+      poster="/demo/hero-poster.webp"
+      width="960"
+      height="540"
+      autoplay
+      muted
+      loop
+      playsinline
+      aria-label={t.heroMediaAlt}></video>
+
+    <!--
+      Shown INSTEAD of the video under `prefers-reduced-motion` — `03 §8` treats
+      looping decoration as motion, and a hero that loops forever is exactly
+      that.
+
+      ⚠️ Honest limitation: this hides the video, it does not stop it
+      downloading. Suppressing `autoplay` conditionally needs JavaScript, and
+      the landing ships **zero** JS by design (`01 §5`, and the single-inline-
+      script invariant the build asserts). Removing the motion is the part that
+      matters for accessibility; the wasted bytes are the price, and they are
+      ~116 KB rather than something worth breaking the invariant over.
     -->
     <img
-      src="/hero-placeholder.svg"
+      class="tt-hero-still"
+      src="/demo/hero-poster.webp"
       alt={t.heroMediaAlt}
       width="960"
       height="540"
-      loading="eager"
       decoding="async"
     />
-    <figcaption>{t.heroPlaceholderNote}</figcaption>
   </figure>
 </section>
 
@@ -123,15 +165,26 @@ const { t, common } = Astro.props;
   .tt-hero-media {
     margin: 0;
   }
-  .tt-hero-media img {
+  .tt-hero-video,
+  .tt-hero-still {
+    display: block;
     width: 100%;
     height: auto;
     border: 1px solid var(--color-tt-line);
     border-radius: 0.5rem;
   }
-  figcaption {
-    margin-top: 0.6rem;
-    font-size: 0.7rem;
-    color: var(--color-tt-muted);
+
+  /* The still is the reduced-motion alternative; the video is the default. */
+  .tt-hero-still {
+    display: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .tt-hero-video {
+      display: none;
+    }
+    .tt-hero-still {
+      display: block;
+    }
   }
 </style>
