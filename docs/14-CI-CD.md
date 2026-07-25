@@ -190,5 +190,10 @@ authenticates to Cloudflare via secret token, not GitHub permissions.
    the Windows GnuPG — a different keyring from the `gpg` on Git Bash's `PATH`,
    which reports "No secret key" and means nothing.
 4. Post-deploy: run the live-site smoke checklist (`13 §7`).
-5. First production deploy ships CSP as Report-Only; the switch to enforcing CSP
-   is its own tagged release during P7 (`09 §4`).
+5. ~~First production deploy ships CSP as Report-Only; the switch to enforcing
+   CSP is its own tagged release during P7.~~ **Deleted in P7 slice B: it never
+   happened and the release it promised was a no-op.** The CSP has been
+   **enforcing since the first deploy** — `public/_headers` has always said
+   `Content-Security-Policy:`, and the live site answers with that header name.
+   `09 §4` carries the reasoning and why the enforcing-first choice was the right
+   one anyway.

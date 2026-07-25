@@ -292,3 +292,47 @@ After every production deploy:
 - [ ] Headers/CSP live (`10 §11`), `/api` 429 after burst
 - [ ] Real Android phone + touch-only iPad: gate shows, no bundle download
 - [ ] Copy Diagnostics → paste parses as JSON
+
+## 8. Build-time guards — the checks that are not tests
+
+Four things are asserted by `pnpm build` and CI rather than by a spec, because
+each one guards a property no test can observe from inside a browser.
+
+| Guard | Fails when | Added |
+|---|---|---|
+| `inject-csp-hash.ts` | the site has more than one distinct inline script (`10 §7`) | P1 |
+| `make-notices.ts` | a package in the shipped bundle has no licence text to reproduce (`11 §5`) | P7 slice A |
+| `check-budget.ts` | the `/app/` boot bundle exceeds `§5`'s 250 KB gz | P7 slice B |
+| `check-doc-refs.ts` | an `NN §M` citation resolves to a section that does not exist | P7 slice B |
+
+All four are **mutation-verified**: each was made to fail on purpose, reading the
+real exit code rather than a piped `tail`'s.
+
+### The doc-reference resolver, and the mistake worth keeping
+
+The suite carries **701** `NN §M` citations. They rot silently — renumbering a
+section invalidates every citation of it everywhere else and nothing fails —
+which is why `AUDIT-BACKLOG` had two findings about wrong cross-references, found
+by hand.
+
+🔴 **The first version of the resolver reported 23 broken references, and 21 of
+them were correct.** It only understood markdown headings, and most subsections
+in this suite are **numbered list items**: `06 §1.2` is item 2 of
+`## 1. Compliance rules` — the always-visible player rule — and `12 §3.1` is item
+1 of `## 3. Architecture rules`. Both resolve exactly as their citers intend.
+
+Acting on that output would have rewritten twenty-one working pointers to satisfy
+a linter that did not model the thing it was checking. **A guard that
+misunderstands its subject manufactures work and calls it quality.** Ask what a
+failing result would make you *do* before trusting it.
+
+The two real findings were typos on one line of `AUDIT-BACKLOG.md` — ~~`03 §64`~~
+and ~~`05 §86`~~ — corrected from **content**, not from arithmetic: the blurred
+thumbnail they describe is in `03 §2`'s zone table and `05 §6`'s visualizer
+section.
+
+⚠️ Those two are struck through because the guard caught this very paragraph.
+Quoting a broken reference to document it is indistinguishable, to a resolver,
+from making one — so `~~…~~` marks a citation as **history rather than a live
+pointer**, and the linter skips any line containing it. Without that escape the
+only way to write about a bad reference would be to not write about it.

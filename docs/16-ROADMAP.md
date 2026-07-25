@@ -13,7 +13,7 @@ Durations are effort estimates, not calendar promises. **v1.0 target: late Q3
 | **P4 · YouTube** (~1 wk) | `/api/yt/oembed` Worker route, player rail, error overlays, YT import pipeline, offline panel | Manual yt-matrix passes; rate-limit path handled |
 | **P5 · Visuals & settings** (~1 wk) | Visualizer (3 styles), backgrounds + slideshow, auto-theme, focus mode, full settings, i18n dictionaries complete + key-diff guard | Reduced-motion + a11y milestones announced. **Perf budget is P7's** — decided 2026-07-24, see below |
 | **P6 · Landing + legal** (~0.5–1 wk) | Landing VI/EN (hero uses **placeholder** capture until core is stable — per spec), legal pages from `legal/*` drafts, **VI translation of legal**, 404, FAQ | Lighthouse ≥ 95 static pages; hreflang correct |
-| **P7 · Hardening + launch** (~1 wk) | CSP Report-Only → enforce, a11y pass, perf pass, cross-browser sweep incl. WebKit, live-site smoke checklist, domain + CF checklist (`10 §11`), demo capture replaces placeholder | v1.0.0 tag; notify fan-out |
+| **P7 · Hardening + launch** (~1 wk) | ~~CSP Report-Only → enforce~~ (never applied — enforcing since the first deploy, `09 §4`), a11y pass, perf pass, cross-browser sweep incl. WebKit, live-site smoke checklist, domain + CF checklist (`10 §11`), demo capture replaces placeholder | v1.0.0 tag; ~~notify fan-out~~ → a GitHub Release (`14 §5`) |
 
 ## P1 exit review — 2026-07-21: **scope complete (8 of 8)**, blocked on S2
 
