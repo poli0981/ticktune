@@ -28,6 +28,7 @@
   //
   // Changing this line changes the privacy policy. Do one without the other and
   // the document is false again.
+  "workers_dev": false,
   "observability": {
     "enabled": true,
   },
