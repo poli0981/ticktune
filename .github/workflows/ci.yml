@@ -28,7 +28,7 @@ jobs:
       - name: Guard against the audio corpus
         run: node scripts/guard-no-corpus.mjs
 
-      - uses: pnpm/action-setup@v6.0.9
+      - uses: pnpm/action-setup@v6.0.10
       - uses: actions/setup-node@v7
         with:
           node-version-file: .nvmrc
