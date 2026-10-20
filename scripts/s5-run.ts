@@ -59,8 +59,8 @@ const OUT = 'test/s5-results';
 const CONTROL_MIN = 0.5;
 
 // Absolute, like the browsers below: nothing here is looked up on PATH.
-const TASKKILL = 'C:/Windows/System32/taskkill.exe';
-const POWERSHELL = 'C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe';
+const TASKKILL = String.raw`C:\Windows\System32\taskkill.exe`;
+const POWERSHELL = String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`;
 
 const EXE: Record<string, string> = {
   msedge: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
