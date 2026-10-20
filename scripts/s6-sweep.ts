@@ -16,10 +16,10 @@
  * Results go to test/s6-results/ (git-ignored: they name corpus files).
  */
 import { chromium } from '@playwright/test';
-import { build, preview } from 'astro';
 import { spawn } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { spikeServer } from './spike-kit.ts';
 
 const args = process.argv.slice(2);
 const i = args.indexOf('--channel');
@@ -53,19 +53,9 @@ interface Result {
 const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as { files: Fx[] };
 const fx = manifest.files.filter((f) => Number.isFinite(f.refLufs));
 
-const reusePort = (() => {
-  const k = process.argv.indexOf('--reuse');
-  return k >= 0 ? Number(process.argv[k + 1]) : null;
-})();
-// --reuse <port>: measure against an already-running `pnpm spikes` server, so
-// several sweeps can share ONE build instead of overwriting dist-spikes/.
-let server: { stop: () => Promise<void> } = { stop: async () => {} };
-if (reusePort === null) {
-  process.env['TT_SPIKES'] = '1';
-  await build({ root: process.cwd(), logLevel: 'warn' });
-  server = await preview({ root: process.cwd(), logLevel: 'warn', server: { port: PORT } });
-}
-const ORIGIN = `http://localhost:${reusePort ?? PORT}`;
+// `--reuse <port>` shares one running `pnpm spikes` build between sweeps.
+const server = await spikeServer(PORT);
+const ORIGIN = server.origin;
 const bs = await chromium.launchServer({ channel, headless: false });
 const browser = await chromium.connect(bs.wsEndpoint());
 const pid = bs.process().pid;
