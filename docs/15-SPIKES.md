@@ -204,34 +204,76 @@ appeared to contradict each other. Split along what each half actually gates:
 P2 therefore ships `singleLoopStyle: 'hard'` and renders the crossfade toggle
 disabled (`05 §2`). Nothing else in P2 depends on S4b.
 
-⚠️ **Closing S4b is not "run the existing harness".** `TtS4Crossfade.svelte`
-computes its overlap metric from `gain[i].gain.value` — the automation values it
-scheduled itself, so the measurement cannot disagree with the schedule and cannot
-fail. It also triggers the fade from a hard-coded `setTimeout(1200)` rather than
-from `timeupdate`, and never reads `element.duration` at all, which is the one
-quantity S4b exists to interrogate. Before the sweep is worth running the harness
-needs: per-deck `AnalyserNode`s for an independent overlap metric, a real
-`duration − currentTime ≤ fade + margin` trigger, and `duration` logged at
-`loadedmetadata` and on every `durationchange`.
+⚠️ **Closing S4b was not "run the existing harness".** The v1 harness computed
+its overlap from `gain[i].gain.value` — the automation it had scheduled itself —
+so the measurement could not disagree with the schedule and could not fail. It
+also fired the fade from a hard-coded `setTimeout(1200)`, never read
+`element.duration`, built one master gain where the app has two, and at a 0.02
+threshold spent 127 of the 150 ms tolerance on a perfect 5 s fade.
 
-- **Goal:** prove the A/B element crossfade sounds clean (no click/gap), the
-  gate-click `resume()` reliably unlocks autoplay, and `timeupdate` scheduling
-  margins hold.
-- **Method:** two-element graph prototype; fade durations 0 / 1 / 2 / 5 s across
-  mp3+flac fixtures; measure actual overlap via Analyser RMS; test
-  suspend/resume cycles (Safari included if reachable); verify master-gain fade
-  mid-crossfade.
-  **Also:** run the same fade schedule against **real VBR MP3s from the `test/`
-  corpus**, not only generated fixtures. `05 §2` schedules the crossfade off
-  `duration - currentTime ≤ fade`, and `element.duration` is least reliable on
-  exactly the kind of file the app targets — VBR MP3s without an Xing/VBRI header,
-  where browsers estimate from bitrate and can revise mid-playback. A fixture-only
-  spike would never see it.
-- **Acceptance:** no audible click at any duration; overlap timing within
-  ±150 ms of target **on both generated fixtures and real VBR MP3s**; playback
-  never starts before the gesture; master fade behaves mid-crossfade; any
-  `duration` revision observed mid-playback is recorded with its magnitude.
-- **Timebox:** 0.5–1 day.
+### S4b harness v2 — v2.0
+
+- **The graph under test is the shipping one.** `buildTtGraph()` and
+  `ttGraphPorts()` are exported from `tt-audio-driver.ts`; the driver and the
+  harness both call them, so nothing measured is a hand-built copy.
+- **Measured from the audio.** An AudioWorklet probe per deck reads the signal
+  **before** and **after** its `deckGain`, and a third reads the master around
+  `fadeGain`, every 128-frame render quantum (`src/spike/s4/tt-s4b-probe.worklet.ts`).
+  A deck is *playing* when its pre-gain signal is above −60 dBFS; its *realized
+  gain* is √(post/pre) — which cancels the music out, and reads zero when the
+  media is absent however loudly the automation says 1.
+- **The trigger is the candidate engine code.** `crossfadePlan()`
+  (`tt-s4b-plan.ts`, pure) runs on every real `timeupdate`: it fires when
+  `remaining ≤ effFade + margin`, with `effFade = min(fade, D_out/2, D_in/2)`, and
+  runs the curves for `min(effFade, remaining − latency − guard)`. On a PASS it
+  moves into the engine unchanged.
+- **Metrics** (`tt-s4b-metrics.ts`, pure, `tests/unit/s4b-metrics.test.ts`):
+  overlap = time both decks play at realized gain ≥ 0.1, against the IDEAL for
+  that threshold, `eff·(1 − (4/π)·asin 0.1) = 0.8725·eff`; a two-point fit of each
+  deck to its cos/sin curve; head loss (incoming sound that arrived after its
+  fade-in had begun); end guard (outgoing signal end − fade end: negative means
+  it stopped while audible), also measured from `ended`, which content cannot
+  fool; the 0 s gap a listener hears, net of the files' own silence; clicks — a
+  second difference > 10× the preceding 500 ms's p99 and above −50 dBFS within
+  −300/+100 ms of something the runner did, or a realized-gain step > 0.25;
+  equal-power deviation; clipping; the master fade's own fit.
+- **It can fail, and proves it first.** Four broken controls run before anything
+  else — B never starts (`corrupt.mp3`), B plays 300 ms late, A stops 400 ms
+  before its fade ends, a signal that ends on a peak — and the verdict is
+  **HARNESS INVALID** unless every one FAILS. The unit tests also show the old
+  gain-readback metric passing all three broken traces.
+- **Fixtures** (`pnpm s4b:fixtures`, into git-ignored `test/generated/s4b/`):
+  440/660 Hz pairs in WAV, CBR with and without an Info header, VBR with Xing,
+  raw ADTS, M4A, FLAC and Opus; header-less VBR whose bitrate changes mid-file in
+  both directions; the controls; and `--corpus` adds the corpus's 16 Xing-VBR
+  MP3s as shipped and **remuxed without their header** — the corpus holds no
+  header-less VBR, exactly the case this spike exists for. True durations and
+  silences come from a full ffmpeg decode, into `manifest.json`.
+- **The sweep** (`pnpm s4b`, `scripts/s4b-sweep.ts`): `astro dev` in-process,
+  Playwright loads the fixtures and presses Unlock with a real click, then runs
+  each configuration in sequence. Modes: `inter` (A→B), `loop` (one file, one
+  URL, both decks, two transitions), `zero` (Z1 swaps `src` at `ended` — what the
+  app does today; Z2 starts a pre-armed idle deck at `ended`; Z3 crosses over in
+  10 ms just before the end), `master` (the real `runEndBehavior` 2 s fade lands
+  40% into a 5 s crossfade, a `userGain` write at 60%), `pause` (held at 50% for
+  1 s with `cancelScheduledValues` + `setValueAtTime` — Firefox has no
+  `cancelAndHoldAtTime` — then resumed). `--quick` ≈ 12 min, `--full` ×3 plus
+  the corpus. Results go to git-ignored `test/s4b-results/` (they name corpus
+  files); this chapter carries labels only. Bundled headed Chromium cannot be
+  spawned on the dev box, so it runs in **system Edge** (`--channel msedge`, the
+  browser S2 was measured in); the page's own buttons run the same plan in
+  Firefox and Safari by hand.
+- **Acceptance**, each rule able to fail (`tt-s4b-verdict.ts`): every control
+  fails; every test-file crossfade within ±150 ms of the ideal overlap, no
+  truncation, head loss ≤ 150 ms, no click, no exception; at least one 0 s switch
+  with gap ±150 ms and no click (the verdict names it); the master fade on
+  schedule (±10 ms), click-free, the crossfade's overlap within 20 ms of a control
+  run without it; header-less VBR kept on time by at least one duration source
+  (the verdict names it); real corpus VBR with no truncation and no early cut
+  (`ended` − fade end within 0…margin + guard + 150 ms). Playback never starting
+  before the gesture, and listening to corpus transitions on speakers, stay
+  owner-run lines of the v2.0 live checklist.
+- **Timebox:** 0.5–1 day (v1); the v2 harness is a v2.0 deliverable.
 
 ## Exit
 
