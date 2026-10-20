@@ -1238,6 +1238,14 @@ refused — which is the scope rule doing its job in both directions.
   failure. Re-run from the start, the corpus passed.
 - **Two copies of one tone cancel** at an equal-power midpoint, so the crossfade
   E2E fades between different pitches and measures the level, not a flag.
+- **CI's Linux WebKit starts every track ~1.07 s in.** Three crossfade specs
+  failed there and nowhere else; a check of the media clock's rate passed it,
+  because after the jump the clock runs true. The spec now measures the lead
+  and the rate in every run and skips only the durations where the clock does
+  not keep time (`13 §3`) — the capability, measured, twice.
+- `--update-snapshots` writes only the screenshots that fail, and a change
+  inside the tolerance never fails: the live crossfade toggle left four
+  baselines stale while the wrapper said "written".
 - The visual wrapper exited 0 over eight failed screenshots; legal pages carried
   a CLS of 0.197 from two late fonts; the canvas grew with the window until a 4K
   software-rendered visualizer ran at 31 fps, invisible to its own degrade.
