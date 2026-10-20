@@ -125,6 +125,10 @@ so unit tests get deterministic ids.
   choice, visualizer style, end behavior, volume, crossfade, shuffle/repeat flags,
   legal-gate acceptance `{version, acceptedAt}`, last-used mode.
 - **Never persisted:** files, object URLs, queue contents, YouTube link lists.
+- **Cache Storage** (v2.0, `10 §9`) holds the app's own shipped files for an
+  offline start — HTML, scripts, styles, fonts, icons — and nothing the user
+  chose or made: the service worker never sees a `blob:` URL and never answers
+  `/api/*` or another origin.
 - `beforeunload` guard: if `queue.length > 0` or state ∈ {playing, paused}, show the
   native confirm dialog. Object URLs are revoked on `pagehide`.
 

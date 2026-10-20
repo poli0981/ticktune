@@ -51,8 +51,12 @@ const all = rules.get('/*');
 const csp = parseCsp(all?.get('content-security-policy') ?? '');
 
 describe('public/_headers — docs/09 §2 and §4', () => {
-  it('has the site-wide rule and both immutable cache rules', () => {
-    expect([...rules.keys()]).toEqual(['/*', '/_astro/*', '/fonts/*']);
+  it('has the site-wide rule, both immutable cache rules and the service worker', () => {
+    expect([...rules.keys()]).toEqual(['/*', '/_astro/*', '/fonts/*', '/sw.js']);
+  });
+
+  it('revalidates the service worker on every check — docs/10 §9', () => {
+    expect(rules.get('/sw.js')?.get('cache-control')).toBe('no-cache');
   });
 
   it('sends the full security header set on every path', () => {

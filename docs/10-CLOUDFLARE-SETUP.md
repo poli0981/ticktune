@@ -155,8 +155,39 @@ pages, 52x). Decision per spec's conditional:
 Client-side: a Setup banner (`setup.offline.*`) appears when `navigator.onLine`
 says offline **or** an import could not reach the network, and it blocks Start
 in YouTube mode only, with a retry button — there is no background probe
-(`06 §8`). Local modes keep working once loaded. (Full offline PWA is post-1.1,
-`16`.)
+(`06 §8`). Local modes keep working once loaded.
+
+**Offline start (v2.0).** `/app/` is installable and starts with no network:
+
+- **Manifest** `public/manifest.webmanifest` — id, scope and start URL `/app/`,
+  `standalone`, the chassis colour, icons 192/512 plus a maskable 512
+  (`scripts/make-brand-assets.mjs`). Linked from `/app/` only (`TtBase`
+  `manifest`): the landing and legal pages stay plain pages.
+- **Service worker** `/sw.js`, scope `/app/`, built by `scripts/make-sw.ts` from
+  `src/sw/tt-sw.ts` as a step of `pnpm build`. It precaches `/app/` and every
+  file the app can ask for — the hashed `_astro/` bundle (its fonts included),
+  `fonts/`, `icons/`, the manifest, the favicon; media never — under a version
+  hashed from those URLs and bytes, so a deploy that changes nothing installs
+  nothing.
+  - `/app/` is **network-first**: online, every load is the deployed app;
+    offline, this version's cached copy.
+  - Precached files are **cache-first** — this version's cache, then the one
+    before it: a tab opened before a deploy still asks for chunks the deploy
+    removed (the TT-SYS-207 failure, one layer down). Older caches are deleted.
+  - **Never answered by it:** `/api/*` (live answers; a cached one would lie
+    about the network, `06 §8`), any other origin (YouTube, Google, the beacon),
+    anything but GET, and the user's files — `blob:` URLs never reach a fetch
+    handler, and nothing here stores anything the app did not ship.
+- **Registered from the island** (`src/app/mount.ts`) after `load`, in
+  production builds only — so a blocked viewport never installs it (`07`), and
+  no inline script, hence no new CSP hash. `worker-src 'self'` already allows
+  it; `default-src 'self'` covers the manifest. A failed registration logs
+  **TT-SYS-211** and changes nothing else.
+- `/sw.js` is served `Cache-Control: no-cache` (`09 §3`), so a deploy reaches an
+  installed app on its next visit.
+
+YouTube mode still needs the network — the player is Google's — and says so
+(`06 §8`).
 
 ## 10. Observability
 

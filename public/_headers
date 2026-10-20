@@ -26,7 +26,7 @@
   Cross-Origin-Opener-Policy: same-origin
   X-Frame-Options: DENY
 
-# Only these two rules set Cache-Control, and they do not overlap each other.
+# Only these rules set Cache-Control, and they do not overlap each other.
 # No `/*` cache rule exists, so nothing can be appended to them (see the note
 # at the top of this file).
 /_astro/*
@@ -34,3 +34,9 @@
 
 /fonts/*
   Cache-Control: public, max-age=31536000, immutable
+
+# The service worker (docs/10 §9, v2.0): revalidated on every update check,
+# so a deploy reaches an installed app on its next visit rather than whenever
+# an HTTP cache lets go of yesterday's sw.js.
+/sw.js
+  Cache-Control: no-cache
