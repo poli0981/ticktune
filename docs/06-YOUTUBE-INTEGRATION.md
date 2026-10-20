@@ -45,6 +45,14 @@ Suite 1.1 · 2026-10-20 · Locked decision D1
   `https://www.youtube.com/iframe_api`, CSP-allowed, `09 §4`). Entering the
   mode alone loads nothing.
 - **One** `YT.Player` instance, reused across the queue: `loadVideoById(nextId)`.
+- **Created is not ready.** `new YT.Player()` returns at once, and its methods
+  arrive only with `onReady`, a few hundred milliseconds later. Until v2.0 the
+  10 Hz position tick read `getCurrentTime()` in that window and threw on every
+  start, and the first video's volume went to a player that could not hear it.
+  Nothing is read before `onReady` now (`TtYtPlayer.ready`, and the driver's
+  façade goes through `live()`), and a volume set meanwhile is applied in
+  `onReady`, before the video starts. The E2E stub is bare for 300 ms, as the
+  real player is.
 - Events: `onReady` → first cue; `onStateChange: ENDED` → advance per
   shuffle/loop; `PLAYING` → `getDuration()` backfills `durationMs` and
   `getVideoData()` backfills title/channel if oEmbed was incomplete;
