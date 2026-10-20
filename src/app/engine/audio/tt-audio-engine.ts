@@ -162,12 +162,31 @@ export class TtAudioEngine {
     // docs/05 §1: guard again before every play — Safari re-suspends.
     if (this.#ports.ctx.state !== 'running') await this.unlock();
 
+    const track = this.#track;
     try {
       await this.#ports.deck(this.#deck).play();
       this.#setStatus('playing');
-    } catch {
-      // The autoplay policy refused. Report it and stay honest about the state:
-      // claiming "playing" here is how a silent app looks like a working one.
+    } catch (err) {
+      const name = err instanceof Error ? err.name : '';
+      /*
+       * Three different failures arrive here, and only one of them is "blocked".
+       *
+       * - `AbortError`: a newer `load()` replaced `src` while this play was
+       *   pending — rapid ⏭, a removed track. The newer play owns the status;
+       *   reporting anything here was a false TT-PLY-100 per skip.
+       * - The media failed (`NotSupportedError` and friends). The element's
+       *   `error` event usually fires FIRST and `#fail` has already set `error`;
+       *   overwriting it with `blocked` turned a corrupt file into an autoplay
+       *   complaint and hid it from the queue. If the event did not fire, fail now.
+       * - `NotAllowedError`: the autoplay policy refused. Report it and stay
+       *   honest about the state: claiming "playing" here is how a silent app
+       *   looks like a working one.
+       */
+      if (name === 'AbortError' || this.#track !== track) return;
+      if (name !== 'NotAllowedError') {
+        if (this.#status !== 'error' && track) this.#fail('TT-PLY-101', track.id);
+        return;
+      }
       this.#status = 'blocked';
       this.#events.onLog('TT-PLY-100');
       this.#events.onStatus('blocked');
@@ -246,6 +265,11 @@ export class TtAudioEngine {
     this.#status = 'error';
     this.#events.onLog(code, { trackId });
     this.#events.onStatus('error');
+    // Deferred: `#fail` can run synchronously inside `load()`, i.e. inside the
+    // very call the shell is making — acting on the queue re-entrantly from
+    // there would load the next track before the first load returned.
+    const onError = this.#events.onError;
+    if (onError) queueMicrotask(() => onError(trackId));
   }
 
   #setStatus(status: TtPlaybackStatus): void {
