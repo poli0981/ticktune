@@ -58,14 +58,15 @@ Equal-power curves via `setValueCurveAtTime` (or ramped `linearRampToValueAtTime
 pairs): `gainOut = cos(t·π/2)`, `gainIn = sin(t·π/2)`. Duration 0–5 s, Settings
 default **2 s**; `0` = hard cut. Trigger point: `timeupdate` where
 `duration - currentTime ≤ fade` (throttled event ≈ 4 Hz → schedule with 300 ms
-safety margin; exact behavior validated in Spike S4).
+safety margin — measured, and the constants fixed, by spike S4b: below).
 
 Two clamps the trigger rule needs and did not state:
 
 - `effectiveFadeMs = min(fadeMs, durationMs / 2)` — a 5 s fade on a 5 s file
   would otherwise start before playback reached steady state.
-- A non-finite or unknown `element.duration` **disables** the fade trigger and
-  falls through to `ended`. This is the VBR-MP3 hazard S4 exists to measure.
+- No known length — neither the importer's nor the element's — **disables** the
+  fade trigger and falls through to `ended`. This is the VBR-MP3 hazard S4b
+  measured; the importer's length comes first (below).
 
 Single-mode loop styles (03 §2 rail): **hard** = `element.loop = true` (default,
 tightest gap) · **crossfade** = same file loaded on both elements, A↔B fade.
@@ -77,35 +78,67 @@ across the ~4 Hz `timeupdate` — a decrease of more than half the duration coun
 as a wrap, which distinguishes it from a user seek. Anything written against
 `ended` for the hard-loop path is dead code.
 
-**Crossfade status:** as of 2026-07-22 the crossfade loop style is **not
-shipped** — `15 §S4b` has not recorded overlap timing, so the scheduling above is
-unvalidated. P2 ships `hard` only; the toggle renders disabled, and a stored
-`singleLoopStyle: 'crossfade'` (which `clampSettings` accepts) falls back to
-`hard` with a one-time notice rather than silently — **TT-SYS-205** (`12 §6`),
-plus the reason on the disabled toggle.
+**Shipped in v2.0, released by spike S4b** (`15 §S4b`, PASS 2026-10-20). The
+engine is two decks with a state machine (`tt-audio-engine.ts`); the decisions
+are pure (`tt-crossfade.ts` — the module S4b measured, moved in unchanged):
 
-> The notice is stated in the past tense above because it is real now. Through
-> P2 this paragraph described behaviour no code implemented: nothing read
-> `singleLoopStyle` at all — the load call passed a literal `true` — so the
-> fallback was **exactly the silent one this sentence forbids**. Wired up in P3
-> alongside the mode work. It is the same failure shape as `coverArtUrl`: a
-> documented behaviour whose absence is indistinguishable from correctness,
-> because the fallback path is what a reader sees either way.
->
-> **P5 slice 2 gave it the half a listener can see.** Through P4 the "notice"
-> was a log entry — technically real, and invisible to anyone not holding the
-> Diagnostics panel open, which did not exist either. The rail now renders the
-> fallback in words whenever the stored style is `'crossfade'`, and the pressed
-> state of the loop-style pair reports the **effective** style rather than the
-> stored one. The pair had no `onclick` at all until that change (`03 §6`).
+- **Trigger** on each `timeupdate` of the ACTIVE deck: fire when
+  `remaining ≤ effFade + margin`, `effFade = min(fade, D_out/2, D_in/2)`; the
+  curves start at once (latency 0) and run for `min(effFade, remaining − guard)`.
+  Margin **0.3 s**, guard **0.03 s**; below **0.25 s** a fade is a hard cut.
+- **Duration** is the importer's, `element.duration` only when none is known
+  (`triggerDurationS`). The importer scans the whole file when the headers do
+  not carry a length (`05 §5`): S4b showed the element's estimate never firing
+  on header-less VBR and firing 0.2–0.5 s early on raw ADTS. No length at all →
+  no crossfade, **TT-PLY-106** once, `ended` takes over.
+- **Armed ahead**: the idle deck loads what comes next 8 s before the trigger,
+  silent — every passing S4b run used it. The shell keeps `next` current from
+  `session.peekNext()`, whose shuffled wrap is decided once and kept, so the
+  track faded into is the track the queue then plays.
+- **Exactly one advance.** The transition is real when the incoming deck's
+  `play()` resolves: the decks swap roles and the shell hears `onCrossfade`,
+  once. Every event — `timeupdate`, `ended`, `error` — names its deck, and any
+  but the active deck's is dropped: the fading track's own `ended` would
+  otherwise skip one. An incoming deck that will not play leaves the outgoing
+  one at full level; `ended` advances, once (**TT-PLY-108**).
+- **Pause mid-fade** holds both curves where they are (`cancelAndHoldAtTime`;
+  Firefox's two-call fallback), ramps them to zero over 15 ms and pauses the
+  elements 45 ms later; resume ramps back and runs the REST of the same curves.
+  `pause()` on a playing element is a step — 6–8 clicks a run without the ramp.
+- **Every load goes to the deck that is not sounding**, and the old one is
+  ramped out the same 15 ms before it pauses: `setSrc` on a playing element was
+  the click on every ⏭. With the next track already armed, the switch at `ended`
+  is S4b's **Z2**: 11–24 ms. A 0 s setting uses exactly that.
+- **The master fade** at zero sits after both decks (`userGain → fadeGain`), so
+  a countdown that ends mid-crossfade fades both — S4b measured it on schedule.
+- **Zero ends "next".** The shell tells the engine what comes next only while
+  the player screen is up, so from zero nothing is armed or faded in under the
+  End Behavior's fade-out. Without that gate the next track would begin,
+  inaudibly, under the fade, and the engine's track would move while the queue
+  — correctly — did not (`crossfade.spec.ts` turns red on exactly that). A loop
+  crossfade is the track's own and may still run; it is faded out with
+  everything else.
+- **Media URLs** go when no deck holds their track any more; a loop crossfade
+  is one file, one URL, on both decks (`§3`).
 
-**P3 ships no inter-track crossfade either**, for the same gate: `15 §S4b`
-covers "the crossfade loop style **and P3's inter-track crossfade**". Playlist
-advance is edge-triggered from the media element's `ended` event, which is a
-different mechanism from the scheduled pre-trigger S4b measures and is therefore
-ungated. Note this is also why advance works at all: playlist tracks load with
-`element.loop = false`, so `ended` fires — the paragraph above only rules it out
-for the hard-**loop** path.
+**Single-mode loop styles** (`03 §2` rail, Settings → Audio): `hard` keeps
+`element.loop = true`; `crossfade` lets the element reach its end and fades the
+track into itself on the other deck, counting the pass at the swap. A loop
+crossfade that cannot fade loops by hand at `ended`; at a 0 s setting it is the
+hard loop.
+
+> **History — the gate, and the silent fallback before it.** From P2 to v1.1
+> the crossfade loop style was not shipped: a stored `'crossfade'` played as a
+> hard cut, announced by **TT-SYS-205** and, from P5 slice 2, in words on the
+> rail. Through P2 that notice was itself missing — nothing read
+> `singleLoopStyle` and the load passed a literal `true` — the same failure
+> shape as `coverArtUrl`: a documented behaviour whose absence is
+> indistinguishable from correctness. TT-SYS-205 is retired (`12 §6`).
+
+What S4b's PASS does **not** cover: a seek in a VBR MP3 — Chrome places it by
+the Xing table and `currentTime` stays up to a second off the audio. The app has
+no seek control; adding one means re-deriving the remaining time or measuring
+again (`15 §S4b`).
 
 ## 3. Object URL lifecycle
 
@@ -143,16 +176,24 @@ of a broken track. Matrix re-verified during Spike S3.
 
 ## 5. Metadata extraction
 
-`music-metadata@11` `parseBlob(file)` in the browser:
+`music-metadata@12` `parseBlob(file)` in the browser:
 
 - Read: `common.title/artist/album/year/genre/track` + `format.container/codec/
   bitrate/sampleRate/numberOfChannels/duration`.
 - **`format.duration` from `parseBlob` is authoritative** — for the `02 §4`
-  TT-IMP-002 cap and for display. The `loadedmetadata` element probe is a
-  **fallback**, used only when the parse yields no duration. That ordering is
-  the cheap one, not merely the tidy one: S3 measured `parseBlob` at a median
-  11 ms per file, while the probe costs an object URL, a media-element load and
-  a network-free but still asynchronous decode of the container header.
+  TT-IMP-002 cap, for display and, since v2.0, for the crossfade trigger
+  (`§2`). The `loadedmetadata` element probe is a **fallback**, used only when
+  the parse yields no duration. That ordering is the cheap one, not merely the
+  tidy one: S3 measured `parseBlob` at a median 11 ms per file, while the probe
+  costs an object URL, a media-element load and a network-free but still
+  asynchronous decode of the container header.
+- **No header, no length — so the file is scanned** (v2.0). A VBR MP3 without a
+  Xing/VBRI header and raw ADTS give `parseBlob` nothing to read a length from,
+  and the element probe this used to fall to is an estimate — seconds off on
+  header-less VBR, which broke the 10:02 cap and, measured by S4b, the
+  crossfade trigger. Those files are parsed again with `{ duration: true }`:
+  exact on header-less VBR, +21 ms on ADTS, about 3 ms per second of audio
+  (S4b's fixtures). A file whose headers carry a length never pays for it.
 - Cover art: first `common.picture` → `Blob` → object URL (§3 lifecycle).
 - "Composition date" (spec) does not exist as a reliable tag — `year` (release) is
   what tags carry; absent → `N/A` per the fallback rule.
