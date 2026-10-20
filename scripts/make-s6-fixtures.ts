@@ -3,6 +3,9 @@
  *
  *   pnpm s6:fixtures              test signals + 10:02 long files → test/generated/s6/
  *   pnpm s6:fixtures --corpus     + every audio file in the local corpus
+ *   … --extra <dir>               + every file the app accepts in <dir>, in place
+ *                                 (repeatable; the owner's CC0 / YouTube Audio
+ *                                 Library set lives outside the repo)
  *
  * Each file's reference loudness and sample peak come from ffmpeg's `ebur128`
  * at the file's native rate, with mono weighted as dual mono like the meter
@@ -22,6 +25,11 @@ const OUT = 'test/generated/s6';
 const CORPUS = 'test/test_playlist';
 const FFMPEG = ensureFfmpeg();
 const withCorpus = process.argv.includes('--corpus');
+const extraDirs = process.argv.flatMap((a, i) =>
+  a === '--extra' && process.argv[i + 1] ? [process.argv[i + 1]!] : [],
+);
+/** docs/02 §4's list (TT_ACCEPT_EXT): a file the app cannot import is not evidence. */
+const ACCEPTED = ['.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg', '.oga', '.opus', '.webm'];
 mkdirSync(OUT, { recursive: true });
 
 function ff(args: string[]): void {
@@ -114,13 +122,19 @@ if (withCorpus) {
     process.exit(1);
   }
   for (const entry of readdirSync(CORPUS)) {
-    if (
-      !['.mp3', '.m4a', '.flac', '.ogg', '.oga', '.opus', '.wav', '.aac'].includes(
-        extname(entry).toLowerCase(),
-      )
-    )
-      continue;
+    if (!ACCEPTED.includes(extname(entry).toLowerCase())) continue;
     add(join(CORPUS, entry), 'music');
+  }
+}
+
+for (const dir of extraDirs) {
+  if (!existsSync(dir)) {
+    console.error(`✖ --extra: ${dir} does not exist`);
+    process.exit(1);
+  }
+  for (const entry of readdirSync(dir)) {
+    if (!ACCEPTED.includes(extname(entry).toLowerCase())) continue;
+    add(join(dir, entry), 'music');
   }
 }
 
