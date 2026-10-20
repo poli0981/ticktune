@@ -9,7 +9,7 @@ lockfile as the truth.
 
 | Component | Version (v1.1) | Channel | Notes |
 |-----------|---------------------|---------|-------|
-| Node.js | **24.x (Active LTS)** | LTS | Enters maintenance 2026-10-20; Node 26 becomes LTS 2026-10-28 — plan the bump then. EOL v24: 2028-04-30. `engines` + `.nvmrc` pinned. |
+| Node.js | **24.x (Maintenance LTS)** | LTS | Entered maintenance 2026-10-20; Node 26 becomes LTS 2026-10-28. `.nvmrc` pins 24 (every job, Workers Builds); `engines` is `>=24 <27` and the `ci-node26` job builds and tests on 26 (`14 §1`). EOL v24: 2028-04-30. |
 | pnpm | 11.15.1 | latest | Portfolio used 10.x this month; 11 is current major — adopt for new repo, migration is trivial. |
 | Wrangler | **4.149.0** | latest | `compatibility_date: 2026-07-01`. Its `miniflare` resolves `sharp@0.35.5`, past the four libvips CVEs in `sharp <0.35.0` (GHSA-f88m-g3jw-g9cj) that first forced a Wrangler bump (4.112 → 4.114, see `§5`) |
 
@@ -48,7 +48,7 @@ lockfile as the truth.
 | @playwright/test | 1.64.0 | E2E |
 | @axe-core/playwright | 4.13.0 | The a11y scan (`13 §6`) |
 | @vitest/coverage-v8 | 4.1.11 | Coverage provider — the docs/13 §1 threshold is enforced, so it must exist |
-| @types/node | 24.x | Node types, held to the `engines` major — Dependabot ignores its majors (`14 §1`) |
+| @types/node | 24.x | Node types, held to the lowest supported major (24) — Dependabot ignores its majors (`14 §1`) |
 | ffmpeg-static | 5.3.0 | **Dev-only asset generation** (`scripts/make-fixtures.ts`, `scripts/make-demo.ts`). Never imported by shipped code and never distributed, so no notice obligation follows (`§5`). Its postinstall downloads an **unchecksummed** prebuilt ffmpeg (GPL), so `pnpm-workspace.yaml` sets `allowBuilds: ffmpeg-static: false` — the binary is fetched on demand by `scripts/ensure-ffmpeg.ts` on a developer machine, never on a CI runner (`14 §2`). |
 | @cloudflare/workers-types | 5.x | Worker globals. Kept in a separate program (`tsconfig.worker.json`) because it conflicts with the DOM lib |
 | @astrojs/sitemap | 3.7.4 | **Dev-only, no notice row** (`§5`) — MIT, runs at build and emits static XML; nothing of it reaches the bundle, exactly like Astro/Vite/Tailwind. Added in P6 slice A because the sitemap is derived from the routes actually built: a hand-authored one is a second source of truth that rots the first time someone adds a page. Its `i18n` option is **not** used — it assumes locales are path prefixes (`/vi/`) and Vietnamese lives at the root, so hreflang stays in the page (`08 §1`) |

@@ -15,7 +15,7 @@ inheritance bug, and the habit costs nothing.
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yml` | PR + push main | corpus guard → install → lint → check → knip → doc refs → **build → tests** |
+| `ci.yml` | PR + push main | corpus guard → install → lint → check → knip → doc refs → **build → tests**; plus `ci-node26` (install → build → tests on Node 26, not required) |
 | `e2e.yml` | PR to main | Playwright chromium + firefox + webkit + 2 mobile projects, then **`verify-csp` under `wrangler dev`** |
 | `audit.yml` | weekly cron + PR touching lockfile/manifests | `pnpm audit --prod --audit-level high`, then the whole tree at `critical` |
 | `deploy.yml` | push tag `v*` **only** | verify (signature, ancestry, gates) → deploy → GitHub Release (`§5`) |
@@ -48,7 +48,10 @@ status check from its GitHub integration.
 minor/patch with a 3-day **cooldown** (pnpm 11's `minimumReleaseAge` otherwise
 fails a release-day PR at install). Majors arrive individually so each gets its
 written breaking-change and licence re-check (`11 §5`). `typescript` and
-`@types/node` majors are ignored on evidence (`11 §4`; `engines` is Node 24).
+`@types/node` majors are ignored on evidence (`11 §4`). `engines` is
+`>=24 <27`: `.nvmrc` pins Node 24 for every job and for Workers Builds, and the
+`ci-node26` job runs build and tests on Node 26 ahead of its LTS date
+(2026-10-28), so the switch is a one-line pin once it lands.
 
 **Corpus guard.** `ci.yml` runs `scripts/guard-no-corpus.mjs` as its **first**
 step, before install, and `.githooks/pre-commit` runs it against the index.
