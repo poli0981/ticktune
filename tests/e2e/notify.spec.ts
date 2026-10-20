@@ -25,7 +25,7 @@ async function threeSecondRun(page: Page): Promise<void> {
   await page.getByRole('button', { name: 'Bắt đầu' }).click();
 }
 
-const shows = (all: Array<{ kind: string }>, kind = 'worker-show') =>
+const shows = <T extends { kind: string }>(all: T[], kind = 'worker-show'): T[] =>
   all.filter((n) => n.kind === kind);
 
 test.describe('finish notification — docs/04 §2', () => {
