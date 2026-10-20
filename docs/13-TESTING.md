@@ -281,18 +281,23 @@ a gap that is not there or a bump that is not either. So the spec fades
 and the Single-loop spec, which can only fade a track into itself, asserts the
 level after the fade rather than through it.
 
-⚠️ **CI's Linux WebKit does not keep real time.** With no audio device its media
-clock runs fast against the page's: 5 s tracks ended every ~4.05 s, and
-`currentTime` read up to ~1.5× ahead, so the trigger fired late in the track and
-a 2 s fade measured 1.65 s (#92's first CI run). That is the browser on that
-runner, not the engine — the same fades measure 2.0 s in Chromium, and S4b
-measured them in a real Edge. So the spec measures the rate in **every run**,
-from `tt-media-pos` (the active deck's position, `?ttdebug=1`) against the page
-clock, and where it is off by more than 10 % it skips only the assertions about
-how long something took, records the rate as an annotation, and still asserts
-every piece of wiring — the capability, measured, never the browser's name. The
-zero-before-a-transition spec runs a 1 s countdown for the same reason: at 2 s,
-that clock reached A's trigger before zero did.
+⚠️ **CI's Linux WebKit does not start a track at its start.** With no audio
+device, every track begins ~1.07 s in — `tt-media-pos` jumps there within 130 ms
+of `play()` and runs true from then on — so 5 s tracks end every ~4.05 s, and
+B's own trigger point can pass during the A→B fade; the engine then fires as
+the fade ends, with what remains, and a 2 s fade measured 1.65 s (#92's CI).
+That is the browser on that runner, not the engine: the same fades measure
+2.0 s in Chromium, and S4b measured them in a real Edge. So the spec measures
+the capability in **every run**, from `tt-media-pos` (the active deck's
+position, `?ttdebug=1`) against the time since Start: its **lead** — how far
+the position ever ran ahead — and its **rate** over the rest. The first version
+measured only the rate, which that jump leaves at ~1.0; it passed WebKit, and
+the same three assertions failed again. Where either is off, the spec skips
+only the assertions about how long something took, records both numbers as an
+annotation (Chromium: lead −56…−196 ms, rate 0.997–1.002×), and still asserts
+every piece of wiring — the capability, measured, never the browser's name.
+The zero-before-a-transition spec runs a 1 s countdown for the same reason: at
+2 s, that jump brought A's trigger before zero.
 
 ### Visual regression — v2.0 (`tests/visual/`)
 
