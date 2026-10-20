@@ -1,4 +1,5 @@
 <script lang="ts">
+  import TtIcon from './TtIcon.svelte';
   import { backdrop } from '../state/backdrop.svelte';
   import { i18n } from '../state/i18n.svelte';
   import { session } from '../state/session.svelte';
@@ -11,17 +12,13 @@
   /**
    * docs/03 §6 — the ⚙ Settings panel.
    *
-   * ## Eight groups of nine — a group ships WITH its feature
+   * ## Nine groups — and a group ships WITH its feature, never before it
    *
-   * **Visualizer is not rendered here at all**, because its renderer ships in
-   * P5 slice 4 — and the same rule removes crossfade and the loop-style selector
-   * from Audio while `15 §S4b` is open. A control whose backing feature does not
-   * exist is precisely the defect this file also fixes in `TtSingleRail`: an
-   * inert button, in production, reading as finished work.
-   *
-   * Display followed that rule in the other direction: it was absent through
-   * slice 2 and arrived in slice 3 in the same change as `TtBackdrop`, never
-   * before it.
+   * Display arrived in P5 slice 3 in the same change as `TtBackdrop`, and
+   * Visualizer in slice 4 with its renderer. The same rule still keeps crossfade
+   * and the loop-style selector out of Audio while `15 §S4b` is open: a control
+   * whose backing feature does not exist is precisely the defect fixed in
+   * `TtSingleRail` — an inert button, in production, reading as finished work.
    *
    * ## A side sheet, and deliberately NOT modal
    *
@@ -52,7 +49,21 @@
   const s = $derived(settings.current);
 
   let sheet: HTMLDivElement;
+  let head: HTMLElement;
   let closeButton: HTMLButtonElement;
+
+  /**
+   * The jump strip — nine groups in one scrolling sheet is a long way to wheel.
+   *
+   * Scrolls the SHEET rather than calling `scrollIntoView`, which would also
+   * scroll every ancestor and has no notion of the sticky head: the group would
+   * land underneath it. `scrollTo` with no `behavior` defers to the sheet's own
+   * `scroll-behavior`, so reduced motion turns the glide into a jump in CSS.
+   */
+  function jump(group: string) {
+    const target = sheet.querySelector<HTMLElement>(`[data-testid="tt-set-${group}"]`);
+    if (target) sheet.scrollTo({ top: target.offsetTop - head.offsetHeight - 12 });
+  }
 
   /*
    * Focus moves in; putting it BACK is the shell's job, not this component's.
@@ -192,15 +203,29 @@
   aria-label={i18n.t('settings.title')}
   data-testid="tt-settings"
 >
-  <header>
-    <h2>{i18n.t('settings.title')}</h2>
-    <button
-      bind:this={closeButton}
-      class="tt-x"
-      data-testid="tt-settings-close"
-      aria-label={i18n.t('settings.close')}
-      onclick={onclose}>✕</button
-    >
+  <header class="tt-head" bind:this={head}>
+    <div class="tt-title">
+      <h2>{i18n.t('settings.title')}</h2>
+      <button
+        bind:this={closeButton}
+        class="tt-key tt-key-icon"
+        data-testid="tt-settings-close"
+        aria-label={i18n.t('settings.close')}
+        onclick={onclose}><TtIcon name="close" /></button
+      >
+    </div>
+    <!-- Written out, not mapped — the same key-guard rule as the hotkey table. -->
+    <nav class="tt-jump" aria-label={i18n.t('settings.jump')}>
+      <button onclick={() => jump('general')}>{i18n.t('settings.group.general')}</button>
+      <button onclick={() => jump('display')}>{i18n.t('settings.group.display')}</button>
+      <button onclick={() => jump('countdown')}>{i18n.t('settings.group.countdown')}</button>
+      <button onclick={() => jump('visualizer')}>{i18n.t('settings.group.visualizer')}</button>
+      <button onclick={() => jump('audio')}>{i18n.t('settings.group.audio')}</button>
+      <button onclick={() => jump('playback')}>{i18n.t('settings.group.playback')}</button>
+      <button onclick={() => jump('hotkeys')}>{i18n.t('settings.group.hotkeys')}</button>
+      <button onclick={() => jump('diagnostics')}>{i18n.t('settings.group.diagnostics')}</button>
+      <button onclick={() => jump('about')}>{i18n.t('settings.group.about')}</button>
+    </nav>
   </header>
 
   <!-- ── General ───────────────────────────────────────────────────────── -->
@@ -211,8 +236,6 @@
       <span>{i18n.t('settings.general.lang')}</span>
       <div class="tt-seg" role="group" aria-label={i18n.t('settings.general.lang')}>
         <button
-          class="tt-opt"
-          class:tt-on={i18n.lang === 'vi'}
           aria-pressed={i18n.lang === 'vi'}
           lang="vi"
           data-testid="tt-set-lang-vi"
@@ -222,8 +245,6 @@
           }}>Tiếng Việt</button
         >
         <button
-          class="tt-opt"
-          class:tt-on={i18n.lang === 'en'}
           aria-pressed={i18n.lang === 'en'}
           lang="en"
           data-testid="tt-set-lang-en"
@@ -258,8 +279,10 @@
 
     <div class="tt-reset">
       {#if !resetArmed}
-        <button class="tt-danger-btn" data-testid="tt-set-reset" onclick={() => (resetArmed = true)}
-          >{i18n.t('settings.general.reset')}</button
+        <button
+          class="tt-key tt-key-sm tt-key-danger"
+          data-testid="tt-set-reset"
+          onclick={() => (resetArmed = true)}>{i18n.t('settings.general.reset')}</button
         >
         <p class="tt-note">{i18n.t('settings.general.resetHint')}</p>
       {:else}
@@ -268,12 +291,14 @@
         </p>
         <div class="tt-confirm">
           <button
-            class="tt-danger-btn"
+            class="tt-key tt-key-sm tt-key-danger"
             data-testid="tt-set-reset-yes"
             onclick={() => void confirmReset()}>{i18n.t('settings.general.resetYes')}</button
           >
-          <button data-testid="tt-set-reset-no" onclick={() => (resetArmed = false)}
-            >{i18n.t('settings.general.resetNo')}</button
+          <button
+            class="tt-key tt-key-sm"
+            data-testid="tt-set-reset-no"
+            onclick={() => (resetArmed = false)}>{i18n.t('settings.general.resetNo')}</button
           >
         </div>
       {/if}
@@ -288,40 +313,30 @@
       <span>{i18n.t('settings.display.background')}</span>
       <div class="tt-seg tt-wrap" role="group" aria-label={i18n.t('settings.display.background')}>
         <button
-          class="tt-opt"
-          class:tt-on={s.background === 'solid'}
           aria-pressed={s.background === 'solid'}
           data-testid="tt-set-bg-solid"
           onclick={() => void settings.patch({ background: 'solid' })}
           >{i18n.t('settings.display.bgSolid')}</button
         >
         <button
-          class="tt-opt"
-          class:tt-on={s.background === 'gradient'}
           aria-pressed={s.background === 'gradient'}
           data-testid="tt-set-bg-gradient"
           onclick={() => void settings.patch({ background: 'gradient' })}
           >{i18n.t('settings.display.bgGradient')}</button
         >
         <button
-          class="tt-opt"
-          class:tt-on={s.background === 'image'}
           aria-pressed={s.background === 'image'}
           data-testid="tt-set-bg-image"
           onclick={() => void settings.patch({ background: 'image' })}
           >{i18n.t('settings.display.bgImage')}</button
         >
         <button
-          class="tt-opt"
-          class:tt-on={s.background === 'slideshow'}
           aria-pressed={s.background === 'slideshow'}
           data-testid="tt-set-bg-slideshow"
           onclick={() => void settings.patch({ background: 'slideshow' })}
           >{i18n.t('settings.display.bgSlideshow')}</button
         >
         <button
-          class="tt-opt"
-          class:tt-on={s.background === 'cover'}
           aria-pressed={s.background === 'cover'}
           data-testid="tt-set-bg-cover"
           onclick={() => void settings.patch({ background: 'cover' })}
@@ -341,7 +356,6 @@
           -->
           <button
             class="tt-swatch"
-            class:tt-on={!s.gradientCustom && s.gradientPreset === 0}
             aria-pressed={!s.gradientCustom && s.gradientPreset === 0}
             aria-label={i18n.t('settings.display.preset0')}
             style="background-image: {gradientCss(0)}"
@@ -350,7 +364,6 @@
           ></button>
           <button
             class="tt-swatch"
-            class:tt-on={!s.gradientCustom && s.gradientPreset === 1}
             aria-pressed={!s.gradientCustom && s.gradientPreset === 1}
             aria-label={i18n.t('settings.display.preset1')}
             style="background-image: {gradientCss(1)}"
@@ -359,7 +372,6 @@
           ></button>
           <button
             class="tt-swatch"
-            class:tt-on={!s.gradientCustom && s.gradientPreset === 2}
             aria-pressed={!s.gradientCustom && s.gradientPreset === 2}
             aria-label={i18n.t('settings.display.preset2')}
             style="background-image: {gradientCss(2)}"
@@ -368,7 +380,6 @@
           ></button>
           <button
             class="tt-swatch"
-            class:tt-on={!s.gradientCustom && s.gradientPreset === 3}
             aria-pressed={!s.gradientCustom && s.gradientPreset === 3}
             aria-label={i18n.t('settings.display.preset3')}
             style="background-image: {gradientCss(3)}"
@@ -377,7 +388,6 @@
           ></button>
           <button
             class="tt-swatch"
-            class:tt-on={!s.gradientCustom && s.gradientPreset === 4}
             aria-pressed={!s.gradientCustom && s.gradientPreset === 4}
             aria-label={i18n.t('settings.display.preset4')}
             style="background-image: {gradientCss(4)}"
@@ -386,7 +396,6 @@
           ></button>
           <button
             class="tt-swatch"
-            class:tt-on={!s.gradientCustom && s.gradientPreset === 5}
             aria-pressed={!s.gradientCustom && s.gradientPreset === 5}
             aria-label={i18n.t('settings.display.preset5')}
             style="background-image: {gradientCss(5)}"
@@ -415,7 +424,7 @@
           />
           {#if s.gradientCustom}
             <button
-              class="tt-opt"
+              class="tt-key tt-key-sm"
               data-testid="tt-set-custom-clear"
               onclick={() => void settings.patch({ gradientCustom: null })}
               >{i18n.t('settings.display.customClear')}</button
@@ -455,7 +464,7 @@
             {i18n.t('settings.display.picturesCount', { count: backdrop.images.length })}
           </p>
           <button
-            class="tt-opt"
+            class="tt-key tt-key-sm"
             data-testid="tt-set-bg-clear"
             onclick={() => backdrop.clearImages()}
             >{i18n.t('settings.display.picturesClear')}</button
@@ -469,6 +478,7 @@
         <span>{i18n.t('settings.display.interval')}</span>
         <span class="tt-with-value">
           <input
+            class="tt-fader"
             type="range"
             min="5000"
             max="60000"
@@ -478,7 +488,7 @@
             oninput={(e) =>
               void settings.patch({ slideshowIntervalMs: e.currentTarget.valueAsNumber })}
           />
-          <output data-testid="tt-set-interval-value"
+          <output class="tt-readout" data-testid="tt-set-interval-value"
             >{i18n.t('settings.display.intervalValue', {
               seconds: Math.round(s.slideshowIntervalMs / 1000),
             })}</output
@@ -490,16 +500,12 @@
         <span>{i18n.t('settings.display.transition')}</span>
         <div class="tt-seg" role="group" aria-label={i18n.t('settings.display.transition')}>
           <button
-            class="tt-opt"
-            class:tt-on={s.slideshowTransition === 'fade'}
             aria-pressed={s.slideshowTransition === 'fade'}
             data-testid="tt-set-xfade-fade"
             onclick={() => void settings.patch({ slideshowTransition: 'fade' })}
             >{i18n.t('settings.display.transitionFade')}</button
           >
           <button
-            class="tt-opt"
-            class:tt-on={s.slideshowTransition === 'kenburns'}
             aria-pressed={s.slideshowTransition === 'kenburns'}
             data-testid="tt-set-xfade-kenburns"
             onclick={() => void settings.patch({ slideshowTransition: 'kenburns' })}
@@ -511,19 +517,26 @@
 
     <label class="tt-row">
       <span>{i18n.t('settings.display.scrim')}</span>
-      <input
-        type="range"
-        min="0.35"
-        max="0.6"
-        step="0.01"
-        data-testid="tt-set-scrim"
-        value={s.scrimStrength}
-        oninput={(e) => void settings.patch({ scrimStrength: e.currentTarget.valueAsNumber })}
-      />
+      <span class="tt-with-value">
+        <input
+          class="tt-fader"
+          type="range"
+          min="0.35"
+          max="0.6"
+          step="0.01"
+          data-testid="tt-set-scrim"
+          aria-valuetext={`${Math.round(s.scrimStrength * 100)}%`}
+          value={s.scrimStrength}
+          oninput={(e) => void settings.patch({ scrimStrength: e.currentTarget.valueAsNumber })}
+        />
+        <!-- The slider speaks its value (aria-valuetext); this is the visible half. -->
+        <span class="tt-readout" aria-hidden="true">{Math.round(s.scrimStrength * 100)}%</span>
+      </span>
     </label>
 
     <label class="tt-row tt-check">
       <input
+        class="tt-switch"
         type="checkbox"
         data-testid="tt-set-scrimauto"
         checked={s.scrimAuto}
@@ -535,6 +548,7 @@
 
     <label class="tt-row tt-check">
       <input
+        class="tt-switch"
         type="checkbox"
         data-testid="tt-set-scanlines"
         checked={s.scanlines}
@@ -545,6 +559,7 @@
 
     <label class="tt-row tt-check">
       <input
+        class="tt-switch"
         type="checkbox"
         data-testid="tt-set-autotheme"
         checked={s.autoTheme}
@@ -553,6 +568,18 @@
       <span>{i18n.t('settings.display.autoTheme')}</span>
     </label>
     <p class="tt-note">{i18n.t('settings.display.autoThemeHint')}</p>
+
+    <label class="tt-row tt-check">
+      <input
+        class="tt-switch"
+        type="checkbox"
+        data-testid="tt-set-hidescrollbars"
+        checked={s.hideScrollbars}
+        onchange={(e) => void settings.patch({ hideScrollbars: e.currentTarget.checked })}
+      />
+      <span>{i18n.t('settings.display.hideScrollbars')}</span>
+    </label>
+    <p class="tt-note">{i18n.t('settings.display.hideScrollbarsHint')}</p>
   </section>
 
   <!-- ── Countdown ─────────────────────────────────────────────────────── -->
@@ -561,39 +588,38 @@
 
     <label class="tt-row">
       <span>{i18n.t('settings.countdown.glow')}</span>
-      <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.05"
-        data-testid="tt-set-glow"
-        value={s.glowIntensity}
-        oninput={(e) => void settings.patch({ glowIntensity: e.currentTarget.valueAsNumber })}
-      />
+      <span class="tt-with-value">
+        <input
+          class="tt-fader"
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          data-testid="tt-set-glow"
+          aria-valuetext={`${Math.round(s.glowIntensity * 100)}%`}
+          value={s.glowIntensity}
+          oninput={(e) => void settings.patch({ glowIntensity: e.currentTarget.valueAsNumber })}
+        />
+        <span class="tt-readout" aria-hidden="true">{Math.round(s.glowIntensity * 100)}%</span>
+      </span>
     </label>
 
     <div class="tt-row">
       <span>{i18n.t('settings.countdown.size')}</span>
       <div class="tt-seg" role="group" aria-label={i18n.t('settings.countdown.size')}>
         <button
-          class="tt-opt"
-          class:tt-on={s.countdownSize === 's'}
           aria-pressed={s.countdownSize === 's'}
           data-testid="tt-set-size-s"
           onclick={() => void settings.patch({ countdownSize: 's' })}
           >{i18n.t('settings.countdown.sizeS')}</button
         >
         <button
-          class="tt-opt"
-          class:tt-on={s.countdownSize === 'm'}
           aria-pressed={s.countdownSize === 'm'}
           data-testid="tt-set-size-m"
           onclick={() => void settings.patch({ countdownSize: 'm' })}
           >{i18n.t('settings.countdown.sizeM')}</button
         >
         <button
-          class="tt-opt"
-          class:tt-on={s.countdownSize === 'l'}
           aria-pressed={s.countdownSize === 'l'}
           data-testid="tt-set-size-l"
           onclick={() => void settings.patch({ countdownSize: 'l' })}
@@ -608,6 +634,7 @@
       <span>{i18n.t('settings.countdown.endFade')}</span>
       <span class="tt-with-value">
         <input
+          class="tt-fader"
           type="range"
           min="0"
           max="5000"
@@ -616,7 +643,7 @@
           value={s.endFadeMs}
           oninput={(e) => void settings.patch({ endFadeMs: e.currentTarget.valueAsNumber })}
         />
-        <output data-testid="tt-set-endfade-value"
+        <output class="tt-readout" data-testid="tt-set-endfade-value"
           >{i18n.t('settings.countdown.endFadeValue', { seconds: (s.endFadeMs / 1000).toFixed(2) })}
         </output>
       </span>
@@ -624,6 +651,7 @@
 
     <label class="tt-row tt-check">
       <input
+        class="tt-switch"
         type="checkbox"
         data-testid="tt-set-endchime"
         checked={s.endChime}
@@ -634,6 +662,7 @@
 
     <label class="tt-row tt-check">
       <input
+        class="tt-switch"
         type="checkbox"
         data-testid="tt-set-endflash"
         checked={s.endFlash}
@@ -646,24 +675,18 @@
       <span>{i18n.t('settings.countdown.endAction')}</span>
       <div class="tt-seg" role="group" aria-label={i18n.t('settings.countdown.endAction')}>
         <button
-          class="tt-opt"
-          class:tt-on={s.endAction === 'stay'}
           aria-pressed={s.endAction === 'stay'}
           data-testid="tt-set-endaction-stay"
           onclick={() => void settings.patch({ endAction: 'stay' })}
           >{i18n.t('settings.countdown.endActionStay')}</button
         >
         <button
-          class="tt-opt"
-          class:tt-on={s.endAction === 'restart'}
           aria-pressed={s.endAction === 'restart'}
           data-testid="tt-set-endaction-restart"
           onclick={() => void settings.patch({ endAction: 'restart' })}
           >{i18n.t('settings.countdown.endActionRestart')}</button
         >
         <button
-          class="tt-opt"
-          class:tt-on={s.endAction === 'loop'}
           aria-pressed={s.endAction === 'loop'}
           data-testid="tt-set-endaction-loop"
           onclick={() => void settings.patch({ endAction: 'loop' })}
@@ -681,32 +704,24 @@
       <span>{i18n.t('settings.visualizer.style')}</span>
       <div class="tt-seg tt-wrap" role="group" aria-label={i18n.t('settings.visualizer.style')}>
         <button
-          class="tt-opt"
-          class:tt-on={s.visualizer === 'off'}
           aria-pressed={s.visualizer === 'off'}
           data-testid="tt-set-viz-off"
           onclick={() => void settings.patch({ visualizer: 'off' })}
           >{i18n.t('settings.visualizer.off')}</button
         >
         <button
-          class="tt-opt"
-          class:tt-on={s.visualizer === 'bars'}
           aria-pressed={s.visualizer === 'bars'}
           data-testid="tt-set-viz-bars"
           onclick={() => void settings.patch({ visualizer: 'bars' })}
           >{i18n.t('settings.visualizer.bars')}</button
         >
         <button
-          class="tt-opt"
-          class:tt-on={s.visualizer === 'wave'}
           aria-pressed={s.visualizer === 'wave'}
           data-testid="tt-set-viz-wave"
           onclick={() => void settings.patch({ visualizer: 'wave' })}
           >{i18n.t('settings.visualizer.wave')}</button
         >
         <button
-          class="tt-opt"
-          class:tt-on={s.visualizer === 'ring'}
           aria-pressed={s.visualizer === 'ring'}
           data-testid="tt-set-viz-ring"
           onclick={() => void settings.patch({ visualizer: 'ring' })}
@@ -717,16 +732,21 @@
 
     <label class="tt-row">
       <span>{i18n.t('settings.visualizer.sensitivity')}</span>
-      <input
-        type="range"
-        min="0.5"
-        max="2"
-        step="0.1"
-        data-testid="tt-set-viz-sensitivity"
-        value={s.visualizerSensitivity}
-        oninput={(e) =>
-          void settings.patch({ visualizerSensitivity: e.currentTarget.valueAsNumber })}
-      />
+      <span class="tt-with-value">
+        <input
+          class="tt-fader"
+          type="range"
+          min="0.5"
+          max="2"
+          step="0.1"
+          data-testid="tt-set-viz-sensitivity"
+          aria-valuetext={`${s.visualizerSensitivity.toFixed(1)}×`}
+          value={s.visualizerSensitivity}
+          oninput={(e) =>
+            void settings.patch({ visualizerSensitivity: e.currentTarget.valueAsNumber })}
+        />
+        <span class="tt-readout" aria-hidden="true">{s.visualizerSensitivity.toFixed(1)}×</span>
+      </span>
     </label>
 
     <!--
@@ -745,19 +765,25 @@
 
     <label class="tt-row">
       <span>{i18n.t('settings.audio.volume')}</span>
-      <input
-        type="range"
-        min="0"
-        max="1"
-        step="0.05"
-        data-testid="tt-set-volume"
-        value={s.volume}
-        oninput={(e) => setVolume(e.currentTarget.valueAsNumber)}
-      />
+      <span class="tt-with-value">
+        <input
+          class="tt-fader"
+          type="range"
+          min="0"
+          max="1"
+          step="0.05"
+          data-testid="tt-set-volume"
+          aria-valuetext={`${Math.round(s.volume * 100)}%`}
+          value={s.volume}
+          oninput={(e) => setVolume(e.currentTarget.valueAsNumber)}
+        />
+        <span class="tt-readout" aria-hidden="true">{Math.round(s.volume * 100)}%</span>
+      </span>
     </label>
 
     <label class="tt-row tt-check">
       <input
+        class="tt-switch"
         type="checkbox"
         data-testid="tt-set-mute"
         checked={s.muted}
@@ -785,6 +811,7 @@
     -->
     <label class="tt-row tt-check">
       <input
+        class="tt-switch"
         type="checkbox"
         data-testid="tt-set-shuffle"
         checked={s.shuffle}
@@ -795,6 +822,7 @@
 
     <label class="tt-row tt-check">
       <input
+        class="tt-switch"
         type="checkbox"
         data-testid="tt-set-repeat"
         checked={s.repeatPlaylist}
@@ -805,6 +833,7 @@
 
     <label class="tt-row tt-check">
       <input
+        class="tt-switch"
         type="checkbox"
         data-testid="tt-set-duplicates"
         checked={s.allowDuplicates}
@@ -857,29 +886,21 @@
       <span>{i18n.t('settings.diagnostics.level')}</span>
       <div class="tt-seg" role="group" aria-label={i18n.t('settings.diagnostics.level')}>
         <button
-          class="tt-opt"
-          class:tt-on={level === 'all'}
           aria-pressed={level === 'all'}
           data-testid="tt-set-log-all"
           onclick={() => (level = 'all')}>{i18n.t('settings.diagnostics.all')}</button
         >
         <button
-          class="tt-opt"
-          class:tt-on={level === 'info'}
           aria-pressed={level === 'info'}
           data-testid="tt-set-log-info"
           onclick={() => (level = 'info')}>{i18n.t('settings.diagnostics.info')}</button
         >
         <button
-          class="tt-opt"
-          class:tt-on={level === 'warn'}
           aria-pressed={level === 'warn'}
           data-testid="tt-set-log-warn"
           onclick={() => (level = 'warn')}>{i18n.t('settings.diagnostics.warn')}</button
         >
         <button
-          class="tt-opt"
-          class:tt-on={level === 'error'}
           aria-pressed={level === 'error'}
           data-testid="tt-set-log-error"
           onclick={() => (level = 'error')}>{i18n.t('settings.diagnostics.error')}</button
@@ -890,7 +911,18 @@
     {#if entries.length === 0}
       <p class="tt-note" data-testid="tt-set-log-empty">{i18n.t('settings.diagnostics.empty')}</p>
     {:else}
-      <ul class="tt-log" data-testid="tt-set-log">
+      <!--
+        Focusable because it scrolls and nothing inside it can take focus: a
+        keyboard user could otherwise never read past the twelfth entry (axe
+        `scrollable-region-focusable`). Svelte's lint does not know that case.
+      -->
+      <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
+      <ul
+        class="tt-log tt-scroll-fade"
+        data-testid="tt-set-log"
+        tabindex="0"
+        aria-label={i18n.t('settings.group.diagnostics')}
+      >
         {#each entries as entry (entry.ts + entry.code + entry.message)}
           <li data-tt-level={entry.level}>
             <span class="tt-ts">{stamp.format(entry.ts)}</span>
@@ -902,10 +934,12 @@
     {/if}
 
     <div class="tt-confirm">
-      <button data-testid="tt-set-log-copy" onclick={() => void copyDiagnostics()}
-        >{i18n.t('settings.diagnostics.copy')}</button
+      <button
+        class="tt-key tt-key-sm"
+        data-testid="tt-set-log-copy"
+        onclick={() => void copyDiagnostics()}>{i18n.t('settings.diagnostics.copy')}</button
       >
-      <button data-testid="tt-set-log-clear" onclick={clearLog}
+      <button class="tt-key tt-key-sm" data-testid="tt-set-log-clear" onclick={clearLog}
         >{i18n.t('settings.diagnostics.clear')}</button
       >
     </div>
@@ -916,7 +950,7 @@
     {/if}
     {#if copyFallback}
       <p class="tt-note" role="alert">{i18n.t('settings.diagnostics.copyFailed')}</p>
-      <textarea class="tt-payload" readonly data-testid="tt-set-log-payload"
+      <textarea class="tt-field tt-payload" readonly data-testid="tt-set-log-payload"
         >{copyFallback}</textarea
       >
     {/if}
@@ -948,217 +982,321 @@
 </div>
 
 <style>
+  /*
+   * docs/03 §6 — a patch bay: nine numbered modules down one side sheet, a
+   * sticky head with the jump strip, and every control a hardware primitive
+   * from global.css (`.tt-seg`, `.tt-switch`, `.tt-fader`, `.tt-key`).
+   */
   .tt-sheet {
     position: fixed;
     top: 0;
     left: 0;
-    z-index: 25;
+    z-index: var(--tt-z-sheet);
     display: flex;
     flex-direction: column;
-    gap: 1.1rem;
+    gap: var(--tt-space-3);
     /*
      * Capped by the rail reserve — docs/03 §2's "any overlay must not cover the
      * player rect", enforced in CSS rather than by remembering. `--tt-yt-reserve`
      * is 0 unless a YouTube video is loaded.
      */
-    width: min(26rem, calc(100vw - var(--tt-yt-reserve, 0px) - 2rem));
+    width: min(27rem, calc(100vw - var(--tt-yt-reserve, 0px) - 2rem));
     height: 100dvh;
-    padding: 1.1rem 1.25rem 2rem;
+    padding: 0 var(--tt-space-4) var(--tt-space-6);
     overflow-y: auto;
-    background: var(--color-tt-surface);
-    border-right: 1px solid var(--color-tt-line);
+    overscroll-behavior: contain;
+    scroll-behavior: smooth;
+    counter-reset: tt-group;
+    background-color: var(--color-tt-surface);
+    border-right: 1px solid var(--color-tt-outline);
+    box-shadow: 18px 0 48px rgb(0 0 0 / 55%);
+  }
+  /*
+   * No entrance animation, on purpose. A slide moves the box a test measures
+   * against the rail reserve, and a fade puts every label at partial opacity
+   * for the first 400 ms — which axe measures as low contrast. The sheet
+   * simply appears.
+   */
+  @media (prefers-reduced-motion: reduce) {
+    .tt-sheet {
+      scroll-behavior: auto;
+    }
   }
 
-  header {
+  .tt-head {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    display: grid;
+    gap: var(--tt-space-3);
+    margin: 0 calc(-1 * var(--tt-space-4));
+    padding: var(--tt-space-4) var(--tt-space-4) var(--tt-space-3);
+    background: var(--color-tt-surface);
+    border-bottom: 1px solid var(--color-tt-line);
+  }
+  .tt-title {
     display: flex;
+    gap: var(--tt-space-4);
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
   }
   h2 {
-    font-size: 0.95rem;
-    letter-spacing: 0.04em;
+    margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--tt-text-lg);
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
     color: var(--color-tt-signal);
   }
+  .tt-jump {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--tt-space-1);
+  }
+  .tt-jump button {
+    min-height: 26px;
+    padding: 0 var(--tt-space-2);
+    font-family: var(--font-display);
+    font-size: var(--tt-text-xs);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+    color: var(--color-tt-muted);
+    cursor: pointer;
+    background: var(--color-tt-void);
+    border: 1px solid var(--color-tt-line);
+    border-radius: var(--tt-radius-xs);
+    transition:
+      color var(--duration-tt-fast) var(--ease-tt),
+      border-color var(--duration-tt-fast) var(--ease-tt);
+  }
+  .tt-jump button:hover {
+    color: var(--color-tt-signal);
+    border-color: var(--color-tt-signal);
+  }
+
+  /* A module: numbered legend, engraved rule, inset body. */
+  section {
+    display: grid;
+    gap: var(--tt-space-2);
+    padding: var(--tt-space-4);
+    font-size: var(--tt-text-sm);
+    counter-increment: tt-group;
+    background: color-mix(in srgb, var(--color-tt-void) 55%, transparent);
+    border: 1px solid var(--color-tt-line);
+    border-radius: var(--tt-radius-md);
+  }
   h3 {
-    margin-bottom: 0.5rem;
-    font-size: 0.68rem;
-    letter-spacing: 0.14em;
+    display: flex;
+    gap: var(--tt-space-2);
+    align-items: center;
+    margin: 0 0 var(--tt-space-1);
+    font-family: var(--font-display);
+    font-size: var(--tt-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--color-tt-muted);
   }
+  /* The module number is decoration: the `/ ""` alt text keeps it out of the
+     heading's accessible name. */
+  h3::before {
+    font-family: var(--font-mono);
+    letter-spacing: 0;
+    color: var(--color-tt-signal);
+    content: counter(tt-group, decimal-leading-zero) / '';
+  }
+  h3::after {
+    flex: 1;
+    height: 1px;
+    content: '';
+    background: var(--color-tt-line);
+  }
   h4 {
-    margin: 0.7rem 0 0.35rem;
-    font-size: 0.72rem;
+    margin: var(--tt-space-3) 0 var(--tt-space-1);
+    font-family: var(--font-display);
+    font-size: var(--tt-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
     color: var(--color-tt-text);
-  }
-  section {
-    display: grid;
-    gap: 0.4rem;
-    font-size: 0.78rem;
-  }
-  section + section {
-    padding-top: 1rem;
-    border-top: 1px solid color-mix(in srgb, var(--color-tt-line) 70%, transparent);
   }
 
   .tt-row {
     display: flex;
+    gap: var(--tt-space-4);
     align-items: center;
     justify-content: space-between;
-    gap: 1rem;
+    min-height: 36px;
   }
   .tt-stack {
     flex-direction: column;
+    gap: var(--tt-space-2);
     align-items: stretch;
-    gap: 0.35rem;
   }
+  /* The switch sits at the right edge, where a panel's toggles line up; the
+     markup keeps it first so the label still wraps the control. */
   .tt-check {
-    justify-content: flex-start;
-    gap: 0.5rem;
+    flex-direction: row-reverse;
+    cursor: pointer;
+  }
+  .tt-check span {
+    flex: 1;
   }
   .tt-with-value {
     display: flex;
+    gap: var(--tt-space-3);
     align-items: center;
-    gap: 0.5rem;
   }
-  output {
-    min-width: 3.2rem;
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
-    color: var(--color-tt-muted);
-    text-align: right;
+  .tt-with-value .tt-fader {
+    width: 9rem;
+  }
+  .tt-readout {
+    min-width: 3.5rem;
   }
 
-  .tt-seg {
-    display: flex;
-    gap: 0.25rem;
-  }
+  /* A strip long enough to wrap fills both rows rather than leaving the
+     strip's seam colour showing where a key would be. */
   .tt-wrap {
-    flex-wrap: wrap;
+    display: flex;
+  }
+  .tt-wrap > button {
+    flex: 1 1 auto;
+    justify-content: center;
   }
   .tt-swatches {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.35rem;
+    gap: var(--tt-space-2);
   }
   .tt-swatch {
-    width: 2.6rem;
-    height: 1.6rem;
-    border: 1px solid var(--color-tt-line);
-    border-radius: 0.25rem;
+    width: 2.75rem;
+    height: 1.75rem;
+    cursor: pointer;
+    border: 1px solid var(--color-tt-outline);
+    border-radius: var(--tt-radius-sm);
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 40%);
   }
-  .tt-swatch.tt-on {
+  .tt-swatch[aria-pressed='true'] {
     border-color: var(--color-tt-signal);
-    outline: 1px solid var(--color-tt-signal);
+    box-shadow:
+      inset 0 0 0 1px rgb(0 0 0 / 40%),
+      0 0 0 2px var(--color-tt-signal);
   }
   input[type='color'] {
-    width: 2.2rem;
-    height: 1.6rem;
-    padding: 0;
-    background: transparent;
-    border: 1px solid var(--color-tt-line);
-    border-radius: 0.25rem;
+    width: 2.5rem;
+    height: 1.75rem;
+    padding: 2px;
+    cursor: pointer;
+    background: var(--color-tt-void);
+    border: 1px solid var(--color-tt-outline);
+    border-radius: var(--tt-radius-sm);
   }
   input[type='file'] {
-    font-size: 0.7rem;
+    font-size: var(--tt-text-xs);
     color: var(--color-tt-muted);
   }
-  .tt-opt {
-    padding: 0.22rem 0.55rem;
-    font-size: 0.72rem;
-    color: var(--color-tt-muted);
-    background: transparent;
-    border: 1px solid var(--color-tt-line);
-    border-radius: 0.25rem;
-  }
-  .tt-on {
-    color: var(--color-tt-signal);
-    border-color: var(--color-tt-signal);
+  input[type='file']::file-selector-button {
+    min-height: 32px;
+    margin-right: var(--tt-space-3);
+    padding: 0 var(--tt-space-3);
+    font-family: var(--font-display);
+    font-size: var(--tt-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-tt-text);
+    cursor: pointer;
+    background: var(--color-tt-surface-2);
+    border: 1px solid var(--color-tt-outline);
+    border-radius: var(--tt-radius-sm);
   }
 
   .tt-links {
     display: flex;
     flex-wrap: wrap;
-    gap: 0.6rem;
-    font-size: 0.74rem;
+    gap: var(--tt-space-1) var(--tt-space-4);
+    font-size: var(--tt-text-sm);
   }
   .tt-links a {
     color: var(--color-tt-signal);
     text-decoration: underline;
+    text-underline-offset: 3px;
   }
 
   .tt-note {
-    font-size: 0.68rem;
-    line-height: 1.45;
+    margin: 0;
+    font-size: var(--tt-text-xs);
+    line-height: 1.5;
     color: var(--color-tt-muted);
   }
   .tt-warn {
-    font-size: 0.72rem;
-    line-height: 1.45;
+    margin: 0;
+    font-size: var(--tt-text-sm);
+    line-height: 1.5;
     color: var(--color-tt-warn);
   }
   .tt-reset {
     display: grid;
-    gap: 0.35rem;
-    margin-top: 0.5rem;
+    gap: var(--tt-space-2);
+    justify-items: start;
+    margin-top: var(--tt-space-2);
   }
   .tt-confirm {
     display: flex;
-    gap: 0.4rem;
-  }
-  .tt-confirm button,
-  .tt-x {
-    padding: 0.28rem 0.7rem;
-    font-size: 0.72rem;
-    color: var(--color-tt-text);
-    background: transparent;
-    border: 1px solid var(--color-tt-line);
-    border-radius: 0.25rem;
-  }
-  .tt-danger-btn {
-    padding: 0.28rem 0.7rem;
-    font-size: 0.72rem;
-    color: var(--color-tt-danger);
-    background: transparent;
-    border: 1px solid color-mix(in srgb, var(--color-tt-danger) 55%, transparent);
-    border-radius: 0.25rem;
+    gap: var(--tt-space-2);
   }
 
   .tt-keys {
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: 0.25rem 0.8rem;
-    font-size: 0.72rem;
+    gap: var(--tt-space-2) var(--tt-space-4);
+    align-items: center;
+    margin: 0;
+    font-size: var(--tt-text-sm);
+  }
+  .tt-keys dt {
+    display: flex;
+    gap: 3px;
+    align-items: center;
   }
   .tt-keys dd {
     margin: 0;
     color: var(--color-tt-muted);
   }
   kbd {
-    padding: 0.05rem 0.3rem;
+    display: inline-grid;
+    place-items: center;
+    min-width: 1.75rem;
+    height: 1.6rem;
+    padding: 0 var(--tt-space-1);
     font-family: var(--font-mono);
-    font-size: 0.68rem;
-    background: var(--color-tt-void);
-    border: 1px solid var(--color-tt-line);
-    border-radius: 0.2rem;
+    font-size: var(--tt-text-xs);
+    color: var(--color-tt-text);
+    background: var(--color-tt-surface-2);
+    border: 1px solid var(--color-tt-outline);
+    border-radius: var(--tt-radius-xs);
+    box-shadow: var(--tt-shadow-key);
   }
 
   .tt-log {
     display: grid;
-    gap: 0.15rem;
+    gap: 2px;
     max-height: 12rem;
+    margin: 0;
+    padding: var(--tt-space-2);
     overflow-y: auto;
-    padding: 0.4rem;
     font-family: var(--font-mono);
-    font-size: 0.66rem;
+    font-size: var(--tt-text-xs);
+    list-style: none;
     background: var(--color-tt-void);
     border: 1px solid var(--color-tt-line);
-    border-radius: 0.25rem;
+    border-radius: var(--tt-radius-sm);
+    box-shadow: var(--tt-shadow-pressed);
   }
   .tt-log li {
     display: flex;
-    gap: 0.45rem;
+    gap: var(--tt-space-2);
   }
   .tt-log li[data-tt-level='warn'] code {
     color: var(--color-tt-warn);
@@ -1177,22 +1315,20 @@
   .tt-payload {
     width: 100%;
     height: 7rem;
-    font-family: var(--font-mono);
-    font-size: 0.62rem;
-    background: var(--color-tt-void);
-    border: 1px solid var(--color-tt-line);
-    border-radius: 0.25rem;
+    padding: var(--tt-space-2);
+    font-size: var(--tt-text-xs);
   }
 
   .tt-about {
     display: grid;
     grid-template-columns: auto 1fr;
-    gap: 0.2rem 0.8rem;
-    font-size: 0.74rem;
+    gap: var(--tt-space-1) var(--tt-space-4);
+    margin: 0;
+    font-size: var(--tt-text-sm);
   }
   .tt-about dd {
     margin: 0;
     font-family: var(--font-mono);
-    color: var(--color-tt-muted);
+    color: var(--color-tt-signal);
   }
 </style>

@@ -5,6 +5,7 @@
   import TtCountdown from './components/TtCountdown.svelte';
   import TtDebugPanel from './components/TtDebugPanel.svelte';
   import TtFinished from './components/TtFinished.svelte';
+  import TtIcon from './components/TtIcon.svelte';
   import TtLegalGate from './components/TtLegalGate.svelte';
   import TtQueuePanel from './components/TtQueuePanel.svelte';
   import TtSettings from './components/TtSettings.svelte';
@@ -738,6 +739,19 @@
 
   const onPlayerScreen = $derived(session.state === 'playing' || session.state === 'paused');
 
+  /*
+   * Settings → Display → "Hide scrollbars", applied to the whole page the same
+   * way the mobile gate is: an attribute on <html> that global.css keys off
+   * (`html[data-tt-scrollbars='hidden']`). It has to be the document element —
+   * the page itself, the settings sheet, the queue and every modal scroll, and
+   * none of them can reach a class on `main`.
+   */
+  $effect(() => {
+    document.documentElement.dataset['ttScrollbars'] = settings.current.hideScrollbars
+      ? 'hidden'
+      : 'styled';
+  });
+
   /**
    * The cover the backdrop may use — docs/03 §2 Z1 "cover".
    *
@@ -1024,6 +1038,7 @@
 <main
   class="tt-main"
   class:tt-player={session.state === 'playing' || session.state === 'paused'}
+  class:tt-setup-screen={session.state === 'setup'}
   class:tt-focus={focusMode}
   style:--tt-yt-reserve={ytReserve}
   inert={booted && needsGate}
@@ -1093,6 +1108,11 @@
         data-tt-beat={beat > 0 ? '1' : null}
         aria-hidden="true"
       ></span>
+      <!-- The lamp's engraved caption, lit with it. Hardware labelling, not
+           copy — decorative, so it stays out of the accessibility tree. -->
+      <span class="tt-onair" class:tt-onair-live={session.state === 'playing'} aria-hidden="true"
+        >ON AIR</span
+      >
       <span class="tt-wordmark">TickTune</span>
     </header>
   {/if}
@@ -1109,24 +1129,24 @@
   {#if !focusMode}
     <header class="tt-chrome" data-testid="tt-chrome">
       <button
-        class="tt-icon"
+        class="tt-key tt-key-icon"
         data-testid="tt-lang-toggle"
         lang={i18n.lang === 'vi' ? 'en' : 'vi'}
         aria-label={i18n.lang === 'vi' ? i18n.t('header.lang.toEn') : i18n.t('header.lang.toVi')}
         onclick={() => void switchLang()}>{i18n.lang === 'vi' ? 'EN' : 'VI'}</button
       >
       <button
-        class="tt-icon"
+        class="tt-key tt-key-icon"
         data-testid="tt-settings-open"
         aria-label={i18n.t('header.settings')}
         aria-expanded={settingsOpen}
-        onclick={() => (settingsOpen = !settingsOpen)}>⚙</button
+        onclick={() => (settingsOpen = !settingsOpen)}><TtIcon name="settings" /></button
       >
       <button
-        class="tt-icon"
+        class="tt-key tt-key-icon"
         data-testid="tt-fullscreen"
         aria-label={i18n.t('header.fullscreen')}
-        onclick={toggleFullscreen}>⤢</button
+        onclick={toggleFullscreen}><TtIcon name="fullscreen" /></button
       >
     </header>
   {/if}
@@ -1298,13 +1318,15 @@
   .tt-main {
     /*
      * Positioned, and above Z1 — docs/03 §2's stack has the background at the
-     * bottom. A fixed `.tt-z1` at `z-index: 0` would otherwise paint over
-     * static in-flow content, which is the whole page. `position: relative`
-     * does NOT trap the fixed overlays inside (only transform/filter do), so
-     * the bottom bar, the settings sheet and the info modal are unaffected.
+     * bottom. `position: relative` does NOT trap the fixed overlays inside (only
+     * transform/filter do), so the bottom bar, the settings sheet and the info
+     * modal are unaffected.
+     *
+     * ⚠️ The 2rem padding is part of the YouTube reserve arithmetic
+     * (`ytReserve` above: rail + rail padding + THIS). Change one, change both.
      */
     position: relative;
-    z-index: 1;
+    z-index: var(--tt-z-main);
     display: grid;
     align-content: center;
     justify-items: center;
@@ -1312,69 +1334,66 @@
     min-height: 100dvh;
     padding: 2rem;
   }
+  /*
+   * On Setup the countdown is a PREVIEW, and the two rack modules under it are
+   * the work: at full size the clock alone took a third of a 720 px window and
+   * a three-track queue pushed the page into a scroll. TtCountdown multiplies
+   * only its preferred size by this, never its `cqw` cap (docs/03 §4), so a
+   * smaller preview can only move the digits further from the player.
+   */
+  .tt-setup-screen {
+    --tt-stage-scale: 0.66;
+    gap: 1.25rem;
+    padding-block: 1.25rem;
+  }
   /* The bottom bar is fixed, so the player screen reserves room for it. */
   .tt-player {
     padding-bottom: 5rem;
   }
-  /*
-   * The bottom padding goes with Z7, which is not rendered in Focus.
-   *
-   * docs/03 §4's "dims Z1 further" is NOT here, and that is the point: this
-   * element sits ABOVE Z1 since slice 3, so a background colour on it would
-   * not dim the backdrop — it would hide it. The dim belongs to the layer it
-   * is about, and `TtBackdrop` owns it.
-   */
+  /* Z7 is not rendered in Focus, so neither is its reserved space. The "dims
+     Z1 further" half of docs/03 §4 belongs to TtBackdrop, which owns Z1. */
   .tt-main.tt-focus {
     padding-bottom: 2rem;
   }
 
-  /* docs/03 §2 Z6 — mirrors Z5 on the opposite corner. */
+  /* docs/03 §2 Z6 — the top-right keycaps: language, settings, fullscreen. */
   .tt-chrome {
     position: absolute;
     top: 1.1rem;
     right: 1.25rem;
+    z-index: var(--tt-z-chrome);
     display: flex;
-    gap: 0.4rem;
-    z-index: 5;
+    gap: var(--tt-space-2);
   }
-  .tt-icon {
-    /* docs/03 §2: "Icon buttons, 40 px hit area." */
-    min-width: 40px;
-    min-height: 40px;
-    font-family: var(--font-mono);
-    font-size: 0.74rem;
-    letter-spacing: 0.06em;
-    color: var(--color-tt-muted);
-    background: transparent;
-    border: 1px solid var(--color-tt-line);
-    border-radius: 0.25rem;
-  }
-  .tt-icon:hover {
-    color: var(--color-tt-text);
-  }
+
+  /* docs/03 §2 Z5 — the brand plate: tally lamp, its ON AIR caption, wordmark. */
   .tt-brand {
     position: absolute;
     top: 1.1rem;
     left: 1.25rem;
     display: flex;
-    gap: 0.5rem;
+    gap: var(--tt-space-3);
     align-items: center;
+    min-height: 40px;
+    padding: 0 var(--tt-space-3);
+    background: var(--color-tt-surface);
+    border: 1px solid var(--color-tt-line);
+    border-radius: var(--tt-radius-sm);
+    box-shadow: var(--tt-shadow-key);
   }
+  /* The unlit lamp is a dark red lens, not grey: hardware never loses colour. */
   .tt-tally {
     width: 10px;
     height: 10px;
+    background: color-mix(in srgb, var(--color-tt-danger) 22%, var(--color-tt-void));
     border-radius: 50%;
-    background: var(--color-tt-muted);
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 55%);
   }
   /*
    * docs/03 §1's beat-reactive tally. `--tt-beat` is 0–1 from the analyser, and
    * both the glow and the scale ride it continuously — a class toggle would
-   * quantise the beat to a blink.
-   *
-   * The transition is short on purpose: at 150 ms a kick still reads as a hit
-   * rather than as a fade, and the value is refreshed every animation frame
-   * anyway. In YouTube mode `--tt-beat` stays 0 and this is the steady dot
-   * docs/03 §1 specifies.
+   * quantise the beat to a blink. In YouTube mode `--tt-beat` stays 0 and this
+   * is the steady lamp docs/03 §1 specifies.
    */
   .tt-live {
     background: var(--color-tt-danger);
@@ -1385,36 +1404,43 @@
       scale var(--duration-tt-fast) linear;
   }
   @media (prefers-reduced-motion: reduce) {
-    /* docs/03 §8 lists the tally pulse among what reduced motion disables. The
-       visualizer stops publishing a beat there too, so this is the second of
-       two guards rather than the only one. */
+    /* docs/03 §8 lists the tally pulse among what reduced motion disables. */
     .tt-live {
       scale: 1;
       box-shadow: 0 0 8px var(--color-tt-danger);
       transition: none;
     }
   }
-
-  /* Visually hidden, still announced — the same technique TtQueuePanel uses.
-     Never `display: none`, which removes it from the accessibility tree. */
-  .tt-sr {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    padding: 0;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-    border: 0;
+  .tt-onair {
+    padding: 1px 6px;
+    font-family: var(--font-display);
+    font-size: var(--tt-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.2em;
+    color: var(--color-tt-muted);
+    border: 1px solid var(--color-tt-line);
+    border-radius: var(--tt-radius-xs);
+    transition:
+      color var(--duration-tt-base) var(--ease-tt),
+      border-color var(--duration-tt-base) var(--ease-tt);
+  }
+  /* The glow is on the box, never the text: axe blends a text-shadow into the
+     background it measures against. */
+  .tt-onair-live {
+    color: var(--color-tt-danger);
+    border-color: color-mix(in srgb, var(--color-tt-danger) 55%, transparent);
+    box-shadow: 0 0 12px -2px color-mix(in srgb, var(--color-tt-danger) 45%, transparent);
   }
   .tt-wordmark {
-    font-size: 0.78rem;
-    letter-spacing: 0.16em;
-    color: var(--color-tt-muted);
+    font-family: var(--font-display);
+    font-size: var(--tt-text-sm);
+    font-weight: 600;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    color: var(--color-tt-text);
   }
 
-  /* docs/03 §2: Z3 countdown with Z4 to its right. */
+  /* docs/03 §2: Z3 countdown with Z4 to its right. Geometry-bearing (§4). */
   .tt-stage {
     display: flex;
     gap: 2.5rem;
@@ -1428,10 +1454,7 @@
    *
    * `flex: 1 1 0` plus `contain: inline-size` (which `container-type` applies)
    * means this column's width never depends on the digits inside it — it is
-   * simply "the stage, minus the rail, minus the gap". No cycle, and the pair
-   * still reads as centred: an item that absorbs all the free space, with its
-   * own contents centred, lands in the same place `justify-content: center` put
-   * the pair before.
+   * simply "the stage, minus the rail, minus the gap". No cycle.
    */
   .tt-clock {
     display: flex;
@@ -1441,38 +1464,44 @@
     container-type: inline-size;
   }
 
-  /* Buttons live with the components that own them — Setup has its own, and
-     transport is entirely Z7's (docs/03 §2). The shell renders none. */
-
   /*
-   * The 3 s chip (docs/03 §2, §4). Bottom-CENTRE rather than a corner: in Focus
-   * the corners are exactly what has just been emptied, and a chip appearing
-   * where the wordmark used to be reads as the chrome coming back.
-   *
-   * Right-inset by the rail reserve so it can never reach the player rect.
+   * The 3 s chip (docs/03 §2, §4), styled as a status strip. Bottom-CENTRE: in
+   * Focus the corners are exactly what has just been emptied. Right-inset by the
+   * rail reserve so it can never reach the player rect.
    */
   .tt-hint-chip {
     position: fixed;
     bottom: 1.5rem;
-    left: 50%;
-    z-index: 15;
+    /* The centre of what the reserve leaves, not of the viewport: centred on
+       the viewport, a chip only half the width cap could already cross into
+       the rail's column at 1024 px. */
+    left: calc((100vw - var(--tt-yt-reserve, 0px)) / 2);
+    z-index: var(--tt-z-hint);
     translate: -50% 0;
     max-width: calc(100vw - var(--tt-yt-reserve, 0px) - 2rem);
-    padding: 0.35rem 0.8rem;
-    font-size: 0.72rem;
+    padding: var(--tt-space-2) var(--tt-space-4);
+    font-family: var(--font-display);
+    font-size: var(--tt-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.08em;
     color: var(--color-tt-text);
-    background: color-mix(in srgb, var(--color-tt-surface) 92%, transparent);
-    border: 1px solid var(--color-tt-line);
-    border-radius: 999px;
+    background: var(--color-tt-surface);
+    border: 1px solid var(--color-tt-outline);
+    border-radius: var(--tt-radius-pill);
+    box-shadow: var(--tt-shadow-panel);
     pointer-events: none;
   }
 
-  /* docs/03 §6: two 120 ms pulses of tt-signal at ≤20% over Z1, 400 ms total.
-     It never touches the digits — Z3 holds 0.000 (docs/04 §4). */
+  /*
+   * docs/03 §6: two 120 ms pulses at ≤ 20% over Z1, 400 ms total. It never
+   * touches the digits — Z3 holds 0.000 (docs/04 §4). Inset by the YouTube
+   * reserve like every other full-screen layer: even a 20% wash is an overlay
+   * on the player rect, which docs/03 §2's carve-out does not allow.
+   */
   .tt-flash {
     position: fixed;
-    inset: 0;
-    z-index: 20;
+    inset: 0 var(--tt-yt-reserve, 0px) 0 0;
+    z-index: var(--tt-z-flash);
     pointer-events: none;
     background: var(--color-tt-signal);
     animation: tt-flash-pulse 400ms steps(1, end) 1;

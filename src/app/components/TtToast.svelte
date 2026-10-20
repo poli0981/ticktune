@@ -59,6 +59,7 @@
 
 <div class="tt-toast" role="status" data-testid="tt-toast">
   <p class="tt-summary">
+    <span class="tt-led" data-on={result.added.length > 0} aria-hidden="true"></span>
     {i18n.t('toast.summary', { added: result.added.length, skipped: result.skipped.length })}
   </p>
 
@@ -74,54 +75,62 @@
     </ul>
   {/if}
 
-  <button class="tt-dismiss" onclick={ondismiss} data-testid="tt-toast-dismiss"
+  <button class="tt-key tt-key-sm tt-dismiss" onclick={ondismiss} data-testid="tt-toast-dismiss"
     >{i18n.t('toast.dismiss')}</button
   >
 </div>
 
 <style>
+  /* One row — lamp, summary, dismiss — with the per-code list under it. */
   .tt-toast {
     display: grid;
-    gap: 0.4rem;
-    max-width: 26rem;
-    padding: 0.7rem 0.9rem;
-    font-size: 0.8rem;
-    background: var(--color-tt-surface);
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: var(--tt-space-2) var(--tt-space-3);
+    align-items: center;
+    padding: var(--tt-space-3) var(--tt-space-4);
+    font-size: var(--tt-text-sm);
+    background: var(--color-tt-void);
     border: 1px solid var(--color-tt-line);
-    border-radius: 0.5rem;
+    border-left: 3px solid var(--color-tt-signal);
+    border-radius: var(--tt-radius-sm);
+    box-shadow: var(--tt-shadow-pressed);
   }
   .tt-summary {
+    display: flex;
+    gap: var(--tt-space-2);
+    align-items: center;
+    margin: 0;
+    font-weight: 600;
     color: var(--color-tt-text);
-    font-weight: 500;
   }
   ul {
     display: grid;
-    gap: 0.2rem;
+    grid-column: 1 / -1;
+    grid-row: 2;
+    gap: var(--tt-space-1);
     margin: 0;
     padding: 0;
     list-style: none;
   }
   li {
     display: flex;
-    gap: 0.5rem;
+    gap: var(--tt-space-2);
     align-items: baseline;
+    font-size: var(--tt-text-xs);
     color: var(--color-tt-warn);
   }
   code {
     font-family: var(--font-mono);
-    font-size: 0.7rem;
+    font-size: var(--tt-text-xs);
     color: var(--color-tt-muted);
   }
   .tt-count {
     margin-left: auto;
+    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
   .tt-dismiss {
-    justify-self: end;
-    padding: 0.15rem 0.6rem;
-    color: var(--color-tt-signal);
-    background: transparent;
-    border: 1px solid var(--color-tt-line);
-    border-radius: 0.25rem;
+    grid-column: 2;
+    grid-row: 1;
   }
 </style>

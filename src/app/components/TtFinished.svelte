@@ -13,8 +13,8 @@
    * about *when*, so past the threshold it states the clock time zero was
    * actually reached and how long ago that was.
    *
-   * Strings are hardcoded Vietnamese for P2; the keys are filed in docs/08 §3.1
-   * for the P5 dictionary work, exactly as docs/04 §2 item 5 authorises.
+   * Every string is a `finished.*` key (docs/08 §3) — the P2 Vietnamese
+   * literals moved into the dictionaries in P5.
    */
 
   interface Props {
@@ -68,6 +68,7 @@
 </script>
 
 <section class="tt-finished" data-testid="tt-finished" data-variant={report.variant}>
+  <!-- The stamp: framed, lit, and the only thing on the stage at zero. -->
   <h1 class="tt-title">{i18n.t('finished.title')}</h1>
 
   {#if report.variant === 'late'}
@@ -81,10 +82,10 @@
   {/if}
 
   <div class="tt-actions">
-    <button class="tt-btn" data-testid="tt-finished-restart" onclick={onrestart}
+    <button class="tt-key tt-key-primary" data-testid="tt-finished-restart" onclick={onrestart}
       >{i18n.t('finished.action.restart')}</button
     >
-    <button class="tt-btn" data-testid="tt-finished-back" onclick={onback}
+    <button class="tt-key" data-testid="tt-finished-back" onclick={onback}
       >{i18n.t('finished.action.back')}</button
     >
   </div>
@@ -94,24 +95,43 @@
   .tt-finished {
     display: grid;
     justify-items: center;
-    gap: 0.75rem;
+    gap: var(--tt-space-4);
     text-align: center;
   }
 
-  /* docs/03 §3.5: DSEG14-style caps rendered in the UI font with glow — DSEG7
-     covers digits and separators only, so the wordmark cannot use it. */
+  /* docs/03 §3.5: DSEG14-style caps rendered in the display font with glow —
+     DSEG7 covers digits and separators only, so the wordmark cannot use it. */
   .tt-title {
-    font-size: clamp(2.5rem, 7vw, 5rem);
-    font-weight: 700;
-    letter-spacing: 0.12em;
+    margin: 0;
+    padding: var(--tt-space-2) var(--tt-space-6);
+    font-family: var(--font-display);
+    font-size: clamp(2.75rem, 8vw, 6rem);
+    font-weight: 600;
+    line-height: 1.1;
+    letter-spacing: 0.14em;
     color: var(--color-tt-danger);
+    text-transform: uppercase;
     text-shadow:
-      0 0 12px color-mix(in srgb, currentColor 55%, transparent),
-      0 0 40px color-mix(in srgb, currentColor 30%, transparent);
+      0 0 14px color-mix(in srgb, currentColor 55%, transparent),
+      0 0 44px color-mix(in srgb, currentColor 30%, transparent);
+    border: 2px solid color-mix(in srgb, var(--color-tt-danger) 70%, transparent);
+    border-radius: var(--tt-radius-sm);
+    box-shadow:
+      0 0 24px color-mix(in srgb, var(--color-tt-danger) 22%, transparent),
+      inset 0 0 24px color-mix(in srgb, var(--color-tt-danger) 14%, transparent);
+    animation: tt-stamp var(--duration-tt-slow) var(--ease-tt);
+  }
+  /* Scale only — a fade would leave the heading at partial opacity, which
+     axe measures as a contrast failure if it scans during the 400 ms. */
+  @keyframes tt-stamp {
+    from {
+      transform: scale(1.06);
+    }
   }
 
   .tt-late {
-    font-size: 1.05rem;
+    margin: 0;
+    font-size: var(--tt-text-lg);
     color: var(--color-tt-warn);
     /* The clock time and the duration change width digit by digit otherwise. */
     font-variant-numeric: tabular-nums;
@@ -119,27 +139,20 @@
 
   .tt-why {
     max-width: 34rem;
-    font-size: 0.8rem;
-    line-height: 1.5;
+    margin: 0;
+    font-size: var(--tt-text-sm);
+    line-height: 1.55;
     color: var(--color-tt-muted);
   }
 
   .tt-actions {
     display: flex;
-    gap: 0.75rem;
-    margin-top: 0.5rem;
+    gap: var(--tt-space-3);
+    margin-top: var(--tt-space-2);
   }
-
-  .tt-btn {
-    border: 1px solid var(--color-tt-line);
-    background: var(--color-tt-surface);
-    color: var(--color-tt-signal);
-    border-radius: 0.375rem;
-    padding: 0.5rem 1.25rem;
-    font-weight: 500;
-    transition: border-color var(--duration-tt-fast) var(--ease-tt);
-  }
-  .tt-btn:hover {
-    border-color: var(--color-tt-signal);
+  @media (prefers-reduced-motion: reduce) {
+    .tt-title {
+      animation: none;
+    }
   }
 </style>

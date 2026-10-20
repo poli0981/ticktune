@@ -29,7 +29,16 @@ describe('defaults', () => {
       // reader — see docs/02 §3.1. A default that costs nothing today is the
       // one that decides what every existing user sees the day it gains one.
       visualizer: 'off',
+      // v1.1. Additive with a `false` default, so no schema bump: a row written
+      // before it existed gains it through the defaults spread.
+      hideScrollbars: false,
     });
+  });
+
+  it('clamps hideScrollbars to a boolean and keeps an old row readable', () => {
+    expect(clampSettings({ hideScrollbars: 'yes' }).hideScrollbars).toBe(false);
+    expect(clampSettings({ hideScrollbars: true }).hideScrollbars).toBe(true);
+    expect(clampSettings({ schema: 2, lang: 'en' }).hideScrollbars).toBe(false);
   });
 
   it('survive a round trip unchanged', () => {

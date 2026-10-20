@@ -117,6 +117,16 @@ describe('the groups that ship, and the ones that deliberately do not', () => {
   });
 });
 
+describe('Hide scrollbars — v1.1, docs/03 §6 Display', () => {
+  it('writes hideScrollbars from its switch, off by default', async () => {
+    mount();
+    const box = screen.getByTestId('tt-set-hidescrollbars') as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    await fireEvent.click(box);
+    expect(patch).toHaveBeenCalledWith({ hideScrollbars: true });
+  });
+});
+
 describe('End Behavior controls reach the field they name — docs/02 §3.3', () => {
   it('writes endFadeMs from the slider', async () => {
     mount();

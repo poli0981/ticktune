@@ -46,6 +46,13 @@ export interface TtSettings {
   scrimAuto: boolean;
   scanlines: boolean;
   autoTheme: boolean;
+  /**
+   * Hide every scrollbar inside /app/ (v1.1, docs/03 §6 Display). Scrolling
+   * keeps working; the edge fades remain as the cue. Additive and defaulting to
+   * `false`, so no migration — and `false` is chosen as the long-term default on
+   * purpose, because `patch()` writes the whole object (`02 §3.2`).
+   */
+  hideScrollbars: boolean;
 
   glowIntensity: number;
   countdownSize: TtSize;
@@ -83,6 +90,7 @@ export const TT_DEFAULT_SETTINGS: TtSettings = {
   scrimAuto: true,
   scanlines: true,
   autoTheme: true,
+  hideScrollbars: false,
   glowIntensity: 0.8,
   countdownSize: 'm',
   endFadeMs: 2_000,
@@ -205,6 +213,7 @@ export function clampSettings(raw: unknown): TtSettings {
     scrimAuto: bool(r['scrimAuto'], d.scrimAuto),
     scanlines: bool(r['scanlines'], d.scanlines),
     autoTheme: bool(r['autoTheme'], d.autoTheme),
+    hideScrollbars: bool(r['hideScrollbars'], d.hideScrollbars),
     glowIntensity: num(r['glowIntensity'], 0, 1, d.glowIntensity),
     countdownSize: oneOf(r['countdownSize'], SIZES, d.countdownSize),
     endFadeMs: num(r['endFadeMs'], 0, 5_000, d.endFadeMs),

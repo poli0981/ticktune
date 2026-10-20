@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { TT_PALETTE } from '../../src/lib/tt-palette';
 import {
   TT_GRADIENT_PRESETS,
   gradientCss,
@@ -24,7 +25,8 @@ import { dominantHue, hueOf } from '../../src/app/engine/visuals/tt-dominant-hue
  * hue extraction are all numbers in, numbers out.
  */
 
-const TEXT = relativeLuminance(0xe7, 0xeb, 0xf2); // --color-tt-text
+// The digits are what the scrim and the presets must keep legible.
+const TEXT = relativeLuminance(...parseHex(TT_PALETTE.digit)!);
 
 describe('gradient presets — docs/03 §6', () => {
   it('has exactly the six the spec promises', () => {
@@ -110,9 +112,9 @@ describe('WCAG arithmetic', () => {
 
 describe('the adaptive scrim — docs/02 §3.1 "never lowers it"', () => {
   it('leaves a dark background at the user’s own level', () => {
-    // Void (#08090C) is already far past 4.5:1; auto has nothing to add, so the
+    // The chassis is already far past 4.5:1; auto has nothing to add, so the
     // user's 0.35 survives untouched.
-    const bg = relativeLuminance(0x08, 0x09, 0x0c);
+    const bg = relativeLuminance(...parseHex(TT_PALETTE.void)!);
     expect(scrimFor(bg, TEXT, 0.35)).toBeCloseTo(0.35, 6);
   });
 

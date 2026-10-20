@@ -125,7 +125,7 @@
 
 <section class="mx-auto max-w-5xl p-8 font-mono text-sm">
   <h1 class="mb-1 text-xl font-semibold">S3 — music-metadata coverage &amp; Vietnamese tags</h1>
-  <p class="text-tt-muted mb-6 text-xs">
+  <p class="mb-6 text-xs text-tt-muted">
     docs/15 §S3 → docs/05 §4–5. Point this at <code>tests/e2e/fixtures/</code> for the tag matrix,
     then at <code>test/test_playlist/</code> (95+ files) for the batch-timing criterion.
   </p>
@@ -142,7 +142,7 @@
   </label>
 
   {#if rows.length}
-    <div class="border-tt-line mt-6 mb-4 flex flex-wrap gap-6 border-y py-3">
+    <div class="mt-6 mb-4 flex flex-wrap gap-6 border-y border-tt-line py-3">
       <span>files <strong>{rows.length}</strong></span>
       <span>total <strong>{totalMs} ms</strong></span>
       <span>avg <strong>{Math.round(totalMs / rows.length)} ms</strong></span>
@@ -161,7 +161,7 @@
     </div>
 
     <table class="w-full text-xs">
-      <thead class="text-tt-muted text-left">
+      <thead class="text-left text-tt-muted">
         <tr>
           <th>file</th><th>title</th><th>tags</th><th>container/codec</th>
           <th class="text-right">dur</th><th class="text-right">kbps</th>
@@ -170,7 +170,7 @@
       </thead>
       <tbody>
         {#each rows as r (r.name)}
-          <tr class="border-tt-line border-t align-top" class:bad={r.mojibake || r.error}>
+          <tr class="border-t border-tt-line align-top" class:bad={r.mojibake || r.error}>
             <td class="pr-2">{r.name}</td>
             <td class="pr-2">
               {r.title ?? '—'}{r.mojibake ? '  ⚠U+FFFD' : ''}{r.id3v1Unreliable

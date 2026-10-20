@@ -35,7 +35,7 @@
   separate polite region owned by the player, not from here.
 -->
 <div
-  class="tt-countdown font-digit relative tabular-nums select-none"
+  class="tt-countdown relative font-digit tabular-nums select-none"
   class:tt-danger={f.danger}
   style:--tt-glow={glowIntensity}
   style:--tt-size-vw={SIZE_VW[size]}
@@ -53,7 +53,9 @@
      * Two rules stacked, and the OUTER one is a ToS floor — docs/03 §4.
      *
      * Inner `clamp`: docs/02 §3.1's s/m/l → 14vw / 18vw / 22vw, times Focus's
-     * ~20% (docs/03 §4). Unchanged in spirit from P2's `clamp(96px, 18vw, 280px)`.
+     * ~20% (docs/03 §4), times the shell's `--tt-stage-scale` (0.66 while the
+     * countdown is only Setup's preview). Unchanged in spirit from P2's
+     * `clamp(96px, 18vw, 280px)`.
      *
      * Outer `min`: the digits may never grow past the column they are in.
      * `.tt-clock` is a size container whose width EXCLUDES the right rail, so
@@ -73,13 +75,58 @@
     font-size: min(
       clamp(
         96px,
-        calc(var(--tt-size-vw, 18) * 1vw * var(--tt-focus-scale, 1)),
-        calc(280px * var(--tt-focus-scale, 1))
+        calc(var(--tt-size-vw, 18) * 1vw * var(--tt-focus-scale, 1) * var(--tt-stage-scale, 1)),
+        calc(280px * var(--tt-focus-scale, 1) * var(--tt-stage-scale, 1))
       ),
       calc(22.2 * 1cqw)
     );
     line-height: 1;
-    color: var(--color-tt-text);
+    /* The lit segments — warm white, the "Rack Unit" display (docs/03 §1). */
+    color: var(--color-tt-digit);
+  }
+
+  /*
+   * The display window — smoked glass behind the segments (docs/03 §1).
+   *
+   * ⚠️ Geometry-bearing, like the cap above. It is a pseudo-element so it adds
+   * NOTHING to the box the 22.2cqw cap measures; it only paints past it, by
+   * 0.08em a side. At the largest size that can exist — 280 px × Focus's 1.2 =
+   * 336 px — that is 26.9 px, inside both the stage's 2.5rem (40 px) gap to the
+   * rail and `.tt-main`'s 2rem (32 px) padding. So the glass can never reach the
+   * YouTube player rect (docs/03 §2). Grow the bleed or shrink either gap and
+   * that sum has to be redone.
+   *
+   * Painted first and unpositioned in z, so the ghost and the live digits —
+   * both positioned, later in the tree — always draw over it.
+   *
+   * axe reports the digits as "needs review" because of this pseudo-element.
+   * They were unmeasurable in v1.0 as well — they sit on Z1, the user's own
+   * picture or gradient — and their contrast is guaranteed by arithmetic
+   * instead: `scrimFor()` solves the scrim for 4.5:1 (docs/02 §3.1), and
+   * tests/unit/tt-visuals.test.ts holds every preset to it. This is the one
+   * surface in the app where that trade is made.
+   *
+   * Vertically it frames the GLYPHS, not the line box: DSEG7's ascent and
+   * descent overflow `line-height: 1`, so the digits are drawn from 0.15em
+   * above the box to 0.15em short of its bottom (measured on the rendered
+   * page). Hence the uneven top and bottom insets — 0.06em of glass each way.
+   */
+  .tt-countdown::before {
+    position: absolute;
+    inset: -0.21em -0.08em 0.09em;
+    content: '';
+    background:
+      linear-gradient(180deg, rgb(255 255 255 / 4%), transparent 38%),
+      color-mix(in srgb, var(--color-tt-void) 72%, transparent);
+    border: 1px solid rgb(255 255 255 / 6%);
+    border-radius: 0.05em;
+    box-shadow:
+      inset 0 0.02em 0.06em rgb(0 0 0 / 60%),
+      0 0.04em 0.12em rgb(0 0 0 / 35%);
+    pointer-events: none;
+  }
+  .tt-danger::before {
+    border-color: color-mix(in srgb, var(--color-tt-danger) 28%, transparent);
   }
 
   .tt-ghost {
