@@ -106,25 +106,33 @@ export async function importLinks(
   const { ids, rejected } = parseVideoIds(text);
   for (const line of rejected) skipped.push({ code: 'TT-YT-002', fileName: line });
 
-  // ── step 3: capacity, hoisted ahead of any network work ───────────────────
+  // ── step 2: dedupe by videoId ─────────────────────────────────────────────
+  // BEFORE the cap, in docs/06 §5's own order. A repeat is never added, so it
+  // must not hold one of the free slots: until v2.0 the cap ran first, and a
+  // duplicate pushed a valid link further down the paste into TT-YT-003 while
+  // the queue still had room for it.
+  const seen = new Set(queue.map((t) => t.videoId).filter((v): v is string => v !== undefined));
+  const unique: string[] = [];
+  for (const videoId of ids) {
+    if (!allowDuplicates && seen.has(videoId)) {
+      skipped.push({ code: 'TT-IMP-005', fileName: videoId });
+      continue;
+    }
+    seen.add(videoId);
+    unique.push(videoId);
+  }
+
+  // ── step 3: capacity, ahead of any network work ───────────────────────────
   // Same reasoning as docs/02 §4's step 0: checking the cap after the lookups
   // would spend 50 round-trips to add at most a handful of tracks. The code is
   // TT-YT-003, not TT-IMP-004 — docs/06 §5 gives the link cap its own.
   const existing = queue.filter(isPlayable).length;
   const capacity = Math.max(0, TT_QUEUE_CAP.youtube - existing);
-  const accepted = ids.slice(0, capacity);
-  for (const over of ids.slice(capacity)) skipped.push({ code: 'TT-YT-003', fileName: over });
-
-  // ── step 2: dedupe by videoId ─────────────────────────────────────────────
-  const seen = new Set(queue.map((t) => t.videoId).filter((v): v is string => v !== undefined));
+  const accepted = unique.slice(0, capacity);
+  for (const over of unique.slice(capacity)) skipped.push({ code: 'TT-YT-003', fileName: over });
 
   for (const [index, videoId] of accepted.entries()) {
     ports.onProgress?.(index, accepted.length);
-
-    if (!allowDuplicates && seen.has(videoId)) {
-      skipped.push({ code: 'TT-IMP-005', fileName: videoId });
-      continue;
-    }
 
     // ── step 4: the oEmbed pre-check ────────────────────────────────────────
     const result: TtYtLookup = await ports.lookup(videoId);
@@ -145,14 +153,12 @@ export async function importLinks(
        * It is a NOTE rather than a skip: the track was added, so counting it
        * among the skips would make the summary toast lie about both numbers.
        */
-      seen.add(videoId);
       notes.push({ code, fileName: videoId });
       added.push(track(videoId, null, ports, 'pending'));
       continue;
     }
 
     // ── step 5: push ────────────────────────────────────────────────────────
-    seen.add(videoId);
     added.push(track(videoId, result, ports, 'ok'));
   }
 
