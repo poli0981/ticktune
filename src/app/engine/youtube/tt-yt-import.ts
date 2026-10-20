@@ -167,8 +167,9 @@ export async function importLinks(
 }
 
 /**
- * docs/06 §5 — `durationMs` stays null until the player backfills it (§2), and
- * renders as `–` meanwhile (hard invariant 5).
+ * docs/06 §5 — `durationMs` starts null and renders as `–` meanwhile (hard
+ * invariant 5). The Data API lookup after import fills it (docs/06 §3, v2.0);
+ * the player's backfill after cue does when that is unavailable (§2).
  *
  * `videoId`, `sourceUrl` and `thumbnailUrl` are **written here**, which is the
  * point: all three have been declared on `TtTrack` since the first revision
