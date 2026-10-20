@@ -517,11 +517,14 @@ Narrowed to repo hygiene only: no doc in the suite mentions a `.gitignore` (16's
 
 ---
 
-### 🟡 medium · Privacy Policy has no controller identity, contact point, retention, or jurisdiction, and docs/09 declares data-subject handling out of scope — **mostly resolved**
+### ✅ ~~🟡 medium~~ · Privacy Policy has no controller identity, contact point, retention, or jurisdiction, and docs/09 declares data-subject handling out of scope
 
-**Mostly resolved.** The Privacy Policy names the controller, a contact
-(privacy@poli0981.dev since Legal 1.1), what is processed where, and retention.
-Still open: the EULA states no governing law.
+**CLOSED by Legal 2.0 (v2.0, 2026-10-21).** The Privacy Policy names the
+controller, a contact (privacy@poli0981.dev since Legal 1.1), what is processed
+where, and retention. The last piece, a governing law, is EULA §8: the law of
+Viet Nam, the competent courts there, and any mandatory protection a consumer
+has where they live left intact — the owner's decision of 2026-10-20, in both
+languages, with `TT_LEGAL_VERSION` bumped once for the whole release.
 
 **Owner phase:** P6 legal pass · **Lens:** legal-compliance
 

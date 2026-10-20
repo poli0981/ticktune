@@ -1,7 +1,7 @@
 # TickTune
 
 > A full-screen countdown with your own music — a desktop web app.
-> **Live at [ticktune.net](https://ticktune.net)** · GPL-3.0-only · Vietnamese and English
+> **Live at [ticktune.net](https://ticktune.net)** · GPL-3.0-only · Vietnamese, English and Japanese
 
 [![CI](https://github.com/poli0981/ticktune/actions/workflows/ci.yml/badge.svg)](https://github.com/poli0981/ticktune/actions/workflows/ci.yml)
 [![E2E](https://github.com/poli0981/ticktune/actions/workflows/e2e.yml/badge.svg)](https://github.com/poli0981/ticktune/actions/workflows/e2e.yml)
@@ -16,7 +16,8 @@ Your files never leave your browser.
 
 - **Three sources.** *Single* (one local file, looped), *Playlist* (up to 95
   local files, reorderable by drag or `Alt+↑/↓`, shuffle and repeat) and
-  *YouTube* (up to 50 links, played through YouTube's own embedded player).
+  *YouTube* (up to 50 links, played through YouTube's own embedded player,
+  with each link's length looked up so "Match queue length" works there too).
 - **A countdown that is derived, never accumulated** — `endAt − now` on every
   tick, so it does not drift. Below 60 s it shows milliseconds.
 - **End Behavior**: fade-out, a synthesised chime, a screen flash, then stay,
@@ -27,6 +28,15 @@ Your files never leave your browser.
 - **Visuals**: solid, gradient, picture, slideshow or cover-art backgrounds with
   an adaptive scrim that solves for 4.5:1 contrast behind the digits; a bars / wave /
   ring visualizer; an ON AIR tally lamp that pulses to the beat; Focus mode.
+- **Two looks, two faces**: the dark "LED" rack or a light "LCD" panel for
+  daytime projection, and a 7- or 14-segment clock.
+- **Away from the tab**: opt in, and the countdown's own worker shows a system
+  notification at zero while the tab is in the background — generic text,
+  never a track name, nothing sent anywhere.
+- **Installable, and it starts offline**: `/app/` installs as an app, and once
+  visited it opens without a network; local files play as ever (YouTube needs
+  one).
+- **Settings as a file**: export them, import them on another machine.
 - **Keyboard first**: `Space` play/pause, `←/→` tracks, `↑/↓` volume, `M` mute,
   `F` fullscreen, `H` Focus, `S` settings — the full table is in the app.
 - **Accessible**: screen-reader milestones at 10 / 5 / 1 min, 10 s and zero;
@@ -55,8 +65,12 @@ Missing metadata shows as `N/A` (text) or `–` (numbers), never as a blank.
   [Privacy Policy](https://ticktune.net/en/legal/privacy/) and on the consent
   screen, and it never sees your files.
 - **YouTube mode** loads YouTube's player from `youtube-nocookie.com`; link
-  titles are looked up through this site's own `/api/yt/oembed` route, which
-  forwards only the video ID.
+  titles and lengths are looked up through this site's own `/api/yt/oembed`
+  and `/api/yt/durations` routes, which forward only the video IDs — from the
+  server, with its own key — and cache each answer for a day.
+- **A finish notification** is created by the tab itself: no push service, no
+  subscription, nothing leaves the machine.
+- **The offline copy** holds the app's own files only — never yours.
 
 ## Development
 
@@ -72,6 +86,9 @@ pnpm knip         # unused files, exports and dependencies
 pnpm test         # Vitest: unit + component + worker, with coverage
 pnpm test:e2e     # Playwright: Chromium, Firefox, WebKit + the mobile gate
 pnpm verify:csp   # the real CSP in a browser, under wrangler dev
+pnpm lhci         # Lighthouse CI on the built static pages
+pnpm test:visual:docker   # screenshots, in the pinned Playwright image (--update to rewrite)
+pnpm perf:render  # the countdown's frame cost, headed (TT_PERF_SOFTWARE=1: no GPU)
 ```
 
 `pnpm fixtures` regenerates the audio fixtures, `pnpm demo` re-records the

@@ -117,6 +117,14 @@ GnuPG, a different keyring from the `gpg` on Git Bash's `PATH`.
 
 Used by `deploy.yml`'s `deploy` job only. The `production` environment holds them.
 
+**The Worker's own secrets are not GitHub secrets.** `YT_DATA_API_KEY` (v2.0,
+`10`, `06 §3`) lives on the Worker, so every version — previews included —
+can read it. 🔴 **Setting a Worker secret can deploy.** `wrangler secret put`
+and the dashboard's Variables & Secrets both create a version **and deploy
+it**, which changes production outside the tag-only model below. Use
+`wrangler versions secret put`: it uploads a version that serves nothing until
+the next tagged deploy carries the secret with it.
+
 ## 5. Release flow — tag-only
 
 **Production changes only when a signed `vX.Y.Z` tag is pushed.**
@@ -141,7 +149,11 @@ after a push, `wrangler versions list` must show a new version and
    **Version URL** before merging (`13 §7`).
 2. Bump `version` in `package.json` in the release PR; the app's About panel and
    the diagnostics payload read it at build time.
-3. `git tag -s vX.Y.Z` with a hand-written annotated message, then push the tag.
+3. `git tag -s --cleanup=whitespace vX.Y.Z` with a hand-written annotated
+   message, then push the tag. **`--cleanup=whitespace`, always:** git's default
+   `strip` deletes every message line that starts with `#`, so the Markdown
+   headings of the release notes vanished from the tag, and with it from the
+   GitHub Release (v1.1.0).
 4. `deploy.yml`:
    - **verify** — the tag's signature against the owner's published keys; the
      tagged commit is an ancestor of `origin/main`; lint, check, knip, build,
@@ -150,6 +162,19 @@ after a push, `wrangler versions list` must show a new version and
      and `wrangler deploy`;
    - **release** — `gh release create --verify-tag --notes-from-tag`.
 5. Post-deploy: the production re-check block of the live checklist (`13 §7`).
+
+### Repository rules (v2.0)
+
+- **`main` ruleset:** pull requests only; the checks **`ci`** and **`e2e`** are
+  required — the two that run on every PR (`audit` and CodeQL do not run on
+  Dependabot's, and a required check that never reports blocks a PR forever);
+  linear history; no force-push; no deletion; the owner may bypass.
+  `strict` is off, so a green PR need not be rebased onto every newer `main` —
+  which means a PR that depends on another's keys or strings is rebased by hand
+  before it merges. v2.0 did that for the Japanese dictionary twice.
+- **Tag ruleset `v*`:** no deletion, no update — a release tag is immutable.
+- **Environment `production`:** deployable from `v*` tags only.
+- **Merging:** rebase-merge only; branches are deleted on merge.
 
 To redeploy a release, re-run that tag's `deploy.yml` run from the Actions tab.
 There is deliberately no `workflow_dispatch`: it allowed deploying any branch by

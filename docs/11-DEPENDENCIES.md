@@ -7,24 +7,24 @@ lockfile as the truth.
 
 ## 1. Runtime / toolchain
 
-| Component | Version (v1.1) | Channel | Notes |
+| Component | Version (v2.0) | Channel | Notes |
 |-----------|---------------------|---------|-------|
 | Node.js | **24.x (Maintenance LTS)** | LTS | Entered maintenance 2026-10-20; Node 26 becomes LTS 2026-10-28. `.nvmrc` pins 24 (every job, Workers Builds); `engines` is `>=24 <27` and the `ci-node26` job builds and tests on 26 (`14 §1`). EOL v24: 2028-04-30. |
 | pnpm | 11.15.1 | latest | Portfolio used 10.x this month; 11 is current major — adopt for new repo, migration is trivial. |
-| Wrangler | **4.149.0** | latest | `compatibility_date: 2026-07-01`. Its `miniflare` resolves `sharp@0.35.5`, past the four libvips CVEs in `sharp <0.35.0` (GHSA-f88m-g3jw-g9cj) that first forced a Wrangler bump (4.112 → 4.114, see `§5`) |
+| Wrangler | **4.151.1** | latest | `compatibility_date: 2026-07-01`. Its `miniflare` resolves `sharp@0.35.5`, past the four libvips CVEs in `sharp <0.35.0` (GHSA-f88m-g3jw-g9cj) that first forced a Wrangler bump (4.112 → 4.114, see `§5`) |
 
 ## 2. Application dependencies
 
 | Package | Version | License | Role |
 |---------|---------|---------|------|
-| astro | 7.3.8 | MIT | Static framework; Rolldown toolchain — compatibility already validated in the SoftHarbor spike |
+| astro | 7.4.0 | MIT | Static framework; Rolldown toolchain — compatibility already validated in the SoftHarbor spike |
 | svelte | 5.57.2 | MIT | App island, runes |
-| @astrojs/svelte | 9.0.1 | MIT | Integration |
+| @astrojs/svelte | 9.1.0 | MIT | Integration |
 | tailwindcss / @tailwindcss/vite | 4.3.3 | MIT | Styling, `@theme` tokens |
 | motion | — | MIT | **Not installed.** The vetted choice over GSAP (licence, D7) if imperative animation is ever needed; every animation shipped through v1.1 is CSS keyframes and transitions |
-| music-metadata | 11.16.0 | MIT | `parseBlob` tag/cover extraction. **Production dependency**, dynamically imported at first import action so it stays off the boot chunk (`13 §5` budget) |
+| music-metadata | 12.2.2 | MIT | `parseBlob` tag/cover extraction. **Production dependency**, dynamically imported at first import action so it stays off the boot chunk (`13 §5` budget) |
 | dexie | 4.4.6 | Apache-2.0 | Settings persistence (Apache-2.0 → GPL-3.0 compatible, one-way) |
-| i18next | 26.4.3 | MIT | App runtime i18n — installed in P5 slice 1, when the dictionaries were wired (`08 §2`) |
+| i18next | 26.5.2 | MIT | App runtime i18n — installed in P5 slice 1, when the dictionaries were wired (`08 §2`) |
 | @fontsource/be-vietnam-pro | 5.3.0 | OFL-1.1 (pkg MIT) | UI font, VI diacritics. **Installed in P6 slice A** — see the note below |
 | @fontsource/jetbrains-mono | 5.3.0 | OFL-1.1 (pkg MIT) | Mono/meta font. **Installed in P6 slice A** |
 | @fontsource/chakra-petch | 5.3.0 | OFL-1.1 (pkg MIT) | Display font for the v1.1 "Rack Unit" redesign (labels, headings, keycaps); full Vietnamese subset checked before adoption. CSS-imported, so it is in `knip.json` `ignoreDependencies` and `make-notices.ts` `CSS_ONLY` like the other two |
@@ -36,24 +36,25 @@ lockfile as the truth.
 | Package | Version | Role |
 |---------|---------|------|
 | typescript | **`~5.9`** (resolved 5.9.3) — TS 7 rejected, **see §4** | Types |
-| eslint · @eslint/js · typescript-eslint | 10.12.0 · 10.0.1 · 8.71.1 | Lint (flat config) |
+| eslint · @eslint/js · typescript-eslint | 10.13.0 · 10.0.1 · 8.71.2 | Lint (flat config) |
 | eslint-plugin-svelte · svelte-eslint-parser | 3.23.1 · 1.9.0 | Svelte rules |
 | globals | 17.13.0 | ESLint environment globals |
 | prettier | 3.9.10 | Format. **Plugins must be `prettier-plugin-svelte@^4` and `prettier-plugin-tailwindcss@^0.8`** — the 3.x/0.6.x pair crashes on every `.svelte` file with `TypeError: getVisitorKeys is not a function` (the Tailwind plugin wraps the Svelte one and the older pair mis-negotiates prettier 3.9's embedded-language API). Also `prettier-plugin-astro` for `.astro`. |
 | knip | 6.41.0 | Dead/unused code gate (spec requirement) |
-| svelte-check · @astrojs/check | 4.7.6 · 0.9.10 | Template type-checking (`pnpm check`) |
+| svelte-check · @astrojs/check | 4.7.7 · 0.9.10 | Template type-checking (`pnpm check`) |
 | @sveltejs/vite-plugin-svelte | 7.3.1 | Svelte in Vitest |
 | vitest | 4.1.11 | Unit/component runner |
 | @testing-library/svelte | 5.4.2 | Component tests. ⚠️ Requires `resolve.conditions: ['browser']` in `vitest.config.ts` — without it `import { mount } from 'svelte'` resolves to Svelte 5's **server** build and every component test dies with `mount(...) is not available on the server`. Measured 2026-07-21 against the P1 config, before the tier had any tests in it |
-| happy-dom | 20.14.6 | Test DOM |
-| @playwright/test | 1.64.0 | E2E |
-| @axe-core/playwright | 4.13.0 | The a11y scan (`13 §6`) |
+| happy-dom | 21.0.3 | Test DOM |
+| @playwright/test | 1.64.1 | E2E, and the visual and render-cost suites. The visual baselines are made only in `mcr.microsoft.com/playwright:v1.64.1-noble`, pinned by digest in `quality.yml` and `scripts/visual-docker.ts` — a Playwright bump moves the image and regenerates every baseline in the same PR (`13 §3`) |
+| @axe-core/playwright | 4.14.0 | The a11y scan (`13 §6`) |
 | @vitest/coverage-v8 | 4.1.11 | Coverage provider — the docs/13 §1 threshold is enforced, so it must exist |
+| @lhci/cli | 0.15.1 | Lighthouse CI (v2.0, `13 §5`). Apache-2.0, dev-only, never distributed — no notice row (`§5`). Reports go to a workflow artifact, never to Google's public storage |
 | @types/node | 24.x | Node types, held to the lowest supported major (24) — Dependabot ignores its majors (`14 §1`) |
 | ffmpeg-static | 5.3.0 | **Dev-only asset generation** (`scripts/make-fixtures.ts`, `scripts/make-demo.ts`). Never imported by shipped code and never distributed, so no notice obligation follows (`§5`). Its postinstall downloads an **unchecksummed** prebuilt ffmpeg (GPL), so `pnpm-workspace.yaml` sets `allowBuilds: ffmpeg-static: false` — the binary is fetched on demand by `scripts/ensure-ffmpeg.ts` on a developer machine, never on a CI runner (`14 §2`). |
 | @cloudflare/workers-types | 5.x | Worker globals. Kept in a separate program (`tsconfig.worker.json`) because it conflicts with the DOM lib |
 | @astrojs/sitemap | 3.7.4 | **Dev-only, no notice row** (`§5`) — MIT, runs at build and emits static XML; nothing of it reaches the bundle, exactly like Astro/Vite/Tailwind. Added in P6 slice A because the sitemap is derived from the routes actually built: a hand-authored one is a second source of truth that rots the first time someone adds a page. Its `i18n` option is **not** used — it assumes locales are path prefixes (`/vi/`) and Vietnamese lives at the root, so hreflang stays in the page (`08 §1`) |
-| @astrojs/markdown-satteri | **pinned `0.4.3`** | **Dev-only, no notice row** (`§5`) — MIT, the Markdown processor; it runs at build and emits static HTML. Added in P6 slice B only so `astro.config.mjs` can `import { satteri }` and pass `mdastPlugins` (the legal `.md` cross-link rewrite, `08 §1.1`). ⚠️ **Pin it to exactly the version Astro depends on**, not a range: it is already in the tree as Astro's own dependency, and an exact match dedupes to one copy while a looser range would resolve a second Markdown processor beside the one actually rendering. Astro 7 made Sätteri the default and `markdown.remarkPlugins` now needs `@astrojs/markdown-remark` instead — switching the whole pipeline back to unified to rewrite two links is the wrong trade |
+| @astrojs/markdown-satteri | **pinned `0.4.4`** | **Dev-only, no notice row** (`§5`) — MIT, the Markdown processor; it runs at build and emits static HTML. Added in P6 slice B only so `astro.config.mjs` can `import { satteri }` and pass `mdastPlugins` (the legal `.md` cross-link rewrite, `08 §1.1`). ⚠️ **Pin it to exactly the version Astro depends on**, not a range: it is already in the tree as Astro's own dependency, and an exact match dedupes to one copy while a looser range would resolve a second Markdown processor beside the one actually rendering. Astro 7 made Sätteri the default and `markdown.remarkPlugins` now needs `@astrojs/markdown-remark` instead — switching the whole pipeline back to unified to rewrite two links is the wrong trade |
 
 ### The fonts were named for four phases before they were installed
 
