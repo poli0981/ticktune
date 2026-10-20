@@ -409,6 +409,19 @@ describe('before the player is ready — the real API attaches its methods at on
     expect(first(api.setVolume)).toBeLessThan(first(api.loadVideoById));
   });
 
+  it('a track opened between create and ready is the one that opens on ready', () => {
+    // ⏭ or ENDED inside the first second: the load went to a player with no
+    // methods and was lost, and ready then opened the FIRST video again.
+    const p = new TtYtPlayer(ports, host as unknown as TtYtPlayerHost);
+    p.load(track({ videoId: 'aaaaaaaaaaa' }));
+    p.load(track({ videoId: 'bbbbbbbbbbb' }));
+    expect(api.loadVideoById).not.toHaveBeenCalled();
+
+    events?.onReady();
+    expect(api.loadVideoById).toHaveBeenCalledTimes(1);
+    expect(api.loadVideoById).toHaveBeenCalledWith('bbbbbbbbbbb');
+  });
+
   it('is not ready again after dispose, and reads nothing', () => {
     const p = started();
     p.dispose();

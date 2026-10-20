@@ -40,6 +40,8 @@ export interface TtYtProbe {
   calls: string[];
   /** How many players were constructed — a remount must build a second. */
   built: number;
+  /** Whether the newest player has reported ready (it is bare for 300 ms). */
+  ready: boolean;
 }
 
 declare global {
@@ -79,11 +81,12 @@ export async function installFakeYt(page: Page): Promise<void> {
       contentType: 'application/javascript; charset=utf-8',
       body: `
         (function () {
-          window.__ttYt = { opts: {}, calls: [], built: 0 };
+          window.__ttYt = { opts: {}, calls: [], built: 0, ready: false };
           var probe = window.__ttYt;
 
           function Player(el, opts) {
             probe.built += 1;
+            probe.ready = false;
             probe.opts = { host: opts.host, width: opts.width, height: opts.height };
 
             // The real API replaces the element it is given. Match that, so the
@@ -124,6 +127,7 @@ export async function installFakeYt(page: Page): Promise<void> {
             };
             var becomeReady = function () {
               arm();
+              probe.ready = true;
               ev.onReady && ev.onReady({ target: self });
             };
             window.__ttYtFire = {
@@ -358,13 +362,22 @@ export async function stageLinks(
 }
 
 /** What the driver asked the player to do, in order. */
+/**
+ * Wait until the stub player has reported ready — bare for 300 ms, as YouTube's
+ * is. A spec about a PLAYING video waits for this before it pauses, skips or
+ * fires a state; one about the first second deliberately does not.
+ */
+export async function ytReady(page: Page): Promise<void> {
+  await page.waitForFunction(() => window.__ttYt?.ready === true);
+}
+
 export async function ytCalls(page: Page): Promise<string[]> {
   return page.evaluate(() => window.__ttYt?.calls ?? []);
 }
 
 /** The options the driver constructed the player with. */
 export async function ytProbe(page: Page): Promise<TtYtProbe> {
-  return page.evaluate(() => window.__ttYt ?? { opts: {}, calls: [], built: 0 });
+  return page.evaluate(() => window.__ttYt ?? { opts: {}, calls: [], built: 0, ready: false });
 }
 
 /** Drive the player's callbacks from the page. */

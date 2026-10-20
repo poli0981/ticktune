@@ -50,8 +50,10 @@ Suite 1.1 · 2026-10-20 · Locked decision D1
   10 Hz position tick read `getCurrentTime()` in that window and threw on every
   start, and the first video's volume went to a player that could not hear it.
   Nothing is read before `onReady` now (`TtYtPlayer.ready`, and the driver's
-  façade goes through `live()`), and a volume set meanwhile is applied in
-  `onReady`, before the video starts. The E2E stub is bare for 300 ms, as the
+  façade goes through `live()`), a volume set meanwhile is applied in
+  `onReady`, before the video starts, and a track opened meanwhile — a ⏭ or an
+  `ENDED` in the first second — replaces the pending one instead of being lost
+  while ready opened the first video again. The E2E stub is bare for 300 ms, as the
   real player is.
 - Events: `onReady` → first cue; `onStateChange: ENDED` → advance per
   shuffle/loop; `PLAYING` → `getDuration()` backfills `durationMs` and
