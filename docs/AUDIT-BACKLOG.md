@@ -11,8 +11,9 @@ tracks all of them.
 - ✅ **20 closed** since — the release blocker in P7 slice A; the other nineteen
   were closed by P4–P7 and v1.1 but only **recorded** in the v1.1 review
   (2026-10-20), each with the phase that actually closed it
-- ✅ **1 closed in v2.0** — the countdown render-cost probe (`13 §5`)
-- ⬜ **1 open**, not a release blocker: the EULA's governing law
+- ✅ **2 closed in v2.0** — the countdown render-cost probe (`13 §5`) and the
+  EULA's governing law (Legal 2.0, EULA §8: the law of Viet Nam)
+- ⬜ **0 open**
 
 Severity is the *verified* severity. Several findings were downgraded when the
 verifier showed the original claim overreached; where that happened, the

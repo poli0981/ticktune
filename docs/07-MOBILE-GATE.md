@@ -1,6 +1,6 @@
 # 07 — Mobile Gate (site-wide block)
 
-Suite 1.1 · 2026-10-20 · Locked decision D2
+Suite 2.0 · 2026-10-21 · Locked decision D2
 
 ## 1. Behavior
 

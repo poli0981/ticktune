@@ -1,6 +1,6 @@
 # 16 — Roadmap
 
-Suite 1.1 · 2026-10-20 · Solo-dev pacing alongside OmniDeck/PipDock/poli0981.dev.
+Suite 2.0 · 2026-10-21 · Solo-dev pacing alongside OmniDeck/PipDock/poli0981.dev.
 Durations are effort estimates, not calendar promises. **v1.0 target: late Q3
 2026** (≈ 8 focused weeks from spike start).
 
@@ -1183,31 +1183,94 @@ report — the same shape as v1.1's seventeen: correct engines, wrong wiring.
 Dependabot alongside: music-metadata 12.2.0 (runtime: ES2023 build, Node 22
 floor; MIT), happy-dom 21 (dev).
 
-## Post-1.1 backlog (unordered)
+## v2.0 — every post-1.1 direction · **v2.0.0**, 2026-10-21
 
-- **Crossfade (S4b).** Fix the harness first — measure the overlap from the
-  audio (an Analyser or an `OfflineAudioContext` render) rather than reading back
-  the scheduled `gain.value` — then run the 0/1/2/5 s sweep, then build the
-  crossfade loop style and inter-track crossfade.
-- YouTube Data API v3 proxy on the existing Worker (duration/publish date at
-  import, so "Match queue length" works for links; key server-side, cached).
-- PWA offline for local modes (installable, cache shell; YT mode stays online).
-- **Out-of-page finish notification** (S2 option 2): a service worker has its own
-  scheduling and could fire a Notification when a backgrounded tab's countdown
-  ends. Needs its own spike, a permission prompt, and a privacy review against
-  hard invariant 1 — which is why P2 took option 3 instead (`04 §2`).
-- Settings export/import as a JSON preset (the session-only queue stays
-  non-exportable by design).
-- Countdown faces and themes on the v1.1 token system: alternate segment fonts
-  (DSEG14, Nixie-style), and a light theme for daytime projection.
-- Loudness normalization (EBU R128-ish gain scan on local files, opt-in).
-- JP language pack (`08 §5`); JSON-LD for the landing pages.
-- Spike pages (`/spike/*`) are built into production: inject the routes only in
-  dev or behind a build flag.
-- Repository hygiene: a ruleset for `main` (required checks, linear history, no
-  force-push), delete-branch-on-merge, pruning the stale local branches, a plan
-  for **Node 26 LTS** (Node 24 entered maintenance in October 2026), visual
-  regression snapshots of the redesigned screens, Lighthouse CI.
+The whole post-1.1 backlog, planned as one release and shipped as rebase-merged
+PRs behind one signed tag, with v1.1.1 cut from the middle of it. Three spikes
+decided three features before any of their code was written — two released, one
+refused — which is the scope rule doing its job in both directions.
+
+| PR | Branch | What it carried |
+|----|--------|-----------------|
+| #74 | `chore/v2-foundation` | Dependabot unblocked (the language button's accessible name), Node 26 CI, the 50-link cap counted after dedupe |
+| #76 | `fix/live-defects` | **v1.1.1**: a countdown stuck at 0.000 after a clock jump; cover art dead after a track played; the URL canary `13 §3` described and nothing ran |
+| #77 | `chore/spikes-dev-only` | `/spike/*` out of production: built only under `astro dev` or `TT_SPIKES=1`, into `dist-spikes/`, never `dist/` |
+| #78 | `spike/s4b` | The S4b harness v2 — measured from the audio, on the shipping graph, able to fail and proving it first |
+| #79 | `spike/s5-s6` | S5 **GO**, S6 **FAIL** (`15 §S5`, `§S6`) |
+| #80 | `feat/yt-durations` | YouTube Data API v3 lengths through the Worker — "Match queue length" works for links |
+| #81 | `feat/pwa-offline` | Installable `/app/`; a service worker that starts it offline |
+| #82 | `feat/settings-io` | Export and import the settings as a file |
+| #83 | `chore/deps-oct` | The October minor/patch group, by hand |
+| #84 | `feat/themes` | A light "LCD" theme for `/app/` and a DSEG14 clock face |
+| #85 | `feat/i18n-ja` | Japanese — the app, the landing and the 404; JSON-LD |
+| #86 | `feat/finish-notification` | A finish notification from the timer worker, while the tab is away |
+| #87 | `feat/legal-2.0` | Legal 2.0 — the new data flows, and Viet Nam's law in the EULA |
+| #88 | `chore/quality-gates` | Lighthouse CI, visual regression in a pinned image, the render-cost probe — and what they found |
+| #89 | `chore/lhci-overrides` | The vulnerable transitive versions inside `@lhci/cli`, overridden; two `extract-zip` alerts dismissed as unreachable |
+| #90 | `fix/yt-player-ready` | A YouTube player is created long before it is ready — found by the owner on #88's preview |
+| #91 | `spike/s4b-result` | S4b **PASS** as shipped (`15 §S4b`) |
+| #92 | `feat/crossfade` | The crossfade, exactly as S4b measured it |
+| #93 | `docs/sync-2.0` | This section; 2.0.0 |
+
+### The spikes decided
+
+- **S4b — PASS, as shipped.** 347 runs on the real graph; every one passed
+  except real music after a **seek**, where Chrome places a VBR MP3 by its Xing
+  table and `currentTime` stays up to a second off the audio. Re-run from the
+  start, as the app always plays, 25/25. The app has no seek control.
+- **S5 — GO.** 40 of 40 hidden, silent 25-minute runs on time across Edge,
+  Chrome, Brave and Firefox, measured in browsers Playwright did not drive —
+  Playwright's own emulation reports every page `visible`, which is exactly the
+  state under test. The notification fires from the worker.
+- **S6 — FAIL.** A reduced-rate decode under-reads high-frequency content, and
+  Chrome decodes at the native rate first anyway: 260–540 MB at any rate.
+  Loudness normalization is not in v2.0; the remedies are in `15 §S6`.
+
+### What it found that no test had
+
+- **A YouTube player was asked for its time before it had any.** The IFrame API
+  returns the player at once and attaches its methods only at `onReady`; the
+  fake the E2E used attached them at once, so every spec was green while the
+  owner's console filled with `getCurrentTime is not a function` (#90). The fake
+  now arrives the way the real one does.
+- **The harness changed the thing it measured.** S4b's sweep seeked into each
+  track's tail to save time; the app never seeks, and the seek was the only
+  failure. Re-run from the start, the corpus passed.
+- **Two copies of one tone cancel** at an equal-power midpoint, so the crossfade
+  E2E fades between different pitches and measures the level, not a flag.
+- The visual wrapper exited 0 over eight failed screenshots; legal pages carried
+  a CLS of 0.197 from two late fonts; the canvas grew with the window until a 4K
+  software-rendered visualizer ran at 31 fps, invisible to its own degrade.
+
+### Decisions
+
+- EULA governing law: Viet Nam (owner, 2026-10-20).
+- Data API reads `contentDetails.duration` only; key server-side; 24 h per-id cache.
+- Notifications local-only; generic text; never a track name.
+- DSEG14, not Nixie: same advance widths keep the `22.2cqw` ToS cap.
+- One legal bump for the release: 2.0.
+- Japanese legal pages point at the English texts (the binding version).
+- Crossfade on at 2 s for everyone; the Single loop stays hard by default.
+
+## Post-2.0 backlog (unordered)
+
+- **Node 26 LTS — 2026-10-28.** Move `.nvmrc`, `engines` (`>=26 <27`),
+  `@types/node` and the CI jobs to 26, and drop the `dependabot.yml` ignore.
+  `ci-node26` has run on every PR since v2.0, so this is a switch, not a
+  migration.
+- **Loudness normalisation — S6 failed.** A later spike on one of `15 §S6`'s
+  remedies: slice-and-accumulate at 48 kHz, WebCodecs `AudioDecoder`, or tags
+  only — the last an owner decision, since it leaves untagged files alone.
+- **S5's owner run** — an everyday browser profile, clicking the notification,
+  and Safari's main-thread path (`15 §S5`).
+- **Why S5's main thread was prompt** when S2's was minutes late (`15 §S5`).
+  Nothing shipped depends on the answer — the notification fires from the
+  worker — but `04 §2`'s re-scoped promise rests on S2's numbers.
+- **A seek control would leave S4b's PASS.** Chrome places a VBR MP3 by its
+  Xing table and `currentTime` stays up to a second off the audio; the trigger's
+  remaining time would have to be re-derived or measured again (`15 §S4b`).
+- **`visual` and `lighthouse` as required checks**, once they have run green on
+  a few weeks of PRs; until then a red one is read, not obeyed (`docs/14`).
 - Zone-plan upgrade decision → branded Cloudflare error pages (`10 §8`).
 
 ## Standing rules

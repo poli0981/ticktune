@@ -1,6 +1,6 @@
 # 03 — UI Spec · "Rack Unit" Design System
 
-Suite 1.1 · 2026-10-20
+Suite 2.0 · 2026-10-21
 
 Goal (spec): modern, eye-catching, **not** generic. The identity is a piece of
 broadcast studio hardware: a rack-mounted seven-segment clock behind smoked

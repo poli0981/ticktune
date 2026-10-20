@@ -1,6 +1,6 @@
 # 11 — Dependencies & Versions
 
-Suite 1.1 · **Versions as of v1.1 (2026-10-20), resolved from `pnpm-lock.yaml`.**
+Suite 2.0 · **Versions as of v2.0 (2026-10-21), resolved from `pnpm-lock.yaml`.**
 Spec requirement: latest-or-LTS everywhere, no components with known critical
 CVEs. Dependabot moves these weekly, so treat a version here as a floor and the
 lockfile as the truth.

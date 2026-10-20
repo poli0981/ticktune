@@ -1,6 +1,6 @@
 # 13 — Testing Strategy
 
-Suite 1.1 · 2026-10-20
+Suite 2.0 · 2026-10-21
 
 Pyramid: heavy unit coverage on the pure engines (they're pure by design, `01 §3`),
 targeted component tests, thin-but-real E2E, plus a manual matrix for the parts

@@ -1,6 +1,6 @@
 # 04 — Timer Engine
 
-Suite 1.1 · 2026-10-20
+Suite 2.0 · 2026-10-21
 
 The countdown is the product. It must be correct after hours in a background tab,
 under CPU throttling, across pause/resume, and it must render milliseconds smoothly

@@ -125,12 +125,15 @@ measuring again.
 
 ## Current status
 
-**v1.1.0** (2026-10-20) is the current release, live on `https://ticktune.net`.
+**v2.0.0** (2026-10-21) is the current release, live on `https://ticktune.net`.
 P1–P7 are complete — v1.0.0 closed P7 — and every phase's exit review is in
-`docs/16`. v1.1 was a full review rather than a phase: supply chain and CI, the
-runtime wiring, Cloudflare Web Analytics with Legal 1.1, the "Rack Unit"
-redesign with the hide-scrollbars setting, and this docs sync — `docs/16`'s
-v1.1 section has the review.
+`docs/16`. v1.1 was a full review rather than a phase; v1.1.1 fixed two live
+defects. **v2.0 shipped every post-1.1 direction**: link lengths from the
+YouTube Data API, an installable `/app/` that starts offline, settings as a
+file, a light "LCD" theme and a DSEG14 face, Japanese, the finish notification
+(S5 GO), the crossfade (S4b PASS) and Legal 2.0 — behind Lighthouse CI, visual
+regression and the render-cost probe. Loudness normalization is not in it:
+S6 failed. `docs/16`'s v2.0 section has the review.
 
 **Releases are tag-only (decided 2026-10-20).** Workers Builds runs
 `npx wrangler versions upload` for every push, so a branch gets a preview URL
@@ -159,7 +162,7 @@ pure function can see the arguments its caller chooses; that is what
 `tests/e2e/wiring.spec.ts` exists for, and each of its specs was shown red on
 the old code.
 
-Three habits that found the rest:
+Four habits that found the rest:
 
 - **Grep for the READ, not the declaration.** 14 of 26 `TtSettings` fields were
   declared, defaulted, clamped, persisted, unit-tested — and read by nothing.
@@ -174,6 +177,13 @@ Three habits that found the rest:
 - **When an action is gated on evidence, ask what gathers that evidence and
   whether the gate forbids it.** The offline banner blocked the only action
   that could clear it (v0.5.2).
+- **Ask what the harness changes about the thing it measures.** v2.0 found it
+  three times: S4b's sweep seeked into each track's tail to save hours, and the
+  seek — which the app never does — was its only failure; the E2E's YouTube
+  fake attached its methods at once where the real player waits for `onReady`,
+  so every spec was green while the owner's console filled with
+  `getCurrentTime is not a function`; and a 50 ms sampler missed a queue row
+  that was current for less than its tick.
 
 ### Decisions not to re-derive
 
@@ -377,12 +387,15 @@ Resolved and pinned: TypeScript `~5.9` (TS 7 crashes svelte-check, `docs/11 §4`
 
 ### Open items, in the order they block things
 
-1. **No spike is open.** S4b's harness was rebuilt to measure the audio, passed,
-   and the crossfade shipped in v2.0 exactly as measured — mind the seek caveat
-   under the spike rule above.
-2. **Post-1.1 directions** are in `docs/16`'s backlog section.
-3. `docs/AUDIT-BACKLOG.md` — see its header for the open count; no release
-   blocker remains.
+1. **Node 26 becomes LTS on 2026-10-28.** Switch `.nvmrc`, `engines`,
+   `@types/node` and CI to 26 and drop the `dependabot.yml` ignore — `ci-node26`
+   has been green on every v2.0 PR, so it is a switch, not a migration.
+2. **The owner's checks** — S5's everyday-browser run with a click and Safari
+   (`docs/15 §S5`), and listening to real crossfades (`tests/manual/v2.0-live-checklist.md`).
+3. **Post-2.0 directions** are in `docs/16`'s backlog section: loudness
+   normalization needs a new spike (S6 failed), and a seek control would leave
+   S4b's PASS.
+4. `docs/AUDIT-BACKLOG.md` — **0 open**.
 
 **CodeQL runs as GitHub default setup — keep it enabled.** The old instruction to
 disable it applied only while the advanced `codeql.yml` existed; that file is

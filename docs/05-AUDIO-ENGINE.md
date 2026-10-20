@@ -1,6 +1,6 @@
 # 05 — Audio Engine (local modes)
 
-Suite 1.1 · 2026-10-20
+Suite 2.0 · 2026-10-21
 
 Applies to Single and Playlist modes. YouTube playback is a separate engine
 (`06-YOUTUBE-INTEGRATION.md`) — the two never run simultaneously.
