@@ -210,6 +210,8 @@ Three habits that found the rest:
   never caches a transient verdict. Both fetches time out (client 10 s, Worker
   8 s) into that same transient branch. The route sends **no CORS headers**: it
   is called same-origin, and `ACAO: *` only made it a free proxy for others.
+  **The cache key is versioned** (`CACHE_VERSION`): a hit is returned verbatim,
+  headers included, so bump it whenever what is stored changes (`06 §3`).
 - **The `pending` re-check runs AFTER `start()` returns**, never inside it —
   `start()` is synchronous because the gesture chain is.
 - **Paused means silent.** ⏭/⏮/jump while paused **cue** rather than load
@@ -288,6 +290,9 @@ Three habits that found the rest:
   check.
 - **Build before test**: two unit suites read `dist/`, and under `CI` a missing
   `dist/` is a failure, not a skip.
+- **Playwright's headless Firefox hides scrollbars itself** — `scrollbar-width`
+  computes to `none` there whatever the page says — so a computed scrollbar
+  check is gated on a probe, never asserted unconditionally (`13 §3`).
 
 Resolved and pinned: TypeScript `~5.9` (TS 7 crashes svelte-check, `docs/11 §4`)
 · DSEG7 Classic **v0.46** (`docs/11 §2`) · island mount by hand (`docs/01 §3`).

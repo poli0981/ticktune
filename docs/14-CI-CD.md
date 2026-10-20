@@ -38,7 +38,10 @@ zero CSP violations. It was a manual script until v1.1.
 only while that file existed.
 
 **SonarCloud** runs as Automatic Analysis; `.sonarcloud.properties` sets the
-source/test split so test helpers are judged as test code. **Snyk** reports a PR
+source/test split so test helpers are judged as test code, and keeps the
+parallel static dictionaries (`src/i18n/static/`) out of copy/paste detection —
+same keys, translated values, so CPD read them as one long copy and failed a
+PR's duplication gate for three new keys. **Snyk** reports a PR
 status check from its GitHub integration.
 
 **Dependabot**: `.github/dependabot.yml`, npm + github-actions, weekly, grouped

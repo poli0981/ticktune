@@ -74,6 +74,14 @@ GET /api/yt/oembed?id=<videoId>
   every response: application/json, X-Content-Type-Options: nosniff, NO CORS headers
 ```
 
+**The cache key carries a version** (`CACHE_VERSION` in `worker/index.ts`). A hit
+is returned verbatim, headers included, so an entry written by an older Worker
+keeps that Worker's headers for its whole TTL. v1.1's own preview caught it:
+after the CORS header was dropped, a GET still came back with v1.0's
+`Access-Control-Allow-Origin: *` — from the cache — while a HEAD, which never
+reaches it, carried the new headers. Bump the version whenever what is stored
+changes shape or headers; old entries are then never read again.
+
 **Same-origin only (v1.1).** The endpoint sent `Access-Control-Allow-Origin: *`
 from its first version, on the belief that an error response without it would be
 unreadable to the client. The client calls it on its **own** origin, where

@@ -1113,6 +1113,14 @@ the shape and deferred it. Workers Builds now only uploads versions — each pus
 gets a preview URL — and production changes only from a signed tag that
 `deploy.yml` verifies against the published key and finds on `main` (`14 §5`).
 
+Verified rather than assumed, and the first check failed: the release's first
+push still went to 100%, its build having started before the new setting took
+hold. Every push after it — branches and `main` — uploaded a version and
+deployed nothing, measured with `wrangler deployments list` each time. And the
+preview URLs paid for themselves in the same release: PR 2's preview showed the
+oEmbed route still answering with v1.0's CORS header, from the edge cache — a
+defect no test could see, fixed by versioning the cache key (`06 §3`).
+
 ### What the review found that no test had
 
 The same lesson as P7, again: each of these was a sentence that a test either
