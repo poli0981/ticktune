@@ -6,6 +6,16 @@
  *   pnpm s4b --channel msedge         a real browser channel instead of the bundled one
  *   pnpm s4b --headless               no window (audio still renders)
  *   pnpm s4b --only control           only the runs whose label contains the text
+ *   pnpm s4b --full --labels <file>   only the runs named in <file>, one label a line
+ *   pnpm s4b … --from-start           play every outgoing track from 0, never from a
+ *                                     seek to its tail
+ *
+ * Why --from-start exists: a run normally seeks A to its last seconds, which
+ * keeps the full sweep to hours. The app never seeks — every track plays from
+ * 0 — and in a VBR MP3 Chrome seeks by the Xing table of contents, whose 1 %
+ * steps leave `currentTime` up to a second off the audio for the rest of the
+ * file. A corpus run that fails after a seek therefore says nothing about the
+ * app until it is run the way the app plays it (docs/15 §S4b, the result).
  *
  * Builds the harnesses with TT_SPIKES=1 into dist-spikes/ and previews that —
  * not `astro dev`, whose dependency optimiser reloaded the page mid-sweep and
@@ -44,9 +54,17 @@ const OUT = 'test/s4b-results';
 type Fx = TtS4bFixture & { path: string };
 const manifest = JSON.parse(readFileSync(MANIFEST, 'utf8')) as { files: Fx[] };
 const only = opt('only');
-const plan: TtS4bRunConfig[] = (
-  flag('full') ? fullPlan(manifest.files) : quickPlan(manifest.files)
-).filter((c) => !only || c.label.includes(only));
+const labelsFile = opt('labels');
+const listed = labelsFile
+  ? new Set(readFileSync(labelsFile, 'utf8').split(/\r?\n/).filter(Boolean))
+  : null;
+const fromStart = flag('from-start');
+const plan: TtS4bRunConfig[] = (flag('full') ? fullPlan(manifest.files) : quickPlan(manifest.files))
+  .filter((c) => !only || c.label.includes(only))
+  .filter((c) => !listed || listed.has(c.label))
+  .map((c) => (fromStart ? { ...c, fromStart: true } : c));
+const unmatched = [...(listed ?? [])].filter((l) => !plan.some((c) => c.label === l));
+if (unmatched.length) throw new Error(`--labels: no run is named ${unmatched.join(' | ')}`);
 const needed = new Set(plan.flatMap((c) => [c.a, ...(c.b ? [c.b] : [])]));
 const paths = [
   resolve(MANIFEST),
@@ -116,11 +134,16 @@ try {
 
   const ua = await page.evaluate(() => navigator.userAgent);
   const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const base = join(OUT, `${stamp}-${channel ?? 'chromium'}-${flag('full') ? 'full' : 'quick'}`);
+  const kind =
+    (flag('full') ? 'full' : 'quick') +
+    (listed ? '-subset' : '') +
+    (fromStart ? '-from-start' : '');
+  const base = join(OUT, `${stamp}-${channel ?? 'chromium'}-${kind}`);
   mkdirSync(OUT, { recursive: true });
   writeFileSync(`${base}.json`, JSON.stringify({ ua, verdict: v, runs: judged }, null, 2));
   const md = [
-    `# S4b ${flag('full') ? 'full' : 'quick'} sweep — ${v.outcome}`,
+    // A subset is judged on the runs it has: its verdict is not the spike's.
+    `# S4b ${kind} sweep — ${listed ? `${v.outcome} over a subset` : v.outcome}`,
     '',
     `${ua}  `,
     `${plan.length} configurations, ${judged.length} runs, ${((Date.now() - started) / 60000).toFixed(1)} min`,
