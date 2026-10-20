@@ -45,7 +45,9 @@ const files = [
   ...walk(join(DIST, 'icons')),
   join(DIST, 'manifest.webmanifest'),
   join(DIST, 'favicon.svg'),
-].sort();
+  // Code-unit order, not the locale's: the version hash must not depend on
+  // which machine built it.
+].sort((a, b) => Number(a > b) - Number(a < b));
 
 const url = (file: string) =>
   file === join(DIST, 'app', 'index.html')
