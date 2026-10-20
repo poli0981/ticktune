@@ -1,62 +1,60 @@
-# TickTune — End User License Agreement / Terms of Use
+# TickTune — Terms of Use
 
-Version 1.0 · 2026-07-24 · English is the canonical language of this
-document; the Vietnamese translation at `/legal/eula` is provided for
-convenience.
-This document is written by the developer, not by a lawyer, and is provided for a
-free, open-source, non-commercial web application. Version `1.0` means it is no
-longer a draft — it does not mean it has been reviewed by counsel.
+Version 1.1 · 2026-10-20 · English is canonical; the Vietnamese translation at
+`/legal/eula/` is provided for convenience. Written by the developer, not a
+lawyer, for a free, open-source, non-commercial web app.
 
 ## 1. Acceptance
 
-By checking the box and clicking **Accept** on first use (the "Legal Gate"), you
-agree to these terms, the [Disclaimer](./DISCLAIMER.md), and the
-[Privacy Policy](./PRIVACY-POLICY.md). If you do not agree, do not use TickTune.
-Acceptance is stored locally on your device only; if these documents change
-materially, the gate is shown again.
+By ticking the box and clicking **Accept** at the Legal Gate you agree to these
+terms, the [Disclaimer](./DISCLAIMER.md) and the
+[Privacy Policy](./PRIVACY-POLICY.md). Your acceptance is stored only on your
+device. If these documents change materially, the gate asks again.
 
-## 2. The software & license
+## 2. Licence
 
-TickTune's source code is licensed under **GNU GPL-3.0-only** — see `LICENSE` in
-the repository (`https://github.com/poli0981/ticktune`). You may use, study,
-modify, and redistribute it under the GPL's terms. This EULA governs your use of
-the hosted service at the official domain; it does not restrict any right the
-GPL grants you over the code.
+TickTune's source code is licensed **GPL-3.0-only**
+([github.com/poli0981/ticktune](https://github.com/poli0981/ticktune)). These
+terms cover your use of the hosted service at `ticktune.net`; they never restrict
+what the GPL lets you do with the code.
 
-## 3. Your content, your responsibility
+## 3. Your content
 
-TickTune plays media **you** supply — local audio files, images for backgrounds,
-and YouTube links. You are solely responsible for having the necessary rights to
-the content you load and for complying with the laws that apply to you. TickTune
-does not upload, store, or transmit your files (see Privacy Policy) and cannot
-review what you play.
+You supply everything TickTune plays — local audio, background images and
+YouTube links — and you are responsible for holding the rights to it. Your files
+are processed inside your browser and are never uploaded.
 
-## 4. YouTube mode
+## 4. YouTube
 
-YouTube playback uses the official embedded YouTube player. When you use it, you
-are also bound by YouTube's Terms of Service and Google's Privacy Policy.
-Availability of any video (deletion, embedding restrictions, age or region
-restrictions) is controlled by YouTube and the video owner, not by TickTune.
+YouTube mode uses YouTube's official embedded player, part of the YouTube API
+Services. By using it you agree to be bound by the
+[YouTube Terms of Service](https://www.youtube.com/t/terms); Google's handling of
+your data is described in the
+[Google Privacy Policy](https://policies.google.com/privacy). Whether a video
+plays — deleted, private, embedding disabled, age- or region-restricted — is
+decided by YouTube and the video's owner, not by TickTune.
 
 ## 5. Acceptable use
 
-Do not use TickTune to violate law or third-party rights; do not attempt to
-abuse, overload, or circumvent protections of the hosted service (including the
-`/api` endpoint). The hosted service may apply rate limits.
+Do not use TickTune to break the law or anyone's rights, and do not abuse,
+overload or circumvent the hosted service or its `/api` endpoint. Rate limits
+apply.
 
-## 6. No warranty · limitation of liability
+## 6. No warranty · limited liability
 
-TickTune is provided **"AS IS"**, without warranty of any kind, to the maximum
-extent permitted by applicable law, in the spirit of GPL-3.0 §15–§16. To the
-same maximum extent, the developer is not liable for any damages arising from
-use or inability to use TickTune, including data loss (note: playlists are
-session-only by design and are lost on reload — the app warns before unload).
+TickTune is provided **"AS IS"**, without warranty of any kind, in the spirit of
+GPL-3.0 §15–§16. To the maximum extent the law allows, the developer is not
+liable for any damage arising from using, or being unable to use, TickTune —
+including the loss of a playlist, which is session-only by design (the app warns
+before you leave).
 
-## 7. Changes & termination
+## 7. Changes
 
-The service is free and provided with no uptime commitment; it may change or be
-discontinued at any time. The code remains available under GPL-3.0 regardless.
+The service is free, carries no uptime commitment, and may change or end at any
+time. The code remains available under the GPL.
 
 ## 8. Contact
 
-Issues and questions: `https://github.com/poli0981/ticktune/issues`.
+Questions about these terms: **legal@poli0981.dev** · licensing and attribution:
+**copyright@poli0981.dev** · bugs:
+[GitHub issues](https://github.com/poli0981/ticktune/issues).

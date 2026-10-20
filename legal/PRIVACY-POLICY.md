@@ -1,151 +1,84 @@
 # TickTune — Privacy Policy
 
-Version 1.0 · 2026-07-24 · English canonical; Vietnamese at `/legal/privacy`.
+Version 1.1 · 2026-10-20 · English canonical; Vietnamese at `/legal/privacy/`.
 
-TickTune is built to know as little about you as possible.
+TickTune is built to know as little about you as possible. **Your files, your
+playlist and your settings never leave your browser.**
 
-## 0. Who is behind this, and how to reach them
+## 1. Who runs TickTune
 
-TickTune is an independent, non-commercial open-source project run by one
-developer — **poli0981** — not a company. There is no organisation, no legal
-entity, and no staff.
+An independent, non-commercial open-source project run by one developer,
+**poli0981** — no company, no staff. Privacy questions: **privacy@poli0981.dev**
+(mail to it is delivered by Google Workspace), or a public
+[GitHub issue](https://github.com/poli0981/ticktune/issues). We hold nothing that
+identifies you, so there is no personal data to export, correct or delete on
+request.
 
-- **Contact:** **`contact@ticktune.net`** for anything private, or
-  `https://github.com/poli0981/ticktune/issues` in the open. The address is a
-  Cloudflare Email Routing alias, so mail sent to it passes through Cloudflare on
-  its way to a personal inbox — the same provider described in `§4`, mentioned
-  here because a contact address is itself a data flow.
-- **What we hold about you:** as `§1`–`§4.1` set out, **nothing that identifies
-  you**. There is no account, no profile, no server-side record of who you are —
-  so there is no personal data to export, correct or delete on request, because
-  none was ever collected. The only things stored are on **your own device** and
-  "Reset app" in Settings erases them without asking anyone.
-- **Retention:** settings persist on your device until you clear them; the queue
-  and your files vanish on reload; the API logs described in `§4.1` are deleted
-  by Cloudflare after **3 days**.
-- **Where:** the site is served from Cloudflare's global network, so a request
-  may be handled in any country it operates in.
+## 2. On your device
 
-## 1. What we do NOT do
+- **Settings** and your Legal Gate acceptance live in your browser's IndexedDB —
+  one database, `ticktune`, holding one row. "Reset app" in Settings deletes it.
+- **Your files and playlist** stay in memory for the session and are gone when
+  you close or reload the tab. They are never uploaded.
+- TickTune sets **no cookies** and uses no `localStorage` or `sessionStorage`.
 
-- No accounts, no sign-in.
-- No analytics scripts, tracking pixels, fingerprinting, or advertising. (Traffic
-  statistics do exist at the network level, and §4.1 sets out exactly what they
-  are and what we can see.)
-- No upload of your files: audio, images, and playlists are processed entirely
-  in your browser and are **never transmitted** to our servers.
-- No cookies set by TickTune itself.
-- Fonts are self-hosted — no third-party font CDN requests.
+## 3. What reaches the network
 
-## 2. Data stored on your device
+| When | Request | What it carries |
+|------|---------|-----------------|
+| Every page | The site itself, served by Cloudflare | Ordinary request data, such as your IP address and browser |
+| Every page | The **Cloudflare Web Analytics** beacon (`static.cloudflareinsights.com`, reporting to `cloudflareinsights.com`) | The page address, the referring page, your browser and operating system, and page-load timings |
+| You add YouTube links | `/api/yt/oembed` on our own domain | The 11-character video ID only |
+| YouTube mode | The YouTube IFrame API (`www.youtube.com`), the player (`youtube-nocookie.com`) and thumbnails (`i.ytimg.com`) | Whatever YouTube's player requests |
 
-Settings (language, appearance, playback preferences) and your Legal Gate
-acceptance are stored locally in **IndexedDB** on your device — one database,
-`ticktune`, holding a single settings row. Your playlist and files exist only in
-memory for the current session and disappear on reload. "Reset app" in Settings
-clears all locally stored data.
+Local modes make no request to Google at all.
 
-TickTune uses **no `localStorage` and no `sessionStorage`** — this document
-named them until 2026-07-24, and it was wrong: the code standards forbid them
-and the app has never called either.
+## 4. Cloudflare Web Analytics
 
-## 3. Network requests the app makes
+We count visits with Cloudflare Web Analytics. According to Cloudflare it sets
+no cookies or local storage, does not fingerprint visitors and does not follow
+anyone across websites; Cloudflare derives an approximate country from the
+request. We see aggregates only — page views, visits, countries, referring
+sites, browsers and loading performance — never one person's history.
+Cloudflare processes this data under its own privacy policy.
 
-- **Static assets** of the site itself, served via Cloudflare.
-- **`/api/yt/oembed`** (only when you add YouTube links): the app sends the
-  11-character video ID to our edge endpoint, which asks YouTube's public oEmbed
-  service for the title/author/thumbnail. No other data is sent.
-- **YouTube thumbnails** (`i.ytimg.com`) when YouTube links are in your queue.
+## 5. YouTube and Google
 
-## 4. Third parties
+YouTube mode uses YouTube API Services. Once you interact with the player,
+Google may set cookies and process data as described in the
+[Google Privacy Policy](https://policies.google.com/privacy). The player is
+created on the privacy-enhanced `youtube-nocookie.com` host.
 
-- **YouTube / Google.** Only if you use YouTube mode, and then **two** Google
-  origins are involved, not one:
-  - the **IFrame Player API script** is fetched from `https://www.youtube.com`,
-    because that is the only address YouTube publishes it at;
-  - the **player itself** is created on the privacy-enhanced
-    **`youtube-nocookie.com`** host, which is a deliberate choice — the API's
-    default is `www.youtube.com`, and that default sets cookies. A unit test
-    asserts the option is passed, because omitting it would silently fall back.
+## 6. What the operator can see
 
-  Google code loaded this way may set cookies and collect data as described in
-  Google's Privacy Policy once you interact with the player. **Local modes make
-  no Google requests at all** — neither origin is contacted unless you add a
-  YouTube link.
-- **Cloudflare.** The site is delivered by Cloudflare, which processes technical
-  request data (such as IP addresses) at the network level to serve and protect
-  the site, per Cloudflare's privacy documentation. Basic abuse protections such
-  as rate limiting run at this layer. Cloudflare stores and processes that data
-  under **its own policies and retention**, which are not ours to set. What
-  reaches *us* is described next.
+- **Cloudflare dashboard — aggregates only:** requests, bandwidth, approximate
+  unique visitors, countries, status codes, cache use, blocked threats, and the
+  Web Analytics figures in `§4`. No individual IP addresses or browser strings.
+- **Worker logs — YouTube lookups only:** each `/api/yt/oembed` call is logged
+  (the request, the response and the country Cloudflare attaches) and deleted by
+  Cloudflare after **7 days**. Loading a page never creates one.
 
-### 4.1 What the site operator can see
+This is used to keep the site working, notice abuse, and learn why a YouTube link
+would not resolve — never to identify you, build a profile, advertise, or share
+with anyone, and it is never joined to anything you do inside the app.
 
-Running a site produces operational data, and you should know how much of it
-reaches the people who run this one. Two separate things do.
+## 7. Diagnostics you choose to share
 
-**Cloudflare's dashboard analytics — aggregates only.** As the domain owner we
-can see totals: how many requests and how much bandwidth the site served, an
-approximate unique-visitor count, which **countries** requests came from, HTTP
-status codes, how much was answered from cache, and how many requests a security
-rule blocked. On our plan these are aggregates delayed by 24 hours. The dashboard
-does **not** show individual IP addresses or User-Agent strings — per-request raw
-logs are an enterprise feature we do not have — and Cloudflare's analytics do not
-follow an individual across visits by IP, User-Agent or any fingerprint.
+**Copy diagnostics** builds a JSON snapshot on your device — app version,
+browser, settings and the recent coded log, no file names — for you to paste
+into a GitHub issue. Nothing is sent unless you paste it yourself.
 
-**Our own Worker logs — API calls only, three days.** The `/api/yt/oembed`
-endpoint runs a Cloudflare Worker with observability enabled, which records one
-entry per call: the request, the response, and the country Cloudflare attaches to
-it. **Loading a page does not create one** — the pages are static files served
-without invoking the Worker — so an entry exists only because you added a YouTube
-link. Cloudflare deletes these after **3 days**, and we cannot extend that.
+## 8. Children
 
-**What all of it is for.** Knowing the site is up and what is failing; seeing how
-much traffic and bandwidth it uses and whether caching is working; noticing abuse
-or a traffic spike; and — the reason the Worker logs exist at all — being able to
-tell *why* a YouTube link would not resolve, since that endpoint's whole job is
-to distinguish a video that is private, age-restricted, region-blocked or deleted
-from our own service having failed.
+TickTune does not collect personal data from anyone, including children.
 
-**What none of it is for.** Identifying you, building a profile, following you
-between visits, advertising, or sharing with anyone. None of it is joined to
-anything you do inside the app: your files, your queue and your settings never
-leave your browser (`§1`, `§2`), so nothing above can be connected to what you
-actually played.
+## 9. Retention and changes
 
-## 5. Diagnostics you choose to share
+Device data stays until you clear it; Worker logs are deleted after 7 days;
+analytics aggregates are kept by Cloudflare under its own retention. Material
+changes bring the Legal Gate back; every revision is in the Git repository.
 
-The **Copy Diagnostics** feature builds a JSON snapshot (app version, browser
-user-agent, settings, recent internal log) locally, so *you* can paste it into a
-GitHub issue. Nothing is sent anywhere unless you paste it yourself. Review it
-before sharing.
-
-## 6. Children
-
-TickTune collects no personal data from anyone, including children, and has no
-age-gated features.
-
-## 7. Changes
-
-Material changes re-trigger the Legal Gate. Document history is visible in the
-Git repository: `https://github.com/poli0981/ticktune`.
-
-**1.0 — 2026-07-24.** First non-draft version. Three corrections, all of the
-same kind — the document describing something the code does not do:
-
-- `§2` named **`localStorage`**, which this app has never called and the project's
-  own code standards forbid. Settings live in IndexedDB and nowhere else.
-- `§4` described only `youtube-nocookie.com`. There are **two** Google origins:
-  the IFrame API script is fetched from `www.youtube.com`, and only the player is
-  created on the privacy-enhanced host. A reader checking their network tab would
-  have found an origin this document did not mention.
-- `§0` is new — who runs TickTune, how to reach them, what is retained and for
-  how long. A policy that collects nothing still owes you that.
-
-**1.1-draft — 2026-07-24.** Added `§4.1`. The previous version stated that
-TickTune "stores no server-side logs of its own about you", and **that was not
-correct**: the `/api/yt/oembed` Worker has had observability enabled since it was
-built, which retains one entry per call for three days. Nothing about how the app
-behaves has changed — the policy now describes what was already happening. The
-Legal Gate is being shown again because the wording you previously accepted was
-inaccurate, and consent given to an inaccurate description is not consent.
+| Version | Date | Change |
+|---------|------|--------|
+| 1.1 | 2026-10-20 | Cloudflare Web Analytics; Worker logs kept 7 days (Workers Paid); privacy contact; YouTube and Google links; shortened |
+| 1.0 | 2026-07-24 | First non-draft version |

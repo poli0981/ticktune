@@ -4,6 +4,8 @@
     "point": {
       "files": "Your music never leaves your machine.",
       "filesRest": " Files are held in the browser’s memory for this session only and are never uploaded to any server.",
+      "analytics": "Visits are counted anonymously.",
+      "analyticsRest": " Cloudflare Web Analytics measures page views and loading speed — no cookies, and nothing about your files.",
       "responsibility": "What you open is your responsibility.",
       "responsibilityRest": " TickTune neither moderates nor stores that content.",
       "youtube": "YouTube mode uses YouTube’s official player",

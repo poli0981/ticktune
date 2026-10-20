@@ -29,6 +29,17 @@ interface Props {
 
 const { t, common, legal, lang } = Astro.props;
 
+/**
+ * The published role addresses — chosen 2026-10-20 from the owner's aliases.
+ * Addresses are not translated, so they live here rather than in the
+ * dictionaries (whose untranslated-string guard would flag them).
+ */
+const contacts = [
+  { label: t.contactPress, address: 'press@poli0981.dev' },
+  { label: t.contactCollab, address: 'collab@poli0981.dev' },
+  { label: t.contactSecurity, address: 'security@poli0981.dev' },
+];
+
 const docs = [
   { href: ttLegalHref('eula', lang), label: legal.docs.eula },
   { href: ttLegalHref('disclaimer', lang), label: legal.docs.disclaimer },
@@ -53,6 +64,17 @@ const docs = [
   </ul>
 
   <p class="tt-note">{t.legalNote}</p>
+
+  <h2 class="tt-contact-title">{t.contactTitle}</h2>
+  <ul class="tt-contacts">
+    {
+      contacts.map((c) => (
+        <li>
+          {c.label}: <a href={`mailto:${c.address}`}>{c.address}</a>
+        </li>
+      ))
+    }
+  </ul>
 
   <p class="tt-source">
     <a href={TT_LEGAL_LINKS.repo} rel="noopener noreferrer">{common.sourceOffer}</a>
@@ -83,6 +105,14 @@ const docs = [
     color: var(--color-tt-signal);
     text-decoration: underline;
     text-underline-offset: 3px;
+  }
+  .tt-contact-title {
+    margin-top: 2rem;
+  }
+  .tt-contacts {
+    font-family: var(--font-mono);
+    font-size: 0.78rem;
+    color: var(--color-tt-muted);
   }
   .tt-note {
     margin-top: 0.9rem;

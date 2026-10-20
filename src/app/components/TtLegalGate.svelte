@@ -54,6 +54,12 @@
           'gate.point.filesRest',
         )}
       </li>
+      <!-- Disclosed where consent is actually given, not only in the policy. -->
+      <li>
+        <strong class="text-tt-text">{i18n.t('gate.point.analytics')}</strong>{i18n.t(
+          'gate.point.analyticsRest',
+        )}
+      </li>
       <li>
         <strong class="text-tt-text">{i18n.t('gate.point.responsibility')}</strong>{i18n.t(
           'gate.point.responsibilityRest',

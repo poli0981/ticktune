@@ -4,6 +4,8 @@
     "point": {
       "files": "Nhạc của bạn không rời khỏi máy.",
       "filesRest": " Tệp được giữ trong bộ nhớ của trình duyệt cho phiên hiện tại và không được tải lên bất kỳ máy chủ nào.",
+      "analytics": "Lượt truy cập được đếm ẩn danh.",
+      "analyticsRest": " Cloudflare Web Analytics đo lượt xem trang và tốc độ tải — không cookie, không gì về tệp của bạn.",
       "responsibility": "Bạn chịu trách nhiệm về nội dung mình mở.",
       "responsibilityRest": " TickTune không kiểm duyệt và không lưu trữ nội dung đó.",
       "youtube": "Chế độ YouTube dùng trình phát chính thức",

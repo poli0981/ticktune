@@ -53,7 +53,7 @@ export const en = {
     features: [
       {
         title: 'Runs entirely in your browser',
-        body: 'Your files are read in memory for the session and never uploaded. There is no account and no server to send anything to.',
+        body: 'Your files are read in memory for the session and never uploaded. There is no account, and nothing you load is sent anywhere.',
       },
       {
         title: 'Built to be looked at',
@@ -61,7 +61,7 @@ export const en = {
       },
       {
         title: 'Yours to keep',
-        body: 'GPL-3.0, source in the open, no telemetry and no analytics. What you see is the whole thing.',
+        body: 'GPL-3.0, source in the open. The only thing measured is an anonymous, cookie-free count of visits — never your files.',
       },
     ],
 
@@ -99,6 +99,10 @@ export const en = {
     faqTitle: 'Questions',
     legalTitle: 'The legal bits',
     legalNote: 'English is the canonical version of each document.',
+    contactTitle: 'Contact',
+    contactPress: 'Press',
+    contactCollab: 'Collaboration',
+    contactSecurity: 'Security',
   },
 
   faq: [
@@ -113,7 +117,7 @@ export const en = {
     },
     {
       q: 'Do my files get uploaded anywhere?',
-      a: 'No. Local files are read inside your browser and held in memory for the session only. There is no upload endpoint, no analytics and no telemetry. Closing or reloading the tab clears the queue — the app warns you first.',
+      a: 'No. Local files are read inside your browser and held in memory for the session only. There is no upload endpoint. The only thing the site measures is an anonymous visit count (Cloudflare Web Analytics, no cookies), which never sees your files. Closing or reloading the tab clears the queue — the app warns you first.',
     },
     {
       q: 'Why does it not work on my phone?',
