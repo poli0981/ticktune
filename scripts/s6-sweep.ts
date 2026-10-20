@@ -74,8 +74,9 @@ const pid = bs.process().pid;
 mkdirSync(OUT, { recursive: true });
 const memCsv = resolve(OUT, `mem-${Date.now()}.csv`);
 // Absolute: nothing here is looked up on PATH.
+const POWERSHELL = String.raw`C:\Windows\System32\WindowsPowerShell\v1.0\powershell.exe`;
 const ps = spawn(
-  'C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe',
+  POWERSHELL,
   [
     '-NoProfile',
     '-Command',
