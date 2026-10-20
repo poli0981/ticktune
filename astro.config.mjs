@@ -43,10 +43,26 @@ function ttLegalLinksPlugin() {
   const prefixFor = (ctx) =>
     /\/legal\/vi\//.test(String(ctx.fileURL ?? '')) ? '/legal' : '/en/legal';
 
+  /*
+   * Plain string slicing rather than a regex: the old `([^/]+\.md)(#.*)?$` was
+   * unanchored with a greedy class that backtracks, which SonarCloud flags as
+   * super-linear (S8786). Harmless on repo-authored Markdown, but the slicing is
+   * also simply easier to read.
+   *
+   * The rewritten URL ends in `/` because every legal route is a directory
+   * (`TT_LEGAL_LINKS`, `tt-legal-const.ts`). Without it production answered each
+   * cross-link with a 307 to the slashed form — a wasted round trip per click,
+   * invisible in dev, which serves both.
+   */
   const rewrite = (node, ctx) => {
-    const [, name, hash = ''] = /([^/]+\.md)(#.*)?$/i.exec(String(node.url ?? '')) ?? [];
-    const slug = name && bySource.get(name.toLowerCase());
-    if (slug) ctx.setProperty(node, 'url', `${prefixFor(ctx)}/${slug}${hash}`);
+    const url = String(node.url ?? '');
+    const at = url.indexOf('#');
+    const path = at === -1 ? url : url.slice(0, at);
+    const hash = at === -1 ? '' : url.slice(at);
+    const name = path.slice(path.lastIndexOf('/') + 1).toLowerCase();
+    if (!name.endsWith('.md')) return;
+    const slug = bySource.get(name);
+    if (slug) ctx.setProperty(node, 'url', `${prefixFor(ctx)}/${slug}/${hash}`);
   };
 
   return { name: 'tt-legal-links', link: rewrite, definition: rewrite };
@@ -115,7 +131,13 @@ function ttBundledPackages() {
       this.emitFile({
         type: 'asset',
         fileName: 'tt-bundled-packages.json',
-        source: JSON.stringify([...seen].sort(), null, 2),
+        // Code-point order, stated rather than defaulted (SonarCloud S2871). Same
+        // result as a bare sort() for package names; the intent is now explicit.
+        source: JSON.stringify(
+          [...seen].sort((a, b) => (a < b ? -1 : a > b ? 1 : 0)),
+          null,
+          2,
+        ),
       });
     },
   };

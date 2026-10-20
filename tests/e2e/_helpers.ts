@@ -215,13 +215,19 @@ export async function storedSettings(page: Page): Promise<Record<string, unknown
     const db: IDBDatabase = await new Promise((res, rej) => {
       const req = indexedDB.open('ticktune');
       req.onsuccess = () => res(req.result);
-      req.onerror = () => rej(req.error);
+      // `req.error` is typed `DOMException | null`; reject with a real Error either way.
+      req.onerror = () => rej(req.error ?? new Error('indexedDB.open(ticktune) failed'));
     });
-    if (!db.objectStoreNames.contains('settings')) return null;
-    return new Promise<Record<string, unknown> | null>((res, rej) => {
-      const get = db.transaction('settings', 'readonly').objectStore('settings').get('app');
-      get.onsuccess = () => res((get.result as Record<string, unknown> | undefined) ?? null);
-      get.onerror = () => rej(get.error);
-    });
+    // Closed every time: this is POLLED, and each poll used to leak a connection.
+    try {
+      if (!db.objectStoreNames.contains('settings')) return null;
+      return await new Promise<Record<string, unknown> | null>((res, rej) => {
+        const get = db.transaction('settings', 'readonly').objectStore('settings').get('app');
+        get.onsuccess = () => res((get.result as Record<string, unknown> | undefined) ?? null);
+        get.onerror = () => rej(get.error ?? new Error('settings.get(app) failed'));
+      });
+    } finally {
+      db.close();
+    }
   });
 }

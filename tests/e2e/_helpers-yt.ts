@@ -236,19 +236,26 @@ export async function seedSettings(page: Page, patch: Record<string, unknown>): 
     const db: IDBDatabase = await new Promise((res, rej) => {
       const req = indexedDB.open('ticktune');
       req.onsuccess = () => res(req.result);
-      req.onerror = () => rej(req.error);
+      // `req.error` is typed `DOMException | null`; reject with a real Error either way.
+      req.onerror = () => rej(req.error ?? new Error('indexedDB.open(ticktune) failed'));
     });
-    if (!db.objectStoreNames.contains('settings')) throw new Error('settings store missing');
-    await new Promise((res, rej) => {
-      const store = db.transaction('settings', 'readwrite').objectStore('settings');
-      const get = store.get('app');
-      get.onsuccess = () => {
-        const put = store.put({ ...get.result, ...fields, key: 'app' });
-        put.onsuccess = () => res(null);
-        put.onerror = () => rej(put.error);
-      };
-      get.onerror = () => rej(get.error);
-    });
+    try {
+      if (!db.objectStoreNames.contains('settings')) throw new Error('settings store missing');
+      await new Promise((res, rej) => {
+        const tx = db.transaction('settings', 'readwrite');
+        const store = tx.objectStore('settings');
+        const get = store.get('app');
+        get.onsuccess = () => store.put({ ...get.result, ...fields, key: 'app' });
+        get.onerror = () => rej(get.error ?? new Error('settings.get(app) failed'));
+        // Resolve on COMMIT, not on `put.onsuccess`: the caller reloads next,
+        // and a write that has succeeded but not yet committed can be lost to it.
+        tx.oncomplete = () => res(null);
+        tx.onerror = () => rej(tx.error ?? new Error('settings write did not commit'));
+        tx.onabort = () => rej(tx.error ?? new Error('settings write aborted'));
+      });
+    } finally {
+      db.close();
+    }
   }, patch);
 }
 
