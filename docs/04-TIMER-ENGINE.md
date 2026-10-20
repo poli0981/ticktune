@@ -252,6 +252,40 @@ v2.0 finish notification, which fires from the worker so its timing never
 waits on the page. The Finished screen's late rule above is unchanged: a
 notification is the alert, the screen is still the honest record.
 
+##### The finish notification — built on S5 (v2.0)
+
+Settings → Countdown → **"Notify me when time is up"** (`finishNotify`, off by
+default). Turning it on asks the browser for permission **in that click** — the
+only moment a page may ask — and the switch stays off unless it is granted.
+
+- **The worker shows it.** `tt-timer-worker-core.ts` (pure; the worker file is
+  wiring) holds the armed notice and the page's last reported visibility; at
+  the deadline, if the page is hidden and a notice is armed, it calls
+  `new Notification(…)` itself — exactly what S5 measured on time, 40/40.
+  Exactly once per run (the core's latch), never for a paused, stopped or
+  disarmed run.
+- **The page arms it and reports visibility.** The shell arms the notice on
+  Start and Resume (and re-arms on a language change), disarms it on Pause,
+  Stop and Back, and closes a shown one when the tab becomes visible again. The
+  driver forwards **every** `visibilitychange` to the worker *before* the
+  latch's early return — the worker decides at zero, so it must hear the
+  changes the latch ignores. A click focuses the tab.
+- **Generic by rule.** Title `TickTune`, body "Time is up" in the UI language
+  (`player.milestone.zero`), tag `ticktune-finish`. A notification centre keeps
+  a history, so it never names a track or a file.
+- **Safari.** Its workers have no `Notification`: the worker says so
+  (`notifyFailed: unsupported`) and the page shows it instead — best-effort,
+  since this thread may itself run late while hidden — logged **TT-SYS-209**.
+  The same path covers a broken worker (TT-SYS-207). A permission revoked
+  since the switch was turned on logs **TT-SYS-210** once and shows nothing.
+- **Local only.** No push service, no server, no subscription — nothing leaves
+  the machine; the notification is created by this tab and dies with it.
+
+Tested where it can break: the core's decisions (`tt-timer-worker-core.test.ts`),
+the driver's forwarding, the switch's permission flow, and an E2E that replaces
+the worker's `Notification` with a recorder and flips visibility
+(`tests/e2e/notify.spec.ts`) — removing the visibility forwarding turns it red.
+
 ##### What this does *not* change
 
 `13 §7`'s live check — "countdown accurate vs phone stopwatch over 10 min

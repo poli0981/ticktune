@@ -15,55 +15,27 @@
  * being *audible*. TickTune has documented hidden-and-silent states, so the
  * main thread ALSO latches on visibilitychange/focus. Spike S2 measures the
  * real numbers; a late `done` is recoverable, a missed one is not.
+ *
+ * v2.0: only the wiring is left here. The logic — the derived tick, the
+ * exactly-once `done`, and the finish notification spike S5 measured — is
+ * `tt-timer-worker-core.ts`, which a unit test can drive with fakes.
  */
 
-const TICK_MS = 200;
-
-type InMsg = { type: 'start'; endAtEpoch: number } | { type: 'stop' };
-type OutMsg = { type: 'tick'; remainingMs: number } | { type: 'done' };
+import { createTimerWorkerCore, type TtWorkerIn } from './tt-timer-worker-core';
 
 const ctx = self as unknown as DedicatedWorkerGlobalScope;
+const hasNotification = typeof Notification !== 'undefined';
 
-let handle: ReturnType<typeof setInterval> | null = null;
-let endAtEpoch: number | null = null;
-/** docs/04 §6: exactly once, ever, per run. */
-let doneFired = false;
-
-function post(msg: OutMsg): void {
-  ctx.postMessage(msg);
-}
-
-function stop(): void {
-  if (handle !== null) {
-    clearInterval(handle);
-    handle = null;
-  }
-  endAtEpoch = null;
-}
-
-function tick(): void {
-  if (endAtEpoch === null) return;
-  // Derived, never accumulated — so a throttled interval reports the truth
-  // rather than a count of how many times it managed to run.
-  const remainingMs = Math.max(0, endAtEpoch - Date.now());
-  post({ type: 'tick', remainingMs });
-
-  if (remainingMs <= 0 && !doneFired) {
-    doneFired = true;
-    post({ type: 'done' });
-    stop();
-  }
-}
-
-ctx.addEventListener('message', (e: MessageEvent<InMsg>) => {
-  const msg = e.data;
-  if (msg.type === 'start') {
-    stop();
-    doneFired = false;
-    endAtEpoch = msg.endAtEpoch;
-    handle = setInterval(tick, TICK_MS);
-    tick(); // report immediately rather than after the first interval
-  } else if (msg.type === 'stop') {
-    stop();
-  }
+const core = createTimerWorkerCore({
+  now: () => Date.now(),
+  post: (msg) => ctx.postMessage(msg),
+  setInterval: (fn, ms) => setInterval(fn, ms),
+  clearInterval: (h) => clearInterval(h as ReturnType<typeof setInterval>),
+  // Safari has no Notification in a worker; the page takes over (`04 §2`).
+  notify: hasNotification
+    ? (n) => new Notification(n.title, { body: n.body, tag: n.tag, lang: n.lang, icon: n.icon })
+    : null,
+  permission: () => (hasNotification ? Notification.permission : 'unsupported'),
 });
+
+ctx.addEventListener('message', (e: MessageEvent<TtWorkerIn>) => core.handle(e.data));

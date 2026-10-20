@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { onDestroy, onMount } from 'svelte';
+  import { onDestroy, onMount, untrack } from 'svelte';
   import TtBackdrop from './components/TtBackdrop.svelte';
   import TtBottomBar from './components/TtBottomBar.svelte';
   import TtCountdown from './components/TtCountdown.svelte';
@@ -229,6 +229,12 @@
   let nowMs = $state(0);
 
   const driver = new TtTimerDriver({
+    // The finish notification (v2.0, docs/04 §2) — see `armNotice` below.
+    onNotifyFailed: (reason) => {
+      if (reason === 'unsupported') showPageNotice();
+      else warnNoticeBlocked();
+    },
+    onNotificationClick: () => window.focus(),
     onRemaining: (ms) => {
       // docs/03 §8's polite milestones. Driven from the tick rather than from a
       // timer of its own, so an announcement can never claim a moment the
@@ -397,6 +403,7 @@
     milestone = '';
 
     driver.start(durationMs);
+    armNotice();
 
     /*
      * docs/02 §1's "re-checked on Start", kept at last — and kept HERE rather
@@ -637,6 +644,8 @@
   function onPause() {
     session.pause();
     driver.pause();
+    // A paused countdown never reaches zero; a stale notice must not either.
+    driver.setNotice(null);
     if (session.mode === 'youtube') yt.pause();
     else playback.pause();
   }
@@ -644,6 +653,7 @@
   function onResume() {
     session.resume();
     driver.resume();
+    armNotice();
     if (session.mode === 'youtube') yt.play();
     else void playback.play();
   }
@@ -652,6 +662,7 @@
   function onStop() {
     session.stop();
     driver.reset();
+    disarmNotice();
     stopCurrentEngine();
   }
 
@@ -738,6 +749,99 @@
   }
 
   const onPlayerScreen = $derived(session.state === 'playing' || session.state === 'paused');
+
+  // ── the finish notification (v2.0, docs/04 §2, spike S5) ──────────────────
+  /**
+   * What it says is generic BY RULE: a notification centre keeps a history,
+   * so it never carries a track title or a file name — only that time is up.
+   */
+  function finishNotice() {
+    return {
+      title: 'TickTune',
+      body: i18n.t('player.milestone.zero'),
+      tag: 'ticktune-finish',
+      lang: i18n.lang,
+      icon: '/favicon.png',
+    };
+  }
+
+  /** Logged once per session: the setting is on, the browser says no. */
+  let noticeBlockedWarned = false;
+  function warnNoticeBlocked() {
+    if (noticeBlockedWarned) return;
+    noticeBlockedWarned = true;
+    ttLog.warn('TT-SYS-210', 'permission not granted');
+  }
+
+  /**
+   * Arm it for the run that is starting or resuming — when the user asked for
+   * it and the browser still allows it. The WORKER decides at zero whether the
+   * moment calls for it (hidden); the page only says whether it is wanted.
+   */
+  function armNotice() {
+    if (!settings.current.finishNotify) return driver.setNotice(null);
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') {
+      warnNoticeBlocked();
+      return driver.setNotice(null);
+    }
+    driver.setNotice(finishNotice());
+  }
+
+  /** The page's own notification, where the worker cannot show one. */
+  let pageNotice: Notification | null = null;
+
+  function disarmNotice() {
+    driver.setNotice(null);
+    driver.dismissNotice();
+    pageNotice?.close();
+    pageNotice = null;
+  }
+
+  /**
+   * Safari has no `Notification` in a worker (and a broken worker has none at
+   * all): the page shows it instead. Best-effort by nature — this thread may
+   * itself run late while hidden (S2) — and logged, so a report says which
+   * path ran.
+   */
+  function showPageNotice() {
+    if (!document.hidden || typeof Notification === 'undefined') return;
+    if (Notification.permission !== 'granted') return warnNoticeBlocked();
+    const n = finishNotice();
+    try {
+      pageNotice = new Notification(n.title, {
+        body: n.body,
+        tag: n.tag,
+        lang: n.lang,
+        icon: n.icon,
+      });
+      pageNotice.onclick = () => {
+        window.focus();
+        pageNotice?.close();
+      };
+      ttLog.info('TT-SYS-209', 'shown by the page');
+    } catch {
+      ttLog.warn('TT-SYS-209', 'could not be shown');
+    }
+  }
+
+  // Back in the tab: whatever was announced has been seen.
+  $effect(() => {
+    const onVisible = () => {
+      if (document.hidden) return;
+      driver.dismissNotice();
+      pageNotice?.close();
+      pageNotice = null;
+    };
+    document.addEventListener('visibilitychange', onVisible);
+    return () => document.removeEventListener('visibilitychange', onVisible);
+  });
+
+  // A language switch or the setting itself, mid-run: re-arm in the new terms.
+  $effect(() => {
+    void i18n.lang;
+    void settings.current.finishNotify;
+    if (untrack(() => phase) === 'running') untrack(armNotice);
+  });
 
   /*
    * Settings → Display → "Hide scrollbars", applied to the whole page the same
@@ -1271,6 +1375,7 @@
         cancelAutoRestart();
         session.backToSetup();
         driver.reset();
+        disarmNotice();
         stopCurrentEngine();
       }}
     />
