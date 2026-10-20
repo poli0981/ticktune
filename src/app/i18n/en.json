@@ -246,6 +246,13 @@
     "general": {
       "lang": "Language",
       "legal": "Legal documents",
+      "preset": "Settings file",
+      "export": "Export",
+      "import": "Import…",
+      "presetHint": "Your settings as a file you keep — never your music, your queue or your acceptance of the terms.",
+      "imported": "Settings imported.",
+      "importUnreadable": "That file could not be read as JSON.",
+      "importNotOurs": "That file is not a TickTune settings file.",
       "reset": "Reset app",
       "resetHint": "Deletes every setting saved on this machine.",
       "resetConfirm": "Delete every saved setting? You will be asked to accept the terms again, because acceptance is stored with them.",

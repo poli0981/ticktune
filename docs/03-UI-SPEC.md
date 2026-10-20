@@ -491,7 +491,7 @@ truth. Do not restate a default here; it will drift.
 
 | Group | Controls | `TtSettings` fields | Ships |
 |-------|----------|---------------------|-------|
-| General | Language EN/VI · reopen legal pages · reset app (clears Dexie) | `lang` | **P5 s2** |
+| General | Language EN/VI · reopen legal pages · export / import the settings file (`02 §3.4`, v2.0) · reset app (clears Dexie) | `lang` | **P5 s2** |
 | Display | Background: Solid / Gradient (6 presets + custom) / Image / Slideshow (multi-upload, interval, fade or Ken Burns) / Cover-art blur · scrim strength · scanlines · auto-theme · **hide scrollbars** (v1.1; applies inside `/app/`, the static pages keep the slim custom bar) | `background`, `gradientPreset`, `gradientCustom`, `slideshowIntervalMs`, `slideshowTransition`, `scrimStrength`, `scrimAuto`, `scanlines`, `autoTheme`, `hideScrollbars` | **P5 s3**, v1.1 |
 | Countdown | Glow intensity · size (S/M/L) · **End Behavior**: fade-out duration, chime, flash, and what happens at zero (stay / restart / loop — see `02 §3.3`) | `glowIntensity`, `countdownSize`, `endFadeMs`, `endChime`, `endFlash`, `endAction` | **P5 s2** |
 | Visualizer | Style off/bars/wave/ring · sensitivity | `visualizer`, `visualizerSensitivity` | **P5 s4** |

@@ -311,6 +311,34 @@ mutually exclusive by construction rather than three overlapping booleans:
 "Silence-only" is not a fourth mode — it is `endChime: false` with
 `endFadeMs: 0`.
 
+### 3.4 The settings file (v2.0)
+
+Settings → General exports the settings as a file the user keeps and imports one
+back (`src/app/state/tt-settings-io.ts`):
+
+```
+ticktune-settings-YYYYMMDD.json   (the user's local date)
+{ "app": "ticktune", "kind": "settings", "schema": 2,
+  "exportedAt": "<ISO 8601>", "settings": { …every TtSettings field… } }
+```
+
+- **Settings and nothing else.** Never a file, a queue or a link list — those are
+  session-only (D3) — and never `legalAccepted` or `schema`: acceptance records
+  what *this* machine's user agreed to, and cannot travel in a file someone
+  hands over.
+- **Import goes through `clampSettings`**, like a stored row (`§3.1`): a
+  hand-edited file can no more produce an invalid app than a hand-edited
+  IndexedDB. The file's own `schema` goes in with it, so a preset from before a
+  migration is migrated as a row would be (`§3.2`). `legalAccepted` is always the
+  current one — an import neither accepts the terms for this user nor revokes
+  their acceptance.
+- **Refused, nothing changes:** not JSON (`unreadable`), or not
+  `{app: "ticktune", kind: "settings", settings: {…}}` (`not-ours`) —
+  **TT-USR-105**, said inline in the panel. Success logs **TT-USR-104**, an
+  export **TT-USR-103**.
+- The export is a Blob URL revoked a second after the click (Firefox reads the
+  Blob after `click()` returns); nothing is uploaded anywhere.
+
 ## 4. Import pipeline (local files)
 
 Entry points: drag-drop anywhere on Setup, or file picker (`accept` list below).
