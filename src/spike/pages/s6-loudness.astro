@@ -1,0 +1,17 @@
+---
+import TtBase from '../../layouts/TtBase.astro';
+---
+
+<TtBase title="spike/s6-loudness — TickTune" noindex analytics={false}>
+  <!--
+    THROWAWAY harness — docs/15 §S6. Routed ONLY by `astro dev` or a
+    `TT_SPIKES=1` build into dist-spikes/ (ttSpikeRoutes in astro.config.mjs),
+    never by the dist/ that CI tests and deploy.yml ships.
+  -->
+  <div id="tt-spike"></div>
+  <script>
+    if (!document.documentElement.dataset.ttBlocked) {
+      import('../s6/mount-s6.ts');
+    }
+  </script>
+</TtBase>
