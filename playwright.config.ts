@@ -33,6 +33,17 @@ export default defineConfig({
      * asserts the swap, which is the behaviour that can actually regress.
      */
     locale: 'vi-VN',
+    /*
+     * No service worker, except where a spec asks for one (v2.0).
+     *
+     * The production build registers /sw.js, and once it controls /app/,
+     * Playwright's WebKit stops routing that page's requests through
+     * `page.route` — even the ones the worker never answers. Every YouTube
+     * spec mocks `iframe_api` and oEmbed that way, so on WebKit all of them
+     * timed out the moment the worker landed (measured, PR #81). The worker's
+     * own behaviour is `pwa.spec.ts`'s, which opts back in.
+     */
+    serviceWorkers: 'block',
   },
 
   webServer: {
