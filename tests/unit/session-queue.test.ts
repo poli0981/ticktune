@@ -62,11 +62,20 @@ vi.mock('../../src/app/engine/youtube/tt-yt-driver', () => ({
   }),
 }));
 
+/**
+ * The drop pre-scan, held open on demand. A plain object rather than a `vi.fn`
+ * so `resetAllMocks()` cannot wipe it; a test that needs the scan to stall sets
+ * `scan.pending`, and every other test gets the old instant empty result.
+ */
+const scan = vi.hoisted(() => ({
+  pending: null as Promise<{ files: File[]; dropped: number }> | null,
+}));
+
 // The driver reaches for `document.createElement('audio')` and lazily imports
 // music-metadata; neither is the subject here.
 vi.mock('../../src/app/engine/importer/tt-import-driver', () => ({
   browserImportPorts: () => ({}),
-  filesFromDataTransfer: () => Promise.resolve({ files: [], dropped: 0 }),
+  filesFromDataTransfer: () => scan.pending ?? Promise.resolve({ files: [], dropped: 0 }),
 }));
 
 interface ImportInput {
@@ -110,9 +119,13 @@ beforeEach(async () => {
   lastInput = null;
   lastPorts = null;
   lookedUp.length = 0;
+  scan.pending = null;
   ({ session } = await import('../../src/app/state/session.svelte'));
   ({ settings } = await import('../../src/app/state/settings.svelte'));
   ({ playback } = await import('../../src/app/state/playback.svelte'));
+  // Past boot, as the shell does once settings load: `start()` only runs from
+  // Setup or Finished since v1.1, and a fresh store is still in `boot`.
+  session.booted(false);
 });
 
 /** Put N tracks in the queue through the real import path. */
@@ -784,5 +797,80 @@ describe('the offline banner is driven by evidence, not by the hint — docs/06 
     lookup.mockReturnValueOnce(Promise.resolve({ ok: false, cause: 'upstream_unreachable' }));
     await session.recheckPending();
     expect(session.online).toBe(false);
+  });
+});
+
+describe('start() only runs from Setup or Finished — and says whether it did', () => {
+  it('starts from Setup and reports it', async () => {
+    await stage('playlist', [track('a'), track('b')]);
+    expect(session.start()).toBe(true);
+    expect(session.state).toBe('playing');
+  });
+
+  it('refuses while a run is playing or paused, and leaves that run alone', async () => {
+    /*
+     * There was no state guard: a stale `endAction` re-run firing after
+     * "Chạy lại" re-seated — and with Shuffle on, reshuffled — a run that was
+     * already playing. The shell now checks this verdict instead of `state`.
+     */
+    await settings.patch({ shuffle: true });
+    await stage('playlist', [track('a'), track('b'), track('c'), track('d')]);
+    session.start();
+    const order = [...session.order];
+    const cursor = session.currentId;
+
+    expect(session.start()).toBe(false);
+    expect([...session.order]).toEqual(order);
+    expect(session.currentId).toBe(cursor);
+
+    session.pause();
+    expect(session.start()).toBe(false);
+    expect(session.state).toBe('paused');
+  });
+
+  it('refuses behind the legal gate', async () => {
+    await stage('playlist', [track('a')]);
+    session.booted(true);
+    expect(session.start()).toBe(false);
+    expect(session.state).toBe('gate');
+  });
+
+  it('starts again from Finished — the "Chạy lại" path', async () => {
+    await stage('playlist', [track('a')]);
+    session.start();
+    session.finished({ late: false, overshootMs: 0 });
+    expect(session.state).toBe('finished');
+    expect(session.start()).toBe(true);
+    expect(session.state).toBe('playing');
+  });
+});
+
+describe('imports are single-flight from the FIRST await — docs/02 §4', () => {
+  it('refuses a pick while a drop is still scanning its folders', async () => {
+    /*
+     * The flag used to be claimed only after `filesFromDataTransfer` finished,
+     * so a second import during a slow folder walk ran concurrently and each
+     * batch wrote `[...queueAtItsStart, ...added]` — losing the other batch and
+     * judging the caps against a stale queue.
+     */
+    session.setMode('playlist');
+    let release!: (v: { files: File[]; dropped: number }) => void;
+    scan.pending = new Promise((r) => (release = r));
+
+    const drop = session.importDropped({} as DataTransfer);
+    expect(session.importing).toBe(true);
+
+    // No result is queued for the pick: if the guard failed, importFiles would
+    // resolve undefined and the store would throw — the test fails either way.
+    await session.importPicked(files(1) as unknown as FileList);
+    expect(importFiles).not.toHaveBeenCalled();
+
+    importFiles.mockResolvedValueOnce(result([track('dropped')]));
+    release({ files: files(1), dropped: 0 });
+    await drop;
+
+    expect(importFiles).toHaveBeenCalledTimes(1);
+    expect(session.queue.map((t) => t.id)).toEqual(['dropped']);
+    expect(session.importing).toBe(false);
   });
 });

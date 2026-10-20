@@ -477,6 +477,17 @@ through these concrete paths:
 All removals release the track's ledger entries — its media URL and its cover —
 immediately (`05 §3`, `TtUrlLedger.releaseTrack`).
 
+✅ **Both "currently playing" columns are wired since v1.1**, and before that
+neither was. The engine reported a decode failure (TT-PLY-101) and nothing told
+the session, so a playlist stopped dead on the first bad file with the row not
+even struck through; and the rails called `session.removeTrack` directly, so the
+cursor moved while the removed track kept playing — and its `ended` then advanced
+the queue a second time. The shell now routes both through one path
+(`TtApp.onTrackFailed` / `onRemove` → `loadCurrent()`), and `loadCurrent()`
+respects a paused run: the next track is loaded (cued, in YouTube mode) and stays
+silent until resume. `tests/e2e/wiring.spec.ts` covers each with the fixture that
+had been generated for it and never used (`corrupt.mp3`).
+
 **Why the `onError 100` row folded — spike S1, 2026-07-22.** This table gave
 deleted/private its own path ("stop → overlay 3 s → auto-advance") keyed on
 `onError 100`. Measured across six causes and ten videos, **the player reports

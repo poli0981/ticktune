@@ -399,16 +399,58 @@ class SessionStore {
    * Single-flight. A second drop while a batch is in flight is IGNORED with a
    * toast rather than queued or aborted (docs/02 §4) — the operation is bounded
    * and sub-second, so the simplest defined behaviour is the right one.
+   *
+   * 🔴 The flag is claimed BEFORE the first `await`. It used to be set inside
+   * `#runImport`, after `filesFromDataTransfer` had finished walking the dropped
+   * folders — so a second drop during that walk passed the check, both batches
+   * ran, and each wrote `[...queueAtItsStart, ...added]`: the first batch was
+   * silently lost and the 95-file / 91:00 caps were judged against a stale
+   * queue. `#begin`/`#end` bracket every entry point instead.
    */
   async importDropped(dt: DataTransfer): Promise<void> {
-    if (this.#importing) return;
-    const { files, dropped } = await filesFromDataTransfer(dt);
-    await this.#runImport(files, dropped);
+    if (!this.#begin(0)) return;
+    try {
+      const { files, dropped } = await filesFromDataTransfer(dt);
+      this.#progress = { done: 0, total: files.length };
+      await this.#runImport(files, dropped);
+    } finally {
+      this.#end();
+    }
   }
 
   async importPicked(list: FileList | null): Promise<void> {
-    if (this.#importing || !list) return;
-    await this.#runImport(Array.from(list), 0);
+    if (!list || !this.#begin(list.length)) return;
+    try {
+      await this.#runImport(Array.from(list), 0);
+    } finally {
+      this.#end();
+    }
+  }
+
+  /**
+   * Claim the import slot. False when one is already running.
+   *
+   * The progress bar is armed, not shown: if the batch finishes before
+   * PROGRESS_DELAY_MS, `#end` clears the timer and nothing was ever rendered —
+   * which is the whole point (docs/02 §4).
+   */
+  #begin(total: number): boolean {
+    if (this.#importing) return false;
+    this.#importing = true;
+    this.#progress = { done: 0, total };
+    this.#progressVisible = false;
+    this.#progressTimer = setTimeout(() => {
+      if (this.#importing) this.#progressVisible = true;
+    }, PROGRESS_DELAY_MS);
+    return true;
+  }
+
+  #end(): void {
+    this.#importing = false;
+    if (this.#progressTimer !== null) clearTimeout(this.#progressTimer);
+    this.#progressTimer = null;
+    this.#progressVisible = false;
+    this.#progress = null;
   }
 
   /**
@@ -425,14 +467,8 @@ class SessionStore {
    * already uses.
    */
   async importLinks(text: string): Promise<void> {
-    if (this.#importing || this.#mode !== 'youtube' || text.trim() === '') return;
-
-    this.#importing = true;
-    this.#progress = { done: 0, total: 0 };
-    this.#progressVisible = false;
-    this.#progressTimer = setTimeout(() => {
-      if (this.#importing) this.#progressVisible = true;
-    }, PROGRESS_DELAY_MS);
+    if (this.#mode !== 'youtube' || text.trim() === '') return;
+    if (!this.#begin(0)) return;
 
     try {
       const result = await importLinks(
@@ -469,88 +505,68 @@ class SessionStore {
       const reached = reachedEdge(result);
       if (reached !== null) this.#online = reached;
     } finally {
-      this.#importing = false;
-      if (this.#progressTimer !== null) clearTimeout(this.#progressTimer);
-      this.#progressTimer = null;
-      this.#progressVisible = false;
-      this.#progress = null;
+      this.#end();
     }
   }
 
+  /** The body of a local import. Callers hold the slot (`#begin`/`#end`). */
   async #runImport(files: File[], droppedByCap: number): Promise<void> {
     // Sources do not mix (see importLinks). The drop zone is not even rendered
     // in YouTube mode, but a stray drop on the window would otherwise reach
     // here and quietly build a queue the mode cannot play.
     if (this.#mode === 'youtube') return;
 
-    this.#importing = true;
-    this.#progress = { done: 0, total: files.length };
-    this.#progressVisible = false;
-    // Armed, not shown. If the batch finishes first the `finally` clears this
-    // and nothing was ever rendered — which is the whole point (docs/02 §4).
-    this.#progressTimer = setTimeout(() => {
-      if (this.#importing) this.#progressVisible = true;
-    }, PROGRESS_DELAY_MS);
+    if (droppedByCap > 0) ttLog.warn('TT-IMP-008', `${droppedByCap} entries over the scan cap`);
 
-    try {
-      if (droppedByCap > 0) ttLog.warn('TT-IMP-008', `${droppedByCap} entries over the scan cap`);
+    // docs/02 §4: a second import in Single mode REPLACES the held track,
+    // because isQueueValid('single') requires exactly one — rejecting it
+    // would strand a user who simply wants a different track.
+    //
+    // ⚠️ This branch WIPES the queue and revokes every URL in it. It is
+    // guarded on `#mode === 'single'` and must stay that way: reaching it
+    // with a playlist staged would silently destroy up to 95 imported tracks.
+    // Both branches are pinned by store tests for exactly that reason.
+    const replacing = this.#mode === 'single' && files.length > 0;
+    const queue = replacing ? [] : this.#queue;
 
-      // docs/02 §4: a second import in Single mode REPLACES the held track,
-      // because isQueueValid('single') requires exactly one — rejecting it
-      // would strand a user who simply wants a different track.
-      //
-      // ⚠️ This branch WIPES the queue and revokes every URL in it. It is
-      // guarded on `#mode === 'single'` and must stay that way: reaching it
-      // with a playlist staged would silently destroy up to 95 imported tracks.
-      // Both branches are pinned by store tests for exactly that reason.
-      const replacing = this.#mode === 'single' && files.length > 0;
-      const queue = replacing ? [] : this.#queue;
+    // Replacing in Single mode: release the outgoing track's URLs, or the
+    // ledger accumulates one cover per import (docs/05 §3).
+    if (replacing) for (const t of this.#queue) playback.releaseTrack(t.id);
 
-      // Replacing in Single mode: release the outgoing track's URLs, or the
-      // ledger accumulates one cover per import (docs/05 §3).
-      if (replacing) for (const t of this.#queue) playback.releaseTrack(t.id);
-
-      const result = await importFiles(
-        {
-          files,
-          mode: this.#mode,
-          queue,
-          // Read from settings, not a literal. This call site passed `false`
-          // through all of P2 while the setting was declared, defaulted,
-          // clamped, persisted and honoured by the engine — so the toggle would
-          // have shipped doing nothing, and no engine test could have caught it.
-          allowDuplicates: settings.current.allowDuplicates,
+    const result = await importFiles(
+      {
+        files,
+        mode: this.#mode,
+        queue,
+        // Read from settings, not a literal. This call site passed `false`
+        // through all of P2 while the setting was declared, defaulted,
+        // clamped, persisted and honoured by the engine — so the toggle would
+        // have shipped doing nothing, and no engine test could have caught it.
+        allowDuplicates: settings.current.allowDuplicates,
+      },
+      {
+        ...browserImportPorts(playback.makeCoverUrl),
+        onProgress: (done, total) => {
+          this.#progress = { done, total };
         },
-        {
-          ...browserImportPorts(playback.makeCoverUrl),
-          onProgress: (done, total) => {
-            this.#progress = { done, total };
-          },
-        },
-      );
+      },
+    );
 
-      // Every skip and every note gets a coded entry — docs/01 §2 principle 5.
-      // The message carries no file name: docs/12 §6 makes the diagnostics
-      // payload safe to paste publicly by construction, not by remembering.
-      for (const s of [...result.skipped, ...result.notes]) ttLog.warn(s.code, '');
+    // Every skip and every note gets a coded entry — docs/01 §2 principle 5.
+    // The message carries no file name: docs/12 §6 makes the diagnostics
+    // payload safe to paste publicly by construction, not by remembering.
+    for (const s of [...result.skipped, ...result.notes]) ttLog.warn(s.code, '');
 
-      if (replacing) {
-        // The cursor named a track that no longer exists. Nothing to reconcile.
-        this.#currentId = null;
-        this.#shuffled = null;
-      }
-      if (result.added.length > 0) this.#queue = [...queue, ...result.added];
-      // docs/02 §5.1 rule 5 — new ids join the END of a stored permutation, so
-      // importing during a shuffled run cannot reshuffle the unplayed remainder.
-      this.#syncOrder();
-      this.#lastImport = result;
-    } finally {
-      this.#importing = false;
-      if (this.#progressTimer !== null) clearTimeout(this.#progressTimer);
-      this.#progressTimer = null;
-      this.#progressVisible = false;
-      this.#progress = null;
+    if (replacing) {
+      // The cursor named a track that no longer exists. Nothing to reconcile.
+      this.#currentId = null;
+      this.#shuffled = null;
     }
+    if (result.added.length > 0) this.#queue = [...queue, ...result.added];
+    // docs/02 §5.1 rule 5 — new ids join the END of a stored permutation, so
+    // importing during a shuffled run cannot reshuffle the unplayed remainder.
+    this.#syncOrder();
+    this.#lastImport = result;
   }
 
   /** docs/02 §6 — user removal. All removals release the track's URLs at once. */
@@ -747,11 +763,20 @@ class SessionStore {
    *   definition, so the harness needs a way past the queue predicate. Gated
    *   by the flag, exactly like the debug panel, and it collects nothing.
    */
-  start(force = false): void {
-    if (!force && !this.canStart) return;
+  start(force = false): boolean {
+    /*
+     * Only from Setup or Finished. 🔴 There was no state guard at all, so a
+     * stale `endAction` restart timer firing after "Về thiết lập" started a run
+     * the user had just dismissed, and one firing after "Chạy lại" re-seated —
+     * and reshuffled — a run already playing. Returning the verdict lets the
+     * shell skip its side effects instead of inferring success from `state`.
+     */
+    if (this.#state !== 'setup' && this.#state !== 'finished') return false;
+    if (!force && !this.canStart) return false;
     this.#finish = null;
     this.#seat();
     this.#state = 'playing';
+    return true;
   }
 
   pause(): void {
@@ -791,13 +816,6 @@ class SessionStore {
   backToSetup(): void {
     this.#finish = null;
     this.#state = 'setup';
-  }
-
-  /** Finished → playing, same countdown. docs/02 §1 "Restart, same queue". */
-  restart(): void {
-    if (this.#state !== 'finished') return;
-    this.#finish = null;
-    this.#state = 'playing';
   }
 }
 

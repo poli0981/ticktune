@@ -464,7 +464,20 @@ Two controls listed in earlier revisions are gone, not forgotten:
 
 `Space` play/pause · `←/→` prev/next · `↑/↓` volume ±5 · `M` mute · `F` fullscreen
 · `H` focus mode · `S` settings · `]` toggle rail · `Esc` close modal/panel.
-Disabled while typing in inputs.
+Disabled while typing in inputs (and selects).
+
+**Bare keys only** (v1.1). With Ctrl/⌘/Alt held the key belongs to the browser —
+Ctrl+F (find) used to toggle fullscreen and Ctrl+S opened the panel. Shift is
+allowed (`S` = `s`), and AltGr is exempt because Windows reports it as Ctrl+Alt
+and it is how `]` is typed on German and French layouts. A key a component has
+already handled (`preventDefault`) is never also a hotkey: a row's `Alt+↑/↓`
+reorder used to move the volume ±5 as well.
+
+**Enter on a queue row** plays it, as double-click does (`02 §8`). The row's
+context menu opens with real focus on its first enabled item, takes outside
+clicks without any overlay element (an `inset: 0` layer used to sit over the
+YouTube player while the menu was open — the `§2` carve-out), and returns focus
+to the row on close.
 
 **`Alt+↑` / `Alt+↓` move the focused queue row** up or down one position — the
 keyboard equivalent of a drag, and the binding `13 §6`'s keyboard-only journey
