@@ -94,6 +94,16 @@ export interface TtAudioEvents {
    */
   onEnded: () => void;
   onStatus: (status: TtPlaybackStatus) => void;
+  /**
+   * The loaded track could not be decoded or played — docs/02 §6.
+   *
+   * Separate from `onLog` because it is an instruction to the QUEUE, not a
+   * diagnostic: the shell marks the track `error` and moves on. Before v1.1 the
+   * engine only logged TT-PLY-101 and set its status, nothing told the session,
+   * and a playlist stopped dead on the first undecodable file. Optional so the
+   * engine's unit fakes need not care.
+   */
+  onError?: (trackId: string) => void;
 }
 
 export type TtPlaybackStatus = 'idle' | 'playing' | 'paused' | 'blocked' | 'error';

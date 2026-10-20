@@ -93,15 +93,18 @@ function harness(over: { ctxState?: 'suspended' | 'running' } = {}) {
   const statuses: string[] = [];
   const loops: number[] = [];
   const ended: number[] = [];
+  const errors: string[] = [];
   const engine = new TtAudioEngine(ports, {
     onLog: (code) => logs.push(code),
     onLoop: (n) => loops.push(n),
     onEnded: () => ended.push(1),
     onStatus: (s) => statuses.push(s),
+    onError: (id) => errors.push(id),
   });
 
   return {
     engine,
+    errors,
     ports,
     decks,
     deckGains,
@@ -281,7 +284,8 @@ describe('TtAudioEngine', () => {
   it('reports TT-PLY-100 and stays "blocked" when play() is refused', async () => {
     const h = harness();
     h.engine.load(track(), true);
-    h.decks[0]!.play = () => Promise.reject(new Error('NotAllowedError'));
+    // What browsers actually throw for an autoplay refusal.
+    h.decks[0]!.play = () => Promise.reject(new DOMException('refused', 'NotAllowedError'));
 
     await h.engine.play();
 
@@ -289,6 +293,54 @@ describe('TtAudioEngine', () => {
     // Never a fake "playing": a silent app must not look like a working one.
     expect(h.engine.status).toBe('blocked');
     expect(h.statuses.at(-1)).toBe('blocked');
+  });
+
+  it('ignores an AbortError — a newer load replaced the source, not a refusal', async () => {
+    // Rapid ⏭ or removing the playing track rejects the pending play() this way;
+    // it used to log a false TT-PLY-100 and flash ▶ per skip.
+    const h = harness();
+    h.engine.load(track(), false);
+    h.decks[0]!.play = () => Promise.reject(new DOMException('interrupted', 'AbortError'));
+
+    await h.engine.play();
+
+    expect(h.logs).toEqual([]);
+    expect(h.engine.status).not.toBe('blocked');
+  });
+
+  it('a decode failure is an ERROR for the queue, not an autoplay complaint', async () => {
+    /*
+     * docs/02 §6. The element's `error` event fires before play() rejects; the
+     * catch then overwrote `error` with `blocked`, logged TT-PLY-100, and the
+     * session never heard about the track — a playlist stopped dead on it.
+     */
+    const h = harness();
+    const t = track();
+    h.engine.load(t, false);
+    h.decks[0]!.play = () => {
+      h.engine.onMediaError();
+      return Promise.reject(new DOMException('decode', 'NotSupportedError'));
+    };
+
+    await h.engine.play();
+    await Promise.resolve(); // onError is deferred one microtask
+
+    expect(h.logs).toEqual(['TT-PLY-101']);
+    expect(h.engine.status).toBe('error');
+    expect(h.errors).toEqual([t.id]);
+  });
+
+  it('fails the track when play() rejects with a media error and no event fired', async () => {
+    const h = harness();
+    const t = track();
+    h.engine.load(t, false);
+    h.decks[0]!.play = () => Promise.reject(new DOMException('decode', 'NotSupportedError'));
+
+    await h.engine.play();
+    await Promise.resolve();
+
+    expect(h.logs).toEqual(['TT-PLY-101']);
+    expect(h.errors).toEqual([t.id]);
   });
 
   it('resumes a suspended context before playing', async () => {

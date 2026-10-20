@@ -30,8 +30,21 @@ class PlaybackStore {
   /** TT-SYS-205 is a property of the build, so it is reported once per session. */
   #loopStyleReported = false;
 
+  /**
+   * The end-of-run pause, scheduled for when the fade finishes.
+   *
+   * 🔴 It used to be fire-and-forget. With `endAction` restart/loop the next run
+   * starts 400 ms after zero — and the previous run's timer then paused the NEW
+   * run's audio at `endFadeMs` (2 s by default): the countdown kept going in
+   * silence with ▶ on the transport. "Chạy lại" inside the fade did the same.
+   * Every action that starts or stops playback cancels it now.
+   */
+  #fadePause: ReturnType<typeof setTimeout> | null = null;
+
   /** Set by the app shell so a finished track can advance the queue. */
   onEnded: (() => void) | null = null;
+  /** Set by the app shell: the loaded track failed to decode — docs/02 §6. */
+  onError: ((trackId: string) => void) | null = null;
 
   get status(): TtPlaybackStatus {
     return this.#status;
@@ -98,6 +111,12 @@ class PlaybackStore {
       onStatus: (s) => {
         this.#status = s;
       },
+      // Only for the track this store still holds: a failure reported for a
+      // track that has since been replaced is stale, and acting on it would
+      // skip the one now playing.
+      onError: (trackId) => {
+        if (this.#track?.id === trackId) this.onError?.(trackId);
+      },
     });
     return this.#driver;
   }
@@ -137,7 +156,13 @@ class PlaybackStore {
    *   emits no `ended` event (docs/05 §2), which is why Single mode needs no
    *   mode check on the advance path.
    */
+  #cancelFadePause(): void {
+    if (this.#fadePause !== null) clearTimeout(this.#fadePause);
+    this.#fadePause = null;
+  }
+
   async load(track: TtTrack, loop: boolean): Promise<void> {
+    this.#cancelFadePause();
     const driver = this.#ensure();
     this.#track = track;
     this.#loops = 1;
@@ -149,6 +174,7 @@ class PlaybackStore {
   }
 
   async play(): Promise<void> {
+    this.#cancelFadePause();
     const driver = this.#ensure();
     await driver.engine.play();
     driver.refresh();
@@ -160,6 +186,7 @@ class PlaybackStore {
   }
 
   stop(): void {
+    this.#cancelFadePause();
     this.#driver?.engine.stop();
     this.#driver?.resetFade();
     this.#driver?.refresh();
@@ -173,6 +200,7 @@ class PlaybackStore {
 
   /** Re-arm the fade stage before a run — see runEndBehavior. */
   resetFade(): void {
+    this.#cancelFadePause();
     this.#driver?.resetFade();
   }
 
@@ -219,7 +247,11 @@ class PlaybackStore {
     );
     // The media element is paused after the fade has actually finished, not
     // before it — pausing first would cut the fade off at its first sample.
-    setTimeout(() => this.#driver?.engine.pause(), plan.fadeMs);
+    this.#cancelFadePause();
+    this.#fadePause = setTimeout(() => {
+      this.#fadePause = null;
+      this.#driver?.engine.pause();
+    }, plan.fadeMs);
     return { flash: plan.flash, action: plan.action };
   }
 
@@ -238,6 +270,7 @@ class PlaybackStore {
   }
 
   dispose(): void {
+    this.#cancelFadePause();
     this.#driver?.dispose();
     this.#driver = null;
     this.#track = null;
