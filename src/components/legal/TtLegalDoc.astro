@@ -208,6 +208,12 @@ const versionGhost = TT_LEGAL_VERSION.replace(/\d/g, '8');
   }
   .tt-version-value {
     position: relative;
+    /* A fixed box, whatever the face. DSEG7's ascent and descent overflow
+       `line-height: 1`, so the line grew 14 px when it arrived and pushed the
+       whole document down — Lighthouse CLS 0.19 on every legal page (v2.0).
+       An inline-block one em tall keeps the line box the same before and after. */
+    display: inline-block;
+    height: 1em;
     font-family: var(--font-digit);
     font-size: var(--tt-text-xl);
     line-height: 1;
