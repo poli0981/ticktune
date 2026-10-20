@@ -135,7 +135,16 @@ export async function stageManyTracks(page: Page, count: number): Promise<void> 
       buffer,
     })),
   );
-  await expect(page.getByTestId('tt-queue-row')).toHaveCount(count);
+  /*
+   * The rows appear when the whole batch is in, and the batch is `count`
+   * sequential parses — so the wait scales with it. The default 5 s held on
+   * Chromium and failed on CI WebKit, which was at "Đang nhập 78/95" when it
+   * gave up: slow, not stuck. 250 ms a file is several times what any engine
+   * has needed.
+   */
+  await expect(page.getByTestId('tt-queue-row')).toHaveCount(count, {
+    timeout: Math.max(5_000, count * 250),
+  });
 }
 
 /**
