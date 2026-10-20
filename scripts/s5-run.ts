@@ -33,13 +33,14 @@ import {
   mkdirSync,
   mkdtempSync,
   readFileSync,
+  readdirSync,
   rmSync,
   statSync,
   writeFileSync,
 } from 'node:fs';
 import { createServer } from 'node:http';
 import { tmpdir } from 'node:os';
-import { basename, extname, join, normalize, resolve } from 'node:path';
+import { basename, extname, join, relative, resolve, sep } from 'node:path';
 
 const args = process.argv.slice(2);
 const opt = (name: string, fallback: string) => {
@@ -56,6 +57,10 @@ const ORIGIN = `http://127.0.0.1:${PORT}`;
 const ROOT = resolve('dist-spikes');
 const OUT = 'test/s5-results';
 const CONTROL_MIN = 0.5;
+
+// Absolute, like the browsers below: nothing here is looked up on PATH.
+const TASKKILL = 'C:/Windows/System32/taskkill.exe';
+const POWERSHELL = 'C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe';
 
 const EXE: Record<string, string> = {
   msedge: 'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',
@@ -133,16 +138,33 @@ const server = createServer((req, res) => {
     });
     return;
   }
-  let path = normalize(join(ROOT, decodeURIComponent(url.pathname)));
-  if (!path.startsWith(ROOT)) return void res.writeHead(403).end();
-  if (existsSync(path) && statSync(path).isDirectory()) path = join(path, 'index.html');
-  if (!existsSync(path)) return void res.writeHead(404).end();
+  const file = SERVED.get(url.pathname);
+  if (file === undefined) return void res.writeHead(404).end();
   res.writeHead(200, {
-    'content-type': TYPES[extname(path)] ?? 'application/octet-stream',
+    'content-type': TYPES[extname(file)] ?? 'application/octet-stream',
     'cache-control': 'no-store',
   });
-  res.end(readFileSync(path));
+  res.end(readFileSync(file));
 });
+
+/**
+ * Every servable file, keyed by its URL path, indexed once the build is done.
+ * A request never reaches the filesystem: a path missing from this map does
+ * not exist, so there is nothing to traverse and nothing to probe.
+ */
+const SERVED = new Map<string, string>();
+function indexServed(dir: string): void {
+  for (const name of readdirSync(dir)) {
+    const file = join(dir, name);
+    if (statSync(file).isDirectory()) {
+      indexServed(file);
+      continue;
+    }
+    const path = `/${relative(ROOT, file).split(sep).join('/')}`;
+    SERVED.set(path, file);
+    if (name === 'index.html') SERVED.set(path.slice(0, -'index.html'.length), file);
+  }
+}
 
 // ── browsers ─────────────────────────────────────────────────────────────────
 
@@ -165,7 +187,7 @@ const slot = (i: number) => ({ x: (i % 2) * 1260, y: Math.floor(i / 2) * 700, w:
 function killTree(pid: number | undefined): void {
   if (pid === undefined) return;
   try {
-    execFileSync('taskkill', ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' });
+    execFileSync(TASKKILL, ['/PID', String(pid), '/T', '/F'], { stdio: 'ignore' });
   } catch {
     // Already gone.
   }
@@ -180,7 +202,7 @@ function killTree(pid: number | undefined): void {
 function killByProfile(profile: string): void {
   try {
     execFileSync(
-      'powershell',
+      POWERSHELL,
       [
         '-NoProfile',
         '-Command',
@@ -214,7 +236,11 @@ async function cdp(wsUrl: string) {
       result?: unknown;
       error?: { message: string };
     };
-    if (m.id !== undefined) pending.get(m.id)?.(m);
+    if (typeof m.id !== 'number') return;
+    const settle = pending.get(m.id);
+    if (typeof settle !== 'function') return;
+    pending.delete(m.id);
+    settle(m);
   };
   return {
     send: (method: string, params: object = {}) =>
@@ -332,6 +358,7 @@ if (!args.includes('--no-build')) {
   process.env['TT_SPIKES'] = '1';
   await build({ root: process.cwd(), logLevel: 'warn' });
 }
+indexServed(ROOT);
 await new Promise<void>((ok) => server.listen(PORT, '127.0.0.1', ok));
 
 const launched: Launched[] = [];
