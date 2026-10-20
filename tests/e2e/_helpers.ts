@@ -138,11 +138,17 @@ export async function stageManyTracks(page: Page, count: number): Promise<void> 
   await expect(page.getByTestId('tt-queue-row')).toHaveCount(count);
 }
 
-/** Set the countdown inputs. They keep the P1 labels deliberately. */
+/**
+ * Set the countdown inputs. They keep the P1 labels deliberately.
+ *
+ * `exact: true` because `getByLabel` matches substrings: since v1.1 the preset
+ * buttons are announced as "5 phút", "10 phút"… (their visible text is just
+ * "5′"), and a loose `getByLabel('phút')` resolved to nine elements.
+ */
 export async function setDuration(page: Page, h: number, m: number, s: number): Promise<void> {
-  await page.getByLabel('giờ').fill(String(h));
-  await page.getByLabel('phút').fill(String(m));
-  await page.getByLabel('giây').fill(String(s));
+  await page.getByLabel('giờ', { exact: true }).fill(String(h));
+  await page.getByLabel('phút', { exact: true }).fill(String(m));
+  await page.getByLabel('giây', { exact: true }).fill(String(s));
 }
 
 /**
