@@ -32,7 +32,7 @@
  * name below. Same blind spot that makes `knip` need them in
  * `ignoreDependencies`; both workarounds must move together.
  */
-import { execSync } from 'node:child_process';
+import { execFileSync, execSync } from 'node:child_process';
 import { readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -49,7 +49,20 @@ const OUT = join(DIST, 'THIRD-PARTY-NOTICES.txt');
  */
 const CSS_ONLY = ['@fontsource/be-vietnam-pro', '@fontsource/jetbrains-mono'];
 
-const LICENSE_FILE = /^(LICEN[CS]E|COPYING|NOTICE|OFL)(\.(txt|md))?$/i;
+const LICENSE_FILE = /^(LICEN[CS]E|COPYING|OFL)(\.(txt|md))?$/i;
+
+/**
+ * Apache-2.0 §4(d): "if the Work includes a NOTICE text file … You must include
+ * a readable copy of the attribution notices contained within such NOTICE file".
+ *
+ * Matched separately from LICENSE_FILE on purpose. The first version folded both
+ * into one pattern and took the FIRST match, so a package shipping both files
+ * got only its `LICENSE` — and Dexie's `NOTICE` carries its only copyright line.
+ */
+const NOTICE_FILE = /^NOTICE(\.(txt|md))?$/i;
+
+/** Code-point order: deterministic across machines, unlike an unpinned localeCompare. */
+const byCodePoint = (a: string, b: string): number => (a < b ? -1 : a > b ? 1 : 0);
 
 function fail(msg: string): never {
   console.error(`\n✖ make-notices: ${msg}\n`);
@@ -69,42 +82,91 @@ interface PnpmPkg {
 function pnpmLicenses(): Map<string, PnpmPkg> {
   let raw: string;
   try {
-    /*
-     * `execSync` with a literal command, deliberately.
-     *
-     * `execFileSync('pnpm', …)` cannot run on Windows — pnpm is a `.cmd` and
-     * Node 24 refuses to spawn one without a shell (EINVAL). Adding
-     * `shell: true` to `execFileSync` instead triggers DEP0190, which warns
-     * that args are concatenated unescaped. Neither applies here: the command
-     * is a fixed string with nothing interpolated into it, so there is no
-     * argument to escape and no injection surface.
-     */
-    raw = execSync('pnpm licenses list --prod --json', {
-      encoding: 'utf8',
-      maxBuffer: 64 * 1024 * 1024,
-    });
+    raw = runPnpm(['licenses', 'list', '--prod', '--json']);
   } catch (err) {
     fail(`\`pnpm licenses list\` failed — ${(err as Error).message}`);
   }
 
+  /*
+   * Merged, not overwritten. `pnpm licenses` groups by licence id, so a package
+   * resolved twice under two different licences appears in two groups — and a
+   * plain `set` let whichever group came last erase the other's versions, paths
+   * and licence.
+   */
   const byName = new Map<string, PnpmPkg>();
   for (const group of Object.values(JSON.parse(raw) as Record<string, PnpmPkg[]>)) {
-    for (const pkg of group) byName.set(pkg.name, pkg);
+    for (const pkg of group) {
+      const seen = byName.get(pkg.name);
+      if (!seen) {
+        byName.set(pkg.name, { ...pkg, versions: [...pkg.versions], paths: [...pkg.paths] });
+        continue;
+      }
+      seen.versions = [...new Set([...seen.versions, ...pkg.versions])];
+      seen.paths = [...new Set([...seen.paths, ...pkg.paths])];
+      if (!seen.license.split(' OR ').includes(pkg.license)) seen.license += ` OR ${pkg.license}`;
+    }
   }
   return byName;
 }
 
-/** The package's own licence text, read from where pnpm resolved it. */
+/**
+ * Run pnpm WITHOUT a PATH lookup or a shell (SonarCloud S4036).
+ *
+ * `pnpm build` runs this script, and pnpm exports the path of its own entry
+ * point as `npm_execpath`. That is the pnpm already executing the build, so it is
+ * the one to trust: a `.cjs`/`.js` entry runs under this very Node binary, a
+ * standalone executable runs directly.
+ *
+ * The literal-command `execSync` remains only for running this file by hand
+ * outside pnpm. It interpolates nothing, so there is no argument to escape.
+ */
+function runPnpm(args: string[]): string {
+  const opts = { encoding: 'utf8' as const, maxBuffer: 64 * 1024 * 1024 };
+  const entry = process.env['npm_execpath'];
+  if (entry && /\.[cm]?js$/i.test(entry)) {
+    return execFileSync(process.execPath, [entry, ...args], opts);
+  }
+  if (entry && /pnpm(\.exe)?$/i.test(entry)) {
+    return execFileSync(entry, args, opts);
+  }
+  // NOSONAR — reached only when the script is run by hand outside pnpm; the argv is fixed.
+  return execSync(`pnpm ${args.join(' ')}`, opts); // NOSONAR
+}
+
+/**
+ * The package's own licence text — plus its NOTICE, when it has one — read from
+ * where pnpm resolved it. Null when there is no licence file at all.
+ */
 async function licenseText(dir: string): Promise<string | null> {
   let entries: string[];
   try {
-    entries = await readdir(dir);
+    entries = (await readdir(dir)).sort(byCodePoint);
   } catch {
     return null;
   }
-  const file = entries.find((e) => LICENSE_FILE.test(e));
-  if (!file) return null;
-  return (await readFile(join(dir, file), 'utf8')).trimEnd();
+  const license = entries.find((e) => LICENSE_FILE.test(e));
+  if (!license) return null;
+
+  const parts = [(await readFile(join(dir, license), 'utf8')).trimEnd()];
+  const notice = entries.find((e) => NOTICE_FILE.test(e));
+  if (notice) {
+    parts.push(`NOTICE\n\n${(await readFile(join(dir, notice), 'utf8')).trimEnd()}`);
+  }
+  return parts.join('\n\n');
+}
+
+/**
+ * Every distinct text across the versions that ship. Two copies of one package
+ * usually carry byte-identical licences, and then this is one entry; when they
+ * differ, the first version's text alone would under-attribute the second.
+ */
+async function licenseTexts(paths: string[]): Promise<string | null> {
+  const texts: string[] = [];
+  for (const dir of paths) {
+    const text = await licenseText(dir);
+    if (text && !texts.includes(text)) texts.push(text);
+  }
+  return texts.length === 0 ? null : texts.join(`\n\n${'·'.repeat(39)}\n\n`);
 }
 
 const bundled: string[] = await readFile(BUNDLED, 'utf8')
@@ -113,7 +175,7 @@ const bundled: string[] = await readFile(BUNDLED, 'utf8')
     fail(`${BUNDLED} is missing — the ttBundledPackages plugin did not run. Did astro build?`),
   );
 
-const wanted = [...new Set([...bundled, ...CSS_ONLY])].sort();
+const wanted = [...new Set([...bundled, ...CSS_ONLY])].sort(byCodePoint);
 const licenses = pnpmLicenses();
 
 const sections: string[] = [];
@@ -126,9 +188,9 @@ for (const name of wanted) {
     continue;
   }
 
-  const text = await licenseText(pkg.paths[0] ?? '');
+  const text = await licenseTexts(pkg.paths);
   if (!text) {
-    missing.push(`${name} (no LICENSE file at ${pkg.paths[0]})`);
+    missing.push(`${name} (no LICENSE file at ${pkg.paths.join(', ')})`);
     continue;
   }
 

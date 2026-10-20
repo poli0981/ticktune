@@ -36,14 +36,28 @@ const AUDIO_ALLOWLIST = /^tests\/e2e\/fixtures\//;
 const staged = process.argv.includes('--staged');
 
 function git(args) {
-  return execFileSync('git', args, { encoding: 'utf8' }).trim();
+  // git from PATH on purpose (SonarCloud S4036, reviewed): this runs as the
+  // pre-commit hook and in CI, and both must use the git that owns the checkout.
+  return execFileSync('git', args, { encoding: 'utf8' }); // NOSONAR
 }
 
+/**
+ * NUL-separated (`-z`), never newline-separated.
+ *
+ * 🔴 Without `-z`, git's default `core.quotePath=true` C-quotes any path with
+ * non-ASCII bytes: the corpus file `test/test_playlist/Adeline Yeo (HP) - 梦….mp3`
+ * came back as `"test/test_playlist/Adeline Yeo (HP) - \346\242\246….mp3"` —
+ * leading quote, octal escapes, trailing quote. That string failed all three
+ * checks below at once: it does not start with `test/`, the AUDIO regex's `$`
+ * sees `.mp3"`, and `cat-file` cannot find it so the size reads as 0. The guard
+ * whose whole job is to stop the corpus passed exactly the files most likely to
+ * be in it.
+ */
 function listFiles() {
   const out = staged
-    ? git(['diff', '--cached', '--name-only', '--diff-filter=ACMR'])
-    : git(['ls-files']);
-  return out ? out.split('\n').filter(Boolean) : [];
+    ? git(['diff', '--cached', '--name-only', '-z', '--diff-filter=ACMR'])
+    : git(['ls-files', '-z']);
+  return out.split('\0').filter(Boolean);
 }
 
 function sizeOf(path) {
@@ -51,7 +65,7 @@ function sizeOf(path) {
   // still judged by what would actually be committed.
   const rev = staged ? `:${path}` : `HEAD:${path}`;
   try {
-    return Number(git(['cat-file', '-s', rev]));
+    return Number(git(['cat-file', '-s', rev]).trim());
   } catch {
     return 0; // not in that tree (e.g. not yet committed) — nothing to judge
   }

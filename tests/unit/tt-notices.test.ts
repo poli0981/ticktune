@@ -18,13 +18,18 @@ import { join } from 'node:path';
  * the hand-written table had: not that a row was wrong, but that six rows were
  * never going to exist.
  *
- * ⚠️ Skips when `dist/` is absent rather than passing vacuously — the same rule
- * `tt-csp-assets.test.ts` follows. CI builds before the E2E job, so it is a real
- * gate there.
+ * ⚠️ Skips when `dist/` is absent rather than passing vacuously — locally. Under
+ * `CI` a missing artifact FAILS, the same rule `tt-csp-assets.test.ts` follows:
+ * this suite used to claim CI was a real gate while ci.yml ran it before the
+ * build, so it never ran there at all.
  */
 
 const NOTICES = join(process.cwd(), 'dist', 'THIRD-PARTY-NOTICES.txt');
 const built = existsSync(NOTICES);
+
+it.runIf(!!process.env['CI'])('CI generated the notices before running this suite', () => {
+  expect(built, 'dist/THIRD-PARTY-NOTICES.txt is missing — run `pnpm build` first').toBe(true);
+});
 
 describe.skipIf(!built)('generated third-party notices', () => {
   const text = built ? readFileSync(NOTICES, 'utf8') : '';
@@ -55,6 +60,16 @@ describe.skipIf(!built)('generated third-party notices', () => {
       expect(text).toContain(pkg);
     }
     expect(text.match(/SIL OPEN FONT LICENSE/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+  });
+
+  it("carries Dexie's NOTICE, as Apache-2.0 §4(d) requires", () => {
+    /*
+     * The generator used to take the FIRST file matching one pattern that
+     * covered both LICENSE and NOTICE, so a package shipping both got only its
+     * LICENSE. Dexie's NOTICE holds its only copyright line — the attribution
+     * §4(d) exists to carry — and it was missing from every build since 1.0.
+     */
+    expect(text).toContain('Copyright (c) 2014-2017 David Fahlander');
   });
 
   it('reproduces actual licence text, not just a table of names', () => {
