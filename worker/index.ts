@@ -54,8 +54,19 @@ function json(body: unknown, status: number, ttlSeconds: number): Response {
   });
 }
 
+/**
+ * The cache key carries a version, because a hit is returned VERBATIM — headers
+ * included. An entry written by an older Worker therefore keeps that Worker's
+ * headers for its whole TTL: after this file dropped `ACAO: *` and added
+ * `nosniff`, a GET on the PR's preview still came back with v1.0's `*` and no
+ * `nosniff` (while a HEAD, which never reaches the cache, carried the new ones).
+ * Bump this whenever what is stored changes shape or headers; old entries are
+ * then never read again and simply expire.
+ */
+const CACHE_VERSION = 'v2';
+
 async function oembed(id: string, ctx: ExecutionContext): Promise<Response> {
-  const cacheKey = new Request(`https://tt-oembed.invalid/${id}`);
+  const cacheKey = new Request(`https://tt-oembed.invalid/${CACHE_VERSION}/${id}`);
   const cache = caches.default;
 
   const hit = await cache.match(cacheKey);
