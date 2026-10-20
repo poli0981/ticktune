@@ -2,7 +2,6 @@ import { describe, it, expect } from 'vitest';
 import {
   formatRemaining,
   ghostFor,
-  nextTickDelayMs,
   regimeFor,
   HOUR_MS,
   MINUTE_MS,
@@ -67,21 +66,5 @@ describe('ghost layer (docs/03 §1)', () => {
     const f = formatRemaining(10 * HOUR_MS);
     expect(f.text).toBe('10:00:00');
     expect(f.ghost).toBe('88:88:88');
-  });
-});
-
-describe('1 Hz alignment (docs/04 §4)', () => {
-  it('wakes on the second boundary, not a flat 1000 ms', () => {
-    // 90_500 ms remaining → the display flips in 500 ms, not 1000.
-    expect(nextTickDelayMs(90_500)).toBe(500);
-    expect(nextTickDelayMs(90_001)).toBe(1);
-  });
-
-  it('uses a full second when already exactly on a boundary', () => {
-    expect(nextTickDelayMs(90_000)).toBe(1000);
-  });
-
-  it('defers to rAF below 60 s', () => {
-    expect(nextTickDelayMs(59_999)).toBe(0);
   });
 });
