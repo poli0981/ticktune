@@ -249,6 +249,26 @@ describe('same-origin only — no CORS headers', () => {
     fetchMock.mockResolvedValue(new Response('', { status: 403 }));
     expect((await call(OEMBED + GOOD_ID)).headers.get('access-control-allow-origin')).toBeNull();
   });
+
+  it('never serves an entry cached by an older Worker, which still carries ACAO: *', async () => {
+    /*
+     * A hit is returned verbatim, headers and all. Measured on the PR preview:
+     * entries written before the header change kept serving `*` for their 6 h
+     * TTL. The versioned key means such an entry is simply never read again.
+     */
+    const stale = new Response('{"title":"old"}', {
+      headers: { 'content-type': 'application/json', 'access-control-allow-origin': '*' },
+    });
+    cache.match.mockImplementation((req: Request) =>
+      Promise.resolve(req.url === `https://tt-oembed.invalid/${GOOD_ID}` ? stale : undefined),
+    );
+    fetchMock.mockResolvedValue(Response.json({ title: 'fresh' }));
+
+    const res = await call(OEMBED + GOOD_ID);
+    expect(res.headers.get('access-control-allow-origin')).toBeNull();
+    expect(res.headers.get('x-content-type-options')).toBe('nosniff');
+    await expect(res.json()).resolves.toMatchObject({ title: 'fresh' });
+  });
 });
 
 describe('a 200 that is not a JSON object is transient — not a crash', () => {
