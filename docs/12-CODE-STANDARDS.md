@@ -88,6 +88,7 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-YT-005 | Player HTML5 error — skipped after 5 s like every player error (`06 §4`) |
 | TT-YT-006 | A `pending` track was re-checked on Start and now resolves — promoted to `ok`, metadata filled (`02 §1`, `06 §8`) |
 | TT-YT-007 | A `pending` track was re-checked on Start and the cause is now a property of the video — marked `error` and dropped from the order (`02 §6`) |
+| TT-YT-008 | Link lengths unavailable from `/api/yt/durations` — no key on this deployment, quota spent, edge unreachable or rate-limited. Info: lengths stay `–` until the player backfills them (`06 §3`) |
 | TT-YT-100 | Video unavailable (deleted/private) |
 | TT-YT-101 / 150 | Embedding blocked (embed-off / age / region) |
 | TT-SYS-201 | Wall-clock drift > 2 s re-anchored |

@@ -269,7 +269,11 @@ Curated list maintained in `tests/manual/yt-matrix.md` from **Spike S1**: one
 normal video, one deleted id, one embed-disabled, one age-restricted, one
 region-blocked (VN-visible vs not). Run before each release: assert each maps to
 the documented overlay + log code (`06 §4`). CI mocks `/api/yt/oembed` responses
-for the import-pipeline E2E instead of hitting YouTube.
+for the import-pipeline E2E instead of hitting YouTube, and `/api/yt/durations`
+the same way (`mockDurations`, v2.0) — but only in the specs about lengths:
+under `astro preview` that route is a 404, which is exactly "no key on this
+deployment", and every spec written before v2.0 asserts what that looks like.
+The real key is checked once per release on the PR's Version URL (`06 §3`).
 
 ## 5. Performance budget (checked in P7)
 

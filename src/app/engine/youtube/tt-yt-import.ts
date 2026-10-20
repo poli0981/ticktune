@@ -202,3 +202,38 @@ function track(
     addedAt: ports.now(),
   };
 }
+
+/**
+ * Which links still need a length — docs/06 §3 (v2.0).
+ *
+ * Every playable link whose `durationMs` is unknown, once per video. Refused
+ * links are not in the queue, and a track already marked `error` will never
+ * play, so neither costs a lookup. `pending` ones are asked too: the oEmbed
+ * blip that left them pending says nothing about whether Google can be reached
+ * from the edge.
+ */
+export function ytDurationTargets(queue: readonly TtTrack[]): string[] {
+  const ids = queue
+    .filter((t) => isPlayable(t) && t.videoId !== undefined && t.durationMs === null)
+    .map((t) => t.videoId as string);
+  return [...new Set(ids)].slice(0, TT_QUEUE_CAP.youtube);
+}
+
+/**
+ * The Worker's answer, believed only as far as it goes.
+ *
+ * Only ids that were ASKED, only finite positive numbers. Anything else — a
+ * missing key, a `null` (live, private, gone), a string — is simply absent, so
+ * the track keeps `–` and the player still backfills it on play.
+ */
+export function readDurations(body: unknown, asked: readonly string[]): Map<string, number> {
+  const out = new Map<string, number>();
+  const table =
+    body !== null && typeof body === 'object' ? (body as { durations?: unknown }).durations : null;
+  if (table === null || typeof table !== 'object') return out;
+  for (const id of asked) {
+    const ms = (table as Record<string, unknown>)[id];
+    if (typeof ms === 'number' && Number.isFinite(ms) && ms > 0) out.set(id, ms);
+  }
+  return out;
+}

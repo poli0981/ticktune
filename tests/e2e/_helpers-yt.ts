@@ -191,6 +191,42 @@ export async function mockOembed(
   });
 }
 
+/**
+ * Stand in for `/api/yt/durations` (docs/06 §3, v2.0).
+ *
+ * Not part of `gotoYouTubeApp`: under `astro preview` the route does not exist,
+ * its 404 is exactly "no key on this deployment", and every spec written before
+ * v2.0 asserts what that looks like — lengths unknown until the player plays.
+ *
+ * @param table id → milliseconds (null for a video with no length), or a
+ *   failure word, answered with the status the Worker would use.
+ * @returns every `ids` list the app asked for, in order.
+ */
+export async function mockDurations(
+  page: Page,
+  table: Record<string, number | null> | 'not_configured' | 'rate_limited',
+): Promise<string[][]> {
+  const asked: string[][] = [];
+  await page.route('**/api/yt/durations*', (route) => {
+    const ids = (new URL(route.request().url()).searchParams.get('ids') ?? '').split(',');
+    asked.push(ids);
+    if (typeof table === 'string') {
+      return route.fulfill({
+        status: table === 'rate_limited' ? 429 : 503,
+        contentType: 'application/json; charset=utf-8',
+        body: JSON.stringify({ error: table }),
+      });
+    }
+    const durations = Object.fromEntries(ids.map((id) => [id, table[id] ?? null]));
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ durations }),
+    });
+  });
+  return asked;
+}
+
 /** Both stubs, then the app, gate cleared. */
 export async function gotoYouTubeApp(
   page: Page,

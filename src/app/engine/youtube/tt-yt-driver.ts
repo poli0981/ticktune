@@ -1,4 +1,5 @@
 import { ytCauseFromResponse } from '../../../lib/tt-yt-cause';
+import { readDurations } from './tt-yt-import';
 import type { TtYtLookup, TtYtMeta, TtYtPorts } from './types';
 
 /**
@@ -76,6 +77,35 @@ async function lookup(videoId: string): Promise<TtYtLookup> {
      * response we cannot attribute: transient, and the track survives.
      */
     return { ok: false, cause: 'upstream_unreachable' };
+  }
+}
+
+/**
+ * docs/06 §3 (v2.0) — lengths for a batch of links, one request.
+ *
+ * Never rejects, and `null` means "not now" whatever the reason: no key on this
+ * deployment, the quota spent, the edge unreachable, a 429. The track keeps
+ * `–`, "Match queue length" keeps its reason, and the player still backfills
+ * the length on play — exactly the v1 behaviour, so a failure here costs a
+ * convenience and nothing else. Which of those it was is the Worker's log to
+ * tell; the status is read before the body for the reason `lookup` gives.
+ */
+export async function lookupDurations(ids: readonly string[]): Promise<Map<string, number> | null> {
+  if (ids.length === 0) return new Map();
+  let res: Response;
+  try {
+    res = await fetch(`/api/yt/durations?ids=${ids.map(encodeURIComponent).join(',')}`, {
+      headers: { accept: 'application/json' },
+      signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS),
+    });
+  } catch {
+    return null;
+  }
+  if (!res.ok) return null;
+  try {
+    return readDurations(await res.json(), ids);
+  } catch {
+    return null;
   }
 }
 

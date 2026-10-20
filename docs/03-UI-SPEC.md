@@ -308,8 +308,12 @@ the computed opacity and the box, not ask the platform whether it is visible.
 
    **"Match queue length"** sets the countdown to
    `clamp(ceil(Σ durationMs / 1000) · 1000, 1 s, 24 h)`. It is **disabled** when
-   the queue is empty, when any queued track's `durationMs` is `null`, and in
-   YouTube mode (where durations stay `null` until player backfill, `06 §5`).
+   the queue is empty or when any queued track's `durationMs` is `null`. Links
+   get their lengths at import from the Data API since v2.0 (`06 §3`), so it
+   works for a YouTube queue too; until v2.0 their lengths stayed `null` until
+   player backfill, which disabled it for every link queue. A deployment
+   without the key, or a live stream in the queue, still disables it — with
+   the reason shown.
    It is **one-shot**: it does not re-compute when the queue changes afterwards,
    because a user who then edits the countdown by hand must not have that
    silently overwritten.

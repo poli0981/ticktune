@@ -24,6 +24,20 @@
   // `workers_dev` false, Version URLs default to OFF, so this must be explicit.
   "preview_urls": true,
 
+  // docs/06 §3, docs/10 §6 — a per-IP budget in front of the YouTube Data API
+  // quota (10,000 units a day; one per /api/yt/durations call the cache cannot
+  // answer). Counted in each edge location's memory and never logged — the
+  // Privacy Policy says so. 20 a minute is far above a person pasting links
+  // (one call per paste) and far below what would drain the quota.
+  // `namespace_id` is any account-unique integer; the Worker reads `name`.
+  "ratelimits": [
+    {
+      "name": "YT_DURATIONS_LIMIT",
+      "namespace_id": "1001",
+      "simple": { "limit": 20, "period": 60 },
+    },
+  ],
+
   // 🔴 This setting is DISCLOSED in legal/PRIVACY-POLICY.md. It is not a free
   // debug toggle: enabled, it writes one invocation log per Worker call —
   // request, response, and Cloudflare's country — retained 7 days on Workers

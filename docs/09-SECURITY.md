@@ -11,6 +11,7 @@ static client-side app, not theater.
 | User media/privacy | Exfiltration, tracking | Files never transmitted; the only telemetry is the cookieless Cloudflare Web Analytics beacon (page-level timing, disclosed in the Privacy Policy, no access to app state); fonts self-hosted; youtube-nocookie |
 | The site itself | Defacement via supply chain, CI compromise | Lockfile-pinned deps, `pnpm audit` + CodeQL + Dependabot in CI, least-privilege workflow permissions (`14 §3`) |
 | Edge endpoint `/api/yt/oembed` | Abuse as open proxy, request floods | Strict `videoId` validation (11-char regex only — it is *not* a URL proxy), same-origin only (no CORS headers since v1.1), bounded upstream wait, 6 h edge cache, CF rate-limiting rule (`10 §6`) |
+| Edge endpoint `/api/yt/durations` (v2.0) | Key theft, quota exhaustion, open proxy | Key is a Worker secret sent in a header — never in the page or a URL; ≤ 50 ids, each the same 11-char regex; same-origin only; per-id edge cache (24 h, 15 min for "none"); per-IP Workers rate limit (`10 §6`); fails closed to "no lengths", which costs a convenience and nothing else (`06 §3`) |
 | DDoS / bots | Volumetric attacks | Cloudflare default DDoS mitigation + WAF and rate-limit rules (`10 §5`–`§6`); Bot Fight Mode stays **off** (`10 §4`) |
 
 Out of scope (no backend, no accounts, no PII stored): SQLi, authn/z, session
@@ -40,7 +41,8 @@ attacks, GDPR data-subject tooling (nothing to export/delete server-side).
 ```
 /_astro/*      Cache-Control: public, max-age=31536000, immutable   (hashed assets)
 /fonts/*       Cache-Control: public, max-age=31536000, immutable   (pinned release)
-/api/*         Cache-Control: public, max-age=21600                 (set by Worker)
+/api/*         Cache-Control: set by the Worker per answer — oEmbed 6 h, lengths 15 min,
+               failures max-age=0 (`06 §3`)
 html           Cache-Control: public, max-age=0, must-revalidate    (platform default)
 ```
 

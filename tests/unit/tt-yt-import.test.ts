@@ -1,5 +1,10 @@
 import { describe, expect, it, vi } from 'vitest';
-import { importLinks, reachedEdge } from '../../src/app/engine/youtube/tt-yt-import';
+import {
+  importLinks,
+  reachedEdge,
+  readDurations,
+  ytDurationTargets,
+} from '../../src/app/engine/youtube/tt-yt-import';
 import type { TtYtLookup, TtYtPorts } from '../../src/app/engine/youtube/types';
 import type { TtImportResult, TtTrack } from '../../src/app/engine/importer/types';
 
@@ -302,4 +307,53 @@ describe('reachedEdge — docs/06 §8, the authority the doc always named', () =
     expect(reachedEdge(res({ skipped: [{ code: 'TT-IMP-005', fileName: 'dup' }] }))).toBeNull();
     expect(reachedEdge(res())).toBeNull();
   });
+});
+
+describe('lengths from the Data API — docs/06 §3 (v2.0)', () => {
+  const link = (videoId: string, over: Partial<TtTrack> = {}): TtTrack => ({
+    id: `t-${videoId}`,
+    source: 'youtube',
+    status: 'ok',
+    title: '',
+    artist: '',
+    durationMs: null,
+    videoId,
+    addedAt: 0,
+    ...over,
+  });
+  const A = 'dQw4w9WgXcQ';
+  const B = 'jNQXAC9IVRw';
+
+  it('asks for every playable link without a length, once per video', () => {
+    const queue = [
+      link(A),
+      link(A, { id: 'dup' }), // allowDuplicates: one video, one question
+      link(B, { status: 'pending' }), // the oEmbed blip says nothing about Google
+      link('9bZkp7q19f0', { durationMs: 253_000 }), // already known
+      link('kJQP7kiw5Fk', { status: 'error' }), // will never play
+    ];
+    expect(ytDurationTargets(queue)).toEqual([A, B]);
+  });
+
+  it('never asks for more than one call can carry', () => {
+    const queue = Array.from({ length: 60 }, (_, i) =>
+      link(`${String(i).padStart(2, '0')}xxxxxxxxx`),
+    );
+    expect(ytDurationTargets(queue)).toHaveLength(50);
+  });
+
+  it('believes only positive numbers for ids it asked about', () => {
+    const got = readDurations(
+      { durations: { [A]: 253_000, [B]: null, other: 1_000, x: 'PT1M', y: 0, z: -5 } },
+      [A, B, 'x', 'y', 'z'],
+    );
+    expect([...got]).toEqual([[A, 253_000]]);
+  });
+
+  it.each([null, 'text', 42, { durations: null }, { durations: 'nope' }, {}])(
+    'an answer that is not a table (%j) yields nothing, never a throw',
+    (body) => {
+      expect(readDurations(body, [A]).size).toBe(0);
+    },
+  );
 });
