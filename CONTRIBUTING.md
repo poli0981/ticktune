@@ -14,6 +14,7 @@ pnpm dev            # http://localhost:4321
 ```
 
 Optional: `pnpm wrangler dev` to exercise the `/api/yt/oembed` route locally.
+Enable the corpus guard once per clone: `git config core.hooksPath .githooks`.
 
 ## Before you code
 
@@ -27,16 +28,27 @@ Optional: `pnpm wrangler dev` to exercise the `/api/yt/oembed` route locally.
 1. Branch from `main`: `feat/…`, `fix/…`, `docs/…`, `chore/…`, `spike/…`.
 2. Conventional Commits (`feat: add ring visualizer sensitivity`).
 3. Keep PRs focused; UI changes include a screenshot/clip.
+4. Merging to `main` does **not** deploy. Production changes only with a signed
+   release tag (`docs/14`), so a merged PR is safe to sit until the next
+   release.
 
 ## PR checklist (CI enforces most of these)
 
 - [ ] `pnpm lint` · `pnpm check` · `pnpm test` pass
 - [ ] `pnpm knip` clean (no unused files/exports/deps)
-- [ ] New user-facing strings exist in **both** `en.json` and `vi.json`
+- [ ] New user-facing strings exist in **both** languages: the app's
+      `src/app/i18n/{en,vi}.json`, or the static pages'
+      `src/i18n/static/{en,vi}.ts` — and every app key has a literal
+      `i18n.t('…')` caller, or the build fails (`docs/08 §3`)
 - [ ] New log events use codes registered in `docs/12 §6`
-- [ ] New dependency? License checked for GPL-3.0 compatibility + row added to
-      `legal/THIRD-PARTY-NOTICES.md` (`docs/11 §5`)
+- [ ] New dependency? Licence checked for GPL-3.0 compatibility. A
+      **distributed** dependency also gets a row in
+      `legal/THIRD-PARTY-NOTICES.md` (both languages); dev-only tooling does not
+      (`docs/11 §5`)
 - [ ] New network origin? CSP (`docs/09 §4`) + Privacy Policy updated in this PR
+- [ ] A material change to any `legal/*.md`? Bump `TT_LEGAL_VERSION` in
+      `src/lib/tt-legal-const.ts` in the same PR, so users are asked again —
+      and batch legal changes, because every bump re-prompts everyone
 - [ ] Behavior changes reflected in the relevant `docs/` chapter
 
 ## Reporting bugs
@@ -45,7 +57,12 @@ Use the bug template — it **requires** the browser console errors and (ideally
 the output of Settings → Diagnostics → **Copy Diagnostics**. Reports without
 console output usually can't be diagnosed and will be sent back for info.
 
+## Security
+
+Never report a vulnerability in a public issue — see
+[`.github/SECURITY.md`](.github/SECURITY.md) (security@poli0981.dev or private
+vulnerability reporting).
+
 ## Community
 
-Discussions happen on GitHub Issues and the project Discord (link in README).
-Be kind; EN and VI are both welcome.
+Discussions happen on GitHub Issues. Be kind; EN and VI are both welcome.
