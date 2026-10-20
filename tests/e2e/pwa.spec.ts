@@ -31,6 +31,8 @@ async function controlled(page: Page): Promise<boolean> {
 }
 
 test.describe('offline start — docs/10 §9', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
+
   test('a visited /app/ starts offline, imports a file and counts down', async ({
     page,
     context,
