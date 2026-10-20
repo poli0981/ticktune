@@ -17,9 +17,10 @@ export default tseslint.config(
       // The local spike corpus is never linted — it is audio, and it is ignored
       // by git anyway (see .gitignore).
       'test/**',
-      // Claude Code worktrees are full working copies, each with its own dist/.
-      // Git ignores them; `eslint .` did not, and linted every copy locally.
-      '.claude/worktrees/**',
+      // Claude Code's local state: worktrees (full working copies, each with its
+      // own dist/) and review scratch. Nothing under .claude/ is tracked, so
+      // `eslint .` was linting files no commit or CI run can ever contain.
+      '.claude/**',
     ],
   },
 
