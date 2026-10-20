@@ -1,5 +1,11 @@
 import { test, expect, type Page } from './_fixtures';
-import { dismissUnloadDialogs, gotoApp, setDuration, stageSingle } from './_helpers';
+import {
+  dismissUnloadDialogs,
+  gotoApp,
+  setDuration,
+  stageSingle,
+  storedSettings,
+} from './_helpers';
 
 /**
  * Offline start — docs/10 §9 (v2.0).
@@ -32,6 +38,9 @@ async function controlled(page: Page): Promise<boolean> {
 
 test.describe('offline start — docs/10 §9', () => {
   test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
+  // The suite blocks service workers (playwright.config.ts says why); this is
+  // the one place that is about them.
+  test.use({ serviceWorkers: 'allow' });
 
   test('a visited /app/ starts offline, imports a file and counts down', async ({
     page,
@@ -40,9 +49,27 @@ test.describe('offline start — docs/10 §9', () => {
     dismissUnloadDialogs(page);
     await gotoApp(page);
     test.skip(!(await controlled(page)), 'no service worker took control in this browser build');
+    // The acceptance must be ON DISK before the reload: a write still in
+    // flight dies with the page (`storedSettings`' own note). The worker can
+    // take control while the gate is still being accepted, and on CI the
+    // reload won that race — the gate came back offline.
+    await expect.poll(async () => (await storedSettings(page))?.['legalAccepted']).toBeTruthy();
 
     await context.setOffline(true);
-    await page.reload();
+    const reloaded = await page.reload().then(
+      () => true,
+      (e: unknown) => {
+        if (e instanceof Error && e.message.includes('NS_ERROR_OFFLINE')) return false;
+        throw e;
+      },
+    );
+    // Playwright's Firefox offline mode refuses the navigation before any
+    // service worker can answer it. That is the emulation, not the app: a real
+    // offline Firefox start is a manual line of the v2.0 live checklist.
+    test.skip(
+      !reloaded,
+      'offline emulation refuses navigations before the worker (NS_ERROR_OFFLINE)',
+    );
     await page.waitForFunction(() => !!document.documentElement.dataset['ttBooted']);
     // The gate was accepted online and Dexie kept it: no dialog offline.
     await expect(page.locator('[role=dialog]')).toHaveCount(0);
