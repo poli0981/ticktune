@@ -28,8 +28,14 @@
  * `§4` omitted, and a `§0` that finally names who runs this — and promoting in a
  * later release would have re-prompted every user a second time for changes they
  * had already accepted. Batch legal changes; the gate is a cost, not a feature.
+ *
+ * 🔁 **`1.0` → `1.1` in v1.1**, one bump for everything at once: Cloudflare Web
+ * Analytics joined the site (new data flow, disclosed in the Privacy Policy),
+ * the Worker-log retention became 7 days on Workers Paid (the policy said 3),
+ * contacts moved to role addresses, the YouTube ToS and Google Privacy links
+ * that the YouTube API terms require were added, and the set was shortened.
  */
-export const TT_LEGAL_VERSION = '1.0';
+export const TT_LEGAL_VERSION = '1.1';
 
 /**
  * The legal set, as one table.

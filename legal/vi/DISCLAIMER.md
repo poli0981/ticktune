@@ -1,38 +1,28 @@
 # TickTune — Tuyên bố miễn trừ trách nhiệm
 
-Version 1.0 · 2026-07-24 · Bản tiếng Anh là bản gốc có hiệu lực; đây là
-bản dịch cung cấp cho thuận tiện. Bản tóm tắt hiển thị tại Cổng pháp lý; toàn
-văn tại `/legal/disclaimer` và trong kho mã nguồn.
+Version 1.1 · 2026-10-20 · Bản tiếng Anh là bản gốc có hiệu lực; đây là bản dịch
+cung cấp cho thuận tiện. Bản tóm tắt hiển thị tại Cổng pháp lý.
 
-1. **Nội dung do người dùng cung cấp.** Toàn bộ nhạc, hình ảnh, ảnh nền và liên
-   kết được nạp vào TickTune đều do người dùng cung cấp. Người dùng chịu hoàn
-   toàn trách nhiệm về việc sở hữu hoặc có đủ quyền đối với nội dung đó, cũng
-   như về tính hợp pháp của việc sử dụng nội dung. Trong phạm vi tối đa mà luật
-   hiện hành cho phép, TickTune và nhà phát triển không chịu bất kỳ trách nhiệm
-   hay nghĩa vụ pháp lý nào phát sinh từ nội dung do người dùng cung cấp.
+1. **Nội dung của bạn.** Mọi thứ TickTune phát đều do bạn cung cấp, và bạn chịu
+   hoàn toàn trách nhiệm về việc có quyền đối với nội dung đó. Trong phạm vi tối
+   đa pháp luật cho phép, TickTune và nhà phát triển không chịu trách nhiệm phát
+   sinh từ nội dung này.
 
-2. **Không liên kết.** TickTune là một dự án nguồn mở độc lập. Dự án không liên
-   kết, không được chứng thực và không được tài trợ bởi bất kỳ thương hiệu hay
-   tổ chức nào — bao gồm nhưng không giới hạn ở YouTube hoặc Google LLC. Mọi
-   nhãn hiệu thuộc về chủ sở hữu tương ứng.
+2. **Không liên kết.** TickTune là dự án độc lập, không liên kết, không được bảo
+   trợ hay tài trợ bởi YouTube, Google LLC hay bất kỳ thương hiệu, tổ chức nào
+   khác; mọi nhãn hiệu thuộc về chủ sở hữu của chúng.
 
-3. **Chỉ dành cho máy tính.** TickTune không hỗ trợ thiết bị di động. Nếu bạn
-   thấy màn hình chặn dành cho di động: vui lòng dùng trình duyệt trên máy tính
-   và thử lại.
+3. **YouTube.** Video chỉ được phát qua trình phát nhúng chính thức của YouTube.
+   TickTune không bao giờ tải xuống, trích xuất hay phát lại âm thanh hoặc video,
+   và không quyết định việc một video có khả dụng hay không.
 
-4. **Không lưu trữ và không truyền tệp của bạn.** Tệp trên máy được xử lý hoàn
-   toàn bên trong trình duyệt của bạn và chỉ được giữ trong bộ nhớ cho phiên làm
-   việc hiện tại. Chúng không bao giờ được tải lên bất kỳ máy chủ nào. Đóng hoặc
-   tải lại tab sẽ xóa danh sách phát (ứng dụng cảnh báo trước).
+4. **Thời gian.** Bộ đếm chính xác khi thẻ của nó đang hiển thị. Ở thẻ chạy nền,
+   trình duyệt có thể trì hoãn ứng dụng cho đến khi bạn quay lại — thời gian đã
+   đếm vẫn đúng, và màn hình Hết giờ cho biết thời điểm thực sự về 0. Đừng dựa
+   vào TickTune ở nơi thời gian liên quan đến an toàn hay công việc trọng yếu.
 
-5. **Phát nội dung YouTube.** Nội dung YouTube chỉ phát qua trình phát nhúng
-   chính thức của YouTube, tuân theo Điều khoản dịch vụ của YouTube. TickTune
-   không bao giờ trích xuất, tải xuống hay truyền lại âm thanh hoặc video. Việc
-   một video có phát được hay không (video còn tồn tại, cho phép nhúng, giới hạn
-   độ tuổi hoặc giới hạn khu vực) là do YouTube và chủ sở hữu video quyết định.
+5. **"NGUYÊN TRẠNG" ("AS IS").** Phần mềm và dịch vụ được cung cấp không kèm bất
+   kỳ bảo đảm nào, theo tinh thần GPL-3.0 §15–§16.
 
-6. **"AS IS" (nguyên trạng).** Phần mềm và dịch vụ được lưu trữ trực tuyến được
-   cung cấp "AS IS" — theo nguyên trạng, không kèm bất kỳ bảo đảm nào, theo tinh
-   thần của GPL-3.0 §15–§16. Phần hiển thị thời gian được cung cấp trên cơ sở nỗ
-   lực tối đa và không nên được tin cậy ở những nơi mà độ chính xác về thời gian
-   có tính chất trọng yếu đối với an toàn hoặc kinh doanh.
+6. **Chỉ dành cho máy tính.** TickTune được làm cho trình duyệt trên máy tính;
+   điện thoại và máy tính bảng chỉ có cảm ứng sẽ thấy thông báo thay vì ứng dụng.

@@ -1,31 +1,17 @@
 # TickTune — Third-Party Notices
 
-Version 1.0 · 2026-07-24 · English canonical; Vietnamese at
-`/legal/third-party`. Rendered there and linked from the Legal Gate and About
-panel. Process rule: any new dependency is added here in the same PR that
-introduces it, after a GPL-3.0 compatibility check (`docs/11 §5`).
+Version 1.1 · 2026-10-20 · English canonical; Vietnamese at
+`/legal/third-party/`.
 
-⚠️ A row here means the component is **distributed with the app**. Motion had a
-row reading "from P5; not yet installed" — P5 shipped without it, so the table
-was promising attribution for something no user ever received. Removed in P6
-slice B. Do not add a row ahead of the dependency: this file is the answer to
-"what am I actually running", not a plan.
-
-TickTune's own code: **GPL-3.0-only** — © 2026 poli0981.
+TickTune's own code is **GPL-3.0-only** — © 2026 poli0981. Licensing and
+attribution questions: **copyright@poli0981.dev**.
 
 ## Full attribution
 
-**This page is a curated overview. The complete notice — the full licence text
-and copyright line of every package in the shipped bundle, transitive ones
-included — is generated at build time and served at
-[`/THIRD-PARTY-NOTICES.txt`](/THIRD-PARTY-NOTICES.txt).**
-
-The two exist for different reasons and neither replaces the other. The table
-below is written for a person deciding whether to trust this app; the generated
-file is what the MIT, Apache-2.0 and OFL licences actually require to travel
-with a distribution. A hand-kept table cannot do the second job: `music-metadata`
-alone pulls six further packages into the bundle, and no reviewer was ever going
-to notice their absence.
+This page is a curated overview. The complete notice — the full licence text,
+copyright line and NOTICE file of every package in the shipped bundle,
+transitive ones included — is generated at build time and served at
+[`/THIRD-PARTY-NOTICES.txt`](/THIRD-PARTY-NOTICES.txt).
 
 ## Bundled / vendored components
 
@@ -36,30 +22,25 @@ to notice their absence.
 | @astrojs/svelte | MIT | integration |
 | Tailwind CSS | MIT | styling |
 | music-metadata | MIT | audio tag parsing |
-| Dexie.js | Apache-2.0 | IndexedDB wrapper (Apache-2.0 code combined into a GPL-3.0 project — one-way compatible) |
-| i18next | MIT | i18n runtime (26.3.6, installed in P5) |
-| DSEG7 Classic (font) | SIL OFL 1.1 | © 2017 keshikan (http://www.keshikan.net), **Reserved Font Name "DSEG"**. v0.46, vendored unmodified; the full licence ships with the build as `public/fonts/dseg7/OFL.txt` (OFL §2 requires it to accompany the font). Provenance and SHA-256 hashes: `public/fonts/dseg7/PROVENANCE.md`. The reserved name means the file must not be subset or regenerated while keeping the name — a derivative must be renamed. |
-| Be Vietnam Pro (font) | SIL OFL 1.1 | via @fontsource package (packaging MIT) |
-| JetBrains Mono (font) | SIL OFL 1.1 | via @fontsource package (packaging MIT) |
+| Dexie.js | Apache-2.0 | IndexedDB wrapper; its NOTICE is reproduced in the full attribution |
+| i18next | MIT | in-app translations |
+| DSEG7 Classic (font) | SIL OFL 1.1 | © 2017 keshikan (http://www.keshikan.net), **Reserved Font Name "DSEG"**. v0.46, vendored unmodified; its licence ships as `/fonts/dseg7/OFL.txt` |
+| Be Vietnam Pro (font) | SIL OFL 1.1 | via @fontsource (packaging MIT) |
+| JetBrains Mono (font) | SIL OFL 1.1 | via @fontsource (packaging MIT) |
 
-Dev-only tooling (TypeScript, ESLint, Prettier, knip, Vitest, Testing Library,
-happy-dom, Playwright, ffmpeg-static, Wrangler, pnpm) is **not distributed with
-the app**, so no notice obligation attaches to it and it gets no row above. Its
-GPL-3.0 *compatibility* is still checked before it lands, per `docs/11 §5` —
-the two questions are separate and only one of them stops at the build boundary.
+Development tools — the TypeScript toolchain, linters, test runners, Wrangler,
+pnpm and similar — are not distributed with the app and so carry no notice here.
 
 ## Services (not bundled)
 
 | Service | Terms |
 |---------|-------|
-| YouTube embedded player & IFrame Player API | YouTube Terms of Service; loaded at runtime from YouTube only in YouTube mode; never bundled or modified |
-| YouTube oEmbed (via our edge proxy) | Public oEmbed endpoint; only video IDs are forwarded |
-| Cloudflare (hosting/CDN/Workers) | Cloudflare service terms |
+| YouTube embedded player & IFrame Player API | [YouTube Terms of Service](https://www.youtube.com/t/terms); loaded from YouTube only in YouTube mode, never bundled or modified |
+| YouTube oEmbed (via our edge endpoint) | Public oEmbed endpoint; only video IDs are forwarded |
+| Cloudflare (hosting, CDN, Workers) | Cloudflare service terms |
+| Cloudflare Web Analytics | Cloudflare service terms; beacon loaded from `static.cloudflareinsights.com` (see the Privacy Policy) |
 
 ## Media
 
-**TickTune ships no audio files at all.** The end-of-countdown chime is
-synthesised at runtime by the app's own Web Audio code — two oscillators and an
-envelope (`docs/05 §7`) — so there is no audio asset in the build to license,
-attribute or account for. TickTune ships **no** third-party audio, images, or
-video.
+TickTune ships no audio, images or video from anyone else. The end-of-countdown
+chime is synthesised at runtime by the app's own Web Audio code.

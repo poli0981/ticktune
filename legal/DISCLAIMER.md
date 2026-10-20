@@ -1,36 +1,27 @@
 # TickTune — Disclaimer
 
-Version 1.0 · 2026-07-24 · English canonical; Vietnamese at `/legal/disclaimer`.
-Shown in summary at the Legal Gate; full text at `/legal/disclaimer` and in the
-repository.
+Version 1.1 · 2026-10-20 · English canonical; Vietnamese at
+`/legal/disclaimer/`. Summarised at the Legal Gate.
 
-1. **User-supplied content.** All music, images, backgrounds, and links loaded
-   into TickTune are supplied by the user. The user bears full responsibility
-   for owning or holding sufficient rights to that content and for the legality
-   of its use. To the maximum extent permitted by applicable law, TickTune and
-   its developer accept no responsibility or liability arising from
-   user-supplied content.
+1. **Your content.** Everything TickTune plays is supplied by you, and you bear
+   full responsibility for holding the rights to it. To the maximum extent the
+   law allows, TickTune and its developer accept no liability arising from it.
 
-2. **No affiliation.** TickTune is an independent open-source project. It is not
-   affiliated with, endorsed by, or sponsored by any brand or organization —
-   including, without limitation, YouTube or Google LLC. All trademarks belong
-   to their respective owners.
+2. **No affiliation.** TickTune is independent. It is not affiliated with,
+   endorsed or sponsored by YouTube, Google LLC or any other brand or
+   organisation; all trademarks belong to their owners.
 
-3. **Desktop only.** TickTune is not available on mobile devices. If you see the
-   mobile block screen: please use a desktop browser and try again.
+3. **YouTube.** Videos play only through YouTube's official embedded player.
+   TickTune never downloads, extracts or re-streams audio or video, and does not
+   decide whether a video is available.
 
-4. **No storage or transmission of your files.** Local files are processed
-   entirely inside your browser and held in memory for the current session only.
-   They are never uploaded to any server. Closing or reloading the tab clears
-   the playlist (the app warns first).
+4. **Timing.** The countdown is accurate while its tab is visible. In a
+   background tab the browser may delay the app until you return — the elapsed
+   time stays correct, and the Finished screen says when zero was actually
+   reached. Do not rely on TickTune where timing is safety- or business-critical.
 
-5. **YouTube playback.** YouTube content plays exclusively through the official
-   embedded YouTube player, subject to YouTube's Terms of Service. TickTune
-   never extracts, downloads, or re-streams audio or video. Whether a given
-   video is playable (existence, embedding permission, age or region
-   restrictions) is determined by YouTube and the video owner.
+5. **"AS IS".** The software and the hosted service are provided without
+   warranty of any kind, in the spirit of GPL-3.0 §15–§16.
 
-6. **"AS IS".** The software and the hosted service are provided "AS IS" without
-   warranties of any kind, in the spirit of GPL-3.0 §15–§16. Timing display is
-   provided on a best-effort basis and should not be relied upon where precise
-   timing is safety- or business-critical.
+6. **Desktop only.** TickTune is built for desktop browsers; phones and
+   touch-only tablets see a notice instead of the app.

@@ -33,7 +33,7 @@ export const vi: StaticDict = {
     features: [
       {
         title: 'Chạy hoàn toàn trong trình duyệt',
-        body: 'Tệp của bạn được đọc trong bộ nhớ của phiên và không bao giờ được tải lên. Không có tài khoản, cũng không có máy chủ nào để gửi đi.',
+        body: 'Tệp của bạn được đọc trong bộ nhớ của phiên và không bao giờ được tải lên. Không có tài khoản, và không gì bạn mở được gửi đi đâu cả.',
       },
       {
         title: 'Được làm ra để ngắm',
@@ -41,7 +41,7 @@ export const vi: StaticDict = {
       },
       {
         title: 'Thuộc về bạn',
-        body: 'GPL-3.0, mã nguồn công khai, không đo đạc và không phân tích hành vi. Bạn thấy gì thì nó là tất cả.',
+        body: 'GPL-3.0, mã nguồn công khai. Thứ duy nhất được đo là số lượt truy cập ẩn danh, không cookie — không bao giờ là tệp của bạn.',
       },
     ],
 
@@ -77,6 +77,10 @@ export const vi: StaticDict = {
     faqTitle: 'Câu hỏi thường gặp',
     legalTitle: 'Phần pháp lý',
     legalNote: 'Bản tiếng Anh là bản gốc có hiệu lực của mỗi văn bản.',
+    contactTitle: 'Liên hệ',
+    contactPress: 'Báo chí',
+    contactCollab: 'Hợp tác',
+    contactSecurity: 'Bảo mật',
   },
 
   faq: [
@@ -87,7 +91,7 @@ export const vi: StaticDict = {
     },
     {
       q: 'Tệp của tôi có bị tải lên đâu không?',
-      a: 'Không. Tệp trên máy được đọc ngay trong trình duyệt và chỉ giữ trong bộ nhớ của phiên. Không có điểm tiếp nhận tải lên, không đo đạc, không phân tích hành vi. Đóng hoặc tải lại tab là hàng chờ mất — ứng dụng sẽ hỏi bạn trước.',
+      a: 'Không. Tệp trên máy được đọc ngay trong trình duyệt và chỉ giữ trong bộ nhớ của phiên. Không có điểm tiếp nhận tải lên. Thứ duy nhất trang web đo là số lượt truy cập ẩn danh (Cloudflare Web Analytics, không cookie), và nó không bao giờ thấy tệp của bạn. Đóng hoặc tải lại tab là hàng chờ mất — ứng dụng sẽ hỏi bạn trước.',
     },
     {
       q: 'Sao điện thoại của tôi không dùng được?',
