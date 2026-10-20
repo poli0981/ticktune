@@ -140,29 +140,57 @@ const ogImageUrl = new URL(ogImage, Astro.site);
       mitigation in docs/07 §5. Never swap it out, and never UA-sniff crawlers.
     */
     }
-    <div class="tt-mobile-gate fixed inset-0 z-50 flex-col items-center justify-center gap-6 p-8">
-      <div class="flex items-center gap-2">
-        <span class="bg-tt-muted inline-block size-2.5 rounded-full" aria-hidden="true"></span>
-        <span class="text-tt-text text-lg font-semibold tracking-wide">TickTune</span>
-      </div>
-
-      {/* Bilingual and hardcoded — no JS i18n runs on mobile (docs/07 §4). */}
-      <p lang="vi" class="text-tt-text max-w-sm text-center text-balance">
-        Xin lỗi — TickTune không hỗ trợ thiết bị di động.<br />
-        Vui lòng mở bằng trình duyệt trên máy tính.
-      </p>
-      <p lang="en" class="text-tt-muted max-w-sm text-center text-sm text-balance">
-        Sorry — TickTune isn't available on mobile.<br />
-        Please use a desktop browser and try again.
-      </p>
-
-      <a
-        href={repo}
-        rel="noopener noreferrer"
-        class="text-tt-signal font-mono text-xs underline underline-offset-4"
+    <div
+      class="tt-mobile-gate fixed inset-0 z-(--tt-z-mobile-gate) flex-col items-center justify-center overflow-y-auto bg-tt-void [background-image:var(--tt-grain),radial-gradient(110%_70%_at_50%_0%,rgb(255_178_63/7%),transparent_65%)] p-6"
+    >
+      {
+        /*
+        v1.1 "Rack Unit": the notice is a powered-down module on the chassis —
+        tally lamp idle (docs/03 §1), engraved product plate, status LEDs dark.
+        Utilities and global.css primitives only: this layout carries no <style>,
+        and `display` stays global.css's (it shows the overlay only when blocked).
+      */
+      }
+      <div
+        class="tt-panel relative flex w-full max-w-sm flex-col items-center gap-5 px-6 pt-4 pb-7 text-center"
       >
-        github.com/poli0981/ticktune
-      </a>
+        <div
+          class="flex w-full items-center justify-between border-b border-black/60 pb-3 shadow-[0_1px_0_rgb(255_255_255/4%)]"
+        >
+          <span class="flex items-center gap-2">
+            <span
+              class="inline-block size-2.5 rounded-full bg-tt-muted shadow-[inset_0_0_0_1px_rgb(0_0_0/45%)]"
+              aria-hidden="true"></span>
+            <span class="tt-label">TickTune</span>
+          </span>
+          <span class="flex gap-2" aria-hidden="true">
+            <span class="tt-led"></span>
+            <span class="tt-led"></span>
+            <span class="tt-led"></span>
+          </span>
+        </div>
+
+        {/* Bilingual and hardcoded — no JS i18n runs on mobile (docs/07 §4). */}
+        <p
+          lang="vi"
+          class="font-display text-lg leading-snug font-semibold text-balance text-tt-text"
+        >
+          Xin lỗi — TickTune không hỗ trợ thiết bị di động.<br />
+          Vui lòng mở bằng trình duyệt trên máy tính.
+        </p>
+        <p lang="en" class="text-sm leading-relaxed text-balance text-tt-muted">
+          Sorry — TickTune isn't available on mobile.<br />
+          Please use a desktop browser and try again.
+        </p>
+
+        <a
+          href={repo}
+          rel="noopener noreferrer"
+          class="font-mono text-xs text-tt-signal underline decoration-tt-outline underline-offset-4 hover:decoration-tt-signal"
+        >
+          github.com/poli0981/ticktune
+        </a>
+      </div>
     </div>
   </body>
 </html>

@@ -14,6 +14,10 @@ import type { StaticDict } from '../../i18n/static/en';
  * Deliberate, and recorded here so nobody reads it as a bug.
  *
  * `noindex` on both: a 404 that gets indexed is a soft-404 in Search Console.
+ *
+ * v1.1 "Rack Unit": a channel display with nothing on it — the ON AIR sign is
+ * dark, and the seven-segment "404" flickers on like a tube finding a signal.
+ * The display and the sign are decoration; the heading is the message.
  */
 
 interface Props {
@@ -26,42 +30,215 @@ const { t, lang } = Astro.props;
 
 <TtBase title={t.notFound.title} description={t.notFound.body} {lang} noindex>
   <main class="tt-404">
-    <p class="tt-code font-digit" aria-hidden="true">404</p>
-    <h1>{t.notFound.heading}</h1>
-    <p class="tt-body">{t.notFound.body}</p>
-    <a href={lang === 'vi' ? '/' : '/en/'}>{t.common.backHome}</a>
+    <div class="tt-chassis">
+      <span class="tt-screws tt-screws-l" aria-hidden="true"></span>
+      <span class="tt-screws tt-screws-r" aria-hidden="true"></span>
+      <div class="tt-strip" aria-hidden="true">
+        <span class="tt-offair"><span class="tt-offair-lamp"></span>On Air</span>
+        <span class="tt-strip-leds">
+          <span class="tt-led" data-on="true"></span>
+          <span class="tt-led"></span>
+          <span class="tt-led"></span>
+        </span>
+      </div>
+
+      <p class="tt-display" aria-hidden="true">
+        <span class="tt-ch">CH</span>
+        <span class="tt-segs"><span class="tt-code">404</span></span>
+      </p>
+
+      <h1>{t.notFound.heading}</h1>
+      <p class="tt-body">{t.notFound.body}</p>
+      <a class="tt-key tt-key-primary tt-back" href={lang === 'vi' ? '/' : '/en/'}>
+        {t.common.backHome}
+      </a>
+    </div>
   </main>
 </TtBase>
 
 <style>
   .tt-404 {
     display: grid;
-    place-content: center;
-    justify-items: center;
-    gap: 0.6rem;
+    place-items: center;
     min-height: 100dvh;
-    padding: 2rem;
+    padding: var(--tt-space-6);
+  }
+
+  .tt-chassis {
+    position: relative;
+    display: grid;
+    justify-items: center;
+    width: min(32rem, 100%);
+    padding: var(--tt-space-4) var(--tt-space-6) var(--tt-space-7);
     text-align: center;
+    background-color: var(--color-tt-surface);
+    border: 1px solid var(--color-tt-line);
+    border-radius: var(--tt-radius-lg);
+    box-shadow: var(--tt-shadow-panel);
   }
-  .tt-code {
-    font-size: 3.75rem;
-    color: var(--color-tt-danger);
-    font-variant-numeric: tabular-nums;
+
+  /* Screws in the four corners, as on the landing's monitor — elements, not
+     pseudo-elements on the chassis, for the axe reason given in TtHero. */
+  .tt-screws {
+    position: absolute;
+    top: 9px;
+    bottom: 9px;
+    width: 8px;
+    pointer-events: none;
+    content: '';
+    background:
+      linear-gradient(135deg, transparent 40%, rgb(0 0 0 / 70%) 40% 60%, transparent 60%) top / 8px
+        8px no-repeat,
+      radial-gradient(circle closest-side, #8b8274 0 35%, #4d463d 60%, #1c1a16 88%, transparent)
+        top / 8px 8px no-repeat,
+      linear-gradient(45deg, transparent 40%, rgb(0 0 0 / 70%) 40% 60%, transparent 60%) bottom /
+        8px 8px no-repeat,
+      radial-gradient(circle closest-side, #8b8274 0 35%, #4d463d 60%, #1c1a16 88%, transparent)
+        bottom / 8px 8px no-repeat;
   }
-  h1 {
-    font-size: 1.125rem;
-    font-weight: 500;
+  .tt-screws-l {
+    left: 9px;
   }
-  .tt-body {
-    font-size: 0.85rem;
+  .tt-screws-r {
+    right: 9px;
+  }
+
+  .tt-strip {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    padding: 0 var(--tt-space-3) var(--tt-space-4);
+  }
+  /* The sign is OFF here — there is nothing on air. */
+  .tt-offair {
+    display: inline-flex;
+    gap: var(--tt-space-2);
+    align-items: center;
+    padding: 0.3rem 0.55rem;
+    font-family: var(--font-display);
+    font-size: var(--tt-text-xs);
+    font-weight: 600;
+    line-height: 1;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--color-tt-muted);
+    background: var(--color-tt-void);
+    border: 1px solid var(--color-tt-line);
+    border-radius: var(--tt-radius-xs);
+    box-shadow: var(--tt-shadow-pressed);
+  }
+  .tt-offair-lamp {
+    width: 7px;
+    height: 7px;
+    background: #3a1714;
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 50%);
+  }
+  .tt-strip-leds {
+    display: inline-flex;
+    gap: var(--tt-space-2);
+  }
+
+  /* The channel display: a recessed window, unlit segments behind the code. */
+  .tt-display {
+    position: relative;
+    display: flex;
+    gap: var(--tt-space-4);
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    padding: var(--tt-space-5) var(--tt-space-5);
+    background: #0b0a08;
+    border: 1px solid #000;
+    border-radius: var(--tt-radius-sm);
+    box-shadow:
+      inset 0 3px 12px rgb(0 0 0 / 75%),
+      0 1px 0 rgb(255 255 255 / 5%);
+  }
+  .tt-ch {
+    align-self: flex-start;
+    padding-top: 0.4em;
+    font-family: var(--font-mono);
+    font-size: var(--tt-text-sm);
+    letter-spacing: 0.1em;
     color: var(--color-tt-muted);
   }
-  a {
-    margin-top: 0.75rem;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    color: var(--color-tt-signal);
-    text-decoration: underline;
-    text-underline-offset: 3px;
+  /* The seven-segment code. Its unlit segments are the wrapper's generated
+     content (inside the aria-hidden display, so never read), which keeps them
+     steady while the lit segments flicker on above them. */
+  .tt-segs {
+    position: relative;
+    font-family: var(--font-digit);
+    font-size: clamp(4.5rem, 9vw, 7rem);
+    line-height: 1;
+  }
+  .tt-segs::before {
+    position: absolute;
+    inset: 0;
+    color: rgb(255 59 48 / 9%);
+    content: '888';
+  }
+  .tt-code {
+    position: relative;
+    color: var(--color-tt-danger);
+    text-shadow:
+      0 0 12px rgb(255 59 48 / 55%),
+      0 0 36px rgb(255 59 48 / 25%);
+  }
+
+  h1 {
+    margin-top: var(--tt-space-6);
+    font-family: var(--font-display);
+    font-size: var(--tt-text-2xl);
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--color-tt-text);
+    text-wrap: balance;
+  }
+  .tt-body {
+    margin-top: var(--tt-space-2);
+    font-size: var(--tt-text-base);
+    color: var(--color-tt-muted);
+  }
+  .tt-back {
+    margin-top: var(--tt-space-6);
+  }
+
+  /* The tube finding a signal: a few uneven flickers, then steady. The code is
+     decoration (aria-hidden) and the page's text never animates. */
+  @media (prefers-reduced-motion: no-preference) {
+    .tt-code {
+      animation: tt-flicker-on 1400ms linear 250ms backwards;
+    }
+  }
+  @keyframes tt-flicker-on {
+    0%,
+    8% {
+      opacity: 0;
+    }
+    10% {
+      opacity: 0.9;
+    }
+    13% {
+      opacity: 0.1;
+    }
+    22% {
+      opacity: 1;
+    }
+    25% {
+      opacity: 0.25;
+    }
+    34%,
+    40% {
+      opacity: 1;
+    }
+    42% {
+      opacity: 0.55;
+    }
+    48%,
+    100% {
+      opacity: 1;
+    }
   }
 </style>
