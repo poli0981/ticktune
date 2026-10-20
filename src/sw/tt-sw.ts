@@ -89,7 +89,14 @@ if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWo
    * cache in creation order, so the previous version's copy of an unhashed
    * file — /app/ itself — would win, and an offline start would boot the app
    * as it was one deploy ago.
+   *
+   * `ignoreVary` on every lookup: a server that answers `Vary: Origin` (the
+   * preview server does) stores the precache under a request with no Origin,
+   * and a module script or a font is fetched WITH one — so every lookup missed
+   * and the offline start failed on its first script (measured). A URL here is
+   * hashed or versioned with this worker; no header can change what it names.
    */
+  const FIND = { ignoreVary: true } as const;
   const shell = async (request: Request): Promise<Response> => {
     const current = await caches.open(CACHE);
     try {
@@ -97,7 +104,7 @@ if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWo
       if (res.ok) await current.put('/app/', res.clone());
       return res;
     } catch {
-      return (await current.match('/app/')) ?? Response.error();
+      return (await current.match('/app/', FIND)) ?? Response.error();
     }
   };
 
@@ -105,7 +112,7 @@ if (typeof ServiceWorkerGlobalScope !== 'undefined' && self instanceof ServiceWo
   // which only the previous version's cache still holds.
   const asset = async (request: Request): Promise<Response> => {
     const current = await caches.open(CACHE);
-    const hit = (await current.match(request)) ?? (await caches.match(request));
+    const hit = (await current.match(request, FIND)) ?? (await caches.match(request, FIND));
     if (hit) return hit;
     const res = await fetch(request);
     if (res.ok && res.type === 'basic') await current.put(request, res.clone());

@@ -7,11 +7,13 @@
  *
  * - `TT_PRECACHE` — /app/ plus every file it can ask for: the content-hashed
  *   `_astro/` bundle (scripts, styles, the fontsource faces), the pinned
- *   `fonts/`, the icons and the manifest. Media is excluded by extension:
- *   nothing the app plays is ever the app's own file.
- * - `TT_SW_VERSION` — a hash of those URLs and their bytes, so a deploy that
- *   changes nothing installs nothing, and one that changes a byte installs a
- *   fresh cache.
+ *   `fonts/`, the icons and the manifest. Media is excluded by extension —
+ *   nothing the app plays is ever the app's own file — and so is `.woff`:
+ *   fontsource ships it beside every `.woff2` as a fallback no supported
+ *   browser takes, and it was a fifth of the precache.
+ * - `TT_SW_VERSION` — a hash of those URLs, their bytes and the worker's own
+ *   code, so a deploy that changes nothing installs nothing, and one that
+ *   changes a byte installs a fresh cache.
  */
 import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
@@ -20,7 +22,7 @@ import ts from 'typescript';
 
 const DIST = 'dist';
 const SOURCE = 'src/sw/tt-sw.ts';
-const MEDIA = /\.(?:mp4|webm|mov|m4v|mp3|m4a|aac|wav|flac|ogg|oga|opus)$/i;
+const SKIP = /\.(?:mp4|webm|mov|m4v|mp3|m4a|aac|wav|flac|ogg|oga|opus|woff)$/i;
 
 function walk(dir: string): string[] {
   if (!existsSync(dir)) return [];
@@ -37,8 +39,9 @@ if (!existsSync(join(DIST, 'app', 'index.html'))) {
 
 const files = [
   join(DIST, 'app', 'index.html'),
-  ...walk(join(DIST, '_astro')).filter((f) => !MEDIA.test(f)),
-  ...walk(join(DIST, 'fonts')),
+  ...walk(join(DIST, '_astro')).filter((f) => !SKIP.test(f)),
+  // The faces only — not the licence and provenance notes that travel with them.
+  ...walk(join(DIST, 'fonts')).filter((f) => f.endsWith('.woff2')),
   ...walk(join(DIST, 'icons')),
   join(DIST, 'manifest.webmanifest'),
   join(DIST, 'favicon.svg'),
@@ -48,15 +51,6 @@ const url = (file: string) =>
   file === join(DIST, 'app', 'index.html')
     ? '/app/'
     : `/${relative(DIST, file).split(sep).join('/')}`;
-
-const hash = createHash('sha256');
-let bytes = 0;
-for (const file of files) {
-  const body = readFileSync(file);
-  bytes += body.length;
-  hash.update(url(file)).update('\0').update(body);
-}
-const version = hash.digest('hex').slice(0, 12);
 
 const js = ts
   .transpileModule(readFileSync(SOURCE, 'utf8'), {
@@ -68,6 +62,18 @@ const js = ts
   })
   .outputText.replace(/^export \{\};?\s*$/gm, '')
   .replace(/^export /gm, '');
+
+const hash = createHash('sha256');
+let bytes = 0;
+for (const file of files) {
+  const body = readFileSync(file);
+  bytes += body.length;
+  hash.update(url(file)).update('\0').update(body);
+}
+// The worker's own code too: a change to how it routes must install a new
+// cache name even when not one precached byte moved.
+hash.update(js);
+const version = hash.digest('hex').slice(0, 12);
 
 writeFileSync(
   join(DIST, 'sw.js'),
