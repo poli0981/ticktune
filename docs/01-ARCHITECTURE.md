@@ -149,12 +149,15 @@ ticktune/
 │   ├── make-fixtures.ts           # generates tests/e2e/fixtures/ (13 §3)
 │   ├── make-demo.ts               # records public/demo/ from the real app
 │   ├── make-brand-assets.mjs      # rasterises favicon + social card
-│   └── ensure-ffmpeg.ts           # the two generators' ffmpeg, on demand
+│   ├── ensure-ffmpeg.ts           # the two generators' ffmpeg, on demand
+│   └── run-spikes.ts              # `pnpm spikes`: TT_SPIKES=1 build + preview (15)
 ├── src/
 │   ├── layouts/TtBase.astro       # <head>: mobile gate inline script, meta,
 │   │                              # analytics beacon; the mobile notice
 │   ├── content.config.ts          # the legal/*.md collections (08 §1)
 │   ├── env.d.ts
+│   ├── spike/                     # harnesses (15): pages/ + s1/ s3/ s4/ — routed only
+│   │                              # for `astro dev` or TT_SPIKES=1 → dist-spikes/ (§5)
 │   ├── lib/
 │   │   ├── tt-gate-const.ts       # TT_GATE, inlined verbatim into the head (07 §2)
 │   │   ├── tt-legal-const.ts      # TT_LEGAL_VERSION + the legal-route table
@@ -174,7 +177,6 @@ ticktune/
 │   │   ├── en/index.astro         # landing EN
 │   │   ├── app/index.astro        # mounts the app island (see §3 mount note)
 │   │   ├── legal/{eula,privacy,disclaimer,third-party}.astro  (+ en/legal/)
-│   │   ├── spike/{s1-youtube,s3-metadata,s4-crossfade}.astro  # harnesses (15)
 │   │   └── 404.astro · en/404.astro   # required by not_found_handling (§5)
 │   ├── app/
 │   │   ├── mount.ts               # island entry — the load guard's import target
@@ -195,7 +197,6 @@ ticktune/
 │   │   │   ├── youtube/           # pure modules + TWO drivers: oEmbed fetch
 │   │   │   │                      # (tt-yt-driver) and player (tt-yt-player-driver)
 │   │   │   ├── log/ · queue/ · visuals/   # pure, no driver
-│   │   ├── spike/                 # the spike harness components (15)
 │   │   ├── state/                 # {session,settings,playback,yt,backdrop,
 │   │   │                          #  i18n}.svelte.ts + tt-settings-schema.ts
 │   │   └── i18n/{en,vi}.json      # RUNTIME dictionary (08 §2)

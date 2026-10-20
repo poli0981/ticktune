@@ -143,6 +143,41 @@ function ttBundledPackages() {
   };
 }
 
+/** The spike harnesses (docs/15) — `src/spike/pages/<slug>.astro`. */
+const TT_SPIKE_SLUGS = ['s1-youtube', 's3-metadata', 's4-crossfade'];
+
+/**
+ * Route the spike harnesses for `astro dev`, or for a build with TT_SPIKES=1 —
+ * and send THAT build to dist-spikes/, never to the dist/ that CI tests and
+ * deploy.yml ships (docs/15 §Scope rule).
+ *
+ * Until v2.0 they were plain pages under src/pages/spike/, so every deploy
+ * published three throwaway harnesses at /spike/*: `noindex` and out of the
+ * sitemap, but live. Static assets are served before the Worker runs, so
+ * nothing at the edge could have gated them; the only fix was not to build
+ * them. `pnpm spikes` (scripts/run-spikes.ts) builds and previews them.
+ *
+ * @returns {import('astro').AstroIntegration}
+ */
+function ttSpikeRoutes() {
+  return {
+    name: 'tt-spike-routes',
+    hooks: {
+      'astro:config:setup': ({ command, injectRoute, updateConfig, config }) => {
+        if (command !== 'dev' && process.env['TT_SPIKES'] !== '1') return;
+        if (command !== 'dev') updateConfig({ outDir: new URL('./dist-spikes/', config.root) });
+        for (const slug of TT_SPIKE_SLUGS) {
+          injectRoute({
+            pattern: `/spike/${slug}`,
+            entrypoint: `./src/spike/pages/${slug}.astro`,
+            prerender: true,
+          });
+        }
+      },
+    },
+  };
+}
+
 // This file is the source of truth; docs/01 §5 says what each setting is for.
 export default defineConfig({
   // No SSR — docs/01 §6 non-goal. Exactly one dynamic route exists and it is a
@@ -159,6 +194,7 @@ export default defineConfig({
   // that both skips SSR and fetches nothing on a blocked viewport.
   integrations: [
     svelte(),
+    ttSpikeRoutes(),
     /*
      * Sitemap — P6.
      *
@@ -180,8 +216,9 @@ export default defineConfig({
      */
     sitemap({
       filter: (page) =>
-        // The app is not content; the spikes are throwaway harnesses; a 404 in
-        // a sitemap is a soft-404 waiting to happen.
+        // The app is not content; the spikes are throwaway harnesses (and only
+        // ever built into dist-spikes/); a 404 in a sitemap is a soft-404
+        // waiting to happen.
         !page.includes('/app') && !page.includes('/spike/') && !page.includes('/404'),
     }),
   ],

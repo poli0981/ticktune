@@ -17,6 +17,8 @@
 # ─── Dependencies & build output ─────────────────────────────────────────────
 node_modules/
 dist/
+# The spike harness build (TT_SPIKES=1, docs/15) — never shipped, never committed.
+dist-spikes/
 .astro/
 .wrangler/
 .output/
