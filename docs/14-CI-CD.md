@@ -1,230 +1,156 @@
 # 14 — CI/CD
 
-Suite 1.0 · 2026-07-21
+Suite 1.1 · 2026-10-20
 
-TickTune follows the portfolio convention: thin **caller stubs** in this repo
-invoke **reusable workflows** in `poli0981/.github`. Because of the known
-permissions-inheritance bug (callers silently get `permissions: none`), **every
-caller stub declares an explicit `permissions:` block** — this is mandatory,
-matching the May 2026 portfolio-wide fix.
-
-> ✅ **Catalog checked 2026-07-21.** Most filenames this chapter assumed do not
-> exist. `poli0981/.github` has `reusable-codeql.yml` and
-> `reusable-web-react.yml`, but **no** `reusable-web-ci.yml`,
-> `reusable-playwright.yml`, `reusable-audit.yml`, `reusable-cf-deploy.yml` or
-> `reusable-notify.yml`. The inventory below is what actually ships.
+Every workflow in this repo is **self-contained** and declares an **explicit
+`permissions:` block**. The portfolio's reusable workflows were checked on
+2026-07-21 and most of the ones this chapter once assumed (`reusable-web-ci.yml`,
+`reusable-playwright.yml`, `reusable-audit.yml`, `reusable-cf-deploy.yml`,
+`reusable-notify.yml`) do not exist; CI green on `main` must never depend on
+another repository anyway. The explicit block is kept because callers of a
+reusable workflow silently receive `permissions: none` under a known GitHub
+inheritance bug, and the habit costs nothing.
 
 ## 1. Workflow inventory (`.github/workflows/`)
 
-| Stub | Trigger | Implementation | Purpose |
-|------|---------|----------------|---------|
-| `ci.yml` | PR + push main | **self-contained** | corpus guard → install → lint → check → knip → tests → build |
-| `e2e.yml` | PR to main | **self-contained** | Playwright chromium + firefox + webkit, report artifact |
-| `codeql.yml` | push main + weekly cron | caller → `reusable-codeql.yml` | `javascript-typescript` |
-| `audit.yml` | weekly cron + PR touching lockfile/package.json | **self-contained** | `pnpm audit --prod --audit-level high` |
-| `deploy.yml` | push tag `v*` (+ manual dispatch) | **self-contained** | build (incl. CSP-hash injection) + `wrangler deploy` + GitHub Release (P7 slice C) |
-| `notify.yml` | — | **deferred** | see below |
+| Workflow | Trigger | Purpose |
+|----------|---------|---------|
+| `ci.yml` | PR + push main | corpus guard → install → lint → check → knip → doc refs → **build → tests** |
+| `e2e.yml` | PR to main | Playwright chromium + firefox + webkit + 2 mobile projects, then **`verify-csp` under `wrangler dev`** |
+| `audit.yml` | weekly cron + PR touching lockfile/manifests | `pnpm audit --prod --audit-level high`, then the whole tree at `critical` |
+| `deploy.yml` | push tag `v*` **only** | verify (signature, ancestry, gates) → deploy → GitHub Release (`§5`) |
 
-Why self-contained rather than callers:
+**Build before test, and the order is load-bearing.** `tests/unit/tt-csp-assets.test.ts`
+and `tt-notices.test.ts` read `dist/`. Until v1.1 `ci.yml` ran the tests first,
+so both suites skipped on every CI run while their headers claimed CI was the
+gate; under `CI` a missing `dist/` is now a failure, not a skip.
 
-- `reusable-web-react.yml` does support pnpm + Node 24 + custom build/test
-  commands, but it has **no knip step** — and knip is build-failing here
-  (`12 §5`) — and its deploy path targets GitHub Pages, not Cloudflare Workers.
-  Using it would mean bending a workflow shared with other repos to suit this one.
-- CI green on `main` must never depend on another repository. A caller stub whose
-  target does not resolve is a red X nobody can fix from this repo.
+**CSP in a real browser.** `astro preview` sends no headers, so the whole E2E
+suite runs without a policy. The last step of `e2e.yml` serves `dist/` through
+`wrangler dev` — the same Workers Static Assets layer that applies `_headers`,
+locally, without Cloudflare credentials — and `scripts/verify-csp.mjs` asserts
+zero CSP violations. It was a manual script until v1.1.
 
-`codeql.yml` **is** a caller, because that workflow genuinely exists and fits.
-Two things `§2`'s original example got wrong: its input is a **JSON array
-string** (`'["javascript-typescript"]'`) because it runs `fromJSON()` on the
-value, and it requires repo Settings → Advanced Security → CodeQL **Default
-setup to be DISABLED**, or the advanced-setup SARIF upload is rejected.
+**CodeQL** runs as GitHub **default setup** (checks "Analyze
+(javascript-typescript)" and "Analyze (actions)"). The advanced-setup
+`codeql.yml` that earlier revisions of this chapter described was deleted after
+1.0; keep default setup **enabled** — the old instruction to disable it applied
+only while that file existed.
 
-`notify.yml` is deferred: the catalog offers `announce-release.yml`,
-`notify-release-pipeline.yml` and `notify-deploy.yml`, and choosing needs their
-input contracts read. Release fan-out is a P7 concern (`16 §P7`); nothing before
-then depends on it.
+**SonarCloud** runs as Automatic Analysis; `.sonarcloud.properties` sets the
+source/test split so test helpers are judged as test code. **Snyk** reports a PR
+status check from its GitHub integration.
 
-Dependabot: `.github/dependabot.yml`, npm + github-actions, weekly, grouped
-minor/patch — majors arrive individually so each gets its written
-breaking-change and license re-check (`11 §5`).
+**Dependabot**: `.github/dependabot.yml`, npm + github-actions, weekly, grouped
+minor/patch with a 3-day **cooldown** (pnpm 11's `minimumReleaseAge` otherwise
+fails a release-day PR at install). Majors arrive individually so each gets its
+written breaking-change and licence re-check (`11 §5`). `typescript` and
+`@types/node` majors are ignored on evidence (`11 §4`; `engines` is Node 24).
 
 **Corpus guard.** `ci.yml` runs `scripts/guard-no-corpus.mjs` as its **first**
 step, before install, and `.githooks/pre-commit` runs it against the index.
 `.gitignore` does nothing against `git add -f` and nothing in CI, so this is the
 actual enforcement keeping the ~651 MB `test/` corpus out of history. Enable the
-hook once per clone: `git config core.hooksPath .githooks`.
+hook once per clone: `git config core.hooksPath .githooks`. It lists paths with
+`-z`: without it git C-quotes non-ASCII names, and three corpus files with
+CJK/Hangul titles passed every check until v1.1.
 
 ⚠️ If you deliberately test the guard: `git add -f` writes the blob into
 `.git/objects` before any hook runs, and blocking the commit does not remove it.
 The object stays unreachable — never pushed, never in history — but auto-gc will
-pack it, which is how a 14 KB repo briefly grew a 31 MB local pack during this
-guard's own verification. Reclaim with
+pack it. Reclaim with
 `git reflog expire --expire-unreachable=now --all && git gc --prune=now`.
 
-### First live run — 2026-07-21
+## 2. Permissions and pinning
 
-Both notable results were the system behaving correctly:
+- **Explicit `permissions:` in every workflow**, `contents: read` by default. Only
+  `deploy.yml`'s `release` job widens it (`§3`).
+- **Actions pinned to full commit SHAs** with a `# vX.Y.Z` comment (SonarCloud
+  `githubactions:S7637`). A tag can be moved; a SHA cannot. Dependabot updates
+  both together, so the pin costs no maintenance.
+- **`persist-credentials: false`** on every checkout. No workflow pushes, so the
+  token has no reason to sit in `.git/config` while install scripts run.
+- **No install-time downloads on runners.** `ffmpeg-static`'s postinstall fetched
+  an unchecksummed binary in every workflow, including the one holding the
+  Cloudflare token; `pnpm-workspace.yaml` now denies that build and the two local
+  scripts that need ffmpeg install it on demand (`scripts/ensure-ffmpeg.ts`).
 
-- **CodeQL: `startup_failure`.** Expected. The advanced-setup workflow is
-  rejected while repo Settings → Advanced Security → **CodeQL "Default setup"**
-  is enabled; the reusable workflow's own header documents this. One-off repo
-  setting, not a code fix.
-- **Dependabot immediately proposed `typescript 5.9.3 → 7.0.2`, and `ci.yml`
-  failed it** on exactly the documented breakage (`typescript-estree` blowing up
-  against the TS 7 runtime). The `11 §4` decision is therefore enforced by CI,
-  not just written down. A major-version `ignore` for `typescript` was added to
-  `dependabot.yml` so the same PR does not reappear weekly — the ignore is the
-  noise fix; the gate is the actual protection, and it stays.
+## 3. Permissions matrix and signing
 
-## 2. Caller stub examples (explicit permissions!)
+| Workflow / job | permissions |
+|----------------|-------------|
+| ci · e2e · audit | `contents: read` |
+| deploy → `verify`, `deploy` | `contents: read` (+ Cloudflare secrets in `deploy` only) |
+| deploy → `release` | `contents: **write**` — for `gh release create`, and it runs no build tooling |
 
-```yaml
-# .github/workflows/ci.yml
-name: CI
-on:
-  pull_request:
-  push:
-    branches: [main]
-permissions:            # explicit — do NOT rely on inheritance
-  contents: read
-jobs:
-  ci:
-    uses: poli0981/.github/.github/workflows/reusable-web-ci.yml@main
-    with:
-      node-version: "24"
-      package-manager: pnpm
-      run-knip: true
-```
-
-```yaml
-# .github/workflows/codeql.yml
-name: CodeQL
-on:
-  push: { branches: [main] }
-  schedule: [{ cron: "0 3 * * 1" }]
-permissions:            # CodeQL caller matrix (portfolio standard)
-  actions: read
-  contents: read
-  security-events: write
-jobs:
-  codeql:
-    uses: poli0981/.github/.github/workflows/reusable-codeql.yml@main
-    with:
-      languages: javascript-typescript
-```
-
-```yaml
-# .github/workflows/deploy.yml
-name: Deploy
-on:
-  push: { tags: ["v*"] }
-  workflow_dispatch:
-permissions:
-  contents: read
-jobs:
-  deploy:
-    uses: poli0981/.github/.github/workflows/reusable-cf-deploy.yml@main
-    with:
-      build-command: pnpm build
-      deploy-command: pnpm wrangler deploy
-    secrets:
-      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
-      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-```
-
-```yaml
-# .github/workflows/notify.yml
-name: Notify
-on:
-  release: { types: [published] }
-permissions:            # notify caller matrix (portfolio standard)
-  contents: read
-  actions: read
-jobs:
-  notify:
-    uses: poli0981/.github/.github/workflows/reusable-notify.yml@main
-    secrets: inherit
-```
-
-## 3. Permissions matrix (recorded here for review)
-
-| Caller | permissions |
-|--------|-------------|
-| ci / e2e / audit | `contents: read` |
-| codeql | `actions: read` · `contents: read` · `security-events: write` |
-| deploy | `contents: **write**` (+ CF secrets) — raised in P7 slice C for `gh release create`, and for nothing else |
-| notify | `contents: read` · `actions: read` |
-
-Rule of thumb: nothing gets `write` except `security-events` for CodeQL and
-`contents` on deploy, which publishes the Release. Deploy authenticates to
-Cloudflare via a secret token, not via GitHub permissions.
+**Signing.** Commits and tags are GPG-signed locally, but GitHub's
+**rebase-merge** writes new, unsigned commits onto `main`. The **tag** is therefore
+the only signed artifact of a release, and `deploy.yml` verifies it against the
+keys GitHub publishes for the owner (`https://github.com/poli0981.gpg`) before
+anything else runs. `gh release create --verify-tag` only checks that a tag
+exists; it was never a signature check. Locally, `git tag -v vX.Y.Z` must print
+`Good signature` — git uses `gpg.program`, which on the dev box is the Windows
+GnuPG, a different keyring from the `gpg` on Git Bash's `PATH`.
 
 ## 4. Secrets
 
 | Secret | Scope |
 |--------|-------|
 | `CLOUDFLARE_API_TOKEN` | Custom token: Account → Workers Scripts: Edit; Zone → Workers Routes: Edit (only) |
-| `CLOUDFLARE_ACCOUNT_ID` | Account id (not sensitive but kept as secret for stub uniformity) |
+| `CLOUDFLARE_ACCOUNT_ID` | Account id (not sensitive but kept as secret for uniformity) |
 
-## 5. Release flow
+Used by `deploy.yml`'s `deploy` job only. The `production` environment holds them.
 
-1. `main` green (ci + e2e + codeql + audit).
-2. Bump version in `package.json`; the app's About panel reads it at build time.
-3. Tag `vX.Y.Z` → `deploy.yml` builds, runs `scripts/inject-csp-hash.ts`
-   (`10 §7`) and deploys.
+## 5. Release flow — tag-only
 
-   ✅ **The GitHub Release exists from P7 slice C** — see the section at the end
-   of this chapter. The fan-out does **not**, deliberately.
+**Production changes only when a signed `vX.Y.Z` tag is pushed.**
 
-   ⚠️ It was missing for **twelve tagged releases**, and the reason is worth
-   keeping: this step read "then GitHub Release with generated notes →
-   `notify.yml` fans out" from suite 1.0, while `deploy.yml` had only a Build and
-   a Deploy step and no `notify.yml` ever existed. `gh release list` was empty
-   after v0.2.0, v0.3.0 — and still at v0.12.0. **Nobody noticed because a deploy
-   that works looks identical either way**: the site updates, the workflow is
-   green, and the missing artifact is one nobody goes looking for. That is the
-   same shape as every other claim this suite has had to measure.
+Cloudflare **Workers Builds** (the Git integration on the `ticktune` Worker)
+stays connected but is **upload-only**: Settings → Build sets both the deploy
+command and the non-production command to `npx wrangler versions upload`.
+Every push — each PR and `main` — therefore creates a Worker **version** with a
+**Version URL** (`preview_urls: true` in `wrangler.jsonc`; `workers_dev` stays
+false), and none of them takes traffic.
 
-   **Tags are signed** (`git tag -s`), and the signature is worth verifying
-   rather than assuming: `tag.gpgsign = true` was already set when **v0.2.0 was
-   created unsigned**, so the config proves nothing. `git tag -v vX.Y.Z` must
-   print `Good signature`. Note git uses `gpg.program`, which on the dev box is
-   the Windows GnuPG — a different keyring from the `gpg` on Git Bash's `PATH`,
-   which reports "No secret key" and means nothing.
-4. Post-deploy: run the live-site smoke checklist (`13 §7`).
-5. ~~First production deploy ships CSP as Report-Only; the switch to enforcing
-   CSP is its own tagged release during P7.~~ **Deleted in P7 slice B: it never
-   happened and the release it promised was a no-op.** The CSP has been
-   **enforcing since the first deploy** — `public/_headers` has always said
-   `Content-Security-Policy:`, and the live site answers with that header name.
-   `09 §4` carries the reasoning and why the enforcing-first choice was the right
-   one anyway.
+🔴 **Until v1.1 this section said "tag-only" while it was false.** Workers Builds
+ran `wrangler deploy` on every pushed branch, so every PR — Dependabot's
+included — went live at 100% the moment it was pushed, and a tagged release
+deployed twice, racing `deploy.yml` (`16`, P6). On 2026-10-20 production was
+serving an unmerged Dependabot branch. Verify the model, don't assume it:
+after a push, `wrangler versions list` must show a new version and
+`wrangler deployments list` must **not** show a new 100% deployment.
 
-### The GitHub Release — added P7 slice C
+1. Merge PRs with **rebase-merge** once `ci`, `e2e`, `audit` (when triggered),
+   SonarCloud and Snyk are green. Run the slice's live checklist on the PR's
+   **Version URL** before merging (`13 §7`).
+2. Bump `version` in `package.json` in the release PR; the app's About panel and
+   the diagnostics payload read it at build time.
+3. `git tag -s vX.Y.Z` with a hand-written annotated message, then push the tag.
+4. `deploy.yml`:
+   - **verify** — the tag's signature against the owner's published keys; the
+     tagged commit is an ancestor of `origin/main`; lint, check, knip, build,
+     test on that exact commit;
+   - **deploy** — `pnpm build` (CSP-hash injection, notices, budget — `10 §7`)
+     and `wrangler deploy`;
+   - **release** — `gh release create --verify-tag --notes-from-tag`.
+5. Post-deploy: the production re-check block of the live checklist (`13 §7`).
 
-`16`'s P7 row asked for a "notify fan-out" and **nothing was ever behind it**: no
-`notify.yml` has existed at any point, and `gh release list` was empty as late as
-v0.12.0. Twelve tagged releases had produced no release page.
+To redeploy a release, re-run that tag's `deploy.yml` run from the Actions tab.
+There is deliberately no `workflow_dispatch`: it allowed deploying any branch by
+hand, and the release step then failed — after production had already changed.
 
-Rather than build a broadcast pipeline for an audience that does not exist, the
-deploy workflow now publishes the one artifact a release genuinely needs:
+### The GitHub Release
 
-```yaml
-gh release create "$GITHUB_REF_NAME" --verify-tag --notes-from-tag
-```
+`16`'s P7 row once asked for a "notify fan-out"; no `notify.yml` ever existed and
+twelve tagged releases produced no release page. The deploy workflow publishes the
+one artifact a release genuinely needs, carrying the **annotated tag's own
+message** (`--notes-from-tag`) rather than a generated commit list: the message is
+written by hand at release time and says why the release exists.
 
-Two flags carry the reasoning.
+### History
 
-**`--verify-tag`** is the point of the step. GitHub's rebase-merge produces
-**unsigned** commits on `main` (`§3`), so the *tag* is the only signed artifact a
-release has — publishing a release for a tag that is missing or has drifted would
-launder that guarantee away silently.
-
-**`--notes-from-tag`** rather than auto-generated notes. The annotated tag message
-is written by hand at release time and says why the release exists; a generated
-commit list says what changed and not what it means. The project already invests
-in those messages, so the release should carry them rather than replace them.
-
-⚠️ `permissions:` moves to `contents: write` for this step and this step only.
-The block stays **explicit** — never inherited — for the reason in `§2`.
+- The CSP has been **enforcing since the first deploy**; the Report-Only rollout
+  earlier revisions promised was deleted in P7 slice B as a no-op (`09 §4`).
+- Dependabot proposed `typescript 7` on the first live run and `ci.yml` failed it
+  on exactly the documented breakage — the `11 §4` decision is enforced by CI,
+  and the `ignore` rule only removes the weekly noise.
