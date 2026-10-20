@@ -17,3 +17,27 @@ allowBuilds:
   ffmpeg-static: false
   sharp: true
   workerd: true
+
+# Security overrides inside @lhci/cli's dev-only tree (Lighthouse CI, docs/13 §5).
+# @lhci/cli 0.15.1 is the latest release and pins old versions; nothing below
+# reaches the shipped bundle. Each was a Dependabot alert the day it landed:
+#   tmp      GHSA-ph9p-34f9-6g65 (high), GHSA-52f5-9888-hmc6 (low) — patched
+#            in 0.2.6. @lhci/cli's `open` and inquirer's external-editor call
+#            `tmp.fileSync`, whose API 0.2 kept.
+#   uuid     GHSA-w5hq-g745-h8pq (medium) — patched in 11.1.1. @lhci/cli calls
+#            `uuid.v4()`, unchanged, through uuid 11's CommonJS build.
+#   js-yaml@3>argparse
+#            sprintf-js GHSA-hp3w-g68c-fv3c (medium) has no patched release.
+#            argparse 1 is its only path here, and js-yaml 3 loads argparse in
+#            its own CLI only, which nothing runs; argparse 2 has no sprintf-js.
+#   get-uri>basic-ftp
+#            GHSA-c475-qrg2-pj4r (high; pnpm audit had it before Dependabot) —
+#            patched in 6.2.1. get-uri reaches FTP only for an `ftp:` PAC URL,
+#            which Lighthouse CI here never configures.
+# extract-zip (GHSA-7pqw-9j4j-h8q3, GHSA-jmr9-qjv8-65gv) has no patched
+# release and no override: docs/11 §5 records why it stays.
+overrides:
+  tmp: ^0.2.6
+  uuid: ^11.1.1
+  'js-yaml@3>argparse': ^2.0.1
+  'get-uri>basic-ftp': ^6.2.1

@@ -137,6 +137,30 @@ widens its peer range — both must land, since either alone still breaks
   ✅ **Closed, same class:** `brace-expansion ≤5.0.7` (GHSA-mh99-v99m-4gvg)
   reached the tree through **eslint** over 37 paths; it cleared upstream as the
   advice here predicted — the lockfile now resolves only `5.0.12`.
+
+  **When upstream cannot move: `@lhci/cli` (v2.0).** Lighthouse CI arrived with
+  six Dependabot alerts in its dev-only tree, and `@lhci/cli` 0.15.1 is the
+  latest release, pinning `lighthouse@12.6.1` exactly — there was no bump to
+  prefer. So, in `pnpm-workspace.yaml`, each override with its reason beside it:
+  `tmp ^0.2.6` (two alerts) and `uuid ^11.1.1` (one) move to patched releases
+  whose APIs the callers use unchanged (`tmp.fileSync`, `uuid.v4()`); and
+  `sprintf-js`, which has **no** patched release, leaves the tree entirely by
+  pointing `js-yaml@3`'s `argparse` at v2 — js-yaml 3 loads argparse only in its
+  own CLI, which nothing runs. `pnpm audit` had a seventh before Dependabot did,
+  `basic-ftp ≤ 6.2.0` (GHSA-c475-qrg2-pj4r) under `proxy-agent → get-uri`;
+  `get-uri>basic-ftp ^6.2.1` crosses a major, checked against the five calls
+  get-uri makes (`access`, `lastMod`, `list`, `downloadTo`, `modifiedAt`), all
+  still there. Verified by running `pnpm lhci` on the result.
+
+  **`extract-zip ≤ 2.0.1` stays** (GHSA-7pqw-9j4j-h8q3, GHSA-jmr9-qjv8-65gv:
+  symlink entries can write outside the target). There is no patched release;
+  it reaches us through `lighthouse → puppeteer-core 24 → @puppeteer/browsers 2`,
+  whose 3.x replaced it but belongs to a puppeteer major `@lhci` does not use;
+  and its only caller **unpacks a browser that puppeteer downloads**. Lighthouse
+  CI here never downloads one — it launches the installed Chrome
+  (`CHROME_PATH` in `quality.yml`, the system Chrome locally) — so the
+  vulnerable code has no input to read. Re-check when `@lhci/cli` moves to
+  Lighthouse 13.
 - Licenses of any new dependency are checked for GPL-3.0 compatibility **and for
   attribution/notice obligations** before merge, and appended to
   `legal/THIRD-PARTY-NOTICES.md`.
