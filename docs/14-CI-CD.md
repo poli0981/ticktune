@@ -19,6 +19,7 @@ inheritance bug, and the habit costs nothing.
 | `e2e.yml` | PR to main | Playwright chromium + firefox + webkit + 2 mobile projects, then **`verify-csp` under `wrangler dev`** |
 | `audit.yml` | weekly cron + PR touching lockfile/manifests | `pnpm audit --prod --audit-level high`, then the whole tree at `critical` |
 | `deploy.yml` | push tag `v*` **only** | verify (signature, ancestry, gates) → deploy → GitHub Release (`§5`) |
+| `quality.yml` | PR to main | `lighthouse` (Lighthouse CI on the static pages) and `visual` (screenshots in the pinned Playwright image) — v2.0, **not required** |
 
 **Build before test, and the order is load-bearing.** `tests/unit/tt-csp-assets.test.ts`
 and `tt-notices.test.ts` read `dist/`. Until v1.1 `ci.yml` ran the tests first,
@@ -30,6 +31,15 @@ suite runs without a policy. The last step of `e2e.yml` serves `dist/` through
 `wrangler dev` — the same Workers Static Assets layer that applies `_headers`,
 locally, without Cloudflare credentials — and `scripts/verify-csp.mjs` asserts
 zero CSP violations. It was a manual script until v1.1.
+
+**Quality gates (v2.0).** `quality.yml` runs two jobs that report rather than
+block: `lighthouse` asserts the category floors in `lighthouserc.json` and keeps
+the reports as an artifact, and `visual` compares `tests/visual/` against the
+baselines inside `mcr.microsoft.com/playwright:v1.64.1-noble`, the same image —
+same digest — that `pnpm test:visual:docker` makes them in (`13 §3`, `13 §5`).
+Neither is in the `main` ruleset yet: a required check that flakes teaches
+everyone to re-run it, so each earns its place with a few weeks of stable runs
+first.
 
 **CodeQL** runs as GitHub **default setup** (checks "Analyze
 (javascript-typescript)" and "Analyze (actions)"). The advanced-setup
@@ -85,7 +95,7 @@ pack it. Reclaim with
 
 | Workflow / job | permissions |
 |----------------|-------------|
-| ci · e2e · audit | `contents: read` |
+| ci · e2e · audit · quality | `contents: read` |
 | deploy → `verify`, `deploy` | `contents: read` (+ Cloudflare secrets in `deploy` only) |
 | deploy → `release` | `contents: **write**` — for `gh release create`, and it runs no build tooling |
 

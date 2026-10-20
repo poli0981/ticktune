@@ -49,3 +49,7 @@ Thumbs.db
 *.log
 npm-debug.log*
 pnpm-debug.log*
+
+# Lighthouse CI reports (pnpm lhci) — local artifacts, uploaded by CI instead.
+lhci-report/
+.lighthouseci/
