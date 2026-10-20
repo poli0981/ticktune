@@ -103,6 +103,7 @@ for (const rate of RATES) {
         };
       });
       const frames = run.intervals.length;
+      const median = percentile(run.intervals, 50);
       const delta = (name: string) => ((after[name] ?? 0) - (before[name] ?? 0)) * 1000;
       const row = {
         size: info.project.name,
@@ -111,12 +112,12 @@ for (const rate of RATES) {
         ...env,
         frames,
         fps: round((frames / SAMPLE_MS) * 1000),
-        p50: round(percentile(run.intervals, 50)),
+        p50: round(median),
         p95: round(percentile(run.intervals, 95)),
         p99: round(percentile(run.intervals, 99)),
         max: round(Math.max(...run.intervals)),
         // A frame later than 1.5× the median interval is one the display missed.
-        missed: run.intervals.filter((x) => x > 1.5 * percentile(run.intervals, 50)).length,
+        missed: run.intervals.filter((x) => x > 1.5 * median).length,
         longTasks: run.longTasks.length,
         longestTask: round(Math.max(0, ...run.longTasks)),
         // Main-thread milliseconds per frame, from the renderer's own counters.
@@ -129,8 +130,7 @@ for (const rate of RATES) {
       mkdirSync('test-results', { recursive: true });
       appendFileSync(OUT, JSON.stringify(row) + '\n');
       // The probe's output is its result: one line per configuration.
-      process.stdout.write(`${JSON.stringify(row)}
-`);
+      process.stdout.write(`${JSON.stringify(row)}\n`);
 
       // The digits moved: every sample was a different SS.mmm.
       expect(new Set(run.digits).size).toBe(run.digits.length);

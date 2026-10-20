@@ -28,6 +28,8 @@ export default defineConfig({
     locale: 'vi-VN',
     timezoneId: 'Asia/Ho_Chi_Minh',
     launchOptions: { args: ['--mute-audio'] },
+    // No /sw.js: its install would share the CPU with the first measured frames.
+    serviceWorkers: 'block',
   },
   // The two sizes the audit named (AUDIT-BACKLOG, "Countdown rendering cost").
   projects: [
