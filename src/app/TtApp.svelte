@@ -1128,11 +1128,19 @@
   -->
   {#if !focusMode}
     <header class="tt-chrome" data-testid="tt-chrome">
+      <!--
+        The name STARTS with the visible code (WCAG 2.5.3, label in name): a
+        voice-control user says what they see, "EN", and the name must contain
+        it. axe 4.14 flags the old name ("Switch to English") as
+        label-content-name-mismatch.
+      -->
       <button
         class="tt-key tt-key-icon"
         data-testid="tt-lang-toggle"
         lang={i18n.lang === 'vi' ? 'en' : 'vi'}
-        aria-label={i18n.lang === 'vi' ? i18n.t('header.lang.toEn') : i18n.t('header.lang.toVi')}
+        aria-label={i18n.lang === 'vi'
+          ? `EN — ${i18n.t('header.lang.toEn')}`
+          : `VI — ${i18n.t('header.lang.toVi')}`}
         onclick={() => void switchLang()}>{i18n.lang === 'vi' ? 'EN' : 'VI'}</button
       >
       <button
