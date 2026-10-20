@@ -60,6 +60,33 @@ test.describe('youtube mode', () => {
         .toEqual(expect.arrayContaining([`loadVideoById:${ONE}`, 'playVideo']));
     });
 
+    test('asks a player still arriving for nothing — no errors, and the user’s volume lands (v2.0)', async ({
+      page,
+    }) => {
+      // The owner's console on the v2.0 preview: `getCurrentTime is not a
+      // function`, ten times a second, on every start — the real player is bare
+      // until ready and the tick read it anyway. The same window swallowed the
+      // first video's volume. The stub is bare until ready now, as YouTube's is.
+      const errors: string[] = [];
+      page.on('pageerror', (e) => errors.push(e.message));
+
+      dismissUnloadDialogs(page);
+      await gotoYouTubeAppReturning(page, {}, { volume: 0.3, muted: false });
+      await stageLinks(page, [ONE, TWO]);
+      await setDuration(page, 0, 1, 0);
+      await page.getByRole('button', { name: 'Bắt đầu' }).click();
+
+      await expect.poll(() => ytCalls(page)).toContain('playVideo');
+      // Several 10 Hz ticks after ready, to see them read a live player.
+      await expect.poll(() => ytCalls(page)).toContain('setVolume:30');
+      await page.waitForTimeout(400);
+
+      expect(errors).toEqual([]);
+      const calls = await ytCalls(page);
+      // The level reaches the first video before it plays, not after.
+      expect(calls.indexOf('setVolume:30')).toBeLessThan(calls.indexOf(`loadVideoById:${ONE}`));
+    });
+
     test('requests the IFrame API exactly once, from youtube.com', async ({ page }) => {
       const requested: string[] = [];
       page.on('request', (r) => {

@@ -361,6 +361,63 @@ describe('duration and position — docs/06 §2 backfill', () => {
   });
 });
 
+describe('before the player is ready — the real API attaches its methods at onReady (v2.0)', () => {
+  /*
+   * `create()` returns at once; the methods arrive with `onReady`. Until v2.0
+   * the wrapper read through in between — the tick threw on every YouTube
+   * start — and sent the first video's volume to a player that could not hear
+   * it, so that video played at YouTube's own level.
+   */
+  const bare = () => {
+    const missing = (name: string) => () => {
+      throw new TypeError(`${name} is not a function`);
+    };
+    api.getCurrentTime.mockImplementation(missing('getCurrentTime'));
+    api.getDuration.mockImplementation(missing('getDuration'));
+    api.getVideoData.mockImplementation(missing('getVideoData'));
+  };
+
+  it('reads nothing between create and ready', () => {
+    const p = new TtYtPlayer(ports, host as unknown as TtYtPlayerHost);
+    p.load(track());
+    bare();
+
+    expect(p.ready).toBe(false);
+    expect(p.positionMs).toBeNull();
+    expect(p.durationMs).toBeNull();
+    expect(p.videoData).toEqual({ title: null, author: null });
+
+    events?.onReady();
+    api.getCurrentTime.mockReturnValue(12.5);
+    api.getDuration.mockReturnValue(200);
+    expect(p.ready).toBe(true);
+    expect(p.positionMs).toBe(12_500);
+    expect(p.durationMs).toBe(200_000);
+  });
+
+  it('keeps a volume set before ready, and applies it when ready — before the video plays', () => {
+    const p = new TtYtPlayer(ports, host as unknown as TtYtPlayerHost);
+    p.load(track());
+    p.applyVolume(0.3, true);
+    // Sent now, it would reach a player that cannot hear it.
+    expect(api.setVolume).not.toHaveBeenCalled();
+
+    events?.onReady();
+    expect(api.setVolume).toHaveBeenCalledWith(30);
+    expect(api.mute).toHaveBeenCalled();
+    const first = (fn: ReturnType<typeof vi.fn>) => fn.mock.invocationCallOrder[0] ?? Infinity;
+    expect(first(api.setVolume)).toBeLessThan(first(api.loadVideoById));
+  });
+
+  it('is not ready again after dispose, and reads nothing', () => {
+    const p = started();
+    p.dispose();
+    bare();
+    expect(p.ready).toBe(false);
+    expect(p.positionMs).toBeNull();
+  });
+});
+
 describe('dispose', () => {
   it('destroys the player and cancels a pending skip', () => {
     const p = started();

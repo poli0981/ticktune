@@ -149,6 +149,19 @@ export class TtYtPlayer {
    * intent; `#onReady` honours it.
    */
   #autoplay = true;
+  /**
+   * Whether the player has reported ready — not merely been created.
+   *
+   * The IFrame API hands back its player object at once and attaches the
+   * methods only when the frame reports ready. Until v2.0 nothing here knew the
+   * difference: the 10 Hz tick read `getCurrentTime()` in between and threw on
+   * every YouTube start (the owner's console on the v2.0 preview), and the
+   * volume applied right after the first `load()` went to a player that could
+   * not hear it — the first video played at YouTube's own level. Nothing is
+   * read before ready now, and the volume asked for meanwhile waits for it.
+   */
+  #ready = false;
+  #volume: { level: number; muted: boolean } | null = null;
 
   constructor(ports: TtYtPlayerPorts, host: TtYtPlayerHost) {
     this.#ports = ports;
@@ -156,12 +169,12 @@ export class TtYtPlayer {
   }
 
   get ready(): boolean {
-    return this.#api !== null;
+    return this.#ready;
   }
 
   /** Seconds → ms for the docs/03 §2 Z7 bar, or null before the player knows. */
   get positionMs(): number | null {
-    return this.#api === null ? null : toMs(this.#api.getCurrentTime());
+    return this.#ready && this.#api ? toMs(this.#api.getCurrentTime()) : null;
   }
 
   /**
@@ -172,7 +185,7 @@ export class TtYtPlayer {
    * second would be a confident lie.
    */
   get durationMs(): number | null {
-    return this.#api === null ? null : toMs(this.#api.getDuration());
+    return this.#ready && this.#api ? toMs(this.#api.getDuration()) : null;
   }
 
   /**
@@ -186,7 +199,7 @@ export class TtYtPlayer {
    * one that decides what a missing value looks like.
    */
   get videoData(): { title: string | null; author: string | null } {
-    const data = this.#api?.getVideoData();
+    const data = this.#ready ? this.#api?.getVideoData() : undefined;
     return { title: nonEmpty(data?.title), author: nonEmpty(data?.author) };
   }
 
@@ -249,12 +262,19 @@ export class TtYtPlayer {
    * @param volume the app's 0–1 value. Converted here, once.
    *
    * The scale mismatch is the trap: `setVolume(0.8)` is a silent player, not a
-   * loud one, and it looks exactly like a mute bug.
+   * loud one, and it looks exactly like a mute bug. Remembered, so a level set
+   * before the player is ready reaches it when it is (`#ready`).
    */
   applyVolume(volume: number, muted: boolean): void {
-    if (this.#api === null) return;
-    this.#api.setVolume(Math.round(Math.min(1, Math.max(0, volume)) * 100));
-    if (muted) this.#api.mute();
+    this.#volume = { level: Math.round(Math.min(1, Math.max(0, volume)) * 100), muted };
+    if (this.#ready) this.#sendVolume();
+  }
+
+  #sendVolume(): void {
+    const v = this.#volume;
+    if (v === null || this.#api === null) return;
+    this.#api.setVolume(v.level);
+    if (v.muted) this.#api.mute();
     else this.#api.unMute();
   }
 
@@ -262,10 +282,14 @@ export class TtYtPlayer {
     this.#clearSkip();
     this.#api?.destroy();
     this.#api = null;
+    this.#ready = false;
     this.#track = null;
   }
 
   #onReady(): void {
+    this.#ready = true;
+    // Before the video starts, so its first sound is already at the user's level.
+    this.#sendVolume();
     const id = this.#pendingId;
     this.#pendingId = null;
     if (id !== null) {

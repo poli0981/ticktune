@@ -62,8 +62,16 @@ export function browserPlayerPorts(mount: HTMLElement): TtYtPlayerPorts {
       // The real player arrives asynchronously, so this returns a façade that
       // queues nothing and simply no-ops until it is swapped in. The state
       // machine already treats "not ready" as a valid state (it holds a
-      // pendingId), so there is nothing to buffer here.
+      // pendingId and the volume), so there is nothing to buffer here.
       let real: TtYtPlayerApi | null = null;
+      /*
+       * `new yt.Player()` returns at once, but its methods are attached only
+       * when the frame reports ready: before `onReady`, `real.getCurrentTime`
+       * is undefined, and calling it threw from the 10 Hz tick on every start
+       * (v2.0). Everything below goes through `live()`, null until then.
+       */
+      let ready = false;
+      const live = (): TtYtPlayerApi | null => (ready ? real : null);
 
       void loadApi().then((yt) => {
         real = new yt.Player(mount, {
@@ -96,7 +104,10 @@ export function browserPlayerPorts(mount: HTMLElement): TtYtPlayerPorts {
             rel: 0,
           },
           events: {
-            onReady: () => events.onReady(),
+            onReady: () => {
+              ready = true;
+              events.onReady();
+            },
             onStateChange: (e: { data: number }) => events.onStateChange(e.data),
             onError: (e: { data: number }) => events.onError(e.data),
           },
@@ -105,8 +116,9 @@ export function browserPlayerPorts(mount: HTMLElement): TtYtPlayerPorts {
 
       const call = <K extends keyof TtYtPlayerApi>(fn: K): TtYtPlayerApi[K] =>
         ((...args: unknown[]) => {
-          const target = real?.[fn] as ((...a: unknown[]) => unknown) | undefined;
-          return target?.call(real, ...args);
+          const player = live();
+          const target = player?.[fn] as ((...a: unknown[]) => unknown) | undefined;
+          return target?.call(player, ...args);
         }) as TtYtPlayerApi[K];
 
       return {
@@ -119,8 +131,8 @@ export function browserPlayerPorts(mount: HTMLElement): TtYtPlayerPorts {
         unMute: call('unMute'),
         // Numbers, not void — the façade must return 0 rather than undefined
         // while the real player is still arriving, because `toMs` reads it.
-        getDuration: () => real?.getDuration() ?? 0,
-        getCurrentTime: () => real?.getCurrentTime() ?? 0,
+        getDuration: () => live()?.getDuration() ?? 0,
+        getCurrentTime: () => live()?.getCurrentTime() ?? 0,
         /*
          * Called defensively because `getVideoData` is NOT in YouTube's
          * published reference (docs/06 §2). It is long established and present
@@ -129,17 +141,22 @@ export function browserPlayerPorts(mount: HTMLElement): TtYtPlayerPorts {
          * where a throw would take the position readout down with it.
          */
         getVideoData: () => {
-          const fn = (real as { getVideoData?: () => TtYtVideoData } | null)?.getVideoData;
+          const player = live();
+          const fn = (player as { getVideoData?: () => TtYtVideoData } | null)?.getVideoData;
           if (typeof fn !== 'function') return {};
           try {
-            return fn.call(real) ?? {};
+            return fn.call(player) ?? {};
           } catch {
             return {};
           }
         },
+        // `destroy` does not wait for ready — a Stop during the first second
+        // must still take the frame down — but it is called only if it exists.
         destroy: () => {
-          real?.destroy();
+          const fn = (real as { destroy?: () => void } | null)?.destroy;
+          if (typeof fn === 'function') fn.call(real);
           real = null;
+          ready = false;
         },
       };
     },

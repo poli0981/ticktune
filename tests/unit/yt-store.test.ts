@@ -133,7 +133,10 @@ describe('a load issued before the rail mounts still plays — docs/06 §2', () 
     yt.load(track());
     yt.attach(el());
     // The scale conversion is the player's, but the store has to ask — a
-    // replayed track that skipped this would ignore the user's level.
+    // replayed track that skipped this would ignore the user's level. It lands
+    // when the player is READY: the real one cannot hear it before (v2.0).
+    expect(made[0]?.api.setVolume).not.toHaveBeenCalled();
+    made[0]?.events.onReady();
     expect(made[0]?.api.setVolume).toHaveBeenCalled();
   });
 });

@@ -61,6 +61,15 @@ declare global {
  * in a real layout — an unreplaced `<div>` would measure the slot rather than
  * the player and would pass even if the player never arrived.
  *
+ * ⚠️ **Like the real API, the player is bare until it is ready** (v2.0). The
+ * real `new YT.Player()` returns at once and attaches its methods only when the
+ * frame reports ready, a few hundred milliseconds later. This stub used to
+ * attach everything in the constructor and report ready on the next task, so
+ * the suite never saw that window — and the app read `getCurrentTime()` in it,
+ * throwing ten times a second on every real start, and sent the first video's
+ * volume to a player that could not hear it. Ready now comes 300 ms later, and
+ * the methods with it.
+ *
  * Must be called BEFORE navigation.
  */
 export async function installFakeYt(page: Page): Promise<void> {
@@ -88,42 +97,49 @@ export async function installFakeYt(page: Page): Promise<void> {
             el.replaceWith(frame);
 
             var ev = opts.events || {};
-            window.__ttYtFire = {
-              ready: function () { ev.onReady && ev.onReady({ target: this }); },
-              state: function (s) { ev.onStateChange && ev.onStateChange({ data: s }); },
-              error: function (c) { ev.onError && ev.onError({ data: c }); },
-            };
-
+            var self = this;
             var record = function (name) {
               return function (arg) {
                 probe.calls.push(arg === undefined ? name : name + ':' + arg);
               };
             };
-            this.loadVideoById = record('loadVideoById');
-            // Must exist: the driver's façade silently ignores a missing method,
-            // so a stub without it would let a paused ⏭ "pass" by doing nothing.
-            this.cueVideoById = record('cueVideoById');
-            this.playVideo = record('playVideo');
-            this.pauseVideo = record('pauseVideo');
-            this.setVolume = record('setVolume');
-            this.mute = record('mute');
-            this.unMute = record('unMute');
-            // Non-zero, because 0 is the API's "not known yet" and the docs/06
-            // §2 backfill is gated on duration arriving.
-            this.getDuration = function () { return 212.5; };
-            this.getCurrentTime = function () { return 0; };
-            this.getVideoData = function () {
-              return { title: 'Từ trình phát', author: 'Kênh trình phát' };
+            // What the real player gains only at ready — see the note above.
+            var arm = function () {
+              self.loadVideoById = record('loadVideoById');
+              // Must exist: the driver's façade silently ignores a missing method,
+              // so a stub without it would let a paused ⏭ "pass" by doing nothing.
+              self.cueVideoById = record('cueVideoById');
+              self.playVideo = record('playVideo');
+              self.pauseVideo = record('pauseVideo');
+              self.setVolume = record('setVolume');
+              self.mute = record('mute');
+              self.unMute = record('unMute');
+              // Non-zero, because 0 is the API's "not known yet" and the docs/06
+              // §2 backfill is gated on duration arriving.
+              self.getDuration = function () { return 212.5; };
+              self.getCurrentTime = function () { return 0; };
+              self.getVideoData = function () {
+                return { title: 'Từ trình phát', author: 'Kênh trình phát' };
+              };
             };
+            var becomeReady = function () {
+              arm();
+              ev.onReady && ev.onReady({ target: self });
+            };
+            window.__ttYtFire = {
+              ready: becomeReady,
+              state: function (s) { ev.onStateChange && ev.onStateChange({ data: s }); },
+              error: function (c) { ev.onError && ev.onError({ data: c }); },
+            };
+
             this.destroy = function () {
               probe.calls.push('destroy');
               if (frame.parentNode) frame.replaceWith(document.createElement('div'));
             };
 
-            // The real player is ready asynchronously; firing synchronously
-            // from the constructor would run before the driver has assigned it.
-            var self = this;
-            setTimeout(function () { ev.onReady && ev.onReady({ target: self }); }, 0);
+            // The real player is ready a few hundred milliseconds after it is
+            // constructed — long enough for the app's 10 Hz tick to run in between.
+            setTimeout(becomeReady, 300);
           }
 
           window.YT = { Player: Player, PlayerState: { ENDED: 0, PLAYING: 1, PAUSED: 2 } };
