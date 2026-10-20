@@ -1,33 +1,93 @@
-# 03 — UI Spec · "On Air" Design System
+# 03 — UI Spec · "Rack Unit" Design System
 
-Suite 1.0 · 2026-07-21
+Suite 1.1 · 2026-10-20
 
-Goal (spec): modern, eye-catching, **not** generic. The identity is a late-night
-broadcast studio: a glowing seven-segment clock on a dark stage, a pulsing tally
-light, faint scanlines. Distinct from the portfolio's other systems (RepoLens
-"phosphor terminal", poli0981.dev "Phòng đọc lúc nửa đêm").
+Goal (spec): modern, eye-catching, **not** generic. The identity is a piece of
+broadcast studio hardware: a rack-mounted seven-segment clock behind smoked
+glass, an ON AIR tally lamp that pulses to the music, engraved panel labels,
+keycaps and LED switches. Warm graphite, amber indicators, warm-white digits —
+distinct from the portfolio's other systems (RepoLens "phosphor terminal",
+poli0981.dev "Phòng đọc lúc nửa đêm"), which is why the digits are **not** amber
+or green.
+
+v1.1 replaced the v1.0 "On Air" palette (near-black, cyan signal) wholesale.
+Token **names** were kept, so every `var(--color-tt-*)` reader kept working and
+the redesign changed values, not call sites.
 
 ## 1. Design tokens
 
+`src/styles/global.css` is the implementation; this block is the contract.
+
 ```css
-@theme {                       /* Tailwind 4 @theme, styles/global.css */
-  --color-tt-void:    #08090C;  /* page background */
-  --color-tt-surface: #10131A;  /* panels, rails */
-  --color-tt-line:    #1D2330;  /* borders, dividers */
-  --color-tt-signal:  #4FD1FF;  /* primary accent — signal cyan */
-  --color-tt-warn:    #FFB454;  /* secondary accent, warnings */
-  --color-tt-danger:  #FF5D5D;  /* countdown < 60 s, destructive */
-  --color-tt-text:    #E7EBF2;
-  --color-tt-muted:   #8A93A3;
-  --font-digit: "DSEG7 Classic", "JetBrains Mono", monospace;
-  --font-ui:    "Be Vietnam Pro", system-ui, sans-serif;
-  --font-mono:  "JetBrains Mono", monospace;
+@theme {                          /* Tailwind 4 @theme */
+  --color-tt-void:      #0E0D0B;  /* chassis — page background */
+  --color-tt-surface:   #171512;  /* panels, rails, sheets */
+  --color-tt-surface-2: #1F1C18;  /* raised: keycaps, hover */
+  --color-tt-line:      #2E2A24;  /* decorative seams and dividers only */
+  --color-tt-outline:   #746A5C;  /* interactive boundaries — ≥ 3:1 */
+  --color-tt-signal:    #FFB23F;  /* amber: LEDs, active, focus, primary */
+  --color-tt-on-signal: #1A1206;  /* text on an amber fill */
+  --color-tt-digit:     #F5EEDC;  /* the countdown's lit segments */
+  --color-tt-warn:      #FF7A1A;  /* warnings, late finish */
+  --color-tt-danger:    #FF3B30;  /* tally lamp, < 60 s, destructive */
+  --color-tt-text:      #EDE6DA;  /* ink */
+  --color-tt-muted:     #A39B8E;  /* engraved labels, secondary text */
+  --font-digit:   "DSEG7 Classic", "JetBrains Mono", monospace;
+  --font-display: "Chakra Petch", "Be Vietnam Pro", system-ui, sans-serif;
+  --font-ui:      "Be Vietnam Pro", system-ui, sans-serif;
+  --font-mono:    "JetBrains Mono", monospace;
 }
 ```
+
+**Contrast, measured** (WCAG relative luminance, worst surface of the three):
+text 13.7 · digit 14.7 · signal 9.4 · warn 6.5 · muted 6.2 · danger 4.78 —
+every text colour clears 4.5:1 on chassis, panel **and** keycap, so no colour
+carries a "large text only" footnote. `outline` is 3.2:1 at worst: the WCAG
+1.4.11 boundary for controls. `line` is decorative and never the only edge of
+something clickable. Amber on its own fill (`on-signal`) is 10.3:1.
+
+⚠️ **The JS copies.** The scrim's contrast maths, the visualizer's fallback
+colour and the gradient presets need numbers, not `var()`s. They read
+`src/lib/tt-palette.ts`, and `tests/unit/tt-palette.test.ts` parses the `@theme`
+block and fails if the two disagree — a palette change made in CSS alone used to
+leave the scrim protecting digits of a colour that no longer existed.
+
+**Scales** (on `:root`, read through `var()` in scoped CSS):
+
+| Scale | Values |
+|-------|--------|
+| Space (`--tt-space-1…9`) | 4 · 8 · 12 · 16 · 24 · 32 · 48 · 64 · 96 px |
+| Radius (`--tt-radius-*`) | xs 2 · sm 4 · md 8 · lg 14 · pill — hardware is mostly square |
+| Type (`--tt-text-*`) | 12 · 14 · 16 · 18 · 22 · 28 · 36 · 48 · 72 px — **UI text never below 12 px** |
+| Stacking (`--tt-z-*`) | backdrop 0 · main 1 · chrome 10 · bar 20 · hint 30 · flash 40 · sheet 50 · popover 60 · modal 70 · debug 80 · gate 90 · mobile-gate 100 |
+
+One named stacking scale replaced a dozen ad-hoc numbers. Everything from
+`chrome` to `gate` lives inside `.tt-main`'s stacking context; only the backdrop
+and the visualizer sit outside it, below.
+
+**Primitives** — one implementation of each control, in `@layer components`, so
+the Astro pages and the Svelte island share them:
+
+| Class | What it is |
+|-------|------------|
+| `.tt-key` (+ `-primary` `-ghost` `-danger` `-icon` `-sm`) | The keycap. 40 px tall (32 px small), presses 1 px on `:active`; `aria-pressed="true"` lights it |
+| `.tt-led` | A 6 px lamp inside a key; lit by the key's `aria-pressed`, or by `data-on="true"` |
+| `.tt-seg` | A strip of joined keys for one-of-many; reads `aria-pressed`/`aria-selected` on its buttons |
+| `.tt-switch` | `<input type="checkbox">` drawn as a hardware toggle — still a checkbox to assistive tech |
+| `.tt-fader` | `<input type="range">` drawn as a mixing-desk fader, always paired with `.tt-readout` |
+| `.tt-panel` · `.tt-label` · `.tt-field` | The inset module, the engraved small-caps label, the recessed input |
+
+⚠️ Svelte's scoped CSS is **unlayered**, so it beats anything in
+`@layer components`. A component adopting a primitive must drop its own
+competing rules for that element, or the primitive silently loses.
 
 - **Digit glow** (signature): layered `text-shadow: 0 0 8px, 0 0 24px, 0 0 64px`
   of the current digit color at decreasing alpha; the three alphas scale with
   `settings.glowIntensity` (`02 §3.1`).
+- **The display window**: smoked glass behind the segments — a `::before` on the
+  countdown, so it adds nothing to the box `§4`'s size cap measures and bleeds
+  only 0.08em a side. The arithmetic that keeps it off the YouTube player is in
+  `§4`.
 - **Ghost segments**: the all-lit state rendered behind the live digits at 6%
   opacity (authentic LED look, and it is what removes width jitter). The ghost
   string is **derived from the active format, not hardcoded** — the formats in
@@ -43,13 +103,17 @@ light, faint scanlines. Distinct from the portfolio's other systems (RepoLens
 
   `tt-format.ts` exports the ghost pattern alongside the formatted value, so the
   two can never drift apart.
-- **Scanline overlay**: full-screen repeating-linear-gradient, 3% opacity, disabled
-  by `prefers-reduced-motion` and toggleable in Settings.
-- **Tally light**: 10 px dot, top-left next to the wordmark. Idle: `tt-muted`.
-  Playing: `tt-danger`, pulsing to the beat (Analyser energy) in local modes;
-  steady in YouTube mode. This is the beat-reactive element that survives even
-  when the visualizer is off. ✅ **The pulse shipped with the visualizer in P5
-  slice 4** (`05 §6`); P2 shipped the two-state dot, steady in both states.
+- **Scanline overlay**: full-screen repeating-linear-gradient of warm white, 3%
+  opacity, disabled by `prefers-reduced-motion` and toggleable in Settings.
+- **Chassis texture**: an inline SVG noise tile (`--tt-grain`, a `data:` URI —
+  `img-src` already allows it) on the page, panels and keycaps, plus a faint
+  amber vignette at the top of the page. Metal, not flat black.
+- **Tally light**: 10 px lamp top-left in the brand plate, with an engraved
+  **ON AIR** caption beside it that lights with it (decorative, `aria-hidden`).
+  Idle: a dark red lens — hardware never loses its colour. Playing: `tt-danger`,
+  pulsing to the beat (Analyser energy) in local modes; steady in YouTube mode.
+  This is the beat-reactive element that survives even when the visualizer is
+  off. ✅ **The pulse shipped with the visualizer in P5 slice 4** (`05 §6`).
 
   Driven by a CSS custom property carrying the 0–1 energy, **not** by a class:
   the beat is continuous, and a class toggle quantises it to on/off, which reads
@@ -58,16 +122,33 @@ light, faint scanlines. Distinct from the portfolio's other systems (RepoLens
   visualizer stops publishing a beat at all, and the CSS pins the dot — because
   the first is the real mechanism and the second is what catches a future
   refactor that keeps the value flowing.
-- Fonts are **self-hosted** (privacy §09): `@fontsource/be-vietnam-pro`,
-  `@fontsource/jetbrains-mono`; DSEG7 Classic vendored in `public/fonts/dseg7/`
-  with its OFL license file. DSEG covers digits + `:` `.` `-` only — exactly what
-  the countdown needs; all prose uses `--font-ui` (full Vietnamese diacritics).
+- **Icons** (`TtIcon.svelte`): inline SVG on one 24-unit grid in `currentColor`,
+  always `aria-hidden` — the button owns the name. They replaced the emoji the
+  transport used (⏮ ⏯ 🔊 ⚙), which rendered as colour emoji on Windows and as
+  text glyphs elsewhere, so one button looked different on every OS.
+- **Scrollbars**: custom everywhere — `scrollbar-width: thin` with an `outline`
+  thumb on a transparent track (standard properties for Chromium ≥ 121 and
+  Firefox, `::-webkit-scrollbar` for Safari), amber on hover. Settings →
+  Display → **Hide scrollbars** (`hideScrollbars`, `02 §3.1`) sets
+  `html[data-tt-scrollbars='hidden']`, which removes them inside `/app/` while
+  wheel, keyboard and touchpad scrolling keep working; scroll regions then get
+  an edge fade (`.tt-scroll-fade`) as the remaining cue, and any region with no
+  focusable child is itself focusable so a keyboard can still scroll it.
+- Fonts are **self-hosted** (privacy §09): `@fontsource/chakra-petch` (display,
+  500/600), `@fontsource/be-vietnam-pro` (UI), `@fontsource/jetbrains-mono`
+  (numbers, codes); all three ship a Vietnamese subset, checked before choosing.
+  DSEG7 Classic is vendored in `public/fonts/dseg7/` with its OFL license file.
+  DSEG covers digits + `:` `.` `-` only — exactly what the countdown needs; all
+  prose uses `--font-ui` (full Vietnamese diacritics). ⚠️ CSS imports are
+  invisible to knip and to the bundle graph, so each `@fontsource` family is
+  also in `knip.json` `ignoreDependencies` and in `scripts/make-notices.ts`
+  `CSS_ONLY`.
 
 ## 2. Layout zones — Player screen
 
 ```
 ┌──────────────────────────────────────────────────────────────┐
-│ Z5 ● TickTune                                   ⚙ 文A ⤢  Z6 │
+│ Z5 ● ON AIR  TICKTUNE                            EN ⚙ ⤢  Z6 │
 │                                                              │
 │  Z1 background stack (full-bleed, bottom → top):             │
 │     solid / gradient  →  image | slideshow (Ken Burns)       │
@@ -75,7 +156,7 @@ light, faint scanlines. Distinct from the portfolio's other systems (RepoLens
 │     →  Z2 visualizer canvas (local modes only)               │
 │                                                   ┌────────┐ │
 │              Z3   1:24:07                         │  Z4    │ │
-│              (DSEG7, clamp(96px, 18vw, 280px))    │ right  │ │
+│              (DSEG7 behind smoked glass, §4 cap)  │ right  │ │
 │              < 60 s → 42.183  in tt-danger        │ rail   │ │
 │                                                   └────────┘ │
 │ Z7 ─ Song Title — Artist ─ 3:12 / 6:40 ─ ▂▂▂▂▂▂▂▂▂▂▂▂▂▂──  │
@@ -85,12 +166,12 @@ light, faint scanlines. Distinct from the portfolio's other systems (RepoLens
 | Zone | Content | Behavior |
 |------|---------|----------|
 | Z1 | Background stack per Settings | Crossfades 400 ms between slideshow images; scrim auto-raises if contrast sampling under digits < 4.5:1 |
-| Z2 | Visualizer canvas | Styles: bars / wave / ring around the clock; hidden in YouTube mode (no audio data cross-origin) — replaced by blurred video thumbnail + slow animated gradient |
+| Z2 | Visualizer canvas | Styles: bars / wave / ring around the clock; hidden in YouTube mode (no audio data cross-origin) — Z1's generated gradient carries that mode, and **nothing is derived from the video thumbnail** (`§5`, `06 §6`) |
 | Z3 | Countdown | Formats and update rates are **defined solely by `04 §4`** — not restated here. Below 60 s the digit color switches to `tt-danger` |
 | Z4 | **Right rail — mode dependent** (below) | Collapsible (`]` hotkey); auto-collapses in Focus mode — **except in YouTube mode**, see the carve-out below |
-| Z5 | Tally light + wordmark | Always visible except Focus mode |
-| Z6 | Settings ⚙, language, fullscreen | Icon buttons, 40 px hit area |
-| Z7 | Bottom bar: Title — Artist — elapsed/duration + thin progress | **Auto-hide** after 4 s idle; reappears on mouse move/any key; transport controls (⏮ ⏯ ⏭ 🔊) fade in with it. ⏮/⏭ are **disabled in Single mode** — there is nowhere to go |
+| Z5 | Brand plate: tally lamp, ON AIR caption, wordmark | Always visible except Focus mode |
+| Z6 | Language, settings, fullscreen | Icon keycaps (`.tt-key-icon`), 40 px hit area |
+| Z7 | Transport console: Title — Artist · ⏮ ⏯ ⏭ ⏹ · mute + fader · elapsed/duration · tape progress | A floating rack strip, right-inset by `--tt-yt-reserve` like every fixed layer. **Auto-hide** after 4 s idle (fades, then leaves the tab order); reappears on mouse move/any key. ⏮/⏭ are **disabled in Single mode** — there is nowhere to go |
 
 **Z7 media position format:** `M:SS` below ten minutes, `MM:SS` at or above it —
 minutes are not zero-padded. This is a **media position, not a countdown**:
@@ -152,6 +233,12 @@ YouTube video is loaded, `0px` in every other mode — and every fixed layer ins
 its right edge by it. One variable, so a future overlay inherits the rule instead
 of rediscovering it.
 
+v1.1 closed the two exemptions the rule still had. The full-width bottom bar
+never actually reached the player — the stage reserves its height — but a rule
+with an exemption is a rule the next layout change breaks, so Z7 is inset too.
+The `?ttdebug=1` panel was `right: 1rem`, squarely over the player whenever
+debug met YouTube mode; it is inset as well.
+
 ⚠️ It was written because the rule was **already being broken in v0.5.2**, and
 the shape is worth keeping: `TtTrackInfo`'s modal box never reached the rail, but
 its **backdrop** was `inset: 0` at 75% opaque void, so right-clicking a queue row
@@ -198,16 +285,26 @@ the computed opacity and the box, not ask the platform whether it is visible.
      the page since the first deploy because the hosted build must offer its
      corresponding source; it is a licence obligation, not decoration.
 
-   The hero media is a **placeholder** (`16` standing rule) — an illustration
-   rather than a screenshot, labelled as such on the page, and same-origin so
-   `img-src 'self'` needs no change. P7 replaces it with the real capture.
+   The hero media is the **real app**: `pnpm demo` (`scripts/make-demo.ts`)
+   records it into `public/demo/`, same-origin, so the CSP needs no change. It
+   was a labelled placeholder until P7, and is re-recorded whenever the UI it
+   shows changes — v1.1's redesign included.
 2. **Legal Gate** — first run at `/app/`: blocking modal, summary of
    EULA/Disclaimer/Privacy + links to `/legal/*` and GitHub; single checkbox +
    Accept. Accept = autoplay-unlock gesture (`02 §1`). Re-shown if legal version
-   bumps.
-3. **Setup** — mode tabs (Playlist default), countdown input `H:MM:SS` + presets
-   **in minutes** (5/10/15/25/30/45/60/90) + "Match queue length" button, drop
-   zone / link textarea, live limits meter, Start.
+   bumps. Styled as the power-on plate — lit tally, wordmark, the version being
+   agreed to — and the card **scrolls itself**: `main` is inert behind it, so on
+   a short window or at 200% zoom nothing else could bring Accept into view.
+3. **Setup** — two rack modules side by side under the countdown preview:
+   **Source** (mode tabs, drop zone or link box, the queue, import progress and
+   toast) and **Timer** (countdown input `H:MM:SS`, presets **in minutes**
+   (5/10/15/25/30/45/60/90), "Match queue length", Start). Side by side because
+   stacked they scrolled on a 1280×720 laptop window — Start is the one control
+   that must never be below the fold. For the same budget the countdown is drawn
+   at 66% on Setup (`--tt-stage-scale`), where it is only a preview; the scale
+   multiplies its preferred size and never the `§4` cap. Once the queue has
+   tracks the drop zone collapses to one line, and the queue's legend shares a
+   row with Shuffle and Repeat.
 
    **"Match queue length"** sets the countdown to
    `clamp(ceil(Σ durationMs / 1000) · 1000, 1 s, 24 h)`. It is **disabled** when
@@ -217,9 +314,9 @@ the computed opacity and the box, not ask the platform whether it is visible.
    because a user who then edits the countdown by hand must not have that
    silently overwritten.
 
-   **Mode tabs.** All three render. **P3 unlocked Playlist**; YouTube stays
-   `aria-disabled` with a "P4" hint. `lastMode` is written only when the user
-   picks an **enabled** tab — which is why a profile carrying the
+   **Mode tabs.** All three render, and since P4 all three are enabled.
+   `lastMode` is written only when the user picks an **enabled** tab — which is
+   why, while tabs were still locked, a profile carrying the
    `TT_DEFAULT_SETTINGS.lastMode = 'playlist'` default (`02 §3.1`) survived P2
    with its real preference intact and P3 only had to unlock a tab rather than
    repair a value P2 had clobbered.
@@ -231,8 +328,10 @@ the computed opacity and the box, not ask the platform whether it is visible.
    else. Truncating to the first track would silently discard user work, and
    blocking the tab would strand someone mid-decision.
 4. **Player** — layout above.
-5. **Finished** — "TIME'S UP" in DSEG14-style caps (rendered in UI font with glow),
-   session summary (tracks played, duration), Restart / Back to setup.
+5. **Finished** — "TIME'S UP" as a framed, lit stamp in DSEG14-style caps,
+   rendered in the display face (DSEG7 covers digits only), then Restart / Back
+   to setup. The suite 1.0 sketch also listed a session summary (tracks played,
+   duration); no phase built it, and nothing here should imply one exists.
 
    **Late variant (`04 §2`, decided 2026-07-21).** When `overshootMs` exceeds
    `LATE_THRESHOLD_MS` (2 s) the screen must **not** imply the moment is now. It
@@ -265,7 +364,7 @@ the computed opacity and the box, not ask the platform whether it is visible.
 6. **Error overlays** — YouTube typed overlays (`06 §4`), offline banner, import
    toasts.
 7. **Mobile gate** — `07-MOBILE-GATE.md` full-screen block.
-8. **404** — static Astro page, On Air styled ("Channel not found").
+8. **404** — static Astro page in the Rack Unit style ("Channel not found").
 
 ## 4. Focus mode
 
@@ -337,6 +436,13 @@ turn red. An earlier version of that spec probed only the player's **centre** an
 stayed green while the digits overlapped its left edge by 79 px — the failure
 arrives from one side, which is where a single sample is blind. It samples a grid.
 
+**The display window (v1.1) is inside this arithmetic, not beside it.** The smoked
+glass behind the digits (`§1`) is a pseudo-element, so it adds nothing to the box
+the cap measures; it paints 0.08em past it on each side. The largest font-size
+that can exist is 280 px × Focus's 1.2 = 336 px, where that bleed is 26.9 px —
+inside both the stage's 40 px (2.5rem) gap to the rail and `.tt-main`'s 32 px
+padding. Grow the bleed, or shrink either gap, and this sum has to be redone.
+
 ## 5. Auto-theme (enhancement)
 
 On track change (local): sample the embedded cover art via a 16×16 canvas
@@ -386,7 +492,7 @@ truth. Do not restate a default here; it will drift.
 | Group | Controls | `TtSettings` fields | Ships |
 |-------|----------|---------------------|-------|
 | General | Language EN/VI · reopen legal pages · reset app (clears Dexie) | `lang` | **P5 s2** |
-| Display | Background: Solid / Gradient (6 presets + custom) / Image / Slideshow (multi-upload, interval, fade or Ken Burns) / Cover-art blur · scrim strength · scanlines · auto-theme | `background`, `gradientPreset`, `gradientCustom`, `slideshowIntervalMs`, `slideshowTransition`, `scrimStrength`, `scrimAuto`, `scanlines`, `autoTheme` | **P5 s3** |
+| Display | Background: Solid / Gradient (6 presets + custom) / Image / Slideshow (multi-upload, interval, fade or Ken Burns) / Cover-art blur · scrim strength · scanlines · auto-theme · **hide scrollbars** (v1.1; applies inside `/app/`, the static pages keep the slim custom bar) | `background`, `gradientPreset`, `gradientCustom`, `slideshowIntervalMs`, `slideshowTransition`, `scrimStrength`, `scrimAuto`, `scanlines`, `autoTheme`, `hideScrollbars` | **P5 s3**, v1.1 |
 | Countdown | Glow intensity · size (S/M/L) · **End Behavior**: fade-out duration, chime, flash, and what happens at zero (stay / restart / loop — see `02 §3.3`) | `glowIntensity`, `countdownSize`, `endFadeMs`, `endChime`, `endFlash`, `endAction` | **P5 s2** |
 | Visualizer | Style off/bars/wave/ring · sensitivity | `visualizer`, `visualizerSensitivity` | **P5 s4** |
 | Audio | Volume · mute · ~~crossfade~~ · ~~single-mode loop style~~ | `volume`, `muted`, (`crossfadeMs`, `singleLoopStyle` — S4b) | **P5 s2**, partly |
@@ -492,12 +598,23 @@ player and the player may never be hidden (`§2` carve-out, `06 §1.2`).
 
 ## 8. Motion & accessibility
 
-- Duration tokens 150/250/400 ms; ease `cubic-bezier(.2,.8,.2,1)`. Digits do **not**
-  animate per tick (LED authenticity); state changes use opacity/scale only.
-- `prefers-reduced-motion`: disables Ken Burns, scanlines, visualizer, tally pulse,
-  Motion-driven effects — countdown still updates (content, not decoration).
-- Contrast: all text ≥ 4.5:1 against effective background (scrim guarantees it);
-  `tt-muted` used only ≥ 14 px.
+- Duration tokens 120 (key press) / 150 / 250 / 400 ms; ease
+  `cubic-bezier(0.2, 0.7, 0.1, 1)` — mechanical: a short press, a damped
+  settle. Keycaps travel 1 px on `:active`; the Finished stamp lands with a
+  one-shot scale. Digits do **not** animate per tick (LED authenticity); state
+  changes use opacity/scale only.
+- **No entrance fades on anything that carries text.** axe measures partial
+  opacity as low contrast and scans whenever a test asks, so a 400 ms fade on
+  the settings sheet failed the a11y spec on its most marginal colour, and a
+  slide moved a box another spec measures. The sheet and the gate simply
+  appear; the landing's power-on reveals text with clip-path and movement,
+  never opacity.
+- `prefers-reduced-motion`: disables Ken Burns, scanlines, visualizer, tally
+  pulse, the landing's power-on, the Finished stamp and the sheet's smooth
+  scrolling — countdown still updates (content, not decoration).
+- Contrast: all text ≥ 4.5:1 against effective background — the scrim guarantees
+  it over Z1, and `§1` lists the measured ratio of every text token on every
+  surface, so `tt-muted` no longer needs the 14 px floor it had in v1.0.
 - Countdown `aria-live`: **off** for per-second ticks (screen-reader spam);
   polite announcements at 10 min / 5 min / 1 min / 10 s / zero.
   ✅ **Written in P5 slice 4** — it had been a sentence with no code behind it
