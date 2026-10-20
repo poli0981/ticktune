@@ -231,9 +231,9 @@ async function drive(browser: Browser, audio: string): Promise<void> {
    * a timer. `H:MM:SS` is wider and was the geometry that broke the YouTube rail
    * in P5 (`03 §2`); a demo should show the common case.
    */
-  await page.getByLabel('giờ').fill('0');
-  await page.getByLabel('phút').fill('2');
-  await page.getByLabel('giây').fill('0');
+  await page.getByLabel('giờ', { exact: true }).fill('0');
+  await page.getByLabel('phút', { exact: true }).fill('2');
+  await page.getByLabel('giây', { exact: true }).fill('0');
 
   await page.getByRole('button', { name: 'Bắt đầu' }).click();
   await page.waitForSelector('.tt-countdown');

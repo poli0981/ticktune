@@ -53,7 +53,7 @@ test.describe('settings panel', () => {
     // docs/03 §7 — "Disabled while typing in inputs". `s` in a number field is
     // rejected by the field, but it must not open the panel either.
     await gotoApp(page);
-    await page.getByLabel('giây').focus();
+    await page.getByLabel('giây', { exact: true }).focus();
     await page.keyboard.press('s');
     await expect(page.getByTestId('tt-settings')).toBeHidden();
   });

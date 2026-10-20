@@ -161,7 +161,7 @@ test.describe('keyboard only — docs/13 §6', () => {
      * gone, the control is unusable, and `getByTestId` would happily keep
      * passing. `_helpers.setDuration` uses `getByLabel` for the same reason.
      */
-    const hours = page.getByLabel('giờ');
+    const hours = page.getByLabel('giờ', { exact: true });
     await hours.focus();
     await expect(hours).toBeFocused();
 
