@@ -1,6 +1,6 @@
 # TickTune — Third-Party Notices
 
-Version 1.1 · 2026-10-20 · English canonical; Vietnamese at
+Version 2.0 · 2026-10-21 · English canonical; Vietnamese at
 `/legal/third-party/`.
 
 TickTune's own code is **GPL-3.0-only** — © 2026 poli0981. Licensing and

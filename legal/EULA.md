@@ -1,6 +1,6 @@
 # TickTune — Terms of Use
 
-Version 1.1 · 2026-10-20 · English is canonical; the Vietnamese translation at
+Version 2.0 · 2026-10-21 · English is canonical; the Vietnamese translation at
 `/legal/eula/` is provided for convenience. Written by the developer, not a
 lawyer, for a free, open-source, non-commercial web app.
 
@@ -26,8 +26,9 @@ are processed inside your browser and are never uploaded.
 
 ## 4. YouTube
 
-YouTube mode uses YouTube's official embedded player, part of the YouTube API
-Services. By using it you agree to be bound by the
+YouTube mode uses YouTube's official embedded player, and the lengths of the
+links you add are looked up through the YouTube Data API — both part of the
+YouTube API Services. By using them you agree to be bound by the
 [YouTube Terms of Service](https://www.youtube.com/t/terms); Google's handling of
 your data is described in the
 [Google Privacy Policy](https://policies.google.com/privacy). Whether a video
@@ -53,7 +54,14 @@ before you leave).
 The service is free, carries no uptime commitment, and may change or end at any
 time. The code remains available under the GPL.
 
-## 8. Contact
+## 8. Governing law
+
+These terms are governed by the laws of the Socialist Republic of Viet Nam, and
+any dispute about them belongs to the competent courts of Viet Nam. Nothing here
+takes away a mandatory protection that the law of the country where you live
+gives you as a consumer.
+
+## 9. Contact
 
 Questions about these terms: **legal@poli0981.dev** · licensing and attribution:
 **copyright@poli0981.dev** · bugs:

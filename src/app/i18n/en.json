@@ -8,7 +8,7 @@
       "analyticsRest": " Cloudflare Web Analytics measures page views and loading speed — no cookies, and nothing about your files.",
       "responsibility": "What you open is your responsibility.",
       "responsibilityRest": " TickTune neither moderates nor stores that content.",
-      "youtube": "YouTube mode uses YouTube’s official player",
+      "youtube": "YouTube mode uses YouTube’s official player and the YouTube Data API",
       "youtubeRest": "; by using it you are also bound by YouTube’s and Google’s terms.",
       "asIs": "The software is provided \"AS IS\", without warranty."
     },

@@ -1,6 +1,6 @@
 # TickTune — Tuyên bố miễn trừ trách nhiệm
 
-Version 1.1 · 2026-10-20 · Bản tiếng Anh là bản gốc có hiệu lực; đây là bản dịch
+Version 2.0 · 2026-10-21 · Bản tiếng Anh là bản gốc có hiệu lực; đây là bản dịch
 cung cấp cho thuận tiện. Bản tóm tắt hiển thị tại Cổng pháp lý.
 
 1. **Nội dung của bạn.** Mọi thứ TickTune phát đều do bạn cung cấp, và bạn chịu
@@ -20,6 +20,9 @@ cung cấp cho thuận tiện. Bản tóm tắt hiển thị tại Cổng pháp 
    trình duyệt có thể trì hoãn ứng dụng cho đến khi bạn quay lại — thời gian đã
    đếm vẫn đúng, và màn hình Hết giờ cho biết thời điểm thực sự về 0. Đừng dựa
    vào TickTune ở nơi thời gian liên quan đến an toàn hay công việc trọng yếu.
+   Thông báo hết giờ (tuỳ chọn) cũng chỉ ở mức tốt nhất có thể: trình duyệt và hệ
+   điều hành có thể làm nó đến trễ, gộp lại hoặc tắt tiếng (chẳng hạn ở chế độ
+   tập trung hay không làm phiền).
 
 5. **"NGUYÊN TRẠNG" ("AS IS").** Phần mềm và dịch vụ được cung cấp không kèm bất
    kỳ bảo đảm nào, theo tinh thần GPL-3.0 §15–§16.

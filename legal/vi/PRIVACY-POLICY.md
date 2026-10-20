@@ -1,6 +1,6 @@
 # TickTune — Chính sách quyền riêng tư
 
-Version 1.1 · 2026-10-20 · Bản tiếng Anh là bản gốc có hiệu lực; đây là bản dịch
+Version 2.0 · 2026-10-21 · Bản tiếng Anh là bản gốc có hiệu lực; đây là bản dịch
 cung cấp cho thuận tiện.
 
 TickTune được làm ra để biết về bạn càng ít càng tốt. **Tệp, danh sách phát và cài
@@ -22,6 +22,14 @@ sửa hay xoá theo yêu cầu.
   trong Cài đặt sẽ xoá nó.
 - **Tệp và danh sách phát** chỉ nằm trong bộ nhớ của phiên và mất khi bạn đóng
   hoặc tải lại thẻ. Chúng không bao giờ được tải lên.
+- **Các tệp của chính ứng dụng** — mã, kiểu, phông chữ và biểu tượng — được giữ
+  trong Cache Storage của trình duyệt để `/app/` có thể khởi động khi không có
+  mạng. Không gì do bạn chọn hay tạo ra từng được đặt vào đó.
+- **Thông báo hết giờ** (tắt trừ khi bạn bật): trình duyệt nhớ rằng bạn đã cho
+  phép trang này. Thông báo được tạo trên thiết bị của bạn, chỉ báo là đã hết giờ,
+  và không đi qua dịch vụ đẩy (push) nào.
+- **Tệp cài đặt** bạn xuất ra là một tệp tải về do bạn giữ; nhập lại là đọc một
+  tệp bạn chọn, ngay trên thiết bị. Cả hai đều không được tải lên.
 - TickTune **không đặt cookie** và không dùng `localStorage` hay `sessionStorage`.
 
 ## 3. Những gì đi qua mạng
@@ -31,6 +39,7 @@ sửa hay xoá theo yêu cầu.
 | Mọi trang | Chính trang web, do Cloudflare phục vụ | Dữ liệu yêu cầu thông thường, như địa chỉ IP và trình duyệt của bạn |
 | Mọi trang | Beacon **Cloudflare Web Analytics** (`static.cloudflareinsights.com`, gửi về `cloudflareinsights.com`) | Địa chỉ trang, trang dẫn tới, trình duyệt và hệ điều hành của bạn, cùng thời gian tải trang |
 | Khi bạn thêm liên kết YouTube | `/api/yt/oembed` trên tên miền của chúng tôi | Chỉ mã video 11 ký tự |
+| Khi bạn thêm liên kết YouTube | `/api/yt/durations` trên tên miền của chúng tôi, nơi hỏi **YouTube Data API** thời lượng của các video | Chỉ các mã video. Yêu cầu tới Google đi từ máy chủ của chúng tôi bằng khoá của chúng tôi — không bao giờ từ trình duyệt của bạn — và không mang thông tin gì về bạn |
 | Chế độ YouTube | YouTube IFrame API (`www.youtube.com`), trình phát (`youtube-nocookie.com`) và ảnh thu nhỏ (`i.ytimg.com`) | Những gì trình phát của YouTube yêu cầu |
 
 Các chế độ phát tệp trên máy không gửi bất kỳ yêu cầu nào tới Google.
@@ -47,7 +56,10 @@ họ.
 
 ## 5. YouTube và Google
 
-Chế độ YouTube dùng Dịch vụ API của YouTube. Khi bạn tương tác với trình phát,
+Chế độ YouTube dùng Dịch vụ API của YouTube: trình phát nhúng, và YouTube Data
+API, nơi máy chủ của chúng tôi hỏi thời lượng của từng video bạn thêm — theo mã
+video, không kèm thông tin gì về bạn. Thời lượng được giữ tối đa 24 giờ cho mỗi
+video để cùng một video không phải tra lại. Khi bạn tương tác với trình phát,
 Google có thể đặt cookie và xử lý dữ liệu như mô tả trong
 [Chính sách quyền riêng tư của Google](https://policies.google.com/privacy). Trình
 phát được tạo trên máy chủ bảo vệ quyền riêng tư `youtube-nocookie.com`.
@@ -59,8 +71,12 @@ phát được tạo trên máy chủ bảo vệ quyền riêng tư `youtube-noc
   đe doạ bị chặn, và số liệu Web Analytics ở `§4`. Không có địa chỉ IP hay chuỗi
   trình duyệt của từng người.
 - **Nhật ký Worker — chỉ các lượt tra cứu YouTube:** mỗi lần gọi `/api/yt/oembed`
-  được ghi lại (yêu cầu, phản hồi và quốc gia Cloudflare gắn vào) và được
-  Cloudflare xoá sau **7 ngày**. Việc tải trang không bao giờ tạo ra mục nhật ký.
+  và `/api/yt/durations` được ghi lại (yêu cầu, phản hồi và quốc gia Cloudflare gắn
+  vào) và được Cloudflare xoá sau **7 ngày**. Việc tải trang không bao giờ tạo ra
+  mục nhật ký.
+- **Giới hạn tần suất:** để bảo vệ hạn mức dùng chung, `/api/yt/durations` đếm số
+  lần gọi theo địa chỉ IP trong một phút, trong bộ nhớ của máy chủ Cloudflare. Con
+  số đó không bao giờ được ghi lại hay lưu trữ.
 
 Những thông tin này dùng để giữ trang hoạt động, phát hiện lạm dụng và biết vì sao
 một liên kết YouTube không phân giải được — không bao giờ để nhận diện bạn, lập hồ
@@ -85,5 +101,6 @@ kể sẽ khiến Cổng pháp lý hiện lại; mọi bản sửa đổi đều
 
 | Phiên bản | Ngày | Thay đổi |
 |-----------|------|----------|
+| 2.0 | 2026-10-21 | Thời lượng YouTube qua YouTube Data API; bộ nhớ đệm ngoại tuyến cho các tệp của chính ứng dụng; thông báo hết giờ (tuỳ chọn); xuất/nhập tệp cài đặt; giới hạn tần suất theo IP cho tra cứu thời lượng |
 | 1.1 | 2026-10-20 | Cloudflare Web Analytics; nhật ký Worker lưu 7 ngày (Workers Paid); địa chỉ liên hệ quyền riêng tư; liên kết YouTube và Google; rút gọn |
 | 1.0 | 2026-07-24 | Phiên bản chính thức đầu tiên |

@@ -86,6 +86,12 @@ describe('legal — every canonical document has a Vietnamese translation', () =
     }
   });
 
+  it('the Vietnamese translations carry the same version token', () => {
+    for (const file of mdIn(VI_DIR)) {
+      expect(versionToken(read(VI_DIR, file)), file).toContain(TT_LEGAL_VERSION);
+    }
+  });
+
   it('THIRD-PARTY-NOTICES lists the same components in both languages', () => {
     /*
      * `docs/08 §3.1`: component names and SPDX licence ids are NOT translated,
@@ -197,5 +203,43 @@ describe('ttLegalHref — the language prefix', () => {
     // `repo` is deliberately NOT a route: GPL-3.0 §6 requires an offer of the
     // corresponding source, not a page describing it.
     expect(TT_LEGAL_LINKS.repo).toMatch(/^https:\/\/github\.com\//);
+  });
+});
+
+/**
+ * Legal 2.0 — what v2.0 does, said in both languages (docs/09, the rule that a
+ * data flow ships with its disclosure). Each of these was a new flow or a new
+ * clause in the release that bumped TT_LEGAL_VERSION to 2.0; a document that
+ * dropped one would be the v1.0 defect again — consent to a description that
+ * is no longer true.
+ */
+describe('Legal 2.0 discloses what v2.0 does', () => {
+  const privacy = { en: read(EN_DIR, 'PRIVACY-POLICY.md'), vi: read(VI_DIR, 'PRIVACY-POLICY.md') };
+  const eula = { en: read(EN_DIR, 'EULA.md'), vi: read(VI_DIR, 'EULA.md') };
+
+  it.each(['en', 'vi'] as const)('%s: the YouTube Data API, by video ID, from our server', (l) => {
+    expect(privacy[l]).toContain('YouTube Data API');
+    expect(privacy[l]).toContain('/api/yt/durations');
+    expect(eula[l]).toContain('YouTube Data API');
+  });
+
+  it.each(['en', 'vi'] as const)('%s: the offline cache, notifications, the settings file', (l) => {
+    expect(privacy[l]).toContain('Cache Storage');
+    expect(privacy[l]).toMatch(l === 'en' ? /finish notifications/i : /thông báo hết giờ/i);
+    expect(privacy[l]).toMatch(l === 'en' ? /settings file/i : /tệp cài đặt/i);
+  });
+
+  it.each(['en', 'vi'] as const)('%s: the per-IP rate limit, never stored', (l) => {
+    expect(privacy[l]).toMatch(l === 'en' ? /per IP address/ : /theo địa chỉ IP/);
+  });
+
+  it.each(['en', 'vi'] as const)('%s: the governing law is Viet Nam’s', (l) => {
+    expect(eula[l]).toMatch(
+      l === 'en'
+        ? /laws of the Socialist Republic of Viet Nam/
+        : /pháp luật nước Cộng hoà Xã hội Chủ nghĩa\s+Việt Nam/,
+    );
+    // …without taking away a consumer's mandatory protections.
+    expect(eula[l]).toMatch(l === 'en' ? /mandatory protection/ : /quyền bảo vệ bắt buộc/);
   });
 });
