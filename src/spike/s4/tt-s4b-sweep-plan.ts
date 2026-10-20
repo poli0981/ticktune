@@ -9,7 +9,7 @@
 /** One file as `scripts/make-s4b-fixtures.ts` describes it in manifest.json. */
 export interface TtS4bFixture {
   name: string;
-  /** wav, cbr, cbr-noinfo, vbr-xing, vbr-noxing-up, …, corpus-noxing, control-*. */
+  /** wav, cbr, …, corpus-xing, corpus-noxing, corpus-extra, control-*. */
   family: string;
   /** Pair member for the A→B runs; absent for single files. */
   role?: 'a' | 'b';
@@ -242,7 +242,8 @@ export function fullPlan(fx: TtS4bFixture[]): TtS4bRunConfig[] {
   );
   const wb = pair(fx, 'wav')?.[1];
   if (!wb) return runs;
-  for (const f of fx.filter((x) => x.family === 'corpus-xing')) {
+  // Real masters with a header the browser reads: crossfaded from the tail.
+  for (const f of fx.filter((x) => x.family === 'corpus-xing' || x.family === 'corpus-extra')) {
     for (const fadeMs of [1000, 2000, 5000]) {
       runs.push({
         ...base(`corpus ${f.name} ${fadeMs / 1000}s`, 'corpus'),
