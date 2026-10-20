@@ -94,6 +94,7 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-SYS-205 | A stored setting names a capability this build does not ship — fell back to the shipped value (first use: `singleLoopStyle: 'crossfade'` → `hard` while `15 §S4b` is open, `05 §2`) |
 | TT-SYS-206 | Audio unlock failed at the gesture — playback will retry on Start (`05 §1`). Registered P7 slice B, when desktop WebKit found that a browser with no `AudioContext` trapped the user at the Legal Gate forever: `acceptLegal` called `unlock()` **before** recording consent, and a synchronous throw skipped the rest. Consent must never depend on the audio stack |
 | TT-SYS-207 | The timer worker could not start or raised `error` — a main-thread interval took over the authoritative tick (`04 §2`). Registered v1.1: the worker was created lazily at the first Start, so a tab opened before a redeploy requested a chunk that no longer existed and, with no `error` listener, never reached `done` while visible |
+| TT-SYS-208 | The timer worker reported `done` while the core still had time left and no re-anchor explained it — the deadline was re-sent (at most once a second, logged once per run; `04 §1`). Registered v1.1.1, beside the fix it backs up: a TT-SYS-201 re-anchor never reached the worker, whose stale deadline hit zero early, so a visible tab sat at 0.000 |
 | TT-SYS-300 | Captured `window.onerror` (error **name** only — never its message, see the rule below) |
 | TT-SYS-301 | Captured `unhandledrejection` (reason **type** only) |
 

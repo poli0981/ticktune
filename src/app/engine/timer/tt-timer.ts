@@ -157,6 +157,7 @@ export class TtTimer {
       if (Math.abs(skew) > DRIFT_THRESHOLD_MS && this.#endAtEpoch !== null) {
         this.#endAtEpoch += skew;
         this.#hooks.onLog?.('TT-SYS-201', { skewMs: Math.round(skew), dWallMs: Math.round(dWall) });
+        this.#hooks.onReanchor?.(this.#endAtEpoch, skew);
       }
     }
 
