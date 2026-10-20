@@ -327,4 +327,78 @@ test.describe('live defects — v1.1.1', () => {
     // Still the countdown they asked for: zero about 8 s later, not now and not never.
     await expect(page.getByTestId('tt-finished')).toBeVisible({ timeout: 12_000 });
   });
+
+  test('a played track keeps its cover after the playlist moves on', async ({
+    browserName,
+    page,
+  }) => {
+    await skipWithoutAudio(page, browserName);
+    /*
+     * `load()` released the previous track's URLs — its cover with its media.
+     * The row stayed in the queue, so its info modal, the Setup preview after
+     * Stop and the cover backdrop all pointed at a revoked blob: URL.
+     */
+    dismissUnloadDialogs(page);
+    await gotoApp(page);
+    await stagePlaylist(page, ['with-cover.mp3', 'tone-5s.mp3']);
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await expect(transport(page)).toHaveAttribute('aria-label', 'Tạm dừng');
+    await page.getByTestId('tt-next').click();
+
+    await page.getByTestId('tt-queue-row').first().click({ button: 'right' });
+    await page.getByTestId('tt-menu-info').click();
+    const img = page.getByTestId('tt-cover');
+    await expect(img).toBeVisible();
+
+    // Deterministic, whatever the image cache holds: a revoked blob: URL
+    // cannot be fetched.
+    const src = await img.getAttribute('src');
+    const alive = await page.evaluate(async (url) => {
+      try {
+        return (await fetch(url ?? '')).ok;
+      } catch {
+        return false;
+      }
+    }, src);
+    expect(alive).toBe(true);
+    await expect
+      .poll(() => img.evaluate((el: HTMLImageElement) => el.naturalWidth))
+      .toBeGreaterThan(0);
+  });
+
+  test('the object-URL canary moves, stays in bound, and ends at 0 (docs/13 §3)', async ({
+    browserName,
+    page,
+  }) => {
+    await skipWithoutAudio(page, browserName);
+    /*
+     * docs/13 §3 listed this spec; it never existed. And it could not have
+     * passed: the panel read the count through a plain getter nothing reactive
+     * depended on, so it showed the number from its first render, forever.
+     */
+    dismissUnloadDialogs(page);
+    await gotoApp(page, '/app/?ttdebug=1');
+    const live = async () => Number(await page.getByTestId('tt-live-urls').textContent());
+    const pick = (f: string) => `tests/e2e/fixtures/${f}`;
+
+    await page.getByTestId('tt-tab-single').click();
+    await page.getByTestId('tt-file-input').setInputFiles(pick('with-cover.mp3'));
+    await expect(page.getByTestId('tt-staged')).toBeVisible();
+    await expect.poll(live).toBe(1); // the cover
+
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await expect.poll(live).toBe(2); // + its media URL: queue 1 + 2 is the bound
+    await page.getByTestId('tt-stop').click();
+
+    // Replace: Single mode swaps the held track and releases the old one's URLs.
+    await page.getByTestId('tt-file-input').setInputFiles(pick('tone-5s.mp3'));
+    await expect.poll(live).toBe(0);
+
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await expect.poll(live).toBe(1);
+    await page.getByTestId('tt-stop').click();
+
+    await page.getByTestId('tt-remove-track').click();
+    await expect.poll(live).toBe(0);
+  });
 });

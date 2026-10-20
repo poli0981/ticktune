@@ -38,7 +38,7 @@ export class TtAudioEngine {
   constructor(ports: TtAudioPorts, events: TtAudioEvents) {
     this.#ports = ports;
     this.#events = events;
-    this.#ledger = new TtUrlLedger(ports.createUrl, ports.revokeUrl);
+    this.#ledger = new TtUrlLedger(ports.createUrl, ports.revokeUrl, (n) => events.onLiveUrls?.(n));
   }
 
   get status(): TtPlaybackStatus {
@@ -132,12 +132,18 @@ export class TtAudioEngine {
   }
 
   /**
-   * Load a track onto the current deck. Revokes the previous track's URLs, so
-   * repeatedly replacing the Single-mode track cannot accumulate them.
+   * Load a track onto the current deck.
+   *
+   * Releases the previous track's MEDIA url only — the A/B bound needs that.
+   * Its cover stays: the track is still in the queue, and its info modal, the
+   * Setup preview and the cover backdrop all point at that URL. Until v1.1.1
+   * this released both, so every track that had played showed a dead image.
+   * Covers go when their track does — removal and a Single-mode replace (the
+   * session releases the outgoing track), and `pagehide`.
    */
   load(track: TtTrack, loop: boolean): void {
     const previous = this.#track;
-    if (previous && previous.id !== track.id) this.#ledger.releaseTrack(previous.id);
+    if (previous && previous.id !== track.id) this.#ledger.release(urlKey(previous.id, 'media'));
 
     this.#track = track;
     this.#loops = 1;
