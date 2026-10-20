@@ -263,6 +263,39 @@ Consequences, all deliberate:
 Playwright's Firefox at all (`spawn UNKNOWN`), so the real-browser gesture →
 `resume()` chain on Firefox is a **manual live-site item**, not a covered one.
 
+### Visual regression — v2.0 (`tests/visual/`)
+
+The specs above assert what an element **is**; `tests/visual/screens.spec.ts`
+asserts what the page **looks like**, which is where a token typo, a z-index
+slip or a theme that misses one surface shows and nothing else does. Twelve
+screens at 1440×900, DPR 1, `vi-VN`: the landing (VI, EN), a legal page and the
+404, then — in **both themes** — the legal gate, Setup, the settings sheet and
+the paused player. `toHaveScreenshot` with `animations: 'disabled'`, the caret
+hidden, reduced motion (the hero video becomes its still) and
+`maxDiffPixelRatio: 0.001`. The running countdown and the transport's clock
+are masked: they are the only things that differ between two identical runs.
+
+**Baselines exist for one image only.** A screenshot compares only against one
+taken with the same fonts, rasteriser and browser build, so baselines are made
+— and the `visual` job in `quality.yml` compares them — inside
+`mcr.microsoft.com/playwright:v1.64.1-noble`, **pinned by digest**.
+`pnpm test:visual:docker` checks and `pnpm test:visual:docker --update`
+rewrites: `scripts/visual-docker.ts` tars the working tree into the container,
+installs and builds **there** (a Linux `node_modules` must never land in the
+checkout) and tars the screenshots back. A run anywhere else says nothing about
+the app. Bumping Playwright means a new digest in both files and every baseline
+regenerated in the same PR.
+
+**A PR that changes how a screen looks updates its baselines**, and the new
+PNGs are reviewed in the diff like code. The job is informative, not required,
+until a few weeks of runs show it does not flake (`14 §1`).
+
+The wrapper's own first bug is the instance worth keeping: it waited for `tar`
+from inside docker's exit handler, missed it whenever `tar` finished first, and
+**exited 0 over eight failed screenshots**. It now waits for both and exits
+with the container's code — a gate that cannot fail is the S4b lesson again
+(`15 §S4`).
+
 ## 4. YouTube — semi-manual matrix (network-dependent, not in CI)
 
 Curated list maintained in `tests/manual/yt-matrix.md` from **Spike S1**: one
@@ -282,11 +315,35 @@ The real key is checked once per release on the PR's Version URL (`06 §3`).
 - Visualizer steady-state: no long tasks > 50 ms while playing (Performance
   panel spot-check); adaptive degrade path exercised by forcing 6× CPU throttle.
 
-**Lighthouse ≥ 95 is P6's gate and is checked by hand**, not in CI — against the
+**Lighthouse ≥ 95 was P6's gate and was checked by hand** — against the
 Cloudflare PR preview, desktop, on `/` and `/en/`, all four categories. Its SEO
 category validates canonical + hreflang + robots + meta-description, so it
 doubles as the "hreflang correct" exit check. The **bundle-size number** below
 stays P7's.
+
+**Since v2.0 it runs on every PR** — `lighthouserc.json`, `@lhci/cli` 0.15.1
+(dev-only), the `lighthouse` job in `quality.yml`: the landing in each language
+and a legal page, desktop preset, three runs a page, the analytics beacon
+blocked so CI never counts a visit. Performance must reach **0.90** — a shared
+runner's CPU swings more than the page does — and accessibility, best practices
+and SEO **0.95**. The reports are a workflow artifact; nothing is uploaded to
+Google's public storage. Measured locally 2026-10-21: **100 / 100 / 100 / 100**
+on every page, after the two fixes it pointed at:
+
+- **CLS 0.197 on the legal pages**, from two late fonts. The version number's
+  DSEG7 face overflows `line-height: 1`, so its line grew 14 px when the face
+  arrived and pushed the whole document down — it is now an inline-block one em
+  tall. And Be Vietnam Pro and Chakra Petch swapped in after first paint and
+  re-wrapped the prose — their latin and vietnamese 400 and latin 600 files,
+  what the first screen of any page uses, are preloaded by `TtBase`. Together:
+  **0.005**.
+- **The hero video's cache lifetime.** From `public/demo/` it got the platform's
+  `max-age=0` and was revalidated on every visit — on the LCP element. Imported
+  by `TtHero`, it is content-hashed under `/_astro/` and served `immutable`.
+
+Two suggestions stay unfixed on purpose: DSEG7's `font-display: block` (a
+fallback face would show wrong digits for a moment — `03 §1`), and the analytics
+beacon counted as unused JavaScript.
 
 **P7, confirmed 2026-07-24.** `16`'s P5 exit row used to read "perf budget met"
 and contradicted this heading; the roadmap was corrected rather than this
