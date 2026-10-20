@@ -100,6 +100,9 @@ export async function installFakeYt(page: Page): Promise<void> {
               };
             };
             this.loadVideoById = record('loadVideoById');
+            // Must exist: the driver's façade silently ignores a missing method,
+            // so a stub without it would let a paused ⏭ "pass" by doing nothing.
+            this.cueVideoById = record('cueVideoById');
             this.playVideo = record('playVideo');
             this.pauseVideo = record('pauseVideo');
             this.setVolume = record('setVolume');

@@ -111,6 +111,7 @@ export function browserPlayerPorts(mount: HTMLElement): TtYtPlayerPorts {
 
       return {
         loadVideoById: call('loadVideoById'),
+        cueVideoById: call('cueVideoById'),
         playVideo: call('playVideo'),
         pauseVideo: call('pauseVideo'),
         setVolume: call('setVolume'),

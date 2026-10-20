@@ -45,6 +45,8 @@ export interface TtYtVideoData {
 /** The subset of `YT.Player` this app uses. Nothing else may be called. */
 export interface TtYtPlayerApi {
   loadVideoById: (videoId: string) => void;
+  /** Select a video WITHOUT starting it — the paused-state ⏭/⏮/jump path. */
+  cueVideoById: (videoId: string) => void;
   playVideo: () => void;
   pauseVideo: () => void;
   /** YouTube's scale is **0–100**, not the 0–1 the Web Audio gain uses. */
@@ -137,6 +139,16 @@ export class TtYtPlayer {
   #skipTimer: number | null = null;
   #countdownTimer: number | null = null;
   #pendingId: string | null = null;
+  /**
+   * Whether the current video should be PLAYING once the player can act.
+   *
+   * `#onReady` used to call `playVideo()` unconditionally, so a pause issued
+   * while the API was still loading — or a track cued while the run was paused
+   * — started playing the moment the player came up, with the session paused
+   * and the countdown frozen. `play()`/`pause()` and `load()`/`cue()` record the
+   * intent; `#onReady` honours it.
+   */
+  #autoplay = true;
 
   constructor(ports: TtYtPlayerPorts, host: TtYtPlayerHost) {
     this.#ports = ports;
@@ -186,15 +198,30 @@ export class TtYtPlayer {
    * and flash an empty 384×216 hole where the ToS requires a visible player.
    */
   load(track: TtTrack): void {
+    this.#open(track, true);
+  }
+
+  /**
+   * Like `load`, but the video is selected and left stopped — `cueVideoById`.
+   *
+   * For ⏭/⏮/jump while the run is PAUSED: `loadVideoById` autoplays, so those
+   * used to start the music with the countdown frozen and ▶ on the transport.
+   */
+  cue(track: TtTrack): void {
+    this.#open(track, false);
+  }
+
+  #open(track: TtTrack, autoplay: boolean): void {
     this.#clearSkip();
     this.#host.onOverlay(null);
     this.#track = track;
+    this.#autoplay = autoplay;
 
     const videoId = track.videoId;
     if (videoId === undefined) return;
 
     if (this.#api === null) {
-      // The API is not up yet; remember what to play and let `attach` do it.
+      // The API is not up yet; remember what to open and let `#onReady` do it.
       this.#pendingId = videoId;
       this.#api = this.#ports.create({
         onReady: () => this.#onReady(),
@@ -204,14 +231,17 @@ export class TtYtPlayer {
       return;
     }
 
-    this.#api.loadVideoById(videoId);
+    if (autoplay) this.#api.loadVideoById(videoId);
+    else this.#api.cueVideoById(videoId);
   }
 
   play(): void {
+    this.#autoplay = true;
     this.#api?.playVideo();
   }
 
   pause(): void {
+    this.#autoplay = false;
     this.#api?.pauseVideo();
   }
 
@@ -238,8 +268,11 @@ export class TtYtPlayer {
   #onReady(): void {
     const id = this.#pendingId;
     this.#pendingId = null;
-    if (id !== null) this.#api?.loadVideoById(id);
-    this.#api?.playVideo();
+    if (id !== null) {
+      if (this.#autoplay) this.#api?.loadVideoById(id);
+      else this.#api?.cueVideoById(id);
+    }
+    if (this.#autoplay) this.#api?.playVideo();
   }
 
   #onStateChange(state: number): void {
