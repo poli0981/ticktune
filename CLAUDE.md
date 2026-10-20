@@ -100,16 +100,19 @@ CI/CD `docs/14` · Spikes `docs/15` · Roadmap `docs/16`.
 ## Spike scope rule
 
 **No feature code in the area a spike covers, until that spike passes**
-(`docs/15 §Scope rule`). **S1, S3 and S4a have PASSED** and released P2's audio
-and P4's YouTube work. **S4b** (crossfade trigger timing) is the only one still
-open, and it gates the crossfade loop style *and* P3's inter-track crossfade —
-nothing else. S2 measured the P1 timer engine directly, on the shipping countdown
-page under `?ttdebug=1`, because S2's own method requires "the real `tt-timer`
-core". **No crossfade code before S4b passes.**
+(`docs/15 §Scope rule`). **S1, S3 and S4a** released P2's audio and P4's
+YouTube work. In v2.0, **S4b PASSED** (2026-10-20, harness v2, measured from the
+audio) and released the crossfade loop style and inter-track crossfade; **S5
+went GO** and released the finish notification; **S6 FAILED**, so there is no
+loudness normalization. S2 measured the P1 timer engine directly, on the
+shipping countdown page under `?ttdebug=1`. No spike is open.
 
-⚠️ **S4b's harness cannot close it as written** — its overlap metric reads back
-the `gain.value` it scheduled itself, so it cannot fail. Fix `docs/15 §S4` first
-or the sweep produces numbers that mean nothing.
+⚠️ **S4b passed as shipped, and only as shipped:** real music played from the
+start. After a **seek**, Chrome places a VBR MP3 by its Xing table and
+`currentTime` stays up to a second off the audio — 20 corpus runs failed that
+way and all 20 passed from the start (`docs/15 §S4b`). The app has no seek
+control; adding one means re-deriving the trigger's remaining time or
+measuring again.
 
 ## Current status
 
