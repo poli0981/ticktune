@@ -45,7 +45,8 @@ const FFMPEG = ensureFfmpeg();
 const PORT = 4331;
 const ORIGIN = `http://localhost:${PORT}`;
 const WORK = 'test/generated/demo';
-const OUT = 'public/demo';
+// Imported by TtHero.astro so Vite hashes them into /_astro/ (immutable).
+const OUT = 'src/assets/demo';
 
 /** Seconds of playback kept in the loop. Long enough to see the beat move. */
 const CLIP_SECONDS = 8;
