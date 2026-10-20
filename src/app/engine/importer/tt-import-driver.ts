@@ -19,7 +19,16 @@ import type { TtImportPorts, TtRawTags } from './types';
  */
 async function parseWithMusicMetadata(file: File): Promise<TtRawTags | null> {
   const { parseBlob } = await import('music-metadata');
-  const m = await parseBlob(file);
+  let m = await parseBlob(file);
+  /*
+   * No header to read the length from — a VBR MP3 without Xing/VBRI, raw ADTS:
+   * scan the whole file for it (docs/05 §5, v2.0). Measured on spike S4b's
+   * fixtures: exact on header-less VBR, +21 ms on ADTS, ~3 ms per second of
+   * audio. The media element's estimate this replaces was seconds off on those
+   * files, which wrecked both the crossfade trigger and the 10:02 cap. Files
+   * whose headers carry a length never pay for the scan.
+   */
+  if (m.format.duration === undefined) m = await parseBlob(file, { duration: true });
 
   // docs/05 §5: the FIRST embedded picture. S3 measured covers up to 7.26 MB in
   // a real library, so the bytes are handed straight to the ledger rather than
