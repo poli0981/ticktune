@@ -1,6 +1,6 @@
 # TickTune — Thông báo về thành phần của bên thứ ba
 
-Version 1.1 · 2026-10-20 · Bản tiếng Anh là bản gốc có hiệu lực; đây là bản dịch
+Version 2.0 · 2026-10-21 · Bản tiếng Anh là bản gốc có hiệu lực; đây là bản dịch
 cung cấp cho thuận tiện.
 
 Mã nguồn của chính TickTune theo giấy phép **GPL-3.0-only** — © 2026 poli0981.

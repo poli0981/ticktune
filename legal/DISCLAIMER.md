@@ -1,6 +1,6 @@
 # TickTune — Disclaimer
 
-Version 1.1 · 2026-10-20 · English canonical; Vietnamese at
+Version 2.0 · 2026-10-21 · English canonical; Vietnamese at
 `/legal/disclaimer/`. Summarised at the Legal Gate.
 
 1. **Your content.** Everything TickTune plays is supplied by you, and you bear
@@ -19,6 +19,9 @@ Version 1.1 · 2026-10-20 · English canonical; Vietnamese at
    background tab the browser may delay the app until you return — the elapsed
    time stays correct, and the Finished screen says when zero was actually
    reached. Do not rely on TickTune where timing is safety- or business-critical.
+   The optional finish notification is best-effort too: your browser and
+   operating system may delay, group or silence it (for example in a focus or
+   do-not-disturb mode).
 
 5. **"AS IS".** The software and the hosted service are provided without
    warranty of any kind, in the spirit of GPL-3.0 §15–§16.

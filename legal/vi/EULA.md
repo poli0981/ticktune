@@ -1,6 +1,6 @@
 # TickTune — Điều khoản sử dụng
 
-Version 1.1 · 2026-10-20 · Bản tiếng Anh là bản gốc có hiệu lực; bản dịch tiếng
+Version 2.0 · 2026-10-21 · Bản tiếng Anh là bản gốc có hiệu lực; bản dịch tiếng
 Việt này được cung cấp cho thuận tiện. Văn bản do nhà phát triển soạn, không phải
 luật sư, cho một ứng dụng web nguồn mở, miễn phí, phi thương mại.
 
@@ -26,7 +26,8 @@ Tệp của bạn được xử lý ngay trong trình duyệt và không bao gi�
 
 ## 4. YouTube
 
-Chế độ YouTube dùng trình phát nhúng chính thức của YouTube, thuộc Dịch vụ API
+Chế độ YouTube dùng trình phát nhúng chính thức của YouTube, và thời lượng của
+các liên kết bạn thêm được tra qua YouTube Data API — cả hai đều thuộc Dịch vụ API
 của YouTube. Khi sử dụng, bạn đồng ý chịu ràng buộc bởi
 [Điều khoản dịch vụ của YouTube](https://www.youtube.com/t/terms); cách Google xử
 lý dữ liệu của bạn được mô tả trong
@@ -53,7 +54,14 @@ phiên theo thiết kế (ứng dụng cảnh báo trước khi bạn rời tran
 Dịch vụ miễn phí, không cam kết thời gian hoạt động, và có thể thay đổi hoặc
 ngừng bất cứ lúc nào. Mã nguồn vẫn được cung cấp theo GPL.
 
-## 8. Liên hệ
+## 8. Luật áp dụng
+
+Các điều khoản này được điều chỉnh bởi pháp luật nước Cộng hoà Xã hội Chủ nghĩa
+Việt Nam, và mọi tranh chấp liên quan thuộc thẩm quyền của toà án có thẩm quyền
+tại Việt Nam. Không điều gì ở đây làm mất đi quyền bảo vệ bắt buộc mà pháp luật
+nơi bạn cư trú dành cho bạn với tư cách người tiêu dùng.
+
+## 9. Liên hệ
 
 Câu hỏi về điều khoản: **legal@poli0981.dev** · giấy phép và ghi nhận tác giả:
 **copyright@poli0981.dev** · báo lỗi:

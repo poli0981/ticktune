@@ -34,8 +34,14 @@
  * the Worker-log retention became 7 days on Workers Paid (the policy said 3),
  * contacts moved to role addresses, the YouTube ToS and Google Privacy links
  * that the YouTube API terms require were added, and the set was shortened.
+ * 🔁 **`1.1` → `2.0` in v2.0**, again one bump for the whole release: the
+ * YouTube Data API joined the data flows (video IDs only, from our server), the
+ * app's own files are cached for an offline start, finish notifications and the
+ * settings file exist, a per-IP rate limit counts in edge memory, and the EULA
+ * gained a governing-law clause (Viet Nam). Every one of those is in the same
+ * release, so every user is asked once.
  */
-export const TT_LEGAL_VERSION = '1.1';
+export const TT_LEGAL_VERSION = '2.0';
 
 /**
  * The legal set, as one table.
