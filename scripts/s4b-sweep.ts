@@ -20,9 +20,9 @@
  * files; docs/15 carries labels only. Exits non-zero unless the verdict is PASS.
  */
 import { chromium } from '@playwright/test';
-import { build, preview } from 'astro';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
+import { spikeServer } from './spike-kit.ts';
 import {
   fullPlan,
   quickPlan,
@@ -57,19 +57,9 @@ console.log(
   `S4b ${flag('full') ? 'full' : 'quick'} sweep: ${plan.length} runs, ${paths.length - 1} files`,
 );
 
-const reusePort = (() => {
-  const k = process.argv.indexOf('--reuse');
-  return k >= 0 ? Number(process.argv[k + 1]) : null;
-})();
-// --reuse <port>: measure against an already-running `pnpm spikes` server, so
-// several sweeps can share ONE build instead of overwriting dist-spikes/.
-let server: { stop: () => Promise<void> } = { stop: async () => {} };
-if (reusePort === null) {
-  process.env['TT_SPIKES'] = '1';
-  await build({ root: process.cwd(), logLevel: 'warn' });
-  server = await preview({ root: process.cwd(), logLevel: 'warn', server: { port: PORT } });
-}
-const ORIGIN = `http://localhost:${reusePort ?? PORT}`;
+// `--reuse <port>` shares one running `pnpm spikes` build between sweeps.
+const server = await spikeServer(PORT);
+const ORIGIN = server.origin;
 const channel = opt('channel');
 const browser = await chromium.launch({
   headless: flag('headless'),

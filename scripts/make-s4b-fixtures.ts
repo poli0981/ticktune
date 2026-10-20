@@ -32,7 +32,8 @@ import {
   readdirSync,
   writeFileSync,
 } from 'node:fs';
-import { basename, extname, join } from 'node:path';
+import { basename, join } from 'node:path';
+import { acceptedFiles, extraDirs } from './spike-kit.ts';
 import { ensureFfmpeg } from './ensure-ffmpeg.ts';
 import type { TtS4bFixture } from '../src/spike/s4/tt-s4b-sweep-plan.ts';
 
@@ -41,11 +42,6 @@ const CORPUS = 'test/test_playlist';
 const NOXING = 'test/generated/s4b-corpus-noxing';
 const FFMPEG = ensureFfmpeg();
 const withCorpus = process.argv.includes('--corpus');
-const extraDirs = process.argv.flatMap((a, i) =>
-  a === '--extra' && process.argv[i + 1] ? [process.argv[i + 1]!] : [],
-);
-/** docs/02 §4's list (TT_ACCEPT_EXT): a file the app cannot import is not evidence. */
-const ACCEPTED = ['.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg', '.oga', '.opus', '.webm'];
 
 mkdirSync(OUT, { recursive: true });
 
@@ -222,14 +218,9 @@ if (withCorpus) {
 
 // Real masters, crossfaded from their tail like corpus-xing. Referenced in
 // place and never copied: results/ names them, docs never do.
-for (const dir of extraDirs) {
-  if (!existsSync(dir)) {
-    console.error(`✖ --extra: ${dir} does not exist`);
-    process.exit(1);
-  }
-  for (const entry of readdirSync(dir)) {
-    if (!ACCEPTED.includes(extname(entry).toLowerCase())) continue;
-    add(join(dir, entry), { family: 'corpus-extra', kind: 'music', fromStart: false });
+for (const dir of extraDirs()) {
+  for (const path of acceptedFiles(dir, '--extra')) {
+    add(path, { family: 'corpus-extra', kind: 'music', fromStart: false });
   }
 }
 

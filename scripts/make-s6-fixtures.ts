@@ -17,19 +17,15 @@
  * the size of what `decodeAudioData` must hold.
  */
 import { execFileSync, spawnSync } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, writeFileSync } from 'node:fs';
-import { basename, extname, join } from 'node:path';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { basename, join } from 'node:path';
 import { ensureFfmpeg } from './ensure-ffmpeg.ts';
+import { acceptedFiles, extraDirs } from './spike-kit.ts';
 
 const OUT = 'test/generated/s6';
 const CORPUS = 'test/test_playlist';
 const FFMPEG = ensureFfmpeg();
 const withCorpus = process.argv.includes('--corpus');
-const extraDirs = process.argv.flatMap((a, i) =>
-  a === '--extra' && process.argv[i + 1] ? [process.argv[i + 1]!] : [],
-);
-/** docs/02 §4's list (TT_ACCEPT_EXT): a file the app cannot import is not evidence. */
-const ACCEPTED = ['.mp3', '.m4a', '.aac', '.flac', '.wav', '.ogg', '.oga', '.opus', '.webm'];
 mkdirSync(OUT, { recursive: true });
 
 function ff(args: string[]): void {
@@ -116,26 +112,10 @@ for (const [ext, codec] of [
   add(path, 'long');
 }
 
-if (withCorpus) {
-  if (!existsSync(CORPUS)) {
-    console.error(`✖ --corpus: ${CORPUS} is absent (local-only, never in CI)`);
-    process.exit(1);
-  }
-  for (const entry of readdirSync(CORPUS)) {
-    if (!ACCEPTED.includes(extname(entry).toLowerCase())) continue;
-    add(join(CORPUS, entry), 'music');
-  }
-}
-
-for (const dir of extraDirs) {
-  if (!existsSync(dir)) {
-    console.error(`✖ --extra: ${dir} does not exist`);
-    process.exit(1);
-  }
-  for (const entry of readdirSync(dir)) {
-    if (!ACCEPTED.includes(extname(entry).toLowerCase())) continue;
-    add(join(dir, entry), 'music');
-  }
+// The local corpus (never in CI) and any --extra folder, read in place.
+for (const dir of [...(withCorpus ? [CORPUS] : []), ...extraDirs()]) {
+  for (const path of acceptedFiles(dir, dir === CORPUS ? '--corpus' : '--extra'))
+    add(path, 'music');
 }
 
 writeFileSync(
