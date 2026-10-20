@@ -256,6 +256,9 @@
       "resetNo": "キャンセル"
     },
     "display": {
+      "theme": "テーマ",
+      "themeDark": "ダーク（LED）",
+      "themeLight": "ライト（LCD）",
       "background": "背景",
       "bgSolid": "単色",
       "bgGradient": "グラデーション",
@@ -297,6 +300,9 @@
       "sizeS": "小",
       "sizeM": "中",
       "sizeL": "大",
+      "face": "文字盤",
+      "face7": "7 セグメント",
+      "face14": "14 セグメント",
       "end": "ゼロになったら",
       "endFade": "フェードアウト",
       "endFadeValue": "{{seconds}} 秒",
