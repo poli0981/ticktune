@@ -24,12 +24,12 @@
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import ffmpegPath from 'ffmpeg-static';
+import { ensureFfmpeg } from './ensure-ffmpeg.ts';
 
 const COMMITTED = 'tests/e2e/fixtures';
 const GENERATED = 'test/generated';
 
-const FFMPEG = ffmpegPath as unknown as string;
+const FFMPEG = ensureFfmpeg();
 
 function ff(args: string[]): void {
   execFileSync(FFMPEG, ['-hide_banner', '-loglevel', 'error', '-y', ...args]);

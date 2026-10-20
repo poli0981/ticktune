@@ -3,22 +3,17 @@
 #   esbuild  — Vite/Astro's bundler; the whole build is dead without it
 #   workerd  — the Cloudflare Workers runtime used by `wrangler dev` (docs/10 §3)
 #   sharp    — Astro's image pipeline
-#   ffmpeg-static — its postinstall DOWNLOADS a prebuilt ffmpeg binary, which is
-#     a heavier trust decision than the three above, so it gets called out.
-#     Accepted because it is dev-only (generates tests/e2e/fixtures via
-#     scripts/make-fixtures.ts), never imported by shipped code and never
-#     distributed — so the GPL terms of the binary it fetches impose nothing on
-#     our output (docs/11 §5). Pin and checksum it before ever running in CI.
+#
+# ffmpeg-static is explicitly DENIED. Its postinstall downloads a prebuilt
+# ffmpeg binary from GitHub releases with no checksum, and it used to run on
+# every `pnpm install` — including all four CI workflows, none of which ever
+# executes ffmpeg. The package is dev-only and only two local scripts need the
+# binary (`scripts/make-fixtures.ts`, `scripts/make-demo.ts`); both run the
+# package's installer on demand when the binary is missing (see
+# `scripts/ensure-ffmpeg.ts`). So the download happens on a developer machine
+# that asked for it, never on a runner holding deploy secrets.
 allowBuilds:
   esbuild: true
-  ffmpeg-static: true
+  ffmpeg-static: false
   sharp: true
   workerd: true
-
-# pnpm 11 holds back very fresh releases by default. These three are the exact
-# versions pinned in docs/11 §2 and verified against the registry, so the
-# cooling-off period would only block a reproducible install.
-minimumReleaseAgeExclude:
-  - astro@7.1.3
-  - eslint-plugin-svelte@3.22.0
-  - svelte@5.56.7
