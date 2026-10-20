@@ -55,7 +55,9 @@ function fakeDeck(): TtMediaPort & {
   } as TtMediaPort & { src: string; playing: boolean; looped: boolean; plays: number };
 }
 
-function harness(over: { ctxState?: 'suspended' | 'running' } = {}) {
+function harness(
+  over: { ctxState?: 'suspended' | 'running'; onLiveUrls?: (n: number) => void } = {},
+) {
   const decks = [fakeDeck(), fakeDeck()];
   const deckGains = [fakeGain(), fakeGain()];
   const userGain = fakeGain();
@@ -100,6 +102,7 @@ function harness(over: { ctxState?: 'suspended' | 'running' } = {}) {
     onEnded: () => ended.push(1),
     onStatus: (s) => statuses.push(s),
     onError: (id) => errors.push(id),
+    ...(over.onLiveUrls ? { onLiveUrls: over.onLiveUrls } : {}),
   });
 
   return {
@@ -255,6 +258,33 @@ describe('TtAudioEngine', () => {
     for (let i = 0; i < 10; i++) h.engine.load(track(`t${i}`), true);
     expect(h.engine.liveUrls).toBe(1);
     expect(h.revoked).toHaveLength(9);
+  });
+
+  it('keeps the previous track’s COVER when the next one loads — only its media goes', () => {
+    // v1.1.1: load() released the cover with the media. The track was still in
+    // the queue, so its info modal, the Setup preview and the cover backdrop
+    // pointed at a revoked URL from the moment the playlist moved on.
+    const h = harness();
+    const cover = h.engine.acquireCoverUrl('a', new Uint8Array([1, 2, 3]), 'image/png');
+    h.engine.load(track('a'), false);
+    h.engine.load(track('b'), false);
+
+    expect(h.revoked).not.toContain(cover);
+    expect(h.revoked).toHaveLength(1); // a's media URL, and only that
+    expect(h.engine.liveUrls).toBe(2); // a's cover + b's media
+
+    h.engine.releaseTrack('a'); // the track is removed: now its cover goes
+    expect(h.revoked).toContain(cover);
+  });
+
+  it('reports every change of the live-URL count — the canary the panel shows', () => {
+    const counts: number[] = [];
+    const h = harness({ onLiveUrls: (n: number) => counts.push(n) });
+    h.engine.acquireCoverUrl('a', new Uint8Array([1]), 'image/png');
+    h.engine.load(track('a'), false);
+    h.engine.load(track('b'), false);
+    h.engine.dispose();
+    expect(counts).toEqual([1, 2, 1, 2, 0]);
   });
 
   it('sets the hard loop on the element (docs/05 §2)', () => {

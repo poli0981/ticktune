@@ -104,6 +104,11 @@ export interface TtAudioEvents {
    * engine's unit fakes need not care.
    */
   onError?: (trackId: string) => void;
+  /**
+   * The number of live object URLs changed — docs/05 §3's bound, docs/09 §5's
+   * leak canary. Optional: only the debug panel shows it.
+   */
+  onLiveUrls?: (count: number) => void;
 }
 
 export type TtPlaybackStatus = 'idle' | 'playing' | 'paused' | 'blocked' | 'error';

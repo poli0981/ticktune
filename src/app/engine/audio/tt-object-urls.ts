@@ -25,10 +25,22 @@ export class TtUrlLedger {
   readonly #urls = new Map<string, string>();
   readonly #create: (blob: Blob) => string;
   readonly #revoke: (url: string) => void;
+  readonly #onChange: ((size: number) => void) | undefined;
 
-  constructor(create: (blob: Blob) => string, revoke: (url: string) => void) {
+  /**
+   * @param onChange told the new size after every create or revoke. The debug
+   *   panel's canary read `size` through a plain getter, which nothing reactive
+   *   depends on, so it showed whatever the count was when it first rendered —
+   *   a leak canary that could never go off (v1.1.1).
+   */
+  constructor(
+    create: (blob: Blob) => string,
+    revoke: (url: string) => void,
+    onChange?: (size: number) => void,
+  ) {
     this.#create = create;
     this.#revoke = revoke;
+    this.#onChange = onChange;
   }
 
   /** How many URLs are live right now. The canary. */
@@ -46,6 +58,7 @@ export class TtUrlLedger {
     if (existing !== undefined) return existing;
     const url = this.#create(source);
     this.#urls.set(key, url);
+    this.#onChange?.(this.#urls.size);
     return url;
   }
 
@@ -59,6 +72,7 @@ export class TtUrlLedger {
     if (url === undefined) return;
     this.#urls.delete(key);
     this.#revoke(url);
+    this.#onChange?.(this.#urls.size);
   }
 
   /** Everything for one track: its media URL and its cover. */
@@ -69,8 +83,10 @@ export class TtUrlLedger {
 
   /** Queue clear and `pagehide` (docs/05 §3). */
   releaseAll(): void {
+    if (this.#urls.size === 0) return;
     for (const url of this.#urls.values()) this.#revoke(url);
     this.#urls.clear();
+    this.#onChange?.(0);
   }
 
   /**

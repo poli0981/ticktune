@@ -26,6 +26,7 @@ class PlaybackStore {
   #track = $state<TtTrack | null>(null);
   #positionMs = $state(0);
   #durationMs = $state<number | null>(null);
+  #liveUrls = $state(0);
 
   /** TT-SYS-205 is a property of the build, so it is reported once per session. */
   #loopStyleReported = false;
@@ -61,9 +62,13 @@ class PlaybackStore {
   get durationMs(): number | null {
     return this.#durationMs;
   }
-  /** docs/09 §5's leak canary, for the ?ttdebug=1 panel. */
+  /**
+   * docs/09 §5's leak canary, for the ?ttdebug=1 panel. Pushed by the ledger
+   * on every change: read through the engine's plain getter it was never
+   * re-read, so the panel showed the count from its first render, forever.
+   */
   get liveUrls(): number {
-    return this.#driver?.engine.liveUrls ?? 0;
+    return this.#liveUrls;
   }
   get peakRms(): number {
     return this.#driver?.peakRms ?? 0;
@@ -116,6 +121,9 @@ class PlaybackStore {
       // skip the one now playing.
       onError: (trackId) => {
         if (this.#track?.id === trackId) this.onError?.(trackId);
+      },
+      onLiveUrls: (n) => {
+        this.#liveUrls = n;
       },
     });
     return this.#driver;
