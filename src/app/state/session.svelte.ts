@@ -13,8 +13,8 @@ import {
   withoutImmediateRepeat,
 } from '../engine/queue/tt-play-order';
 import { ytCauseIsTransient } from '../../lib/tt-yt-cause';
-import { browserYtPorts } from '../engine/youtube/tt-yt-driver';
-import { importLinks, reachedEdge } from '../engine/youtube/tt-yt-import';
+import { browserYtPorts, lookupDurations } from '../engine/youtube/tt-yt-driver';
+import { importLinks, reachedEdge, ytDurationTargets } from '../engine/youtube/tt-yt-import';
 import { finishReport } from '../engine/timer/tt-late';
 import { TT_MAX_COUNTDOWN_MS, TT_MIN_COUNTDOWN_MS } from '../engine/timer/tt-format';
 import type { TtFinishInfo, TtFinishReport } from '../engine/timer/types';
@@ -498,6 +498,7 @@ class SessionStore {
       if (result.added.length > 0) this.#queue = [...this.#queue, ...result.added];
       this.#syncOrder();
       this.#lastImport = result;
+      if (result.added.length > 0) void this.#fillDurations();
 
       // docs/06 §8 — `navigator.onLine` is the hint, THIS is the authority. It
       // is the only signal that survives a machine whose interface is up but
@@ -733,6 +734,34 @@ class SessionStore {
     }
 
     this.#syncOrder();
+    // The same outage that left these pending may have cost them their length.
+    void this.#fillDurations();
+  }
+
+  /**
+   * docs/06 §3 (v2.0) — lengths for every link that lacks one, in one request.
+   *
+   * Until v2.0 a link's `durationMs` stayed null until the player backfilled it
+   * on play, so the queue total read `–` and "Match queue length" was disabled
+   * for every YouTube queue by construction. The Data API answers at import.
+   *
+   * Not awaited by its callers, deliberately: an import is done when its rows
+   * are, and the "Thêm" button must not wait on Google. The answer lands through
+   * `patchTrack`, which already handles what a late answer can meet — a row the
+   * user removed meanwhile, and a length the player backfilled first.
+   */
+  async #fillDurations(): Promise<void> {
+    const ids = ytDurationTargets(this.#queue);
+    if (ids.length === 0) return;
+    const lengths = await lookupDurations(ids);
+    if (lengths === null) {
+      ttLog.info('TT-YT-008', '');
+      return;
+    }
+    for (const t of this.#queue) {
+      const ms = t.videoId === undefined ? undefined : lengths.get(t.videoId);
+      if (ms !== undefined) this.patchTrack(t.id, { durationMs: ms });
+    }
   }
 
   /** docs/02 §6 — a track that failed to decode is marked, not silently dropped. */

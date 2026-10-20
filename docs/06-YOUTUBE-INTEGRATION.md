@@ -156,9 +156,9 @@ cause there would put a confident wrong sentence in front of the user.
   are the player's own. So `img-src https://i.ytimg.com` in `09 §4` is
   currently unused by this document — a candidate for removal once a live
   YouTube session is measured without it.
-- Duration and publish date are **not** available without the Data API v3 —
-  post-1.0 option (same Worker would hold the key server-side). v1 renders `–`
-  until the player backfills duration.
+- Duration is **not** in oEmbed. Since v2.0 it comes from the Data API through
+  the same Worker — `### Durations` below. Publish date is not fetched: nothing
+  renders it.
 - Abuse controls: Cloudflare rate-limiting rule on `/api/*` (`10 §6`); the client
   imports **strictly sequentially** — one oEmbed check at a time, awaited.
 
@@ -169,6 +169,55 @@ cause there would put a confident wrong sentence in front of the user.
   the 60 req/min rule, so the code is right and the sentence was wrong. Do not
   "restore" the pool — a bounded-4 importer would put a 50-link paste much closer
   to a limit nobody has yet confirmed is even switched on (`10 §11`).
+
+### Durations — YouTube Data API v3 (v2.0)
+
+```
+GET /api/yt/durations?ids=<id>,<id>,…        (1–50 ids, each ^[A-Za-z0-9_-]{11}$, deduped)
+  → per id: caches.default first (key versioned, like oEmbed's)
+  → misses, in ONE call: https://www.googleapis.com/youtube/v3/videos
+        ?part=contentDetails&id=<misses>&fields=items(id,contentDetails/duration)
+        header x-goog-api-key: <YT_DATA_API_KEY>   ← a Worker secret, never in a URL
+        header Referer: https://ticktune.net/      ← what the key is restricted to
+  → 200 {durations: {id: ms | null}}
+        ms   ← contentDetails.duration (ISO 8601, src/lib/tt-iso-duration.ts)
+        null ← P0D (live, unaired) or an id Google did not return (private, gone)
+        each answer cached: a length 24 h, a null 15 min
+  → no key on this deployment          → 503 {error:"not_configured"}  (Google never called)
+  → over the per-IP budget (20/min)    → 429 {error:"rate_limited"}
+  → upstream 4xx (quota, key refused)  → 503 {error:"upstream_refused"}
+  → upstream 429/5xx                   → 503 {error:"upstream_unreachable"}
+  → network failure or > 8 s           → 502 {error:"upstream_unreachable"}
+  → 200 that is not {items: [...]}     → 502 {error:"upstream_unreachable"}
+  → bad ids / method                   → 400 {error:"invalid_id"} / 405
+  failures uncached; every response: application/json, nosniff, NO CORS headers
+```
+
+**Why at all.** oEmbed has no length, so until v2.0 a link's `durationMs` stayed
+`null` until the player loaded it — the queue total read `–` and "Match queue
+length" (`03 §3`) was disabled for every link queue by construction.
+
+**The quota is the budget.** 10,000 units a day; `videos.list` costs one per call
+whatever the number of ids, so the client asks **once per paste** for every link
+still without a length (`ytDurationTargets`), and the per-id cache answers a
+re-import for free. A per-IP Workers Rate Limiting binding (`10 §6`) sits in
+front, counted in edge memory only; a limiter that fails lets the request
+through, because the quota is the hard ceiling and spending it costs only this
+convenience until midnight Pacific. The policies allow keeping API data up to
+30 days; 24 h is far inside that.
+
+**Every failure means the same to the app**, so the client reads none of the
+words: `lookupDurations` returns `null`, **TT-YT-008** is logged once, lengths
+stay `–`, and the player still backfills them on play — the v1 behaviour, at the
+cost of a convenience. The words are for Workers Logs (`10 §10`), where "why is
+Match disabled for links?" gets answered. Answers land through
+`session.patchTrack`, which fills blanks only (a length the player backfilled
+first wins) and ignores a row the user removed meanwhile.
+
+**The key** is restricted in Google Cloud to the YouTube Data API v3 and to the
+website `https://ticktune.net/*`; Google checks that against the Referer the
+Worker sends, and Version URLs send the same one, so a PR's preview exercises
+the real key. How it is set without deploying: `10 §3`.
 
 ## 4. Error matrix → typed overlays (spec: "custom pages")
 
@@ -255,7 +304,9 @@ Input: textarea paste (one URL per line) and/or repeated single adds.
    403/404  → rejected, private or gone               log  → TT-YT-100
    429/502  → TtTrack{status:'pending'} kept          log  → TT-YT-001
    anything else → rejected, cause unknown            log  → TT-YT-004
-5. durationMs stays null → rendered "–" until backfill (§2)
+5. Lengths for every link still without one, ONE call (§3 Durations)
+   ok       → durationMs filled (patchTrack: blanks only)
+   failure  → durationMs stays null, "–" until backfill (§2)   log → TT-YT-008
 ```
 
 No per-track or total duration limits in this mode (spec) — so the queue

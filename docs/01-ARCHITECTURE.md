@@ -4,7 +4,8 @@ Suite 1.1 · 2026-10-20
 
 ## 1. System shape
 
-TickTune is a **static-first web app with exactly one edge endpoint**.
+TickTune is a **static-first web app with two edge endpoints**, both for
+YouTube links.
 
 ```
 ┌────────────────────────── Browser (desktop only) ──────────────────────────┐
@@ -17,10 +18,12 @@ TickTune is a **static-first web app with exactly one edge endpoint**.
 │     └─ State (Svelte runes) + Log ring buffer + Settings (Dexie)           │
 │  every page: Cloudflare Web Analytics beacon (disclosed, `09 §1`)          │
 └──────────────┬─────────────────────────────────────────────┬──────────────┘
-               │ static assets + /api/yt/oembed              │ YouTube mode only
+               │ static assets + /api/yt/{oembed,durations}  │ YouTube mode only
      ┌─────────▼──────────────┐                    ┌─────────▼──────────────┐
      │ Cloudflare Worker      │  oEmbed fetch,     │ www.youtube.com        │
-     │ (Static Assets + 1 API)│  cached 6 h ─────► │  (IFrame API, oEmbed)  │
+     │ (Static Assets + 2 API)│  cached 6 h ─────► │  (IFrame API, oEmbed)  │
+     │                        │  Data API v3,      │ www.googleapis.com     │
+     │                        │  per id 24 h ────► │  (lengths, v2.0)       │
      └────────────────────────┘                    │ youtube-nocookie.com   │
                                                    │  (the player itself)   │
                                                    └────────────────────────┘
@@ -32,6 +35,11 @@ assets exposes `GET /api/yt/oembed?id=<videoId>` which fetches oEmbed server-sid
 caches 6 h, and returns JSON — **same-origin only, no CORS headers** (v1.1; the app
 calls it on its own origin, so `*` only ever served other sites). Details in
 `06-YOUTUBE-INTEGRATION.md`.
+
+Why the second exists (v2.0): a link's length comes from the YouTube Data API,
+which needs a key — and a key in the page is a key anyone can take. The Worker
+holds it as a secret and exposes `GET /api/yt/durations?ids=<id,…>` (≤ 50 ids),
+cached per id, same-origin only, behind a per-IP limiter (`06 §3`).
 
 ## 2. Principles (in priority order)
 

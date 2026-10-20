@@ -29,7 +29,10 @@ export interface TtTrack {
   year?: string;
   genre?: string;
   trackNo?: string;
-  /** null until known. YouTube fills it after cue (docs/06 §5). */
+  /**
+   * null until known. A link gets it from the Data API at import (docs/06 §3,
+   * v2.0), or from the player after cue when that was unavailable (§2).
+   */
   durationMs: number | null;
 
   // ── local only ────────────────────────────────────────────────────────────

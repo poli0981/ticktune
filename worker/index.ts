@@ -1,19 +1,37 @@
 /**
- * The one edge endpoint — docs/01 §1, docs/06 §3.
+ * The edge endpoints — docs/01 §1, docs/06 §3.
  *
- * It exists for exactly one reason: https://www.youtube.com/oembed sends no
- * CORS headers, so the browser cannot call it. Everything else is static assets.
+ * Two, each for a reason the browser cannot meet on its own:
  *
- * It is deliberately **not** a URL proxy. The only input is an 11-character
- * video id matched against a strict regex; the upstream URL is constructed here
- * and never taken from the request (docs/09 §1). That is what stops it being
- * usable as an open proxy.
+ * - `/api/yt/oembed` — https://www.youtube.com/oembed sends no CORS headers.
+ * - `/api/yt/durations` (v2.0) — the YouTube Data API needs a key, and a key in
+ *   the page is a key anyone can take. It stays a Worker secret.
+ *
+ * Neither is a URL proxy. The only input is 11-character video ids matched
+ * against a strict regex; every upstream URL is constructed here and never
+ * taken from the request (docs/09 §1). That is what stops them being usable as
+ * open proxies. Everything else is static assets.
  */
 
+import { isoDurationMs } from '../src/lib/tt-iso-duration';
 import { ytCauseFromUpstream, ytCauseIsTransient } from '../src/lib/tt-yt-cause';
+
+/** Workers Rate Limiting binding — counted in edge memory, never logged. */
+interface TtRateLimit {
+  limit: (options: { key: string }) => Promise<{ success: boolean }>;
+}
 
 interface Env {
   ASSETS: { fetch: (req: Request) => Promise<Response> };
+  /**
+   * YouTube Data API v3 key (docs/06 §3, docs/10 §3). A Worker SECRET, set with
+   * `wrangler versions secret put` — the dashboard and `wrangler secret put`
+   * both deploy, which production must only ever do from a signed tag.
+   * Absent → 503 `not_configured`, and the app keeps `–` as it did before v2.0.
+   */
+  YT_DATA_API_KEY?: string;
+  /** `ratelimits` in wrangler.jsonc — per-IP budget for /api/yt/durations. */
+  YT_DURATIONS_LIMIT?: TtRateLimit;
 }
 
 /** YouTube video ids: exactly 11 chars of URL-safe base64 (docs/06 §3). */
@@ -156,9 +174,142 @@ async function oembed(id: string, ctx: ExecutionContext): Promise<Response> {
   return out;
 }
 
+/** One `videos.list` call takes at most 50 ids — and so does the queue (docs/02 §4). */
+const MAX_DURATION_IDS = 50;
+
+/**
+ * 24 h for a length, 15 min for "none". YouTube's developer policies allow
+ * keeping API data up to 30 days; a day keeps the quota near zero for a queue
+ * someone re-imports. A video with no length — live, unaired, private, gone —
+ * may gain one, so that answer is re-asked sooner.
+ */
+const DURATION_TTL_S = 86_400;
+const NO_DURATION_TTL_S = 900;
+const DURATION_CACHE_VERSION = 'v1';
+
+/**
+ * The key's website restriction is `https://ticktune.net/*` (docs/10 §3), and
+ * Google checks it against the Referer of the API request — which, from here,
+ * is whatever this Worker sends. Version URLs send the same one, so a PR's
+ * preview exercises the real key.
+ */
+const DATA_API_REFERER = 'https://ticktune.net/';
+
+/** `ids=a,b,c` → unique ids, or null if any is malformed or there are none or too many. */
+function parseIds(param: string | null): string[] | null {
+  if (param === null || param === '') return null;
+  const ids = [...new Set(param.split(','))];
+  if (ids.length > MAX_DURATION_IDS || !ids.every((id) => VIDEO_ID.test(id))) return null;
+  return ids;
+}
+
+const durationKey = (id: string) =>
+  new Request(`https://tt-yt-duration.invalid/${DURATION_CACHE_VERSION}/${id}`);
+
+/**
+ * docs/06 §3 — `{durations: {id: ms | null}}` for up to 50 ids, one Data API
+ * call for whatever the cache does not hold.
+ *
+ * Every failure is uncached and says so in one word; the app treats them all
+ * alike — durations stay `–`, the player still backfills on play — so the
+ * words are for Workers Logs, where "why is Match disabled for links" gets
+ * answered.
+ */
+async function durations(ids: string[], env: Env, ctx: ExecutionContext): Promise<Response> {
+  const cache = caches.default;
+  const out: Record<string, number | null> = {};
+  const missing: string[] = [];
+  await Promise.all(
+    ids.map(async (id) => {
+      const hit = await cache.match(durationKey(id));
+      const ms = hit ? ((await hit.json()) as { ms?: unknown }).ms : undefined;
+      if (typeof ms === 'number' || ms === null) out[id] = ms;
+      else missing.push(id);
+    }),
+  );
+  if (missing.length === 0) return json({ durations: out }, 200, NO_DURATION_TTL_S);
+
+  const key = env.YT_DATA_API_KEY;
+  if (key === undefined || key === '') return json({ error: 'not_configured' }, 503, 0);
+
+  const upstream = new URL('https://www.googleapis.com/youtube/v3/videos');
+  upstream.searchParams.set('part', 'contentDetails');
+  upstream.searchParams.set('id', missing.join(','));
+  upstream.searchParams.set('fields', 'items(id,contentDetails/duration)');
+
+  let res: Response;
+  try {
+    res = await fetch(upstream, {
+      // The key travels in a header, not the URL: nothing that records URLs
+      // between here and Google gets to keep it.
+      headers: { accept: 'application/json', 'x-goog-api-key': key, referer: DATA_API_REFERER },
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    });
+  } catch {
+    return json({ error: 'upstream_unreachable' }, 502, 0);
+  }
+  // 403 is quota spent, or the key or its restriction refusing us — a fact
+  // about us, not about any video. 5xx and 429 are Google having a bad minute.
+  if (!res.ok) {
+    const refused = res.status >= 400 && res.status < 500 && res.status !== 429;
+    return json({ error: refused ? 'upstream_refused' : 'upstream_unreachable' }, 503, 0);
+  }
+
+  let items: unknown[];
+  try {
+    const parsed: unknown = await res.json();
+    if (parsed === null || typeof parsed !== 'object') throw new TypeError('not an object');
+    const list = (parsed as { items?: unknown }).items ?? [];
+    if (!Array.isArray(list)) throw new TypeError('items is not an array');
+    items = list as unknown[];
+  } catch {
+    return json({ error: 'upstream_unreachable' }, 502, 0);
+  }
+
+  const found = new Map<string, number | null>();
+  for (const item of items) {
+    const it = item as { id?: unknown; contentDetails?: { duration?: unknown } } | null;
+    if (typeof it?.id === 'string' && typeof it.contentDetails?.duration === 'string') {
+      found.set(it.id, isoDurationMs(it.contentDetails.duration));
+    }
+  }
+  // An id Google did not return is private, deleted or never existed: no length.
+  for (const id of missing) {
+    const ms = found.get(id) ?? null;
+    out[id] = ms;
+    ctx.waitUntil(
+      cache.put(
+        durationKey(id),
+        json({ ms }, 200, ms === null ? NO_DURATION_TTL_S : DURATION_TTL_S),
+      ),
+    );
+  }
+  return json({ durations: out }, 200, NO_DURATION_TTL_S);
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
+
+    if (url.pathname === '/api/yt/durations') {
+      if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405, 0);
+      const ids = parseIds(url.searchParams.get('ids'));
+      if (ids === null) return json({ error: 'invalid_id' }, 400, 0);
+
+      /*
+       * The quota is the budget this guards: 10,000 units a day, one per call.
+       * Counted per IP, in edge memory only. A limiter that cannot answer lets
+       * the request through — the quota itself is the hard ceiling, and running
+       * out costs nothing but this convenience until midnight Pacific.
+       */
+      const limiter = env.YT_DURATIONS_LIMIT;
+      if (limiter !== undefined) {
+        const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+        const verdict = await limiter.limit({ key: ip }).catch(() => ({ success: true }));
+        if (!verdict.success) return json({ error: 'rate_limited' }, 429, 0);
+      }
+      return durations(ids, env, ctx);
+    }
 
     if (url.pathname === '/api/yt/oembed') {
       // A WAF rule blocks non-GET on /api/* at the edge (docs/10 §5); this is

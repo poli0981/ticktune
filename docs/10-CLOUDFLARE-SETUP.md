@@ -62,6 +62,16 @@ pnpm wrangler deploy       # uses wrangler.jsonc from 01 §5
 - The account is on **Workers Paid**: no daily request ceiling (10 M requests/month
   included), and **Workers Logs retention is 7 days** (3 on Free). The retention
   is a privacy-policy fact — see `§10`.
+- **Secret `YT_DATA_API_KEY`** (v2.0, `06 §3`) — a YouTube Data API v3 key from
+  Google Cloud project "YouTubeTick", restricted to that one API and to the
+  website `https://ticktune.net/*` (the Worker sends that Referer).
+  ⚠️ **Set or rotate it with `npx wrangler versions secret put YT_DATA_API_KEY`**,
+  which creates a new *version* and deploys nothing. The dashboard's secret
+  editor and `wrangler secret put` both **deploy** the Worker with the change —
+  i.e. ship whatever version is current to production outside a signed tag
+  (`14 §5`). Secrets carry over to every later version, so the next tag picks
+  it up. Absent, `/api/yt/durations` answers `not_configured` and links keep
+  `–` until played.
 
 ## 4. Security toggles (zone)
 
@@ -96,6 +106,13 @@ leave defaults. Custom rules (5 free) — add one:
   `status:'pending'` with cause `rate_limited` → **TT-YT-001**, shown by the
   import toast as `toast.import.TT-YT-001`, and retried on Start (`06 §8`).
   This is the concrete realization of the spec's "429 custom page".
+- **`/api/yt/durations` has its own limiter in the Worker** (v2.0): the
+  `ratelimits` binding `YT_DURATIONS_LIMIT` in `wrangler.jsonc`, **20 requests /
+  60 s per client IP**, counted in each edge location's memory and never logged.
+  It exists for the Data API quota, not for load — the zone rule above guards
+  load, and is still unverified (`§11`) — so it applies to that route alone and
+  leaves oEmbed's tested behaviour as it was. A 429 there costs the paste its
+  lengths (TT-YT-008), never a track.
 
 ## 7. Headers
 

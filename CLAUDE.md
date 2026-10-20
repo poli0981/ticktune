@@ -9,7 +9,8 @@ TickTune (`poli0981/ticktune`, GPL-3.0-only): a desktop-only static web app —
 user-supplied music (local files or YouTube links) behind a large DSEG7 digital
 countdown, styled as broadcast rack hardware ("Rack Unit", `docs/03`). Astro 7
 static pages + one Svelte 5 island at `/app/`, deployed to Cloudflare Workers
-Static Assets with exactly one API route (`GET /api/yt/oembed`). Vietnamese
+Static Assets with two API routes (`GET /api/yt/oembed`, and since v2.0
+`GET /api/yt/durations`, which holds the Data API key as a Worker secret). Vietnamese
 default UI, English mirror.
 
 The island is **hand-mounted**, not mounted with an Astro client directive:
