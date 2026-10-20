@@ -36,6 +36,8 @@ export default defineConfig({
     locale: 'vi-VN',
     timezoneId: 'Asia/Ho_Chi_Minh',
     reducedMotion: 'reduce',
+    // As in the E2E suite: a page /sw.js controls is not what a screenshot is about.
+    serviceWorkers: 'block',
   },
   projects: [{ name: 'chromium' }],
   webServer: {
