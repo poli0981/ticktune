@@ -35,6 +35,14 @@ function bin(name: string): string {
 // Keep in step with the `visual` job in .github/workflows/quality.yml.
 const IMAGE =
   'mcr.microsoft.com/playwright:v1.64.1-noble@sha256:7852dc5a7d72f5fe458a597d690f6c42fbc8e9e26ddfa95f8e6ef552558d9bbf';
+/*
+ * `--update` rewrites EVERY baseline, not Playwright's default of the ones that
+ * fail. A change inside the tolerance (`maxDiffPixelRatio` 0.001 — 1,296 px at
+ * 1440×900) never fails, so the default never wrote it and the baseline went
+ * quietly stale while this script said "written": the crossfade toggle going
+ * from disabled (opacity 0.4) to live was such a change (v2.0). One image,
+ * one renderer, so an unchanged screen re-encodes to the same bytes.
+ */
 const update = process.argv.includes('--update');
 
 const inside = [
@@ -44,7 +52,7 @@ const inside = [
   'CI=1 pnpm install --frozen-lockfile >&2',
   'pnpm build >&2',
   'status=0',
-  `CI=1 pnpm exec playwright test -c playwright.visual.config.ts ${update ? '--update-snapshots' : ''} >&2 || status=$?`,
+  `CI=1 pnpm exec playwright test -c playwright.visual.config.ts ${update ? '--update-snapshots=all' : ''} >&2 || status=$?`,
   // Results back out on stdout, as a tar; everything else went to stderr.
   'tar -c tests/visual/__screenshots__ $( [ -d playwright-report ] && echo playwright-report )',
   'exit $status',
