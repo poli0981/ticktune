@@ -221,10 +221,6 @@
     }
   },
   "header": {
-    "lang": {
-      "toVi": "Chuyển sang tiếng Việt",
-      "toEn": "Switch to English"
-    },
     "settings": "Settings",
     "fullscreen": "Fullscreen"
   },

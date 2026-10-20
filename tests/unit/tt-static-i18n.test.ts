@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { en } from '../../src/i18n/static/en';
+import { ja } from '../../src/i18n/static/ja';
 import { vi } from '../../src/i18n/static/vi';
 
 /**
@@ -30,6 +31,7 @@ function leaves(node: unknown, prefix = ''): [string, string][] {
 
 const enLeaves = leaves(en);
 const viLeaves = leaves(vi);
+const jaLeaves = leaves(ja);
 
 describe('shape the type cannot enforce', () => {
   it('has the same number of array entries in both languages', () => {
@@ -40,10 +42,11 @@ describe('shape the type cannot enforce', () => {
      * paths catches it, and names the missing one.
      */
     expect(viLeaves.map(([p]) => p)).toEqual(enLeaves.map(([p]) => p));
+    expect(jaLeaves.map(([p]) => p)).toEqual(enLeaves.map(([p]) => p));
   });
 
   it('leaves no empty string — a blank renders as a gap nobody reports', () => {
-    for (const [path, value] of [...enLeaves, ...viLeaves]) {
+    for (const [path, value] of [...enLeaves, ...viLeaves, ...jaLeaves]) {
       expect(value.trim(), path).not.toBe('');
     }
   });
@@ -73,7 +76,17 @@ describe('the values themselves', () => {
     expect(identical).toEqual([]);
   });
 
-  it('states the docs/04 §2 item 6 countdown promise in both languages', () => {
+  it('has no JA entry left identical to its English source (v2.0)', () => {
+    // Only the YouTube mode name — a brand, written in Latin in Japanese too.
+    const SAME_IN_JA = new Set(['landing.modes[2].name']);
+    const enMap = new Map(enLeaves);
+    const identical = jaLeaves
+      .filter(([path, value]) => !SAME_IN_JA.has(path) && enMap.get(path) === value)
+      .map(([path]) => path);
+    expect(identical).toEqual([]);
+  });
+
+  it('states the docs/04 §2 item 6 countdown promise in every language', () => {
     /*
      * The one S2-decision deliverable outside the app. The E2E asserts it
      * reaches the rendered page; this asserts it exists in the SOURCE, so a
@@ -84,6 +97,8 @@ describe('the values themselves', () => {
     expect(en.faq[0]!.a).toMatch(/best-effort/i);
     expect(vi.faq[0]!.a).toMatch(/chính xác khi tab đang hiển thị/);
     expect(vi.faq[0]!.a).toMatch(/tốt nhất có thể/);
+    expect(ja.faq[0]!.a).toMatch(/表示されている間は正確/);
+    expect(ja.faq[0]!.a).toMatch(/ベストエフォート/);
   });
 
   it('keeps the published limits in step with what the app enforces', () => {
@@ -94,9 +109,11 @@ describe('the values themselves', () => {
      * static page to save six rows is a poor trade), so this is the guard that
      * the prose still names the real numbers.
      */
-    const both = [...enLeaves, ...viLeaves].map(([, v]) => v).join(' ');
-    for (const figure of ['10:02', '95', '91:00', '50', '24']) {
-      expect(both, `limit ${figure} missing from the landing copy`).toContain(figure);
+    for (const dict of [enLeaves, viLeaves, jaLeaves]) {
+      const copy = dict.map(([, v]) => v).join(' ');
+      for (const figure of ['10:02', '95', '91:00', '50', '24']) {
+        expect(copy, `limit ${figure} missing from the landing copy`).toContain(figure);
+      }
     }
   });
 });

@@ -205,4 +205,12 @@ describe('initialLang (docs/08 §2)', () => {
     expect(initialLang(null, 'en-US')).toBe('en');
     expect(initialLang(null, undefined)).toBe('en');
   });
+
+  it('boots a ja* browser in Japanese (v2.0), and keeps a stored choice over it', () => {
+    expect(initialLang(null, 'ja')).toBe('ja');
+    expect(initialLang(null, 'ja-JP')).toBe('ja');
+    expect(initialLang('vi', 'ja-JP')).toBe('vi');
+    expect(clampSettings({ lang: 'ja' }).lang).toBe('ja');
+    expect(clampSettings({ lang: 'fr' }).lang).toBe('vi');
+  });
 });

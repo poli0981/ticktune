@@ -29,7 +29,7 @@ const meta = (page: Page, selector: string, attr = 'content') =>
 test.describe('landing', () => {
   test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
 
-  test('/ is Vietnamese and /en/ is English', async ({ page }) => {
+  test('/ is Vietnamese, /en/ is English and /ja/ is Japanese', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('html')).toHaveAttribute('lang', 'vi');
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Đồng hồ của bạn');
@@ -37,6 +37,10 @@ test.describe('landing', () => {
     await page.goto('/en/');
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Your countdown');
+
+    await page.goto('/ja/');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'ja');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('あなたの時計');
   });
 
   test('hreflang is reciprocal, and each page points at the other', async ({ page }) => {
@@ -49,10 +53,14 @@ test.describe('landing', () => {
     const fromVi = await alternates(page);
     await page.goto('/en/');
     const fromEn = await alternates(page);
+    await page.goto('/ja/');
+    const fromJa = await alternates(page);
 
     expect(fromVi).toEqual(fromEn);
+    expect(fromJa).toEqual(fromVi);
     expect(fromVi['vi']).toMatch(/\/$/);
     expect(fromVi['en']).toMatch(/\/en\/$/);
+    expect(fromVi['ja']).toMatch(/\/ja\/$/);
     // x-default is the page a searcher of any other language should land on;
     // docs/08 makes Vietnamese the default, so it must equal the vi href.
     expect(fromVi['x-default']).toBe(fromVi['vi']);
@@ -63,6 +71,8 @@ test.describe('landing', () => {
     expect(await meta(page, 'link[rel="canonical"]', 'href')).toMatch(/ticktune\.net\/$/);
     await page.goto('/en/');
     expect(await meta(page, 'link[rel="canonical"]', 'href')).toMatch(/ticktune\.net\/en\/$/);
+    await page.goto('/ja/');
+    expect(await meta(page, 'link[rel="canonical"]', 'href')).toMatch(/ticktune\.net\/ja\/$/);
   });
 
   test('the FAQ states the visible-vs-hidden countdown promise — docs/04 §2 item 6', async ({
@@ -100,13 +110,54 @@ test.describe('landing', () => {
     await expect(source).toHaveAttribute('rel', /noopener/);
   });
 
-  test('the language switch navigates between the two routes', async ({ page }) => {
+  test('the language nav links the other two routes, each in its own language', async ({
+    page,
+  }) => {
     // Separate routes, so this is navigation — unlike the app island's in-place
-    // toggle (docs/08 §1 vs §2, two mechanisms for two surfaces).
+    // switch (docs/08 §1 vs §2, two mechanisms for two surfaces).
     await page.goto('/');
-    await page.getByRole('navigation').getByRole('link').click();
-    await expect(page).toHaveURL(/\/en\/$/);
-    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    const links = page.getByRole('navigation').getByRole('link');
+    await expect(links).toHaveCount(2);
+    await expect(links.nth(0)).toHaveAttribute('lang', 'en');
+    await expect(links.nth(1)).toHaveAttribute('lang', 'ja');
+    await links.nth(1).click();
+    await expect(page).toHaveURL(/\/ja\/$/);
+    await expect(page.locator('html')).toHaveAttribute('lang', 'ja');
+    // From /ja/, the other two — never a link to itself.
+    await expect(page.getByRole('navigation').getByRole('link')).toHaveText([
+      'Tiếng Việt',
+      'English',
+    ]);
+  });
+
+  test('a Japanese reader’s legal links go to the English texts — docs/08 §1', async ({ page }) => {
+    await page.goto('/ja/');
+    const footerLinks = page.locator('footer a[href*="/legal/"]');
+    await expect(footerLinks).not.toHaveCount(0);
+    for (const href of await footerLinks.evaluateAll((as) =>
+      as.map((a) => a.getAttribute('href') ?? ''),
+    )) {
+      expect(href).toMatch(/^\/en\/legal\//);
+    }
+  });
+
+  test('every landing carries its own WebApplication JSON-LD', async ({ page }) => {
+    for (const [path, lang] of [
+      ['/', 'vi'],
+      ['/en/', 'en'],
+      ['/ja/', 'ja'],
+    ] as const) {
+      await page.goto(path);
+      const blocks = await page
+        .locator('script[type="application/ld+json"]')
+        .evaluateAll((s) => s.map((el) => el.textContent ?? ''));
+      expect(blocks).toHaveLength(1);
+      const data = JSON.parse(blocks[0]!) as Record<string, unknown>;
+      expect(data['@type']).toBe('WebApplication');
+      expect(data['inLanguage']).toBe(lang);
+      expect(data['url']).toBe(`https://ticktune.net${path}`);
+      expect(data['isAccessibleForFree']).toBe(true);
+    }
   });
 
   test('the hero is the real capture, same-origin, with a reduced-motion still', async ({
@@ -180,6 +231,14 @@ test.describe('landing', () => {
     await page.goto('/en/404');
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(page.getByRole('heading', { level: 1 })).toContainText('Channel not found');
+    expect(await meta(page, 'meta[name="robots"]')).toContain('noindex');
+  });
+
+  test('the JA 404 mirror renders in Japanese and leads home to /ja/', async ({ page }) => {
+    await page.goto('/ja/404');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'ja');
+    await expect(page.getByRole('heading', { level: 1 })).toContainText('チャンネル');
+    await expect(page.getByRole('link', { name: /トップへ戻る/ })).toHaveAttribute('href', '/ja/');
     expect(await meta(page, 'meta[name="robots"]')).toContain('noindex');
   });
 });

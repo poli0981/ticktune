@@ -24,6 +24,7 @@
   import { playback } from './state/playback.svelte';
   import { session } from './state/session.svelte';
   import { settings } from './state/settings.svelte';
+  import type { TtLang } from './state/tt-settings-schema';
   import { yt } from './state/yt.svelte';
   import { TT_LEGAL_VERSION } from '../lib/tt-legal-const';
 
@@ -599,11 +600,22 @@
    * already correct when the await yields, and Dexie catches up afterwards. A
    * user who closes the tab in that window loses the preference, not the switch.
    */
-  async function switchLang() {
-    const next = i18n.lang === 'vi' ? 'en' : 'vi';
+  async function switchLang(next: TtLang) {
     i18n.setLang(next);
     await settings.patch({ lang: next });
   }
+
+  /*
+   * Three languages since v2.0, each named in itself (an endonym needs no
+   * translation, and a reader looking for their language finds it in their own
+   * script). The visible code leads the accessible name — WCAG 2.5.3, label in
+   * name: a voice-control user says "JA" because that is what they see.
+   */
+  const LANGS: readonly { code: TtLang; mark: string; name: string }[] = [
+    { code: 'vi', mark: 'VI', name: 'Tiếng Việt' },
+    { code: 'en', mark: 'EN', name: 'English' },
+    { code: 'ja', mark: 'JA', name: '日本語' },
+  ];
 
   /** Whichever engine is making sound — docs/06 §2. */
   function stopCurrentEngine() {
@@ -1243,20 +1255,23 @@
   {#if !focusMode}
     <header class="tt-chrome" data-testid="tt-chrome">
       <!--
-        The name STARTS with the visible code (WCAG 2.5.3, label in name): a
-        voice-control user says what they see, "EN", and the name must contain
-        it. axe 4.14 flags the old name ("Switch to English") as
-        label-content-name-mismatch.
+        Three keys in a row rather than a menu (v2.0). The header sits above
+        the right rail, and a dropdown opening down from it would cover the top
+        of the YouTube player — which no overlay may do (docs/03 §2). Inline,
+        nothing ever opens. Each name STARTS with its visible code (WCAG 2.5.3,
+        label in name), and carries its own `lang` for the endonym.
       -->
-      <button
-        class="tt-key tt-key-icon"
-        data-testid="tt-lang-toggle"
-        lang={i18n.lang === 'vi' ? 'en' : 'vi'}
-        aria-label={i18n.lang === 'vi'
-          ? `EN — ${i18n.t('header.lang.toEn')}`
-          : `VI — ${i18n.t('header.lang.toVi')}`}
-        onclick={() => void switchLang()}>{i18n.lang === 'vi' ? 'EN' : 'VI'}</button
-      >
+      <div class="tt-seg tt-lang" role="group" aria-label={i18n.t('settings.general.lang')}>
+        {#each LANGS as l (l.code)}
+          <button
+            data-testid="tt-lang-{l.code}"
+            lang={l.code}
+            aria-pressed={i18n.lang === l.code}
+            aria-label="{l.mark} — {l.name}"
+            onclick={() => void switchLang(l.code)}>{l.mark}</button
+          >
+        {/each}
+      </div>
       <button
         class="tt-key tt-key-icon"
         data-testid="tt-settings-open"
@@ -1488,6 +1503,15 @@
     z-index: var(--tt-z-chrome);
     display: flex;
     gap: var(--tt-space-2);
+  }
+
+  /* The language keys sit at the height of the icon keys beside them. */
+  .tt-lang > button {
+    min-height: 38px;
+    min-width: 2.75rem;
+    justify-content: center;
+    font-family: var(--font-mono);
+    letter-spacing: 0;
   }
 
   /* docs/03 §2 Z5 — the brand plate: tally lamp, its ON AIR caption, wordmark. */

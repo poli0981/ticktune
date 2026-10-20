@@ -329,6 +329,15 @@
             void settings.patch({ lang: 'en' });
           }}>English</button
         >
+        <button
+          aria-pressed={i18n.lang === 'ja'}
+          lang="ja"
+          data-testid="tt-set-lang-ja"
+          onclick={() => {
+            i18n.setLang('ja');
+            void settings.patch({ lang: 'ja' });
+          }}>日本語</button
+        >
       </div>
     </div>
 

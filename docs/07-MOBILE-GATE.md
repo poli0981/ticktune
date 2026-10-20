@@ -64,13 +64,19 @@ if (blocked) document.documentElement.dataset.ttBlocked = '1';
    > It reads `data-tt-blocked` rather than re-evaluating the media queries, so
    > the overlay and the loader decide once, together.
 
-## 4. Gate copy (bilingual, hardcoded in the static overlay — no JS i18n on mobile)
+## 4. Gate copy (trilingual since v2.0, hardcoded in the static overlay — no JS i18n on mobile)
 
 > **EN** — Sorry — TickTune isn't available on mobile.
 > Please use a desktop browser and try again.
 >
 > **VI** — Xin lỗi — TickTune không hỗ trợ thiết bị di động.
 > Vui lòng mở bằng trình duyệt trên máy tính.
+>
+> **JA** — 申し訳ありません — TickTune はモバイル端末に対応していません。
+> パソコンのブラウザーでお試しください。
+
+The JA paragraph (v2.0) is HTML, like the others: the gate's inline script — and
+with it the CSP hash in `09 §4` — did not change.
 
 (Original spec copy said "Desktop web/app"; adjusted — no desktop app exists.)
 Below the text: wordmark + tally light (static), link to GitHub. Nothing else.

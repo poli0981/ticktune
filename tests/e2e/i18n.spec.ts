@@ -29,7 +29,8 @@ test.describe('language toggle — docs/08 §2', () => {
       if (f === page.mainFrame()) navigated = true;
     });
 
-    await page.getByTestId('tt-lang-toggle').click();
+    // Whichever language booted, Japanese is a change from it.
+    await page.getByTestId('tt-lang-ja').click();
 
     await expect(start).not.toHaveText(before ?? '');
     expect(navigated).toBe(false);
@@ -42,18 +43,20 @@ test.describe('language toggle — docs/08 §2', () => {
     const first = await page.evaluate(() => document.documentElement.lang);
     expect(['vi', 'en']).toContain(first);
 
-    await page.getByTestId('tt-lang-toggle').click();
-    await expect
-      .poll(() => page.evaluate(() => document.documentElement.lang))
-      .toBe(first === 'vi' ? 'en' : 'vi');
+    for (const lang of ['ja', 'vi', 'en'] as const) {
+      await page.getByTestId(`tt-lang-${lang}`).click();
+      await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(lang);
+      await expect(page.getByTestId(`tt-lang-${lang}`)).toHaveAttribute('aria-pressed', 'true');
+    }
   });
 
   test('survives a reload, because the choice is persisted', async ({ page }) => {
     // docs/08 §2: "persisted to Dexie". The toggle writes through `settings`,
     // and `initialLang` prefers a stored value over `navigator.language`.
     await gotoApp(page);
-    await page.getByTestId('tt-lang-toggle').click();
+    await page.getByTestId('tt-lang-ja').click();
     const chosen = await page.evaluate(() => document.documentElement.lang);
+    expect(chosen).toBe('ja');
 
     /*
      * Wait for the WRITE, not for the paint.
@@ -72,7 +75,7 @@ test.describe('language toggle — docs/08 §2', () => {
     await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(chosen);
   });
 
-  test('renders no raw key anywhere on the Setup screen, in either language', async ({ page }) => {
+  test('renders no raw key anywhere on the Setup screen, in any language', async ({ page }) => {
     /*
      * The failure mode this catches is specific: i18next returns the KEY when a
      * lookup misses, so a typo'd or unfiled string renders as `setup.start`
@@ -81,10 +84,11 @@ test.describe('language toggle — docs/08 §2', () => {
      * two languages, whoever is reviewing.
      */
     await gotoApp(page);
-    for (let i = 0; i < 2; i += 1) {
+    for (const lang of ['vi', 'en', 'ja'] as const) {
+      await page.getByTestId(`tt-lang-${lang}`).click();
+      await expect.poll(() => page.evaluate(() => document.documentElement.lang)).toBe(lang);
       const text = (await page.getByTestId('tt-setup').textContent()) ?? '';
       expect(text).not.toMatch(/\b(setup|player|toast|gate|finished|yt)\.[a-z]/i);
-      await page.getByTestId('tt-lang-toggle').click();
     }
   });
 });

@@ -2,6 +2,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import en from '../../src/app/i18n/en.json';
+import ja from '../../src/app/i18n/ja.json';
 import vi from '../../src/app/i18n/vi.json';
 
 /**
@@ -34,6 +35,7 @@ function flatten(node: Json, prefix = ''): string[] {
 
 const enKeys = flatten(en as Json);
 const viKeys = flatten(vi as Json);
+const jaKeys = flatten(ja as Json);
 
 describe('en.json and vi.json describe the same interface', () => {
   it('has no key missing from vi — those render as English inside a VI UI', () => {
@@ -52,9 +54,19 @@ describe('en.json and vi.json describe the same interface', () => {
   });
 });
 
+describe('ja.json describes the same interface (v2.0)', () => {
+  it('has no key missing from ja — those render as English inside a JA UI', () => {
+    expect(enKeys.filter((k) => !jaKeys.includes(k))).toEqual([]);
+  });
+
+  it('has no key missing from en', () => {
+    expect(jaKeys.filter((k) => !enKeys.includes(k))).toEqual([]);
+  });
+});
+
 describe('the values themselves', () => {
   it('leaves no empty string — a blank renders as a gap nobody can report', () => {
-    for (const dict of [en, vi] as Json[]) {
+    for (const dict of [en, vi, ja] as Json[]) {
       for (const key of flatten(dict)) {
         expect(valueAt(dict, key), key).not.toBe('');
       }
@@ -71,6 +83,9 @@ describe('the values themselves', () => {
     for (const key of enKeys) {
       expect(placeholders(valueAt(en as Json, key)), key).toEqual(
         placeholders(valueAt(vi as Json, key)),
+      );
+      expect(placeholders(valueAt(en as Json, key)), `ja: ${key}`).toEqual(
+        placeholders(valueAt(ja as Json, key)),
       );
     }
   });
@@ -91,11 +106,6 @@ describe('the values themselves', () => {
       'player.trackinfo.url',
       'player.trackinfo.videoId',
       'player.trackinfo.sourceYoutube',
-      // Deliberately in the OTHER language on each side: the toggle says what
-      // you are switching TO, so it must be legible to someone who cannot read
-      // the current one.
-      'header.lang.toVi',
-      'header.lang.toEn',
       // Pure interpolation plus a symbol.
       'player.loop.count',
       // A person's name. "Ken Burns" is what the pan-and-zoom effect is called
@@ -106,6 +116,21 @@ describe('the values themselves', () => {
 
     const identical = enKeys.filter(
       (k) => !SAME_ON_PURPOSE.has(k) && valueAt(en as Json, k) === valueAt(vi as Json, k),
+    );
+    expect(identical).toEqual([]);
+  });
+
+  it('has no Japanese value copied from English by accident (v2.0)', () => {
+    // Brand and format words stay Latin in Japanese UI text too, so the list is
+    // its own rather than the VI one.
+    const SAME_IN_JA = new Set([
+      'setup.mode.youtube',
+      'player.badge.youtube',
+      'player.trackinfo.url',
+      'player.trackinfo.sourceYoutube',
+    ]);
+    const identical = enKeys.filter(
+      (k) => !SAME_IN_JA.has(k) && valueAt(en as Json, k) === valueAt(ja as Json, k),
     );
     expect(identical).toEqual([]);
   });

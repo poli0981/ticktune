@@ -116,6 +116,8 @@ export const TT_LEGAL_LINKS = {
  * `tests/e2e/legal.spec.ts` asserts the EN landing's footer, because that is the
  * one a unit test cannot see.
  */
-export function ttLegalHref(key: TtLegalKey, lang: 'vi' | 'en'): string {
-  return lang === 'en' ? `/en${TT_LEGAL_LINKS[key]}` : TT_LEGAL_LINKS[key];
+export function ttLegalHref(key: TtLegalKey, lang: 'vi' | 'en' | 'ja'): string {
+  // Japanese readers get the English text (v2.0): it is the canonical version,
+  // and a legal translation nobody can stand behind is worse than none.
+  return lang === 'vi' ? TT_LEGAL_LINKS[key] : `/en${TT_LEGAL_LINKS[key]}`;
 }

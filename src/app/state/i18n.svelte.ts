@@ -1,5 +1,6 @@
 import i18next from 'i18next';
 import en from '../i18n/en.json';
+import ja from '../i18n/ja.json';
 import vi from '../i18n/vi.json';
 import type { TtLang } from './tt-settings-schema';
 
@@ -58,7 +59,7 @@ void i18next.init({
   // dictionary — `TtKey` is derived from `en.json`, so EN is the only file
   // guaranteed to hold every key (docs/08 §2.1).
   fallbackLng: 'en',
-  resources: { en: { translation: en }, vi: { translation: vi } },
+  resources: { en: { translation: en }, vi: { translation: vi }, ja: { translation: ja } },
   // docs/08 §2.1, and NOT a hardening opportunity: Svelte already escapes every
   // interpolation and `{@html}` is banned outright, so i18next's default would
   // escape a second time and turn a track called "Bird & Boy" into
@@ -93,7 +94,7 @@ class I18nStore {
    * only 12-hour number on the screen.
    */
   get locale(): string {
-    return this.#lang === 'vi' ? 'vi-VN' : 'en-GB';
+    return { vi: 'vi-VN', en: 'en-GB', ja: 'ja-JP' }[this.#lang];
   }
 
   /**

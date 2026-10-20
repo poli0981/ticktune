@@ -42,7 +42,9 @@ const { t, common } = Astro.props;
  * gets its own beat of the power-on. The separating space stays in the DOM:
  * the heading's text is byte-identical to the dictionary's.
  */
-const lines = t.heroHeadline.split(/(?<=[.!?])\s+/);
+// One sentence per line: after `. ! ?` and a space, or after a Japanese `。`
+// (v2.0), which takes no space.
+const lines = t.heroHeadline.split(/(?<=[.!?])\s+|(?<=。)/).filter(Boolean);
 
 /**
  * The readout strip under the monitor, derived from the limits table's own rows
