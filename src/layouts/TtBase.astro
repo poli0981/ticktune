@@ -1,5 +1,16 @@
 ---
 import '../styles/global.css';
+/*
+ * The faces every page draws its first screen with (v2.0), as URLs — the
+ * same hashed files the fontsource CSS links, so a preload and the CSS fetch
+ * are one request. Without them the prose painted in the fallback and
+ * re-wrapped when Be Vietnam Pro swapped in: Lighthouse CLS ~0.19 on every
+ * legal page, the whole column jumping. The `vietnamese` subset is preloaded
+ * because the default language needs it on the first line.
+ */
+import uiLatin from '@fontsource/be-vietnam-pro/files/be-vietnam-pro-latin-400-normal.woff2?url';
+import uiVietnamese from '@fontsource/be-vietnam-pro/files/be-vietnam-pro-vietnamese-400-normal.woff2?url';
+import displayLatin from '@fontsource/chakra-petch/files/chakra-petch-latin-600-normal.woff2?url';
 
 interface Props {
   title?: string;
@@ -81,6 +92,11 @@ const ogImageUrl = new URL(ogImage, Astro.site);
     <meta property="og:image" content={ogImageUrl} />
     <meta property="og:locale" content={{ vi: 'vi_VN', en: 'en_US', ja: 'ja_JP' }[lang]} />
     <meta name="twitter:card" content="summary_large_image" />
+
+    {/* The first screen's faces, fetched before the CSS asks — see the imports. */}
+    {[uiLatin, uiVietnamese, displayLatin].map((href) => (
+      <link rel="preload" href={href} as="font" type="font/woff2" crossorigin="anonymous" />
+    ))}
 
     {/*
       Favicon — self-hosted, the "On Air" tally dot. SVG first with a PNG
