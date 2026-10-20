@@ -1169,6 +1169,20 @@ each shown red on the old code.
 - **A full redesign**, keeping every zone, the ToS geometry and every
   accessible name the tests address — the screens changed, the contract did not.
 
+## v1.1.1 — two live defects · **v1.1.1**, 2026-10-20
+
+The first step of the v2.0 plan, released on its own because both defects were
+live and the plan is long. Both were found by **reading the code**, not by a
+report — the same shape as v1.1's seventeen: correct engines, wrong wiring.
+
+| PR | What it carried |
+|----|-----------------|
+| `chore/v2-foundation` | The YouTube 50-link cap ran **before** dedupe, against `06 §5`'s own order, so a repeat held a free slot. The language toggle's name now starts with its visible code (WCAG 2.5.3; axe 4.14 flags the old one). prettier-plugin-astro 1.1.1. A `ci-node26` job ahead of Node 26's LTS date |
+| `fix/live-defects` | **A forward clock jump stranded a visible countdown at 0.000** — the re-anchored deadline never reached the worker (`04 §1`, TT-SYS-208). **A played track's cover went dead** — `load()` released it with the media (`05 §3`). And the object-URL canary never worked: its count was not reactive, and the spec `13 §3` described did not exist |
+
+Dependabot alongside: music-metadata 12.2.0 (runtime: ES2023 build, Node 22
+floor; MIT), happy-dom 21 (dev).
+
 ## Post-1.1 backlog (unordered)
 
 - **Crossfade (S4b).** Fix the harness first — measure the overlap from the
