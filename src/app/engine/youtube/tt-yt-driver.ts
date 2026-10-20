@@ -28,11 +28,18 @@ import type { TtYtLookup, TtYtMeta, TtYtPorts } from './types';
  * body is only ever read on success, and the whole thing is wrapped: this port
  * is contractually unable to reject (`types.ts`).
  */
+/** Per-link ceiling for the oEmbed lookup; a timeout is transient (`pending`). */
+const LOOKUP_TIMEOUT_MS = 10_000;
+
 async function lookup(videoId: string): Promise<TtYtLookup> {
   let res: Response;
   try {
     res = await fetch(`/api/yt/oembed?id=${encodeURIComponent(videoId)}`, {
       headers: { accept: 'application/json' },
+      // A stalled connection used to hold the whole sequential import — and the
+      // disabled "Thêm" button — indefinitely. Longer than the Worker's own
+      // upstream limit (8 s), so a slow YouTube reports as the Worker's 502.
+      signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS),
     });
   } catch {
     // Offline, DNS, or a CORS-opaque rejection from an edge block page. All

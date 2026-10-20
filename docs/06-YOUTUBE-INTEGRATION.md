@@ -65,9 +65,22 @@ GET /api/yt/oembed?id=<videoId>
       · a verdict about the VIDEO (400/401/403/404) → cached 15 min
       · a TRANSIENT verdict (429, 5xx)             → uncached, max-age=0
   → input fails ^[A-Za-z0-9_-]{11}$      → 400 {error:"invalid_id"}   (uncached)
-  → upstream unreachable                 → 502 {error:"upstream_unreachable"} (uncached)
+  → upstream unreachable or > 8 s        → 502 {error:"upstream_unreachable"} (uncached)
+  → 200 whose body is not a JSON object  → 502 {error:"upstream_unreachable"} (uncached)
   → method is not GET                    → 405 {error:"method_not_allowed"}
+  every response: application/json, X-Content-Type-Options: nosniff, NO CORS headers
 ```
+
+**Same-origin only (v1.1).** The endpoint sent `Access-Control-Allow-Origin: *`
+from its first version, on the belief that an error response without it would be
+unreadable to the client. The client calls it on its **own** origin, where
+responses are readable with no CORS header at all — so `*` only ever let other
+websites use this Worker as a free, CORS-enabled oEmbed proxy, billed per request.
+Both sides now bound the wait: the Worker gives youtube.com 8 s, the client
+(`tt-yt-driver.ts`) gives the Worker 10 s, and either timeout is transient — the
+track stays `pending`. A 200 that does not parse to an object (a challenge page,
+a literal `null`) used to throw out of the handler and surface as Cloudflare's
+1101 HTML page; it is reported as the transient it is.
 
 ⚠️ **Corrected 2026-07-22 by spike S1 — the previous rule here was wrong, and
 wrong in a way that mattered.**

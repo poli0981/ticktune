@@ -27,7 +27,9 @@ TickTune is a **static-first web app with exactly one edge endpoint**.
 Why one endpoint exists: `https://www.youtube.com/oembed` does **not** send CORS
 headers, so the browser cannot call it directly. The same Worker that serves static
 assets exposes `GET /api/yt/oembed?id=<videoId>` which fetches oEmbed server-side,
-caches 6 h, and returns JSON with CORS. Details in `06-YOUTUBE-INTEGRATION.md`.
+caches 6 h, and returns JSON — **same-origin only, no CORS headers** (v1.1; the app
+calls it on its own origin, so `*` only ever served other sites). Details in
+`06-YOUTUBE-INTEGRATION.md`.
 
 ## 2. Principles (in priority order)
 

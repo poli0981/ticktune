@@ -22,18 +22,34 @@ const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
 const OEMBED_TTL_S = 21_600; // 6 h, docs/06 §3 + docs/09 §3
 const ERROR_TTL_S = 900; // 15 min for 404s — cheap, and they rarely un-delete
 
-const CORS = {
-  'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Methods': 'GET',
-} as const;
+/**
+ * How long to wait for youtube.com before calling the answer transient.
+ *
+ * There was no limit, so one stalled upstream connection held the request — and
+ * the client's sequential 50-link import behind it — for as long as the runtime
+ * allowed. The client has its own, longer timeout (tt-yt-driver.ts).
+ */
+const UPSTREAM_TIMEOUT_MS = 8_000;
 
+/**
+ * No CORS headers, deliberately — the endpoint is SAME-ORIGIN only.
+ *
+ * It sent `Access-Control-Allow-Origin: *` from the first version, on the
+ * reasoning that an error response without it "would be unreadable to the
+ * client". That premise was wrong: the app calls `/api/yt/oembed` on its own
+ * origin (tt-yt-driver.ts), and same-origin responses are readable with no CORS
+ * header at all. The only thing `*` did was let ANY website use this Worker as a
+ * free, CORS-enabled oEmbed proxy — billed per request on Workers Paid.
+ * `wrangler dev` and the Version URLs serve pages and API from one origin too.
+ */
 function json(body: unknown, status: number, ttlSeconds: number): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
       'cache-control': `public, max-age=${ttlSeconds}`,
-      ...CORS,
+      // `_headers` covers static assets only; Worker responses need their own.
+      'x-content-type-options': 'nosniff',
     },
   });
 }
@@ -51,11 +67,14 @@ async function oembed(id: string, ctx: ExecutionContext): Promise<Response> {
 
   let res: Response;
   try {
-    res = await fetch(upstream, { headers: { accept: 'application/json' } });
+    res = await fetch(upstream, {
+      headers: { accept: 'application/json' },
+      signal: AbortSignal.timeout(UPSTREAM_TIMEOUT_MS),
+    });
   } catch {
-    // Network failure between the edge and YouTube. The client keeps the track
-    // as status:'pending' and re-checks on Start (docs/06 §5, TT-YT-001), so a
-    // transient blip must not look like a deleted video.
+    // Network failure or timeout between the edge and YouTube. The client keeps
+    // the track as status:'pending' and re-checks on Start (docs/06 §5,
+    // TT-YT-001), so a transient blip must not look like a deleted video.
     return json({ error: 'upstream_unreachable' }, 502, 0);
   }
 
@@ -94,7 +113,23 @@ async function oembed(id: string, ctx: ExecutionContext): Promise<Response> {
     return out;
   }
 
-  const data = (await res.json()) as Record<string, unknown>;
+  /*
+   * A 200 is not a promise of JSON. A challenge page, a captive portal on the
+   * upstream path, or a literal `null` body all arrive as `ok` — and this used to
+   * be a bare `res.json()` followed by `data['title']`, so each one threw out of
+   * the handler and Cloudflare answered with its 1101 HTML error page. The
+   * client already treats such answers as transient; now they are reported as
+   * one, uncached, so a retry is a real retry.
+   */
+  let data: Record<string, unknown>;
+  try {
+    const parsed: unknown = await res.json();
+    if (parsed === null || typeof parsed !== 'object') throw new TypeError('not an object');
+    data = parsed as Record<string, unknown>;
+  } catch {
+    return json({ error: 'upstream_unreachable' }, 502, 0);
+  }
+
   // Forward only what the app renders (docs/06 §5) — not the raw upstream body,
   // which also carries embeddable HTML we neither need nor want to pass through.
   const out = json(
