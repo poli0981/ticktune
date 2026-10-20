@@ -81,8 +81,9 @@ test.describe('the app — both themes', () => {
       await setDuration(page, 0, 5, 0);
       await page.getByRole('button', { name: 'Bắt đầu' }).click();
       await page.keyboard.press('Space');
-      // What a running clock and a moving transport would change between runs.
-      await shot(page, `player-${theme}`, ['.tt-countdown', '[data-testid=tt-bottom-bar]']);
+      // The transport's clock and its 4 s idle fade would change between runs;
+      // the running digits are hidden by screenshot.css.
+      await shot(page, `player-${theme}`, ['[data-testid=tt-bottom-bar]']);
     });
   }
 });

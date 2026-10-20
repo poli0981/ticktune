@@ -12,8 +12,9 @@ import { defineConfig, devices } from '@playwright/test';
  *
  * Motion is held still at the source: reduced motion swaps the hero video for
  * its still, `animations: 'disabled'` finishes every CSS animation, and the
- * caret is hidden. What still moves on its own (the running countdown, the
- * transport's clock) is masked in the specs that show it.
+ * caret is hidden. What still moves on its own is kept out of the picture:
+ * the running digits by screenshot.css, the transport bar (its clock, and its
+ * idle fade) by a mask in the spec that shows it.
  */
 const PORT = 4338;
 
@@ -26,7 +27,12 @@ export default defineConfig({
   retries: 0,
   reporter: process.env.CI ? [['github'], ['html', { open: 'never' }]] : 'list',
   expect: {
-    toHaveScreenshot: { animations: 'disabled', caret: 'hide', maxDiffPixelRatio: 0.001 },
+    toHaveScreenshot: {
+      animations: 'disabled',
+      caret: 'hide',
+      maxDiffPixelRatio: 0.001,
+      stylePath: './tests/visual/screenshot.css',
+    },
   },
   use: {
     ...devices['Desktop Chrome'],

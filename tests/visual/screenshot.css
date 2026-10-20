@@ -1,0 +1,12 @@
+/*
+ * Applied only while a screenshot is taken — docs/13 §3.
+ *
+ * The running digits are the one thing that differs between two identical
+ * runs: the player pauses a moment after Start, and whether that moment reads
+ * 05:00 or 04:59 is timing. Hidden rather than masked, because DSEG7's glyphs
+ * overflow the element's box (`03 §1`) and a mask left their tops showing.
+ * The ghost segments and the display window stay in the picture.
+ */
+.tt-live {
+  visibility: hidden !important;
+}

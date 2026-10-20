@@ -272,8 +272,11 @@ screens at 1440×900, DPR 1, `vi-VN`: the landing (VI, EN), a legal page and the
 404, then — in **both themes** — the legal gate, Setup, the settings sheet and
 the paused player. `toHaveScreenshot` with `animations: 'disabled'`, the caret
 hidden, reduced motion (the hero video becomes its still) and
-`maxDiffPixelRatio: 0.001`. The running countdown and the transport's clock
-are masked: they are the only things that differ between two identical runs.
+`maxDiffPixelRatio: 0.001`. What differs between two identical runs is kept
+out: the running digits by a screenshot-only stylesheet
+(`tests/visual/screenshot.css` — a mask left the tops of DSEG7's overflowing
+glyphs showing), the transport bar, whose clock runs and which fades when
+idle, by a mask.
 
 **Baselines exist for one image only.** A screenshot compares only against one
 taken with the same fonts, rasteriser and browser build, so baselines are made
