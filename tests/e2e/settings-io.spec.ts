@@ -11,6 +11,8 @@ import { gotoApp, storedSettings } from './_helpers';
  */
 
 test.describe('settings file — docs/02 §3.4', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
+
   test('exports, imports back, and the import persists', async ({ page }) => {
     await gotoApp(page);
     await page.getByTestId('tt-settings-open').click();
