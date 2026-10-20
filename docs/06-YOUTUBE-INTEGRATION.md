@@ -262,6 +262,11 @@ No per-track or total duration limits in this mode (spec) — so the queue
 panel's totals row drops its `/ 91:00` denominator here rather than asserting a
 ceiling nobody imposed. Batch ends with the standard summary toast.
 
+**The order above is the order the code runs.** Dedupe comes before the cap, so
+a repeat never holds one of the free slots. Until v2.0 the code capped first,
+and a duplicate could push a valid link further down the paste into TT-YT-003
+while the queue still had room for it.
+
 **Only the transient causes keep the track.** Everything else is a property of
 the video, so re-checking on Start would fail identically and rejecting now is
 both honest and cheaper — the user learns before the countdown starts rather

@@ -172,6 +172,21 @@ describe('the 50-link cap — TT-YT-003, not TT-IMP-004', () => {
     expect(r.skipped.filter((s) => s.code === 'TT-YT-003')).toHaveLength(3);
   });
 
+  it('does not let a repeat hold a free slot — dedupe runs first (docs/06 §5)', async () => {
+    // Two slots left. Until v2.0 the cap ran before dedupe, so the duplicate of
+    // a queued video took the first slot, A the second, and B was refused as
+    // TT-YT-003 with room still in the queue.
+    const queue = Array.from({ length: 48 }, (_, i) => ({
+      videoId: `have${String(i).padStart(7, '0')}`,
+      status: 'ok',
+    })) as unknown as TtTrack[];
+    const text = ['have0000000', 'vidAAAAAAAA', 'vidAAAAAAAA', 'vidBBBBBBBB'].join('\n');
+    const r = await importLinks({ ...base, queue, text }, always(OK));
+
+    expect(r.added.map((t) => t.videoId)).toEqual(['vidAAAAAAAA', 'vidBBBBBBBB']);
+    expect(r.skipped.map((s) => s.code)).toEqual(['TT-IMP-005', 'TT-IMP-005']);
+  });
+
   it('checks the cap BEFORE spending any lookups', async () => {
     // The docs/02 §4 step-0 lesson, applied to the network: checking after
     // would spend 51 round-trips to add 50 tracks.
