@@ -246,6 +246,13 @@
     "general": {
       "lang": "Ngôn ngữ",
       "legal": "Văn bản pháp lý",
+      "preset": "Tệp cài đặt",
+      "export": "Xuất",
+      "import": "Nhập…",
+      "presetHint": "Cài đặt của bạn thành một tệp để giữ — không bao giờ gồm nhạc, danh sách phát hay việc bạn đã đồng ý điều khoản.",
+      "imported": "Đã nhập cài đặt.",
+      "importUnreadable": "Không đọc được tệp này dưới dạng JSON.",
+      "importNotOurs": "Tệp này không phải tệp cài đặt của TickTune.",
       "reset": "Đặt lại ứng dụng",
       "resetHint": "Xoá mọi cài đặt đã lưu trên máy này.",
       "resetConfirm": "Xoá toàn bộ cài đặt đã lưu? Bạn sẽ phải đồng ý điều khoản lại một lần nữa, vì việc đồng ý được lưu cùng chỗ.",

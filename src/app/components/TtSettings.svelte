@@ -7,6 +7,7 @@
   import { gradientCss, gradientStops } from '../engine/visuals/tt-gradient';
   import { ttLog } from '../engine/log/tt-log';
   import type { TtLogEntry, TtLogLevel } from '../engine/log/types';
+  import { exportSettings, importSettings, settingsFileName } from '../state/tt-settings-io';
   import { TT_LEGAL_LINKS, ttLegalHref } from '../../lib/tt-legal-const';
 
   /**
@@ -95,6 +96,47 @@
     ttLog.info('TT-USR-101', 'settings reset to defaults');
     resetArmed = false;
     onreset();
+  }
+
+  /*
+   * The settings file — docs/02 §3.4 (v2.0). The outcome is a TAG and the
+   * status line branches on it with literal keys, so the i18n caller guard can
+   * see every message (docs/08 §3).
+   */
+  let ioStatus = $state<'imported' | 'unreadable' | 'not-ours' | null>(null);
+  let importInput: HTMLInputElement;
+
+  function exportFile() {
+    const now = new Date();
+    const blob = new Blob([exportSettings(settings.current, now)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = settingsFileName(now);
+    a.click();
+    // Not at once: Firefox reads the Blob after `click()` has returned.
+    setTimeout(() => URL.revokeObjectURL(url), 1_000);
+    ttLog.info('TT-USR-103', 'settings exported');
+    ioStatus = null;
+  }
+
+  async function importFile(file: File | undefined) {
+    if (!file) return;
+    const result = importSettings(await file.text(), settings.current);
+    // Choosing the same file again is a new choice, so the input must forget it.
+    importInput.value = '';
+    if (!result.ok) {
+      ioStatus = result.reason;
+      ttLog.warn('TT-USR-105', result.reason);
+      return;
+    }
+    // The language lives in i18n as well as in the row, like the toggle above;
+    // volume and mute must reach whichever engine is making sound (03 §7).
+    i18n.setLang(result.settings.lang);
+    await settings.patch(result.settings);
+    onvolume();
+    ioStatus = 'imported';
+    ttLog.info('TT-USR-104', 'settings imported');
   }
 
   // ── Diagnostics ───────────────────────────────────────────────────────────
@@ -276,6 +318,42 @@
         >
       </div>
     </div>
+
+    <div class="tt-row">
+      <span>{i18n.t('settings.general.preset')}</span>
+      <div class="tt-confirm">
+        <button class="tt-key tt-key-sm" data-testid="tt-set-export" onclick={exportFile}
+          >{i18n.t('settings.general.export')}</button
+        >
+        <button
+          class="tt-key tt-key-sm"
+          data-testid="tt-set-import"
+          onclick={() => importInput.click()}>{i18n.t('settings.general.import')}</button
+        >
+        <input
+          bind:this={importInput}
+          type="file"
+          accept=".json,application/json"
+          hidden
+          data-testid="tt-set-import-file"
+          onchange={(e) => void importFile(e.currentTarget.files?.[0])}
+        />
+      </div>
+    </div>
+    <p class="tt-note">{i18n.t('settings.general.presetHint')}</p>
+    {#if ioStatus === 'imported'}
+      <p class="tt-note" role="status" data-testid="tt-set-io-status">
+        {i18n.t('settings.general.imported')}
+      </p>
+    {:else if ioStatus === 'unreadable'}
+      <p class="tt-warn" role="alert" data-testid="tt-set-io-status">
+        {i18n.t('settings.general.importUnreadable')}
+      </p>
+    {:else if ioStatus === 'not-ours'}
+      <p class="tt-warn" role="alert" data-testid="tt-set-io-status">
+        {i18n.t('settings.general.importNotOurs')}
+      </p>
+    {/if}
 
     <div class="tt-reset">
       {#if !resetArmed}
