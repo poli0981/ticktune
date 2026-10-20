@@ -57,9 +57,19 @@ console.log(
   `S4b ${flag('full') ? 'full' : 'quick'} sweep: ${plan.length} runs, ${paths.length - 1} files`,
 );
 
-process.env['TT_SPIKES'] = '1';
-await build({ root: process.cwd(), logLevel: 'warn' });
-const server = await preview({ root: process.cwd(), logLevel: 'warn', server: { port: PORT } });
+const reusePort = (() => {
+  const k = process.argv.indexOf('--reuse');
+  return k >= 0 ? Number(process.argv[k + 1]) : null;
+})();
+// --reuse <port>: measure against an already-running `pnpm spikes` server, so
+// several sweeps can share ONE build instead of overwriting dist-spikes/.
+let server: { stop: () => Promise<void> } = { stop: async () => {} };
+if (reusePort === null) {
+  process.env['TT_SPIKES'] = '1';
+  await build({ root: process.cwd(), logLevel: 'warn' });
+  server = await preview({ root: process.cwd(), logLevel: 'warn', server: { port: PORT } });
+}
+const ORIGIN = `http://localhost:${reusePort ?? PORT}`;
 const channel = opt('channel');
 const browser = await chromium.launch({
   headless: flag('headless'),
@@ -71,7 +81,7 @@ const started = Date.now();
 try {
   const page = await browser.newPage();
   page.on('pageerror', (e) => console.error('  page error:', e.message));
-  await page.goto(`http://localhost:${PORT}/spike/s4-crossfade/`);
+  await page.goto(`${ORIGIN}/spike/s4-crossfade/`);
   await page.waitForFunction(() => '__ttS4b' in window);
   await page.getByTestId('s4b-files').setInputFiles(paths);
   await page.getByTestId('s4b-unlock').click(); // a real gesture: resume() needs one
