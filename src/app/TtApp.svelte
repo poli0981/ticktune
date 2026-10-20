@@ -58,6 +58,9 @@
     // rather than inside the playback store because "what plays next" is the
     // session's question, and docs/12 §3.3 keeps data flowing one way.
     playback.onEnded = onTrackEnded;
+    // docs/02 §6 — an undecodable local track is marked and skipped. The engine
+    // reported it from the start; nothing listened, so a playlist stopped dead.
+    playback.onError = onTrackFailed;
     // docs/06 §2: `onStateChange: ENDED` is YouTube's equivalent, and it is the
     // ONLY one — there is no `ended` event on a cross-origin iframe to listen
     // for. Same handler, so the queue rules cannot diverge per source.
@@ -198,6 +201,22 @@
    * auto-restart the second time.
    */
   let autoRestarted = false;
+  /**
+   * The pending `endAction` re-run, so it can be CANCELLED.
+   *
+   * 🔴 It was a bare `setTimeout`. "Về thiết lập" inside its 400 ms window
+   * started a run the user had just dismissed; "Chạy lại" inside it started a
+   * second, re-seated (and reshuffled) run on top of the first. Every way out
+   * of Finished cancels it, and the callback re-checks the state anyway.
+   */
+  let autoRestartTimer: ReturnType<typeof setTimeout> | undefined;
+  function cancelAutoRestart(): void {
+    clearTimeout(autoRestartTimer);
+    autoRestartTimer = undefined;
+  }
+  /** The last run's `force`, so Chạy lại / auto re-runs repeat a ?ttdebug run faithfully. */
+  let lastForce = false;
+  let flashTimer: ReturnType<typeof setTimeout> | undefined;
 
   let maxRenderGapVisibleMs = $state(0);
   let maxRenderGapHiddenMs = $state(0);
@@ -286,28 +305,45 @@
 
       if (end.flash) {
         flashing = true;
-        setTimeout(() => (flashing = false), 400);
+        clearTimeout(flashTimer);
+        flashTimer = setTimeout(() => (flashing = false), 400);
       }
 
       // docs/02 §3.3. 'stay' is the default and needs no action.
-      if (end.action === 'restart' && !autoRestarted) {
-        autoRestarted = true;
-        setTimeout(() => onStart(false, true), 400);
-      } else if (end.action === 'loop') {
-        setTimeout(() => onStart(false, true), 400);
+      const rerun = (end.action === 'restart' && !autoRestarted) || end.action === 'loop';
+      if (rerun) {
+        if (end.action === 'restart') autoRestarted = true;
+        cancelAutoRestart();
+        autoRestartTimer = setTimeout(() => {
+          autoRestartTimer = undefined;
+          if (session.state === 'finished') onStart(lastForce, true);
+        }, 400);
       }
     },
     onLog: (code, detail) => {
-      // Until the log engine lands (docs/02 §7), surface coded events where a
-      // human can see them. console.warn is allowed by docs/12 §4 precisely
-      // because it feeds the diagnostics buffer.
-      console.warn(`[${code}]`, detail ?? {});
+      /*
+       * Into the diagnostics buffer, where Copy Diagnostics can find it.
+       *
+       * 🔴 This was `console.warn` alone, under a comment saying it "feeds the
+       * diagnostics buffer". It never did — global capture hooks only `error`
+       * and `unhandledrejection` (tt-log.ts) — so drift (201), Wake Lock (202),
+       * a late finish (203) and a dead worker (207) were missing from exactly
+       * the report a user would paste about a late countdown. The detail is
+       * numbers only, so it is safe for the public payload (docs/12 §6).
+       */
+      const message = Object.entries(detail ?? {})
+        .map(([k, v]) => `${k}=${v}`)
+        .join(' ');
+      ttLog.warn(code, message);
       if (debug) logLines = [...logLines, `${code} ${JSON.stringify(detail ?? {})}`];
     },
     ...(debug ? { onSample: (s: TtTickSample) => samples.push(s) } : {}),
   });
 
   onDestroy(() => {
+    cancelAutoRestart();
+    clearTimeout(flashTimer);
+    clearTimeout(hintTimer);
     driver.dispose();
     playback.dispose();
     yt.dispose();
@@ -323,8 +359,12 @@
    *   user-initiated start re-arms the once-only restart.
    */
   function onStart(force = false, auto = false) {
-    session.start(force);
-    if (session.state !== 'playing') return;
+    // A manual start supersedes any re-run still pending from the last finish.
+    cancelAutoRestart();
+    // The store's verdict, not `state === 'playing'` afterwards — that was also
+    // true when a stale timer fired into a run that was ALREADY playing.
+    if (!session.start(force)) return;
+    lastForce = force;
     if (!auto) autoRestarted = false;
 
     // The previous run's fade left fadeGain at 0; without this the next run is
@@ -422,19 +462,68 @@
       else playback.stop();
       return;
     }
-    playTrack();
+    loadCurrent();
   }
 
-  /** Load and play whatever the cursor now points at, on the right engine. */
-  function playTrack() {
+  /**
+   * Load whatever the cursor now points at, on the right engine — and PLAY it
+   * only if the run is playing.
+   *
+   * 🔴 This was `playTrack()`, which always played. ⏭/⏮/double-click while
+   * PAUSED therefore started the music with the session paused, the countdown
+   * frozen and ▶ on the transport. Paused now means silent: the track is loaded
+   * (cued, in YouTube mode) and resume plays it.
+   */
+  function loadCurrent() {
     const track = session.current;
     if (!track) return;
+    const playing = session.state === 'playing';
     if (session.mode === 'youtube') {
-      yt.load(track);
-      yt.play();
+      if (playing) {
+        yt.load(track);
+        yt.play();
+      } else {
+        yt.cue(track);
+      }
       return;
     }
-    void playback.load(track, session.mode === 'single').then(() => playback.play());
+    void playback.load(track, session.mode === 'single').then(() => {
+      // Re-read: the user may have paused while the load was in flight.
+      if (session.state === 'playing') return playback.play();
+    });
+  }
+
+  /**
+   * The loaded local track could not be decoded — docs/02 §6: "stop →
+   * auto-advance to next", the row shown struck-through (TT-PLY-101 is already
+   * logged by the engine). Single mode has no next: the media stays stopped and
+   * the countdown runs on to zero (§6's carve-out, `04 §5`).
+   */
+  function onTrackFailed(trackId: string) {
+    if (!onPlayerScreen || session.currentId !== trackId) return;
+    session.markTrackError(trackId);
+    if (session.mode === 'single') return;
+    // markTrackError advanced the cursor first; null means nothing is left.
+    if (session.currentId === null) stopCurrentEngine();
+    else loadCurrent();
+  }
+
+  /**
+   * A row's × (or the menu's "Xoá") — docs/02 §6: "stop if current → advance".
+   *
+   * 🔴 The rails called `session.removeTrack` directly. The cursor moved, but
+   * nothing told the engine: the removed track kept playing (its URL already
+   * revoked), and when it ended the queue advanced AGAIN — skipping the track
+   * that had become current. `currentId === null`, not `current`, decides
+   * "nothing left": `current` falls back to the first playable track and would
+   * restart a finished playlist.
+   */
+  function onRemove(id: string) {
+    const wasCurrent = onPlayerScreen && id === session.currentId;
+    session.removeTrack(id);
+    if (!wasCurrent) return;
+    if (session.currentId === null) stopCurrentEngine();
+    else loadCurrent();
   }
 
   /**
@@ -458,7 +547,7 @@
     // through it — so stopping it left the video playing on past the end of a
     // queue that had already reported itself exhausted.
     if (session.advance() === 'exhausted') stopCurrentEngine();
-    else playTrack();
+    else loadCurrent();
   }
 
   /**
@@ -535,13 +624,13 @@
 
   /** ⏮. Inert at the first track: prevInOrder does not wrap (docs/02 §5.1). */
   function onPrev() {
-    if (session.prev()) playTrack();
+    if (session.prev()) loadCurrent();
   }
 
-  /** Double-click a queue row. */
+  /** Double-click (or Enter on) a queue row. */
   function onJump(id: string) {
     if (!session.jumpTo(id)) return;
-    if (session.state === 'playing' || session.state === 'paused') playTrack();
+    if (session.state === 'playing' || session.state === 'paused') loadCurrent();
   }
 
   function onPause() {
@@ -648,6 +737,21 @@
   }
 
   const onPlayerScreen = $derived(session.state === 'playing' || session.state === 'paused');
+
+  /**
+   * The cover the backdrop may use — docs/03 §2 Z1 "cover".
+   *
+   * It read `playback.track` unconditionally, i.e. the last track the AUDIO
+   * engine loaded: in YouTube mode that was a stale local track from an earlier
+   * run, and in Setup after replacing the Single track it was the OLD track,
+   * whose cover URL had just been revoked. YouTube gets no cover (no
+   * thumbnail-derived visuals — `06 §6`); Setup previews what Start would play.
+   */
+  const coverArtUrl = $derived(
+    session.mode === 'youtube'
+      ? null
+      : ((onPlayerScreen ? playback.track : session.current)?.coverArtUrl ?? null),
+  );
 
   // ── docs/03 §8 milestone announcements, and docs/03 §1's tally pulse ───────
 
@@ -773,6 +877,8 @@
    * because a countdown ticking behind an inert gate is nobody's intention.
    */
   function onSettingsReset() {
+    // From Finished this lands on the gate; a pending re-run must not start behind it.
+    cancelAutoRestart();
     settingsOpen = false;
     if (onPlayerScreen) onStop();
     else if (session.state === 'finished') session.backToSetup();
@@ -809,8 +915,29 @@
    */
   function onKeydown(e: KeyboardEvent) {
     onActivity();
+    /*
+     * A key a component already handled is not a hotkey. 🔴 Alt+↑/↓ on a queue
+     * row reorders it (and calls preventDefault) — and then reached here and
+     * ALSO moved the volume ±5. Same for the context menu's arrows and Space.
+     */
+    if (e.defaultPrevented) return;
+    /*
+     * docs/03 §7's hotkeys are bare keys. With Ctrl/⌘/Alt held they belong to
+     * the browser: Ctrl+F (find) used to toggle fullscreen, Ctrl+S opened the
+     * panel, Ctrl+H entered Focus. Shift stays allowed (`S` == `s`), and AltGr —
+     * which Windows reports as Ctrl+Alt — is how `]` is typed on German and
+     * French layouts, so it must still reach the rail toggle.
+     */
+    if ((e.ctrlKey || e.metaKey || e.altKey) && !e.getModifierState('AltGraph')) return;
     const el = e.target as HTMLElement | null;
-    if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) return;
+    if (
+      el &&
+      (el.tagName === 'INPUT' ||
+        el.tagName === 'TEXTAREA' ||
+        el.tagName === 'SELECT' ||
+        el.isContentEditable)
+    )
+      return;
     if (booted && needsGate) return;
     if (settingsOpen) {
       // `S` toggles, so it has to survive the guard that the panel's own `Esc`
@@ -874,7 +1001,7 @@
   background on every screen — Setup, Player and Finished alike — and because
   `main` goes `inert` behind the legal gate while this must keep painting.
 -->
-<TtBackdrop coverArtUrl={playback.track?.coverArtUrl ?? null} {focusMode} />
+<TtBackdrop {coverArtUrl} {focusMode} />
 
 <!--
   docs/03 §2 Z2 — above Z1, below everything else. Mounted whenever the player
@@ -921,7 +1048,11 @@
     missing `h1` — `page-has-heading-one` is `best-practice`. The scan was green
     over this until the tag set was widened.
   -->
-  <h1 class="tt-sr">TickTune</h1>
+  <!-- Not on Finished, which has its own visible <h1> ("Hết giờ") — one
+       top-level heading per screen, not two. -->
+  {#if session.state !== 'finished'}
+    <h1 class="tt-sr">TickTune</h1>
+  {/if}
 
   {#if debug}
     <TtDebugPanel
@@ -1034,7 +1165,7 @@
           {focusMode}
           onmount={(el) => yt.attach(el)}
           onskip={() => yt.skipNow()}
-          onremove={(id) => session.removeTrack(id)}
+          onremove={onRemove}
           onjump={onJump}
           onshuffle={(on) => session.setShuffle(on)}
           onrepeat={(on) => session.setRepeat(on)}
@@ -1059,7 +1190,7 @@
           repeat={settings.current.repeatPlaylist}
           exhausted={session.exhausted}
           capped={true}
-          onremove={(id) => session.removeTrack(id)}
+          onremove={onRemove}
           onjump={onJump}
           onshuffle={(on) => session.setShuffle(on)}
           onrepeat={(on) => session.setRepeat(on)}
@@ -1096,11 +1227,9 @@
   {#if session.state === 'finished' && session.finish}
     <TtFinished
       report={session.finish}
-      onrestart={() => {
-        session.restart();
-        onStart();
-      }}
+      onrestart={() => onStart(lastForce)}
       onback={() => {
+        cancelAutoRestart();
         session.backToSetup();
         driver.reset();
         stopCurrentEngine();
