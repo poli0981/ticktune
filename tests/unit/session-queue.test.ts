@@ -345,6 +345,54 @@ describe('advance — docs/02 §5 and §5.1 rule 6', () => {
   });
 });
 
+describe('peekNext — what advance() would play, for the crossfade (docs/05 §2)', () => {
+  beforeEach(async () => {
+    await settings.patch({ shuffle: false, repeatPlaylist: true });
+  });
+
+  it('names the track advance() then moves to, without moving', async () => {
+    await stage('playlist', [track('a'), track('b'), track('c')]);
+    session.start();
+    expect(session.peekNext()?.id).toBe('b');
+    expect(session.currentId).toBe('a');
+    session.advance();
+    expect(session.peekNext()?.id).toBe('c');
+  });
+
+  it('wraps with Repeat, and is null without it — where advance() falls silent', async () => {
+    await stage('playlist', [track('a'), track('b')]);
+    session.start();
+    session.advance();
+    expect(session.peekNext()?.id).toBe('a');
+
+    await settings.patch({ repeatPlaylist: false });
+    expect(session.peekNext()).toBeNull();
+  });
+
+  it('a shuffled wrap peeked is the wrap played — the engine fades into what plays', async () => {
+    // advance() reshuffles at the wrap; without keeping the peeked order, the
+    // track the engine armed and faded into could differ from the one the
+    // queue then marked current.
+    await settings.patch({ shuffle: true });
+    await stage('playlist', [track('a'), track('b'), track('c'), track('d')]);
+    session.start();
+    session.advance();
+    session.advance();
+    session.advance(); // the last of the shuffled order
+
+    const peeked = session.peekNext()?.id;
+    expect(session.peekNext()?.id).toBe(peeked); // stable while it waits
+    expect(session.advance()).toBe('wrapped');
+    expect(session.currentId).toBe(peeked);
+  });
+
+  it('has no next in Single mode — its loop fades inside the engine', async () => {
+    await stage('single', [track('a')]);
+    session.start();
+    expect(session.peekNext()).toBeNull();
+  });
+});
+
 describe('queue mutation while playing — docs/02 §5.1', () => {
   beforeEach(async () => {
     await settings.patch({ shuffle: false, repeatPlaylist: true });

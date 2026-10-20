@@ -63,6 +63,9 @@
     // docs/02 §6 — an undecodable local track is marked and skipped. The engine
     // reported it from the start; nothing listened, so a playlist stopped dead.
     playback.onError = onTrackFailed;
+    // docs/05 §2 (v2.0) — a crossfade into the next track became real. The
+    // queue advances there, once; the engine drops the outgoing track's `ended`.
+    playback.onCrossfade = onCrossfaded;
     // docs/06 §2: `onStateChange: ENDED` is YouTube's equivalent, and it is the
     // ONLY one — there is no `ended` event on a cross-origin iframe to listen
     // for. Same handler, so the queue rules cannot diverge per source.
@@ -475,6 +478,19 @@
   }
 
   /**
+   * The audio engine faded into `trackId` — docs/05 §2. The queue advances
+   * here, exactly once: the outgoing track's own `ended` is dropped by the
+   * engine. If the queue moved under the fade — a reorder, a removal between
+   * the arm and the trigger — the cursor is the authority, and what it points
+   * at is loaded instead.
+   */
+  function onCrossfaded(trackId: string) {
+    if (session.state !== 'playing' || session.mode !== 'playlist') return;
+    session.advance();
+    if (session.currentId !== trackId) loadCurrent();
+  }
+
+  /**
    * Load whatever the cursor now points at, on the right engine — and PLAY it
    * only if the run is playing.
    *
@@ -690,6 +706,18 @@
   let infoTrack = $state<TtTrack | null>(null);
   /** Peak Analyser RMS, sampled for the ?ttdebug=1 panel only. */
   let peakRms = $state(0);
+  /**
+   * This frame's RMS, for the ?ttdebug=1 panel only. The peak above can only
+   * prove that something was heard once; "silent while paused" and "no gap
+   * through a crossfade" (docs/13 §3) are claims about NOW, so this one is
+   * sampled whatever the run's state — a pause is exactly when it matters.
+   */
+  let rmsNow = $state(0);
+  $effect(() => {
+    if (!debug) return;
+    const id = setInterval(() => (rmsNow = playback.peakRms), 50);
+    return () => clearInterval(id);
+  });
 
   $effect(() => {
     if (session.state !== 'playing') return;
@@ -761,6 +789,23 @@
   }
 
   const onPlayerScreen = $derived(session.state === 'playing' || session.state === 'paused');
+
+  // ── the crossfade (v2.0, docs/05 §2, spike S4b) ────────────────────────────
+  // What comes next, for the engine to arm and fade into — kept current as the
+  // cursor, the queue, Shuffle and Repeat move. Local playlists only: a Single
+  // loop fades into itself inside the engine, and YouTube plays in its frame.
+  $effect(() => {
+    playback.setNext(onPlayerScreen && session.mode === 'playlist' ? session.peekNext() : null);
+  });
+  // The two settings reach the engine as they change, not only at the next load.
+  $effect(() => {
+    void settings.current.crossfadeMs;
+    playback.applyCrossfade();
+  });
+  $effect(() => {
+    void settings.current.singleLoopStyle;
+    playback.applyLoopStyle();
+  });
 
   // ── the finish notification (v2.0, docs/04 §2, spike S5) ──────────────────
   /**
@@ -1206,6 +1251,7 @@
       {hiddenMs}
       elapsedMs={runStartedAt && nowMs ? nowMs - runStartedAt : 0}
       {peakRms}
+      {rmsNow}
       liveUrls={playback.liveUrls}
     />
   {/if}
@@ -1334,7 +1380,6 @@
         <TtSingleRail
           track={playback.track}
           loops={playback.loops}
-          crossfadeAvailable={false}
           loopStyle={settings.current.singleLoopStyle}
           onloopstyle={(style) => void settings.patch({ singleLoopStyle: style })}
           oninfo={() => (infoTrack = playback.track)}

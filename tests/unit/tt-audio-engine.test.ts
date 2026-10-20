@@ -23,6 +23,14 @@ function fakeGain(): TtGainPort & { calls: string[] } {
     },
     setCurve: (_v, t, d) => calls.push(`curve@${t}+${d}`),
     cancelScheduled: (t) => calls.push(`cancel@${t}`),
+    holdAt: (t, v) => {
+      value = v;
+      calls.push(`hold:${v}@${t}`);
+    },
+    rampTo: (v, t) => {
+      value = v;
+      calls.push(`ramp:${v}@${t}`);
+    },
   };
 }
 
@@ -42,6 +50,10 @@ function fakeDeck(): TtMediaPort & {
     setSrc(url: string) {
       this.src = url;
     },
+    unload() {
+      this.src = '';
+      this.playing = false;
+    },
     async play() {
       this.plays++;
       this.playing = true;
@@ -56,7 +68,12 @@ function fakeDeck(): TtMediaPort & {
 }
 
 function harness(
-  over: { ctxState?: 'suspended' | 'running'; onLiveUrls?: (n: number) => void } = {},
+  over: {
+    ctxState?: 'suspended' | 'running';
+    onLiveUrls?: (n: number) => void;
+    /** Hold `delay()` until `flush()` — the crossfade's timers, under test control. */
+    manualDelay?: boolean;
+  } = {},
 ) {
   const decks = [fakeDeck(), fakeDeck()];
   const deckGains = [fakeGain(), fakeGain()];
@@ -66,10 +83,14 @@ function harness(
   const revoked: string[] = [];
   let urlSeq = 0;
   let ctxState: 'suspended' | 'running' = over.ctxState ?? 'running';
+  let nowS = 10;
+  const pending: Array<() => void> = [];
 
   const ports: TtAudioPorts = {
     ctx: {
-      nowS: 10,
+      get nowS() {
+        return nowS;
+      },
       get state() {
         return ctxState;
       },
@@ -87,8 +108,9 @@ function harness(
       return u;
     },
     revokeUrl: (u) => revoked.push(u),
-    // Resolves immediately, so the resume timeout is instant in tests.
-    delay: () => Promise.resolve(),
+    // Resolves immediately, so the resume timeout is instant in tests — or,
+    // with `manualDelay`, when the test says so.
+    delay: () => (over.manualDelay ? new Promise<void>((r) => pending.push(r)) : Promise.resolve()),
   };
 
   const logs: string[] = [];
@@ -96,7 +118,9 @@ function harness(
   const loops: number[] = [];
   const ended: number[] = [];
   const errors: string[] = [];
+  const crossfades: string[] = [];
   const engine = new TtAudioEngine(ports, {
+    onCrossfade: (id) => crossfades.push(id),
     onLog: (code) => logs.push(code),
     onLoop: (n) => loops.push(n),
     onEnded: () => ended.push(1),
@@ -108,6 +132,16 @@ function harness(
   return {
     engine,
     errors,
+    crossfades,
+    setNow: (t: number) => {
+      nowS = t;
+    },
+    /** Let every timer the engine is waiting on fire, then settle. */
+    flush: async () => {
+      while (pending.length) pending.shift()?.();
+      await Promise.resolve();
+      await Promise.resolve();
+    },
     ports,
     decks,
     deckGains,
@@ -246,7 +280,7 @@ describe('TtAudioEngine', () => {
     // createMediaElementSource may be called once per element, so the engine
     // must reuse the decks. Ten loads, still deck 0, ten src writes.
     const h = harness();
-    for (let i = 0; i < 10; i++) h.engine.load(track(`t${i}`), true);
+    for (let i = 0; i < 10; i++) h.engine.load(track(`t${i}`), 'hard');
     expect(h.decks[0]!.src).toBe('blob:url-10');
     expect(h.decks[1]!.src).toBe('');
   });
@@ -255,7 +289,7 @@ describe('TtAudioEngine', () => {
     // docs/02 §4: a second import in Single mode REPLACES. Ten replacements
     // must not accumulate ten live URLs.
     const h = harness();
-    for (let i = 0; i < 10; i++) h.engine.load(track(`t${i}`), true);
+    for (let i = 0; i < 10; i++) h.engine.load(track(`t${i}`), 'hard');
     expect(h.engine.liveUrls).toBe(1);
     expect(h.revoked).toHaveLength(9);
   });
@@ -266,8 +300,8 @@ describe('TtAudioEngine', () => {
     // pointed at a revoked URL from the moment the playlist moved on.
     const h = harness();
     const cover = h.engine.acquireCoverUrl('a', new Uint8Array([1, 2, 3]), 'image/png');
-    h.engine.load(track('a'), false);
-    h.engine.load(track('b'), false);
+    h.engine.load(track('a'), 'none');
+    h.engine.load(track('b'), 'none');
 
     expect(h.revoked).not.toContain(cover);
     expect(h.revoked).toHaveLength(1); // a's media URL, and only that
@@ -281,21 +315,23 @@ describe('TtAudioEngine', () => {
     const counts: number[] = [];
     const h = harness({ onLiveUrls: (n: number) => counts.push(n) });
     h.engine.acquireCoverUrl('a', new Uint8Array([1]), 'image/png');
-    h.engine.load(track('a'), false);
-    h.engine.load(track('b'), false);
+    h.engine.load(track('a'), 'none');
+    h.engine.load(track('b'), 'none');
     h.engine.dispose();
-    expect(counts).toEqual([1, 2, 1, 2, 0]);
+    // b's media is acquired before a's goes (v2.0): a deck that is still
+    // sounding keeps its file until it has been ramped out.
+    expect(counts).toEqual([1, 2, 3, 2, 0]);
   });
 
   it('sets the hard loop on the element (docs/05 §2)', () => {
     const h = harness();
-    h.engine.load(track(), true);
+    h.engine.load(track(), 'hard');
     expect(h.decks[0]!.looped).toBe(true);
   });
 
   it('counts loops from a currentTime regression, starting at ×1', () => {
     const h = harness();
-    h.engine.load(track(), true);
+    h.engine.load(track(), 'hard');
     expect(h.engine.loops).toBe(1);
 
     const deck = h.decks[0]!;
@@ -313,7 +349,7 @@ describe('TtAudioEngine', () => {
 
   it('reports TT-PLY-100 and stays "blocked" when play() is refused', async () => {
     const h = harness();
-    h.engine.load(track(), true);
+    h.engine.load(track(), 'hard');
     // What browsers actually throw for an autoplay refusal.
     h.decks[0]!.play = () => Promise.reject(new DOMException('refused', 'NotAllowedError'));
 
@@ -329,7 +365,7 @@ describe('TtAudioEngine', () => {
     // Rapid ⏭ or removing the playing track rejects the pending play() this way;
     // it used to log a false TT-PLY-100 and flash ▶ per skip.
     const h = harness();
-    h.engine.load(track(), false);
+    h.engine.load(track(), 'none');
     h.decks[0]!.play = () => Promise.reject(new DOMException('interrupted', 'AbortError'));
 
     await h.engine.play();
@@ -346,7 +382,7 @@ describe('TtAudioEngine', () => {
      */
     const h = harness();
     const t = track();
-    h.engine.load(t, false);
+    h.engine.load(t, 'none');
     h.decks[0]!.play = () => {
       h.engine.onMediaError();
       return Promise.reject(new DOMException('decode', 'NotSupportedError'));
@@ -363,7 +399,7 @@ describe('TtAudioEngine', () => {
   it('fails the track when play() rejects with a media error and no event fired', async () => {
     const h = harness();
     const t = track();
-    h.engine.load(t, false);
+    h.engine.load(t, 'none');
     h.decks[0]!.play = () => Promise.reject(new DOMException('decode', 'NotSupportedError'));
 
     await h.engine.play();
@@ -375,7 +411,7 @@ describe('TtAudioEngine', () => {
 
   it('resumes a suspended context before playing', async () => {
     const h = harness({ ctxState: 'suspended' });
-    h.engine.load(track(), true);
+    h.engine.load(track(), 'hard');
     await h.engine.play();
 
     expect(h.ports.ctx.resume).toHaveBeenCalled();
@@ -405,7 +441,7 @@ describe('TtAudioEngine', () => {
     const h = harness({ ctxState: 'suspended' });
     h.ports.ctx.resume = vi.fn(() => new Promise<void>(() => {}));
 
-    h.engine.load(track(), true);
+    h.engine.load(track(), 'hard');
     await h.engine.play();
 
     expect(h.logs).toContain('TT-PLY-105');
@@ -416,7 +452,7 @@ describe('TtAudioEngine', () => {
   it('reports the dead output once, not on every play', async () => {
     const h = harness({ ctxState: 'suspended' });
     h.ports.ctx.resume = vi.fn(() => new Promise<void>(() => {}));
-    h.engine.load(track(), true);
+    h.engine.load(track(), 'hard');
 
     await h.engine.play();
     await h.engine.play();
@@ -428,7 +464,7 @@ describe('TtAudioEngine', () => {
 
   it('logs TT-PLY-101 and stops on a media error, leaving the timer alone', () => {
     const h = harness();
-    h.engine.load(track(), true);
+    h.engine.load(track(), 'hard');
     h.engine.onMediaError();
 
     expect(h.logs).toEqual(['TT-PLY-101']);
@@ -442,13 +478,13 @@ describe('TtAudioEngine', () => {
     // makes those different types, and absence is what a YouTube track has.
     const noFile: TtTrack = { ...track() };
     delete noFile.file;
-    h.engine.load(noFile, true);
+    h.engine.load(noFile, 'hard');
     expect(h.logs).toEqual(['TT-PLY-101']);
   });
 
   it('silences both deck gains on stop', () => {
     const h = harness();
-    h.engine.load(track(), true);
+    h.engine.load(track(), 'hard');
     h.engine.stop();
     expect(h.deckGains[0]!.value).toBe(0);
     expect(h.deckGains[1]!.value).toBe(0);
@@ -457,7 +493,7 @@ describe('TtAudioEngine', () => {
 
   it('dispose() releases every URL', () => {
     const h = harness();
-    h.engine.load(track(), true);
+    h.engine.load(track(), 'hard');
     h.engine.dispose();
     expect(h.engine.liveUrls).toBe(0);
   });
@@ -502,5 +538,219 @@ describe('the split master stage (docs/05 §1, D-5)', () => {
     const setIdx = h.fadeGain.calls.lastIndexOf('set:1@10');
     expect(cancelIdx).toBeGreaterThanOrEqual(0);
     expect(setIdx).toBeGreaterThan(cancelIdx);
+  });
+});
+
+describe('crossfade — docs/05 §2, spike S4b', () => {
+  /** A 30 s track: armed from 10 s left (8 s lead + 2 s fade), fading at 2.3 s left. */
+  const long = (id: string): TtTrack => ({ ...track(id), durationMs: 30_000 });
+
+  async function playing(h: ReturnType<typeof harness>, loop: 'none' | 'crossfade' = 'none') {
+    h.engine.setCrossfade(2_000);
+    h.engine.load(long('a'), loop);
+    await h.engine.play();
+    (h.decks[0] as { durationS: number }).durationS = 30;
+  }
+
+  function at(h: ReturnType<typeof harness>, deck: 0 | 1, t: number) {
+    (h.decks[deck] as { currentTimeS: number }).currentTimeS = t;
+    h.engine.onTimeUpdate(deck);
+  }
+
+  it('arms the next track on the idle deck ahead of the trigger, silent', async () => {
+    const h = harness({ manualDelay: true });
+    await playing(h);
+    h.engine.setNext(long('b'));
+
+    at(h, 0, 5); // 25 s left: too early
+    expect(h.decks[1]!.src).toBe('');
+
+    at(h, 0, 21); // 9 s left
+    expect(h.decks[1]!.src).not.toBe('');
+    expect(h.decks[1]!.playing).toBe(false);
+    expect(h.deckGains[1]!.value).toBe(0);
+  });
+
+  it('starts at fade + margin before the end: both curves on the audio clock, the next deck plays', async () => {
+    const h = harness({ manualDelay: true });
+    await playing(h);
+    h.engine.setNext(long('b'));
+
+    at(h, 0, 27.6); // 2.4 s left > 2 s + 0.3 s margin
+    expect(h.decks[1]!.plays).toBe(0);
+    at(h, 0, 27.8); // 2.2 s left: fire
+    expect(h.deckGains[0]!.calls).toContain('curve@10+2');
+    expect(h.deckGains[1]!.calls).toContain('curve@10+2');
+    expect(h.decks[1]!.plays).toBe(1);
+  });
+
+  it('becomes real when the next deck plays — the queue hears it exactly once', async () => {
+    const h = harness({ manualDelay: true });
+    await playing(h);
+    h.engine.setNext(long('b'));
+    at(h, 0, 27.8);
+    await Promise.resolve();
+
+    expect(h.crossfades).toEqual(['b']);
+    // Later reports from the fading deck change nothing: its clock and its
+    // `ended` are no longer anyone's. Counting that `ended` skipped a track.
+    at(h, 0, 29.9);
+    h.engine.onEnded(0);
+    expect(h.ended).toEqual([]);
+    expect(h.crossfades).toEqual(['b']);
+    expect(h.engine.status).toBe('playing');
+  });
+
+  it('finishes: the outgoing deck stops, empties and gives its file back', async () => {
+    const h = harness({ manualDelay: true });
+    await playing(h);
+    h.engine.setNext(long('b'));
+    at(h, 0, 27.8);
+    await Promise.resolve();
+    const aUrl = h.decks[0]!.src;
+
+    h.setNow(12.05);
+    await h.flush();
+
+    expect(h.decks[0]!.src).toBe('');
+    expect(h.revoked).toContain(aUrl);
+    expect(h.engine.liveUrls).toBe(1);
+    expect(h.engine.crossfading).toBe(false);
+  });
+
+  it('a next deck that will not play: the outgoing plays out, no advance, TT-PLY-108', async () => {
+    const h = harness({ manualDelay: true });
+    await playing(h);
+    h.engine.setNext(long('b'));
+    h.decks[1]!.play = () => Promise.reject(new DOMException('decode', 'NotSupportedError'));
+    at(h, 0, 27.8);
+    await Promise.resolve();
+    await Promise.resolve();
+
+    expect(h.crossfades).toEqual([]);
+    expect(h.logs).toEqual(['TT-PLY-108']);
+    expect(h.deckGains[0]!.calls.at(-1)).toMatch(/^ramp:1@/);
+    // No second attempt on this track; its own `ended` makes the one advance.
+    at(h, 0, 28.5);
+    h.engine.onEnded(0);
+    expect(h.ended).toEqual([1]);
+  });
+
+  it('a pause mid-fade holds both curves and ramps them out; play resumes them from there', async () => {
+    const h = harness({ manualDelay: true });
+    await playing(h);
+    h.engine.setNext(long('b'));
+    at(h, 0, 27.8);
+    await Promise.resolve();
+
+    h.setNow(11); // halfway
+    h.engine.pause();
+    expect(h.engine.status).toBe('paused');
+    for (const g of h.deckGains) {
+      expect(g.calls.some((c) => c.startsWith('hold:') && c.endsWith('@11'))).toBe(true);
+      expect(g.calls.at(-1)).toBe('ramp:0@11.015');
+    }
+    await h.flush();
+    expect(h.decks[0]!.playing).toBe(false);
+    expect(h.decks[1]!.playing).toBe(false);
+
+    h.setNow(20);
+    await h.engine.play();
+    expect(h.engine.status).toBe('playing');
+    // The rest of the same curve — one second of the two — not a fresh one,
+    // starting just after the 15 ms ramp back up.
+    for (const g of h.deckGains) {
+      const [, start, len] = /^curve@([\d.]+)\+([\d.]+)$/.exec(g.calls.at(-1) ?? '') ?? [];
+      expect(Number(start)).toBeCloseTo(20.016, 6);
+      expect(Number(len)).toBeCloseTo(1, 6);
+    }
+    expect(h.crossfades).toEqual(['b']);
+  });
+
+  it('a load mid-fade (⏭) takes the outgoing deck and ramps the incoming one out', async () => {
+    const h = harness({ manualDelay: true });
+    await playing(h);
+    h.engine.setNext(long('b'));
+    at(h, 0, 27.8);
+    await Promise.resolve();
+
+    h.engine.load(long('c'), 'none');
+    expect(h.engine.crossfading).toBe(false);
+    expect(h.deckGains[1]!.calls.at(-1)).toBe('ramp:0@10.015');
+    const cUrl = h.decks[0]!.src;
+    await h.flush();
+    expect(h.decks[0]!.src).toBe(cUrl);
+    expect(h.decks[1]!.src).toBe(''); // b, ramped out and given back
+    expect(h.crossfades).toEqual(['b']);
+  });
+
+  it('a Single loop crossfade fades the track into itself and counts the pass', async () => {
+    const h = harness({ manualDelay: true });
+    await playing(h, 'crossfade');
+    expect(h.decks[0]!.looped).toBe(false); // the element must reach its end
+
+    at(h, 0, 27.8);
+    await Promise.resolve();
+    expect(h.decks[1]!.src).toBe(h.decks[0]!.src); // one file, one URL, two decks
+    expect(h.loops).toEqual([2]);
+    expect(h.crossfades).toEqual([]); // not the queue's business
+    expect(h.engine.liveUrls).toBe(1);
+  });
+
+  it('a 0 s fade is a hard cut at `ended` — onto the armed deck (Z2)', async () => {
+    const h = harness({ manualDelay: true });
+    await playing(h);
+    h.engine.setCrossfade(0);
+    h.engine.setNext(long('b'));
+    at(h, 0, 25); // 5 s left: armed, and no curve
+    const armed = h.decks[1]!.src;
+    expect(armed).not.toBe('');
+    expect(h.deckGains[0]!.calls.some((c) => c.startsWith('curve@'))).toBe(false);
+
+    h.engine.onEnded(0);
+    expect(h.ended).toEqual([1]);
+    h.engine.load(long('b'), 'none'); // what the shell does on `ended`
+    await h.engine.play();
+    expect(h.decks[1]!.src).toBe(armed); // not re-sourced: S4b's 11–24 ms switch
+    expect(h.decks[1]!.plays).toBe(1);
+  });
+
+  it('a length nobody knows: no crossfade, TT-PLY-106 once, and `ended` advances', async () => {
+    const h = harness({ manualDelay: true });
+    h.engine.setCrossfade(2_000);
+    h.engine.load({ ...track('a'), durationMs: null }, 'none');
+    await h.engine.play();
+    (h.decks[0] as { durationS: number }).durationS = Number.NaN;
+    h.engine.setNext(long('b'));
+
+    at(h, 0, 1);
+    at(h, 0, 2);
+    expect(h.logs).toEqual(['TT-PLY-106']);
+    expect(h.decks[1]!.plays).toBe(0);
+    h.engine.onEnded(0);
+    expect(h.ended).toEqual([1]);
+  });
+
+  it('the trigger trusts the importer’s length over the element’s estimate', async () => {
+    // S4b: on header-less VBR the element's estimate was so far off that no
+    // fade "fit"; on raw ADTS it fired 0.2–0.5 s early.
+    const h = harness({ manualDelay: true });
+    await playing(h);
+    (h.decks[0] as { durationS: number }).durationS = 31.5; // the element's guess
+    h.engine.setNext(long('b'));
+    at(h, 0, 27.8); // 2.2 s left by the TRUE length, 3.7 by the guess
+    expect(h.decks[1]!.plays).toBe(1);
+  });
+
+  it('a next that changes before the trigger gives the armed deck back', async () => {
+    const h = harness({ manualDelay: true });
+    await playing(h);
+    h.engine.setNext(long('b'));
+    at(h, 0, 21);
+    const bUrl = h.decks[1]!.src;
+
+    h.engine.setNext(long('c'));
+    expect(h.decks[1]!.src).toBe('');
+    expect(h.revoked).toContain(bUrl);
   });
 });

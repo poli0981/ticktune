@@ -11,6 +11,16 @@
 /** The two decks of docs/05 §1's A/B graph. */
 export type TtDeckId = 0 | 1;
 
+/**
+ * How the loaded track ends — docs/05 §2.
+ *
+ * `none`: a playlist track; it ends, or crossfades into the next.
+ * `hard`: Single mode's `element.loop = true`, the tightest gap.
+ * `crossfade`: Single mode's crossfade loop style — the same file on both
+ * decks, A↔B (v2.0, S4b).
+ */
+export type TtLoopMode = 'none' | 'hard' | 'crossfade';
+
 /*
  * Reachable through `TtAudioEvents`; not exported until a module names it,
  * because knip fails the build on unused exports (docs/12 §5).
@@ -19,7 +29,9 @@ type TtAudioLogCode =
   | 'TT-PLY-100' // playback blocked by the autoplay policy
   | 'TT-PLY-101' // playback error on a local track
   | 'TT-PLY-103' // chime could not be scheduled
-  | 'TT-PLY-105'; // resume() never completed — no usable audio output
+  | 'TT-PLY-105' // resume() never completed — no usable audio output
+  | 'TT-PLY-106' // no crossfade for this track: length unknown or too short to fade
+  | 'TT-PLY-108'; // the incoming track did not start; the outgoing one plays out
 
 /** A gain node, as far as the engine is concerned. */
 export interface TtGainPort {
@@ -28,12 +40,23 @@ export interface TtGainPort {
   /** `setValueCurveAtTime`. Never called with durationS === 0 (RangeError). */
   setCurve: (values: Float32Array, startTime: number, durationS: number) => void;
   cancelScheduled: (fromTime: number) => void;
+  /**
+   * Freeze the parameter where it is at `atTime`, atomically where the browser
+   * can (`cancelAndHoldAtTime`). `value` is the fallback write: Firefox has no
+   * `cancelAndHoldAtTime`, and a bare `cancelScheduledValues` on an active curve
+   * restores the pre-curve value for a render quantum — S4b heard it.
+   */
+  holdAt: (atTime: number, value: number) => void;
+  /** `linearRampToValueAtTime` — the de-click ramps. */
+  rampTo: (value: number, atTime: number) => void;
   readonly value: number;
 }
 
-/** One `HTMLAudioElement`, behind the four calls the engine actually makes. */
+/** One `HTMLAudioElement`, behind the calls the engine actually makes. */
 export interface TtMediaPort {
   setSrc: (url: string) => void;
+  /** Drop the source entirely — a deck that finished its part holds no file. */
+  unload: () => void;
   play: () => Promise<void>;
   pause: () => void;
   setLoop: (loop: boolean) => void;
@@ -109,6 +132,14 @@ export interface TtAudioEvents {
    * leak canary. Optional: only the debug panel shows it.
    */
   onLiveUrls?: (count: number) => void;
+  /**
+   * A crossfade into `trackId` became real — the incoming deck is playing.
+   * Playlist only; the shell advances the queue here, exactly once per
+   * transition (docs/05 §2). A Single-mode loop crossfade reports `onLoop`.
+   */
+  onCrossfade?: (trackId: string) => void;
+  /** Whether a crossfade is sounding — the `data-tt-xfade-active` seam. */
+  onCrossfadeActive?: (active: boolean) => void;
 }
 
 export type TtPlaybackStatus = 'idle' | 'playing' | 'paused' | 'blocked' | 'error';

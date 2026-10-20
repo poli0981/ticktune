@@ -1,9 +1,43 @@
 /**
- * Spike S4b — the crossfade trigger and curves under test (docs/15 §S4).
+ * The crossfade trigger and curves — docs/05 §2.
  *
- * Pure: no DOM, no Web Audio. On a PASS this module moves into the audio
- * engine UNCHANGED, so what the sweep measured is what ships (docs/05 §2).
+ * Pure: no DOM, no Web Audio. This is the module spike S4b measured, moved in
+ * UNCHANGED when it passed (docs/15 §S4b), so what the sweep measured is what
+ * ships; the spike's runner now imports it from here. The constants below are
+ * the sweep's, each decided by a run that failed first.
  */
+
+/** Fire this much earlier than the ideal moment: `timeupdate` comes at ~4 Hz. */
+export const TT_XFADE_MARGIN_S = 0.3;
+/** Kept between the end of the curves and the end of the outgoing media. */
+export const TT_XFADE_GUARD_S = 0.03;
+/** Curves start at once: S4b measured no gain from waiting on `play()`. */
+export const TT_XFADE_LATENCY_S = 0;
+/** Load the incoming track on the idle deck this long before the trigger. */
+export const TT_XFADE_ARM_LEAD_S = 8;
+/**
+ * A pause mid-fade: hold the curves, ramp to zero over this, then pause the
+ * elements this much later — `pause()` on a playing element is a step, and the
+ * render thread runs ahead of `currentTime` (S4b: at +5 ms one run in three
+ * still clicked).
+ */
+export const TT_DECLICK_S = 0.015;
+export const TT_PAUSE_MARGIN_S = 0.045;
+
+/**
+ * Which duration the trigger trusts — S4b's decision, exactly.
+ *
+ * The importer's length first: `parseBlob`, which scans the whole file when
+ * the headers do not say (`tt-import-driver.ts`). `element.duration` only when
+ * no such length is known: it is an estimate on header-less VBR (the trigger
+ * concluded no fade could fit and never fired) and on raw ADTS (0.2–0.5 s
+ * early — inside any "close enough" tolerance, which is why there is none).
+ * Neither known → null: no crossfade, `ended` takes over.
+ */
+export function triggerDurationS(elementS: number, exactMs: number | null): number | null {
+  if (exactMs !== null && exactMs > 0) return exactMs / 1000;
+  return Number.isFinite(elementS) && elementS > 0 ? elementS : null;
+}
 
 /** docs/05 §2: below this a "crossfade" is a click with extra steps. */
 const MIN_FADE_S = 0.25;

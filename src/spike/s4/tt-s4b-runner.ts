@@ -2,7 +2,7 @@
  * Spike S4b — runs one configuration on the SHIPPING graph and returns what
  * the probes measured (docs/15 §S4).
  *
- * Browser-only and deliberately dumb: every decision is in tt-s4b-plan.ts
+ * Browser-only and deliberately dumb: every decision is in tt-crossfade.ts
  * (when to fade) and tt-s4b-metrics.ts (what happened), both pure and
  * unit-tested. This file plays media, schedules curves and writes down what it
  * did, on the audio clock.
@@ -19,7 +19,7 @@ import {
   type TtRunMetrics,
   type TtRunTrace,
 } from './tt-s4b-metrics';
-import { crossfadePlan, curve, gainIn, gainOut } from './tt-s4b-plan';
+import { crossfadePlan, curve, gainIn, gainOut } from '../../app/engine/audio/tt-crossfade';
 import type { TtS4bFixture, TtS4bRunConfig } from './tt-s4b-sweep-plan';
 
 interface TtDurationEvent {

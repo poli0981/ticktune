@@ -17,30 +17,21 @@
   interface Props {
     track: TtTrack | null;
     loops: number;
-    /** False while docs/15 §S4b is open — the toggle renders disabled. */
-    crossfadeAvailable: boolean;
-    /** The STORED preference (docs/02 §3.1) — not necessarily what plays. */
+    /** The stored preference (docs/02 §3.1) — since v2.0 also what plays. */
     loopStyle: TtLoopStyle;
     onloopstyle: (style: TtLoopStyle) => void;
     oninfo: () => void;
   }
 
-  const { track, loops, crossfadeAvailable, loopStyle, onloopstyle, oninfo }: Props = $props();
+  const { track, loops, loopStyle, onloopstyle, oninfo }: Props = $props();
 
-  /**
-   * What is actually playing, which is not always what is stored.
-   *
-   * Until P5 slice 2 this pair had `aria-pressed` hardcoded to `true`/`false`
-   * and **no `onclick` at all** — an inert control shipped to production, and
-   * "Cắt thẳng" was not even disabled, so it looked live. The pressed state is
-   * now derived, and it reports the EFFECTIVE style rather than the stored one:
-   * while docs/15 §S4b is open a stored `'crossfade'` plays as a hard cut
-   * (docs/05 §2, TT-SYS-205), and a toggle claiming otherwise would be the
-   * silent fallback that doc set out to forbid.
+  /*
+   * Until P5 slice 2 this pair had `aria-pressed` hardcoded and no `onclick`
+   * at all — an inert control shipped to production. Until v2.0 the crossfade
+   * half was disabled while spike S4b was open, and a stored `'crossfade'`
+   * played as a hard cut with a notice (TT-SYS-205). S4b passed: both styles
+   * are real (docs/05 §2), so the pressed state is simply the stored one.
    */
-  const effective = $derived<TtLoopStyle>(crossfadeAvailable ? loopStyle : 'hard');
-  /** docs/05 §2's "falls back with a notice" — until now the notice was a log line. */
-  const fellBack = $derived(loopStyle === 'crossfade' && effective !== 'crossfade');
 </script>
 
 <aside class="tt-rail" data-testid="tt-rail">
@@ -53,33 +44,19 @@
   <div class="tt-loop-style" role="group" aria-label={i18n.t('player.loop.label')}>
     <button
       class="tt-key tt-key-sm tt-style"
-      aria-pressed={effective === 'hard'}
+      aria-pressed={loopStyle === 'hard'}
       data-testid="tt-hard-toggle"
       onclick={() => onloopstyle('hard')}
       ><span class="tt-led" aria-hidden="true"></span>{i18n.t('player.loop.hard')}</button
     >
     <button
       class="tt-key tt-key-sm tt-style"
-      aria-pressed={effective === 'crossfade'}
-      disabled={!crossfadeAvailable}
-      aria-disabled={!crossfadeAvailable}
-      title={crossfadeAvailable ? '' : i18n.t('player.loop.locked')}
+      aria-pressed={loopStyle === 'crossfade'}
       data-testid="tt-crossfade-toggle"
       onclick={() => onloopstyle('crossfade')}
       ><span class="tt-led" aria-hidden="true"></span>{i18n.t('player.loop.crossfade')}</button
     >
   </div>
-
-  {#if fellBack}
-    <!--
-      docs/05 §2 promised the fallback would be announced "rather than
-      silently". TT-SYS-205 has carried it in the log since P3; this is the half
-      a listener can actually see.
-    -->
-    <p class="tt-fallback" role="status" data-testid="tt-loop-fallback">
-      {i18n.t('player.loop.fallback')}
-    </p>
-  {/if}
 
   {#if track}
     <!--
@@ -195,14 +172,10 @@
     font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
   }
-  .tt-hint,
-  .tt-fallback {
+  .tt-hint {
     margin: 0;
     font-size: var(--tt-text-xs);
     line-height: 1.45;
     color: var(--color-tt-muted);
-  }
-  .tt-fallback {
-    color: var(--color-tt-warn);
   }
 </style>

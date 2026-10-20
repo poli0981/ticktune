@@ -23,6 +23,8 @@ function fakeGain(): TtGainPort & { calls: string[] } {
     },
     setCurve: (values, t, d) => calls.push(`curve:${values.length}@${t}+${d}`),
     cancelScheduled: (t) => calls.push(`cancel@${t}`),
+    holdAt: (t) => calls.push(`hold@${t}`),
+    rampTo: (v, t) => calls.push(`ramp:${v}@${t}`),
   };
 }
 

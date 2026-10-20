@@ -11,7 +11,7 @@ import {
   type TtRunEvent,
   type TtRunTrace,
 } from '../../src/spike/s4/tt-s4b-metrics';
-import { crossfadePlan, curve, gainIn, gainOut } from '../../src/spike/s4/tt-s4b-plan';
+import { crossfadePlan, curve, gainIn, gainOut } from '../../src/app/engine/audio/tt-crossfade';
 import { quickPlan, type TtS4bFixture } from '../../src/spike/s4/tt-s4b-sweep-plan';
 import { judgeRun, verdict } from '../../src/spike/s4/tt-s4b-verdict';
 

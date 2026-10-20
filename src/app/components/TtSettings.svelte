@@ -49,6 +49,13 @@
 
   const s = $derived(settings.current);
 
+  /** The crossfade readout — "Off" at 0, seconds otherwise (docs/05 §2). */
+  const crossfadeText = $derived(
+    s.crossfadeMs === 0
+      ? i18n.t('settings.audio.crossfadeOff')
+      : i18n.t('settings.audio.crossfadeValue', { seconds: (s.crossfadeMs / 1000).toFixed(1) }),
+  );
+
   let sheet: HTMLDivElement;
   let head: HTMLElement;
   let closeButton: HTMLButtonElement;
@@ -975,11 +982,53 @@
     </label>
 
     <!--
-      No crossfade slider and no loop-style selector: docs/15 §S4b is open, so
-      neither has an implementation to drive. Saying so beats rendering two
-      controls that would move a stored value nothing acts on.
+      v2.0 — released by spike S4b (docs/15 §S4b). The fade between playlist
+      tracks, 0 being a hard cut; the length is taken at each transition, so a
+      change applies from the next one (docs/05 §2).
     -->
-    <p class="tt-note">{i18n.t('settings.audio.deferred')}</p>
+    <label class="tt-row">
+      <span>{i18n.t('settings.audio.crossfade')}</span>
+      <span class="tt-with-value">
+        <input
+          class="tt-fader"
+          type="range"
+          min="0"
+          max="5"
+          step="0.5"
+          data-testid="tt-set-crossfade"
+          aria-valuetext={crossfadeText}
+          value={s.crossfadeMs / 1000}
+          oninput={(e) =>
+            void settings.patch({ crossfadeMs: Math.round(e.currentTarget.valueAsNumber * 1000) })}
+        />
+        <span class="tt-readout" aria-hidden="true">{crossfadeText}</span>
+      </span>
+    </label>
+    <p class="tt-note">{i18n.t('settings.audio.crossfadeHint')}</p>
+
+    <!-- The same choice the Single rail offers, for the track that loops. -->
+    <div class="tt-row">
+      <span>{i18n.t('settings.audio.loopStyle')}</span>
+      <div
+        class="tt-seg"
+        role="group"
+        aria-label={i18n.t('settings.audio.loopStyle')}
+        data-testid="tt-set-loopstyle"
+      >
+        <button
+          aria-pressed={s.singleLoopStyle === 'hard'}
+          data-testid="tt-set-loop-hard"
+          onclick={() => void settings.patch({ singleLoopStyle: 'hard' })}
+          >{i18n.t('player.loop.hard')}</button
+        >
+        <button
+          aria-pressed={s.singleLoopStyle === 'crossfade'}
+          data-testid="tt-set-loop-crossfade"
+          onclick={() => void settings.patch({ singleLoopStyle: 'crossfade' })}
+          >{i18n.t('player.loop.crossfade')}</button
+        >
+      </div>
+    </div>
   </section>
 
   <!-- ── Playback ──────────────────────────────────────────────────────── -->

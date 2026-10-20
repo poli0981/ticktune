@@ -75,6 +75,8 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-PLY-102 | Playlist exhausted before countdown (repeat off) |
 | TT-PLY-103 | End-behavior chime could not be scheduled (AudioContext not running) |
 | TT-PLY-105 | `AudioContext.resume()` did not complete — no usable audio output; playback continues unreported rather than hanging |
+| TT-PLY-106 | No crossfade for this track: its length is unknown, or too short to fade — a hard cut at `ended` instead (`05 §2`). Once per track. Registered v2.0 |
+| TT-PLY-108 | The incoming track of a crossfade did not start — the outgoing one plays out and `ended` advances, once (`05 §2`). `NotAllowedError` reports TT-PLY-100 instead. Registered v2.0 |
 | TT-USR-001 | Track removed by user |
 | TT-USR-100 | Legal gate accepted (records the version) |
 | TT-USR-101 | Settings reset to defaults by the user — the Dexie row is deleted, so `legalAccepted` goes with it and the gate re-blocks at next boot (`03 §6`) |
@@ -96,7 +98,7 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-SYS-202 | Wake Lock unavailable/denied |
 | TT-SYS-203 | Zero crossed during sleep — late finish fired |
 | TT-SYS-204 | Settings row unreadable/corrupt — reset to defaults (`02 §3.2`) |
-| TT-SYS-205 | A stored setting names a capability this build does not ship — fell back to the shipped value (first use: `singleLoopStyle: 'crossfade'` → `hard` while `15 §S4b` is open, `05 §2`) |
+| TT-SYS-205 | **Retired in v2.0.** A stored setting named a capability the build did not ship and fell back (`singleLoopStyle: 'crossfade'` → `hard` while `15 §S4b` was open). S4b passed; nothing emits it. Kept so an old diagnostics paste still reads |
 | TT-SYS-206 | Audio unlock failed at the gesture — playback will retry on Start (`05 §1`). Registered P7 slice B, when desktop WebKit found that a browser with no `AudioContext` trapped the user at the Legal Gate forever: `acceptLegal` called `unlock()` **before** recording consent, and a synchronous throw skipped the rest. Consent must never depend on the audio stack |
 | TT-SYS-207 | The timer worker could not start or raised `error` — a main-thread interval took over the authoritative tick (`04 §2`). Registered v1.1: the worker was created lazily at the first Start, so a tab opened before a redeploy requested a chunk that no longer existed and, with no `error` listener, never reached `done` while visible |
 | TT-SYS-208 | The timer worker reported `done` while the core still had time left and no re-anchor explained it — the deadline was re-sent (at most once a second, logged once per run; `04 §1`). Registered v1.1.1, beside the fix it backs up: a TT-SYS-201 re-anchor never reached the worker, whose stale deadline hit zero early, so a visible tab sat at 0.000 |
