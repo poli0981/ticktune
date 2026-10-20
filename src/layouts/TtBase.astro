@@ -27,6 +27,12 @@ interface Props {
    * fulfil the beacon — and a harness run is not a visit.
    */
   analytics?: boolean;
+  /**
+   * The web app manifest — /app/ only (docs/10 §9, v2.0). Its scope and start
+   * URL are /app/, which is all the service worker controls; the landing and
+   * the legal pages stay plain pages.
+   */
+  manifest?: boolean;
 }
 
 const {
@@ -37,6 +43,7 @@ const {
   alternates = [],
   ogImage = '/og/ticktune.png',
   analytics = true,
+  manifest = false,
 } = Astro.props;
 
 const repo = 'https://github.com/poli0981/ticktune';
@@ -54,6 +61,8 @@ const ogImageUrl = new URL(ogImage, Astro.site);
     <meta name="description" content={description} />
     <link rel="canonical" href={canonical} />
     {noindex && <meta name="robots" content="noindex, nofollow" />}
+    {manifest && <link rel="manifest" href="/manifest.webmanifest" />}
+    {manifest && <meta name="theme-color" content="#0e0d0b" />}
 
     {/* docs/08 §1 — reciprocal per route; empty on /app/ and the spikes. */}
     {alternates.map((a) => (

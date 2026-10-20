@@ -102,6 +102,7 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-SYS-208 | The timer worker reported `done` while the core still had time left and no re-anchor explained it — the deadline was re-sent (at most once a second, logged once per run; `04 §1`). Registered v1.1.1, beside the fix it backs up: a TT-SYS-201 re-anchor never reached the worker, whose stale deadline hit zero early, so a visible tab sat at 0.000 |
 | TT-SYS-209 | The finish notification was shown by the PAGE, not the timer worker — this browser's workers have no `Notification` (Safari) or the worker is down (TT-SYS-207). Best-effort: the page may itself run late while hidden. Message: `shown by the page` / `could not be shown`. v2.0 |
 | TT-SYS-210 | Finish notifications are on but the browser no longer allows them (permission denied or reset) — none is shown until it is allowed again. Once per session. v2.0 |
+| TT-SYS-211 | The service worker could not be registered — the app works, but will not start offline (`10 §9`). Message: the error's name only. Registered v2.0 |
 | TT-SYS-300 | Captured `window.onerror` (error **name** only — never its message, see the rule below) |
 | TT-SYS-301 | Captured `unhandledrejection` (reason **type** only) |
 

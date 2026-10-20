@@ -41,6 +41,7 @@ attacks, GDPR data-subject tooling (nothing to export/delete server-side).
 ```
 /_astro/*      Cache-Control: public, max-age=31536000, immutable   (hashed assets)
 /fonts/*       Cache-Control: public, max-age=31536000, immutable   (pinned release)
+/sw.js         Cache-Control: no-cache                               (v2.0, `10 §9`)
 /api/*         Cache-Control: set by the Worker per answer — oEmbed 6 h, lengths 15 min,
                failures max-age=0 (`06 §3`)
 html           Cache-Control: public, max-age=0, must-revalidate    (platform default)

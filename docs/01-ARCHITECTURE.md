@@ -62,6 +62,7 @@ cached per id, same-origin only, behind a per-IP limiter (`06 §3`).
 | App island | `src/app/TtApp.svelte`, entry `src/app/mount.ts` | Svelte 5 | Single mount point — see the mount note below |
 | Components | `src/app/components/Tt*.svelte` | Svelte | Presentational + local state; animation is CSS only |
 | Timer engine | `src/app/engine/timer/` | none (pure TS + Worker) | Framework-agnostic, unit-testable |
+| Service worker | `src/sw/tt-sw.ts` → `dist/sw.js` (`scripts/make-sw.ts`) | none | v2.0: `/app/` starts offline; caches only the app's own files (`10 §9`) |
 | Audio engine | `src/app/engine/audio/` | none (pure TS + ports) | Owns AudioContext + graph, behind `tt-audio-driver.ts` |
 | YouTube engine | `src/app/engine/youtube/` | IFrame API (runtime script) | Player lifecycle, link import; two drivers (oEmbed fetch, player) |
 | Importer | `src/app/engine/importer/` | music-metadata (dynamically imported) | Validation pipeline (`02 §4`); ids from `crypto.randomUUID` (`02 §2`) |

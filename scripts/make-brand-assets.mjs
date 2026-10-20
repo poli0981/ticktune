@@ -14,7 +14,8 @@
  *   - **`og/ticktune.png`** — no social platform renders SVG social cards.
  *   - **`apple-touch-icon.png`** — iOS ignores SVG here.
  * A `favicon.png` is emitted too, as the fallback for anything that skips the
- * SVG icon link.
+ * SVG icon link, and since v2.0 the manifest's icons (192, 512, maskable 512),
+ * which install prompts require as PNG.
  *
  * ## Why Playwright rather than a raster library
  *
@@ -58,8 +59,13 @@ const FONT_CSS = FONT_FILES.map(([family, weight, file]) => {
   return `@font-face{font-family:'${family}';font-weight:${weight};src:url(data:font/woff2;base64,${data.toString('base64')}) format('woff2')}`;
 }).join('');
 
-/** Render an SVG file to PNG at an exact pixel size. */
-async function rasterise(page, svgPath, out, width, height) {
+/**
+ * Render an SVG file to PNG at an exact pixel size.
+ *
+ * `inset` pads every side with the chassis colour — a maskable icon's safe
+ * zone is the centre 80 %, and the platform crops the rest to its own shape.
+ */
+async function rasterise(page, svgPath, out, width, height, inset = 0) {
   const svg = readFileSync(svgPath, 'utf8');
   await page.setViewportSize({ width, height });
   /*
@@ -72,7 +78,8 @@ async function rasterise(page, svgPath, out, width, height) {
    */
   await page.setContent(
     `<style>${FONT_CSS}html,body{margin:0;background:#0E0D0B}
-     svg{display:block;width:${width}px;height:${height}px}</style>${svg}`,
+     svg{display:block;width:${width - 2 * inset}px;height:${height - 2 * inset}px;
+     margin:${inset}px}</style>${svg}`,
     { waitUntil: 'load' },
   );
   // `load` does not wait for web fonts — a face is only fetched once used.
@@ -93,6 +100,18 @@ const page = await browser.newPage({ deviceScaleFactor: 1 });
 console.warn('Rasterising brand assets:');
 await rasterise(page, join(PUBLIC, 'favicon.svg'), join(PUBLIC, 'favicon.png'), 96, 96);
 await rasterise(page, join(PUBLIC, 'favicon.svg'), join(PUBLIC, 'apple-touch-icon.png'), 180, 180);
+// docs/10 §9 (v2.0) — the web app manifest's icons: two plain, one maskable.
+const ICON = join(PUBLIC, 'icons');
+await rasterise(page, join(PUBLIC, 'favicon.svg'), join(ICON, 'icon-192.png'), 192, 192);
+await rasterise(page, join(PUBLIC, 'favicon.svg'), join(ICON, 'icon-512.png'), 512, 512);
+await rasterise(
+  page,
+  join(PUBLIC, 'favicon.svg'),
+  join(ICON, 'icon-maskable-512.png'),
+  512,
+  512,
+  72,
+);
 // 1200×630 is the Open Graph size every platform crops from.
 await rasterise(page, join(PUBLIC, 'og-source.svg'), join(PUBLIC, 'og', 'ticktune.png'), 1200, 630);
 
