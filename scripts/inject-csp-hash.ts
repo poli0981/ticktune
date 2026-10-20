@@ -26,8 +26,13 @@ const PLACEHOLDER = '<TT_GATE_HASH>';
  * `(?![^>]*\bsrc=)`, and `\b` also matches inside `data-src=`, so an inline
  * script carrying a `data-src` attribute was silently not counted (and would
  * have been blocked in production, the exact failure this file prevents).
+ *
+ * The END tag is matched the way a browser parses it, not as the literal
+ * `</script>`: `</script >` and `</script foo>` close the element too (CodeQL
+ * js/bad-tag-filter). A literal match would run past such a script to the next
+ * `</script>`, hash the wrong bytes, and miss the one in between.
  */
-const SCRIPT = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
+const SCRIPT = /<script\b([^>]*)>([\s\S]*?)<\/script\b[^>]*>/gi;
 
 /**
  * Types the browser treats as a data block and never executes — a JSON-LD
