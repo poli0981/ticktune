@@ -13,6 +13,24 @@
  * checkout. Only the screenshots, and on a failure the report, come back out.
  */
 import { spawn, type ChildProcess } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+
+/*
+ * `tar` and `docker` from fixed, system-owned directories, never from whatever
+ * PATH holds (SonarCloud S4036): a writable directory early on PATH would run
+ * its own `tar` with this checkout piped into it.
+ */
+const BIN_DIRS =
+  process.platform === 'win32'
+    ? [String.raw`C:\Windows\System32`, String.raw`C:\Program Files\Docker\Docker\resources\bin`]
+    : ['/usr/bin', '/usr/local/bin', '/opt/homebrew/bin'];
+function bin(name: string): string {
+  const file = process.platform === 'win32' ? `${name}.exe` : name;
+  const found = BIN_DIRS.map((d) => join(d, file)).find((p) => existsSync(p));
+  if (!found) throw new Error(`${name}: not found in ${BIN_DIRS.join(', ')}`);
+  return found;
+}
 
 // Keep in step with the `visual` job in .github/workflows/quality.yml.
 const IMAGE =
@@ -33,7 +51,7 @@ const inside = [
 ].join('\n');
 
 const pack = spawn(
-  'tar',
+  bin('tar'),
   [
     '-c',
     '--exclude=./node_modules',
@@ -53,10 +71,10 @@ const pack = spawn(
   ],
   { stdio: ['ignore', 'pipe', 'inherit'] },
 );
-const run = spawn('docker', ['run', '--rm', '-i', IMAGE, 'bash', '-c', inside], {
+const run = spawn(bin('docker'), ['run', '--rm', '-i', IMAGE, 'bash', '-c', inside], {
   stdio: ['pipe', 'pipe', 'inherit'],
 });
-const unpack = spawn('tar', ['-x', '-f', '-'], { stdio: ['pipe', 'inherit', 'inherit'] });
+const unpack = spawn(bin('tar'), ['-x', '-f', '-'], { stdio: ['pipe', 'inherit', 'inherit'] });
 
 pack.stdout.pipe(run.stdin);
 run.stdout.pipe(unpack.stdin);
