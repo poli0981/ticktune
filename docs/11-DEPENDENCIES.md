@@ -174,4 +174,4 @@ widens its peer range — both must land, since either alone still breaks
 
 GSAP (non-FOSS license, D7) · music-metadata-browser (deprecated; main package
 does blobs) · any yt-dlp-class tool (ToS, `06 §1`) · Google Fonts CDN (privacy —
-fonts self-hosted) · analytics SDKs (privacy default).
+fonts self-hosted) · analytics SDKs as dependencies (the one analytics script is Cloudflare's hosted beacon, loaded at runtime and disclosed — `09 §1`).

@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './_fixtures';
 import AxeBuilder from '@axe-core/playwright';
 import { gotoApp, gotoSingleMode, setDuration, stageSingle } from './_helpers';
 

@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './_fixtures';
 import { dismissUnloadDialogs, setDuration, skipWithoutAudio } from './_helpers';
 import {
   fireYt,

@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './_fixtures';
 
 /**
  * The bilingual landing — docs/03 §3 item 1, docs/08 §1. P6 slice A.

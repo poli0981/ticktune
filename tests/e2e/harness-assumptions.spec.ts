@@ -1,4 +1,4 @@
-import { test, expect } from '@playwright/test';
+import { test, expect } from './_fixtures';
 
 /**
  * What the audio skips rest on — P7 slice B, and it has already earned its keep.

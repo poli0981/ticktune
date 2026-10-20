@@ -19,10 +19,13 @@ the reasoning and the numbers are in `docs/01 §3`.
 
 ## Hard invariants — never violate, never "optimize away"
 
-1. **User files never leave the browser.** No upload endpoints, no telemetry, no
-   analytics. Files are session-only RAM (`File` objects); only settings persist
-   (Dexie). Do not introduce File System Access API (breaks Firefox/Safari and
-   decision D3).
+1. **User files never leave the browser.** No upload endpoints. Files are
+   session-only RAM (`File` objects); only settings persist (Dexie). Do not
+   introduce File System Access API (breaks Firefox/Safari and decision D3).
+   The **only** telemetry is the Cloudflare Web Analytics beacon in `TtBase.astro`
+   (decided 2026-10-20: page-level, cookieless, disclosed in the Privacy Policy
+   and the Legal Gate). It must never read app state, and nothing else may be
+   added without the same disclosure, CSP change and `TT_LEGAL_VERSION` bump.
 2. **YouTube ToS:** playback only via the official IFrame Player, always visible
    at ≥ 200×200 (we use 384×216 in the right rail), on `youtube-nocookie.com`.
    **Never** suggest hiding the player, extracting/downloading audio, or

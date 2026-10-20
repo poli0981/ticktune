@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './_fixtures';
 
 /**
  * docs/07 §6 + docs/13 §3 — the mobile gate is hard invariant 6.

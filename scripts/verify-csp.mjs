@@ -54,6 +54,15 @@ let failures = 0;
 
 for (const c of CASES) {
   const ctx = await browser.newContext(c.ctx);
+  /*
+   * The analytics beacon is fulfilled locally, never fetched: this runs in CI
+   * and must not report visits. The CSP check is unaffected — the browser
+   * evaluates `script-src`/`connect-src` BEFORE a request reaches this route,
+   * so a missing origin still surfaces as a violation here.
+   */
+  await ctx.route(/^https:\/\/(static\.)?cloudflareinsights\.com\//, (route) =>
+    route.fulfill({ status: 200, contentType: 'text/javascript', body: '' }),
+  );
   const page = await ctx.newPage();
   const csp = [];
   const errors = [];

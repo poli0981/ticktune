@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './_fixtures';
 import { TT_LEGAL_DOCS, TT_LEGAL_VERSION, ttLegalHref } from '../../src/lib/tt-legal-const';
 import { en } from '../../src/i18n/static/en';
 import { vi } from '../../src/i18n/static/vi';
