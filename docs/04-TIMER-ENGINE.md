@@ -53,6 +53,18 @@ countdown they asked for; re-anchoring by `skew` is what delivers that. Spike S2
 case 7 exercises both branches explicitly — `TT-SYS-201` must fire for the clock
 change and must **not** fire for a throttling gap of comparable size.
 
+🔴 **The re-anchored deadline must reach the worker.** The worker keeps its own
+copy of `endAtEpoch` (`§2`), and until v1.1.1 only `start`/`resume` sent it. A
+forward jump therefore ran the worker's stale copy out early by the size of the
+jump: it posted `done` and stopped, the core rightly ignored that `done`, and —
+since rAF only repaints — nothing ticked again while the tab stayed visible. The
+digits sat at 0.000 until a focus or visibility event ran the latch. The core now
+calls `onReanchor`, which the driver forwards as a fresh `start`; and if the
+worker ever reports `done` while the core still has time left with no re-anchor to
+explain it, the driver re-sends the deadline (`TT-SYS-208`, at most once a second).
+A backward jump was always harmless — the worker's copy only ran late, and its
+ticks kept driving the core.
+
 ## 2. Tick sources (two, cooperating)
 
 | Source | Interval | Role |

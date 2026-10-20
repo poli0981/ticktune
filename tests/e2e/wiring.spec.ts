@@ -9,6 +9,7 @@ import {
   stageSingle,
   storedSettings,
 } from './_helpers';
+import { installWallClockShift, shiftWallClock } from './_helpers-clock';
 import { fireYt, gotoYouTubeApp, stageLinks, ytCalls } from './_helpers-yt';
 
 /**
@@ -297,5 +298,33 @@ test.describe('runtime wiring — v1.1', () => {
     await page.keyboard.press('Escape');
     await expect(page.getByTestId('tt-context-menu')).toHaveCount(0);
     await expect(row).toBeFocused();
+  });
+});
+
+test.describe('live defects — v1.1.1', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
+
+  test('a forward clock jump does not strand a visible countdown at 0.000', async ({ page }) => {
+    /*
+     * The core re-anchored its deadline on the jump (TT-SYS-201) and never told
+     * the worker, whose own copy ran out early: it posted `done` and stopped.
+     * The core rightly ignored that `done`, rAF only repaints, and nothing
+     * ticked again — the digits reached 0.000 and the Finished screen never
+     * came. Both clocks move here, page AND worker; `page.clock` reaches only
+     * the page, which is why this needs its own shim.
+     */
+    dismissUnloadDialogs(page);
+    await installWallClockShift(page);
+    await gotoApp(page);
+    await stageSingle(page);
+    await setDuration(page, 0, 0, 10);
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await expect(page.getByTestId('tt-finished')).toHaveCount(0);
+
+    await page.waitForTimeout(2_000);
+    await shiftWallClock(page, 60_000); // the user sets the clock a minute ahead
+
+    // Still the countdown they asked for: zero about 8 s later, not now and not never.
+    await expect(page.getByTestId('tt-finished')).toBeVisible({ timeout: 12_000 });
   });
 });

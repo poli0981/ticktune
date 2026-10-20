@@ -60,6 +60,15 @@ export interface TtTimerHooks {
    */
   onDone?: (info: TtFinishInfo) => void;
   onLog?: (code: TtTimerLogCode, detail: Readonly<Record<string, number>>) => void;
+  /**
+   * Called right after a TT-SYS-201 re-anchor, with the shifted deadline.
+   *
+   * The driver forwards it to the worker, which keeps its OWN copy of the
+   * deadline: a stale copy reaches zero early by the size of the jump, posts
+   * `done`, stops — and the core, rightly, ignores that `done`. Nothing ticked
+   * after that while the tab stayed visible, so it sat at 0.000 (v1.1.1).
+   */
+  onReanchor?: (endAtEpoch: number, skewMs: number) => void;
   /** Attached only by the S2 harness. See TtTickSample. */
   onSample?: (sample: TtTickSample) => void;
 }

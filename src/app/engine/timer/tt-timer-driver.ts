@@ -19,11 +19,14 @@ import type { TtFinishInfo, TtTickSample, TtTimerLogCode } from './types';
 /** The worker's cadence, mirrored by the main-thread fallback (docs/04 §2). */
 const FALLBACK_TICK_MS = 200;
 
+/** At most one deadline re-send per this window when the worker finishes early. */
+const RESYNC_MIN_GAP_MS = 1_000;
+
 export interface TtTimerDriverOptions {
   onRemaining: (remainingMs: number) => void;
   onDone: (info: TtFinishInfo) => void;
   onLog?: (
-    code: TtTimerLogCode | 'TT-SYS-202' | 'TT-SYS-207',
+    code: TtTimerLogCode | 'TT-SYS-202' | 'TT-SYS-207' | 'TT-SYS-208',
     detail?: Record<string, number>,
   ) => void;
   /** Spike S2 only — see TtTickSample and docs/15 §S2. */
@@ -42,6 +45,10 @@ export class TtTimerDriver {
   #wakeLock: WakeLockSentinel | null = null;
   #wakeLockWarned = false;
   #disposed = false;
+  /** Bumped by every re-anchor, so a `done` the re-anchor explains is told apart. */
+  #reanchors = 0;
+  #earlyDoneWarned = false;
+  #lastResyncAt = Number.NEGATIVE_INFINITY;
 
   constructor(opts: TtTimerDriverOptions) {
     this.#opts = opts;
@@ -53,6 +60,10 @@ export class TtTimerDriver {
         opts.onDone(info);
       },
       onLog: (code, detail) => opts.onLog?.(code, detail),
+      onReanchor: () => {
+        this.#reanchors += 1;
+        this.#syncWorker();
+      },
       ...(opts.onSample ? { onSample: opts.onSample } : {}),
     });
 
@@ -82,6 +93,7 @@ export class TtTimerDriver {
 
   start(durationMs: number): void {
     this.#timer.start(durationMs);
+    this.#earlyDoneWarned = false;
     this.#syncWorker();
     this.#startRaf();
     void this.#requestWakeLock();
@@ -137,7 +149,14 @@ export class TtTimerDriver {
         // The worker is the authoritative source of `done`, but the core owns
         // the single-fire latch, so a worker `done` and a latch `done` racing
         // still produce exactly one event.
-        if (e.data.type === 'done' || e.data.type === 'tick') this.#timer.tick();
+        if (e.data.type === 'done' || e.data.type === 'tick') {
+          const reanchors = this.#reanchors;
+          this.#timer.tick();
+          const unexplained = this.#reanchors === reanchors;
+          if (e.data.type === 'done' && this.#timer.phase === 'running' && unexplained) {
+            this.#recoverEarlyDone();
+          }
+        }
         this.#emit();
       });
       // A chunk that 404s, or a throw inside the worker. Either way it will
@@ -195,6 +214,24 @@ export class TtTimerDriver {
   #syncWorker(): void {
     const endAt = this.#timer.state.endAtEpoch;
     if (endAt !== null) this.#postToWorker({ type: 'start', endAtEpoch: endAt });
+  }
+
+  /**
+   * The safety net under `onReanchor`. The worker reported `done` and stopped,
+   * the core still has time left, and no re-anchor in this tick explains it.
+   * Left alone nothing would tick again while the tab stays visible — rAF only
+   * repaints — so re-send the deadline: at most once a second, logged once per
+   * run (TT-SYS-208).
+   */
+  #recoverEarlyDone(): void {
+    const now = performance.now();
+    if (now - this.#lastResyncAt < RESYNC_MIN_GAP_MS) return;
+    this.#lastResyncAt = now;
+    if (!this.#earlyDoneWarned) {
+      this.#earlyDoneWarned = true;
+      this.#opts.onLog?.('TT-SYS-208');
+    }
+    this.#syncWorker();
   }
 
   // ── rAF (rendering only) ──────────────────────────────────────────────────

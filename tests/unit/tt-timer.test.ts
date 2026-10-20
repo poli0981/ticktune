@@ -13,18 +13,21 @@ function harness(startWall = 1_000_000, startMono = 0) {
   let mono = startMono;
   const logs: Array<{ code: TtTimerLogCode; detail: Record<string, number> }> = [];
   const done = vi.fn();
+  const reanchor = vi.fn();
 
   const timer = new TtTimer({
     now: () => wall,
     mono: () => mono,
     onDone: done,
     onLog: (code, detail) => logs.push({ code, detail: { ...detail } }),
+    onReanchor: reanchor,
   });
 
   return {
     timer,
     logs,
     done,
+    reanchor,
     /** The wall clock a caller would read, for the §2 reconstruction check. */
     wallNow: () => wall,
     /** Real time passing: both clocks advance together. */
@@ -266,6 +269,29 @@ describe('clock jump vs throttling gap (docs/04 §1) — the disambiguation', ()
     h.timer.start(600_000);
     h.timer.tick();
     expect(h.logs).toHaveLength(0);
+  });
+
+  it('hands the SHIFTED deadline to onReanchor — the worker keeps its own copy', () => {
+    const h = harness();
+    h.timer.start(600_000);
+    h.timer.tick();
+    const before = h.timer.state.endAtEpoch ?? 0;
+
+    h.jumpWallClock(300_000);
+    h.timer.tick();
+
+    expect(h.reanchor).toHaveBeenCalledTimes(1);
+    expect(h.reanchor).toHaveBeenCalledWith(before + 300_000, 300_000);
+    expect(h.timer.state.endAtEpoch).toBe(before + 300_000);
+  });
+
+  it('does not call onReanchor for a throttling gap of the same size', () => {
+    const h = harness();
+    h.timer.start(600_000);
+    h.timer.tick();
+    h.throttleGap(300_000);
+    h.timer.tick();
+    expect(h.reanchor).not.toHaveBeenCalled();
   });
 });
 
