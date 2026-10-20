@@ -16,7 +16,7 @@ import { TtTimerDriver } from '../../src/app/engine/timer/tt-timer-driver';
  * `advanceTimersByTime` moves both, which is real time passing.
  */
 
-type Msg = { type: 'start'; endAtEpoch: number } | { type: 'stop' };
+type Msg = { type: string; [k: string]: unknown };
 
 class FakeWorker {
   static last: FakeWorker | null = null;
@@ -34,12 +34,12 @@ class FakeWorker {
   }
   terminate(): void {}
   /** The worker speaking: a tick or a done, as tt-timer.worker.ts posts them. */
-  say(data: { type: 'tick'; remainingMs: number } | { type: 'done' }): void {
+  say(data: { type: string; [k: string]: unknown }): void {
     for (const fn of this.#listeners.get('message') ?? []) fn({ data });
   }
   lastStart(): number | undefined {
     const starts = this.posted.filter((m) => m.type === 'start');
-    return starts.at(-1)?.endAtEpoch;
+    return starts.at(-1)?.['endAtEpoch'] as number | undefined;
   }
 }
 
@@ -139,5 +139,63 @@ describe('an unexplained early done — the TT-SYS-208 safety net', () => {
 
     expect(onDone).toHaveBeenCalledTimes(1);
     expect(logs).not.toContain('TT-SYS-208');
+  });
+});
+
+describe('the finish notification wiring — docs/04 §2 (v2.0)', () => {
+  const NOTICE = {
+    title: 'TickTune',
+    body: 'Time is up',
+    tag: 'ticktune-finish',
+    lang: 'en',
+    icon: '/favicon.png',
+  };
+
+  it('tells a new worker whether the page is hidden, before anything else', () => {
+    const { worker } = make();
+    expect(worker.posted[0]).toEqual({ type: 'visibility', hidden: false });
+  });
+
+  it('forwards every visibility change — even the ones the latch ignores', () => {
+    const { worker } = make();
+    // Not running: the latch returns early, but the worker must still hear it.
+    const hidden = vi.spyOn(document, 'hidden', 'get').mockReturnValue(true);
+    document.dispatchEvent(new Event('visibilitychange'));
+    hidden.mockReturnValue(false);
+    document.dispatchEvent(new Event('visibilitychange'));
+    const vis = worker.posted.filter((m) => m.type === 'visibility');
+    expect(vis.slice(-2)).toEqual([
+      { type: 'visibility', hidden: true },
+      { type: 'visibility', hidden: false },
+    ]);
+    hidden.mockRestore();
+  });
+
+  it('arms, disarms and dismisses through the worker', () => {
+    const { driver, worker } = make();
+    driver.setNotice(NOTICE);
+    driver.setNotice(null);
+    driver.dismissNotice();
+    expect(worker.posted.filter((m) => m.type !== 'visibility')).toEqual([
+      { type: 'notice', notice: NOTICE },
+      { type: 'notice', notice: null },
+      { type: 'dismiss' },
+    ]);
+  });
+
+  it('hands the worker’s answers to the page', () => {
+    const onNotifyFailed = vi.fn();
+    const onNotificationClick = vi.fn();
+    driver = new TtTimerDriver({
+      onRemaining: () => {},
+      onDone: () => {},
+      onNotifyFailed,
+      onNotificationClick,
+    });
+    const worker = FakeWorker.last!;
+    worker.say({ type: 'notifyFailed', reason: 'unsupported' });
+    worker.say({ type: 'notificationClick' });
+    expect(onNotifyFailed).toHaveBeenCalledWith('unsupported');
+    expect(onNotificationClick).toHaveBeenCalledTimes(1);
   });
 });

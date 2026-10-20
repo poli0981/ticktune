@@ -71,6 +71,12 @@ export interface TtSettings {
   endChime: boolean;
   endFlash: boolean;
   endAction: TtEndAction;
+  /**
+   * v2.0 — a system notification when zero arrives while the tab is hidden
+   * (`04 §2`, spike S5). New, so no migration; off on day one and for good:
+   * it asks the browser for a permission, which only a click may do.
+   */
+  finishNotify: boolean;
 
   visualizer: TtVisualizer;
   visualizerSensitivity: number;
@@ -110,6 +116,7 @@ export const TT_DEFAULT_SETTINGS: TtSettings = {
   endChime: true,
   endFlash: false,
   endAction: 'stay',
+  finishNotify: false,
   /*
    * OFF, and changed from `'ring'` on 2026-07-23 — deliberately BEFORE the
    * renderer exists.
@@ -237,6 +244,7 @@ export function clampSettings(raw: unknown): TtSettings {
     endChime: bool(r['endChime'], d.endChime),
     endFlash: bool(r['endFlash'], d.endFlash),
     endAction: oneOf(r['endAction'], END_ACTIONS, d.endAction),
+    finishNotify: bool(r['finishNotify'], d.finishNotify),
     visualizer: preVisualizerRow ? d.visualizer : oneOf(r['visualizer'], VISUALIZERS, d.visualizer),
     visualizerSensitivity: num(r['visualizerSensitivity'], 0.5, 2, d.visualizerSensitivity),
     volume: num(r['volume'], 0, 1, d.volume),

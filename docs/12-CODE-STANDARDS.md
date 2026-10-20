@@ -78,6 +78,7 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-USR-001 | Track removed by user |
 | TT-USR-100 | Legal gate accepted (records the version) |
 | TT-USR-101 | Settings reset to defaults by the user — the Dexie row is deleted, so `legalAccepted` goes with it and the gate re-blocks at next boot (`03 §6`) |
+| TT-USR-102 | Finish notifications turned on or off by the user (`04 §2`). Turning them on asks the browser in the same click; a refusal leaves them off and the panel says why. v2.0 |
 | TT-USR-103 | Settings exported to a file (`02 §3.4`). v2.0 |
 | TT-USR-104 | Settings imported from a file — clamped like a stored row; `legalAccepted` kept as it was (`02 §3.4`). v2.0 |
 | TT-USR-105 | A settings file was refused — message `unreadable` (not JSON) or `not-ours` (not a TickTune settings file); nothing changed (`02 §3.4`). v2.0 |
@@ -99,6 +100,8 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-SYS-206 | Audio unlock failed at the gesture — playback will retry on Start (`05 §1`). Registered P7 slice B, when desktop WebKit found that a browser with no `AudioContext` trapped the user at the Legal Gate forever: `acceptLegal` called `unlock()` **before** recording consent, and a synchronous throw skipped the rest. Consent must never depend on the audio stack |
 | TT-SYS-207 | The timer worker could not start or raised `error` — a main-thread interval took over the authoritative tick (`04 §2`). Registered v1.1: the worker was created lazily at the first Start, so a tab opened before a redeploy requested a chunk that no longer existed and, with no `error` listener, never reached `done` while visible |
 | TT-SYS-208 | The timer worker reported `done` while the core still had time left and no re-anchor explained it — the deadline was re-sent (at most once a second, logged once per run; `04 §1`). Registered v1.1.1, beside the fix it backs up: a TT-SYS-201 re-anchor never reached the worker, whose stale deadline hit zero early, so a visible tab sat at 0.000 |
+| TT-SYS-209 | The finish notification was shown by the PAGE, not the timer worker — this browser's workers have no `Notification` (Safari) or the worker is down (TT-SYS-207). Best-effort: the page may itself run late while hidden. Message: `shown by the page` / `could not be shown`. v2.0 |
+| TT-SYS-210 | Finish notifications are on but the browser no longer allows them (permission denied or reset) — none is shown until it is allowed again. Once per session. v2.0 |
 | TT-SYS-300 | Captured `window.onerror` (error **name** only — never its message, see the rule below) |
 | TT-SYS-301 | Captured `unhandledrejection` (reason **type** only) |
 

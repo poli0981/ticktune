@@ -158,6 +158,43 @@ describe('Theme and clock face — v2.0, docs/03 §1', () => {
   });
 });
 
+describe('Finish notification — v2.0, docs/04 §2', () => {
+  function fakeNotification(permission: string, answer: string) {
+    const requestPermission = vi.fn().mockResolvedValue(answer);
+    vi.stubGlobal('Notification', { permission, requestPermission });
+    return requestPermission;
+  }
+
+  afterEach(() => vi.unstubAllGlobals());
+
+  it('asks the browser inside the click, and turns on only if granted', async () => {
+    const ask = fakeNotification('default', 'granted');
+    mount();
+    const box = screen.getByTestId('tt-set-notify') as HTMLInputElement;
+    expect(box.checked).toBe(false);
+    await fireEvent.click(box);
+    await vi.waitFor(() => expect(patch).toHaveBeenCalledWith({ finishNotify: true }));
+    expect(ask).toHaveBeenCalledTimes(1);
+  });
+
+  it('a refusal leaves it off and says why — nothing is written', async () => {
+    fakeNotification('default', 'denied');
+    mount();
+    const box = screen.getByTestId('tt-set-notify') as HTMLInputElement;
+    await fireEvent.click(box);
+    await vi.waitFor(() => expect(screen.getByTestId('tt-set-notify-status')).toBeTruthy());
+    expect(box.checked).toBe(false);
+    expect(patch).not.toHaveBeenCalledWith({ finishNotify: true });
+  });
+
+  it('a browser without notifications gets a disabled switch and the reason', () => {
+    vi.stubGlobal('Notification', undefined);
+    mount();
+    expect((screen.getByTestId('tt-set-notify') as HTMLInputElement).disabled).toBe(true);
+    expect(screen.getByTestId('tt-set-notify-status')).toBeTruthy();
+  });
+});
+
 describe('End Behavior controls reach the field they name — docs/02 §3.3', () => {
   it('writes endFadeMs from the slider', async () => {
     mount();

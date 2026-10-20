@@ -139,6 +139,39 @@
     ttLog.info('TT-USR-104', 'settings imported');
   }
 
+  // ── Countdown: the finish notification (v2.0, docs/04 §2) ─────────────────
+
+  /**
+   * What the browser allows, read when the panel opens and after each ask.
+   * `unsupported` disables the switch; `denied` leaves it off with the reason.
+   */
+  let notifyState = $state<'ok' | 'denied' | 'unsupported'>(
+    typeof Notification === 'undefined'
+      ? 'unsupported'
+      : Notification.permission === 'denied'
+        ? 'denied'
+        : 'ok',
+  );
+
+  /**
+   * The permission is asked HERE, inside the click — the only moment a browser
+   * lets a page ask — and the setting turns on only if it is granted.
+   */
+  async function toggleNotify(input: HTMLInputElement) {
+    const on = input.checked;
+    if (on && Notification.permission !== 'granted') {
+      const answer = await Notification.requestPermission();
+      if (answer !== 'granted') {
+        input.checked = false;
+        notifyState = 'denied';
+        return;
+      }
+    }
+    notifyState = 'ok';
+    await settings.patch({ finishNotify: on });
+    ttLog.info('TT-USR-102', on ? 'finish notification on' : 'finish notification off');
+  }
+
   // ── Diagnostics ───────────────────────────────────────────────────────────
 
   let level = $state<TtLogLevel | 'all'>('all');
@@ -787,6 +820,29 @@
       />
       <span>{i18n.t('settings.countdown.endFlash')}</span>
     </label>
+
+    <label class="tt-row tt-check">
+      <input
+        class="tt-switch"
+        type="checkbox"
+        data-testid="tt-set-notify"
+        checked={s.finishNotify && notifyState === 'ok'}
+        disabled={notifyState === 'unsupported'}
+        onchange={(e) => void toggleNotify(e.currentTarget)}
+      />
+      <span>{i18n.t('settings.countdown.notify')}</span>
+    </label>
+    {#if notifyState === 'denied'}
+      <p class="tt-warn" role="status" data-testid="tt-set-notify-status">
+        {i18n.t('settings.countdown.notifyBlocked')}
+      </p>
+    {:else if notifyState === 'unsupported'}
+      <p class="tt-note" data-testid="tt-set-notify-status">
+        {i18n.t('settings.countdown.notifyUnsupported')}
+      </p>
+    {:else}
+      <p class="tt-note">{i18n.t('settings.countdown.notifyHint')}</p>
+    {/if}
 
     <div class="tt-row tt-stack">
       <span>{i18n.t('settings.countdown.endAction')}</span>

@@ -174,6 +174,7 @@ interface TtSettings {
   endChime: boolean;
   endFlash: boolean;
   endAction: 'stay' | 'restart' | 'loop';   // see 3.3
+  finishNotify: boolean;                    // v2.0 — 04 §2; asks permission on enable
 
   // ── Visualizer ────────────────────────────────────────────────────────────
   visualizer: TtVisualizer;
@@ -215,6 +216,7 @@ export const TT_DEFAULT_SETTINGS: TtSettings = {
   endChime: true,             // D4
   endFlash: false,
   endAction: 'stay',
+  finishNotify: false,        // v2.0, additive; only a click may ask permission
   visualizer: 'off',          // see the note below — 'ring' is the signature
                               // look (05 §6), not the starting one
   visualizerSensitivity: 1.0,

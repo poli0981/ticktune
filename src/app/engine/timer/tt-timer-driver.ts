@@ -1,4 +1,5 @@
 import { TtTimer } from './tt-timer';
+import type { TtFinishNotice, TtWorkerIn, TtWorkerOut } from './tt-timer-worker-core';
 import type { TtFinishInfo, TtTickSample, TtTimerLogCode } from './types';
 
 /**
@@ -31,6 +32,14 @@ export interface TtTimerDriverOptions {
   ) => void;
   /** Spike S2 only — see TtTickSample and docs/15 §S2. */
   onSample?: (sample: TtTickSample) => void;
+  /**
+   * The finish notification (v2.0, `04 §2`). `onNotifyFailed` is the page's cue
+   * to show it itself — the worker has no `Notification` (Safari), the worker
+   * is broken, or permission went away — or to log why it cannot.
+   */
+  onNotified?: () => void;
+  onNotifyFailed?: (reason: 'unsupported' | 'denied' | 'error') => void;
+  onNotificationClick?: () => void;
 }
 
 export class TtTimerDriver {
@@ -49,6 +58,8 @@ export class TtTimerDriver {
   #reanchors = 0;
   #earlyDoneWarned = false;
   #lastResyncAt = Number.NEGATIVE_INFINITY;
+  /** Kept here as well as in the worker, for the broken-worker path. */
+  #notice: TtFinishNotice | null = null;
 
   constructor(opts: TtTimerDriverOptions) {
     this.#opts = opts;
@@ -57,6 +68,10 @@ export class TtTimerDriver {
         void this.#releaseWakeLock();
         this.#stopRaf();
         this.#postToWorker({ type: 'stop' });
+        // No worker to notify from: the page is all there is (TT-SYS-207 path).
+        if (this.#workerBroken && this.#notice !== null && document.hidden) {
+          opts.onNotifyFailed?.('unsupported');
+        }
         opts.onDone(info);
       },
       onLog: (code, detail) => opts.onLog?.(code, detail),
@@ -124,6 +139,21 @@ export class TtTimerDriver {
     this.#emit();
   }
 
+  /**
+   * Arm (or disarm, with null) the finish notification for the current run —
+   * v2.0, `04 §2`. The shell decides whether one is wanted; the worker decides
+   * whether the moment calls for it (hidden at zero).
+   */
+  setNotice(notice: TtFinishNotice | null): void {
+    this.#notice = notice;
+    this.#tellWorker({ type: 'notice', notice });
+  }
+
+  /** Close a shown notification — the user is back, or the run is over. */
+  dismissNotice(): void {
+    this.#tellWorker({ type: 'dismiss' });
+  }
+
   dispose(): void {
     this.#disposed = true;
     document.removeEventListener('visibilitychange', this.#onVisibility);
@@ -145,7 +175,11 @@ export class TtTimerDriver {
     }
     try {
       const w = new Worker(new URL('./tt-timer.worker.ts', import.meta.url), { type: 'module' });
-      w.addEventListener('message', (e: MessageEvent<{ type: string }>) => {
+      w.addEventListener('message', (e: MessageEvent<TtWorkerOut>) => {
+        const msg = e.data;
+        if (msg.type === 'notified') return void this.#opts.onNotified?.();
+        if (msg.type === 'notifyFailed') return void this.#opts.onNotifyFailed?.(msg.reason);
+        if (msg.type === 'notificationClick') return void this.#opts.onNotificationClick?.();
         // The worker is the authoritative source of `done`, but the core owns
         // the single-fire latch, so a worker `done` and a latch `done` racing
         // still produce exactly one event.
@@ -166,10 +200,17 @@ export class TtTimerDriver {
         this.#breakWorker();
       });
       this.#worker = w;
+      // The worker starts out believing the page is in front; tell it the truth.
+      w.postMessage({ type: 'visibility', hidden: document.hidden } satisfies TtWorkerIn);
     } catch {
       this.#breakWorker();
     }
     return this.#worker;
+  }
+
+  /** A message with no fallback meaning — dropped when there is no worker. */
+  #tellWorker(msg: TtWorkerIn): void {
+    this.#ensureWorker()?.postMessage(msg);
   }
 
   /**
@@ -269,6 +310,10 @@ export class TtTimerDriver {
    * crossed while we were away and the worker did not manage to report it.
    */
   #onVisibility = (): void => {
+    // First, and whatever the phase: the worker decides at zero whether the
+    // page was away, so it must hear every change — including the one this
+    // latch is about to ignore (v2.0, `04 §2`).
+    this.#tellWorker({ type: 'visibility', hidden: document.hidden });
     if (document.hidden || this.#timer.phase !== 'running') return;
     const remaining = this.#timer.remainingMs;
     this.#timer.tick(remaining <= 0);
