@@ -51,11 +51,37 @@ resources loaded:
   other   https://i.ytimg.com/vi_webp/dQw4w9WgXcQ/mqdefault.webp
 ```
 
+> **v2.0 note:** the `i.ytimg.com` line above is the embed's poster image,
+> requested by the player's frame. It was read as the page's own load until
+> the section below measured it.
+
 The audit predicted that `www-widgetapi.js` comes from `s.ytimg.com` and that
 `docs/09 §4` would therefore break the player. **It comes from
 `www.youtube.com`**, which `script-src` already allows. No CSP row is needed and
 no privacy-policy disclosure follows. `AUDIT-BACKLOG` updated with the
 refutation.
+
+## ✅ Closed (v2.0): `img-src https://i.ytimg.com` was unused, and is gone
+
+Measured 2026-10-21: Edge 155, the built site under `wrangler dev` with the
+enforcing CSP, real YouTube, the app's own YouTube mode (paste → Start), 20 s
+after Start. A Playwright-driven page (analytics beacon fulfilled locally, as
+in every E2E run) recorded the TOP document's `securitypolicyviolation` events
+and its resource-timing entries, and listed the player frame's requests apart:
+
+```
+img-src 'self' data: blob: https://i.ytimg.com   dQw4w9WgXcQ   violations: []   i.ytimg.com loads: []
+img-src 'self' data: blob:                       dQw4w9WgXcQ   violations: []   i.ytimg.com loads: []
+img-src 'self' data: blob:                       jNQXAC9IVRw   violations: []   i.ytimg.com loads: []
+player 384×216 in every run
+```
+
+Nothing in the app renders a thumbnail (`docs/06 §3`), so the origin went.
+⚠️ **What this did not cover:** playback. YouTube refuses an automated
+browser — the player raised `150` and the app's own overlay showed
+TT-YT-150 — and getting past its bot check is not something to do. A playing
+session is therefore a v2.0 live-checklist line on the preview: one video
+playing for a minute, Console clean.
 
 ## ✅ RUN 2026-07-22 — Chrome 151 / Windows, deployed site, 1 gesture
 
