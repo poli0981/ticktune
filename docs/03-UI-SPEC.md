@@ -536,7 +536,7 @@ truth. Do not restate a default here; it will drift.
 | Display | **Theme: Dark (LED) / Light (LCD)** (v2.0, `§1`) · Background: Solid / Gradient (6 presets + custom) / Image / Slideshow (multi-upload, interval, fade or Ken Burns) / Cover-art blur · scrim strength · scanlines · auto-theme · **hide scrollbars** (v1.1; applies inside `/app/`, the static pages keep the slim custom bar) | `theme`, `background`, `gradientPreset`, `gradientCustom`, `slideshowIntervalMs`, `slideshowTransition`, `scrimStrength`, `scrimAuto`, `scanlines`, `autoTheme`, `hideScrollbars` | **P5 s3**, v1.1, v2.0 |
 | Countdown | Glow intensity · size (S/M/L) · **clock face 7/14-segment** (v2.0) · **notify when time is up** (v2.0, `04 §2`; asks permission in the click) · **End Behavior**: fade-out duration, chime, flash, and what happens at zero (stay / restart / loop — see `02 §3.3`) | `glowIntensity`, `countdownSize`, `clockFace`, `finishNotify`, `endFadeMs`, `endChime`, `endFlash`, `endAction` | **P5 s2**, v2.0 |
 | Visualizer | Style off/bars/wave/ring · sensitivity | `visualizer`, `visualizerSensitivity` | **P5 s4** |
-| Audio | Volume · mute · ~~crossfade~~ · ~~single-mode loop style~~ | `volume`, `muted`, (`crossfadeMs`, `singleLoopStyle` — S4b) | **P5 s2**, partly |
+| Audio | Volume · mute · **crossfade 0–5 s** (0 = hard cut) · **single-track loop style** (v2.0, `05 §2`) | `volume`, `muted`, `crossfadeMs`, `singleLoopStyle` | **P5 s2**, v2.0 |
 | Playback | Shuffle · Repeat playlist · allow duplicates | `shuffle`, `repeatPlaylist`, `allowDuplicates` | **P5 s2** |
 | Hotkeys | Read-only reference list | — | **P5 s2** |
 | Diagnostics | Log viewer · Copy Diagnostics · clear log | — | **P5 s2** |
@@ -561,17 +561,19 @@ explanation, which is why the empty state is copy rather than an absence.
 ✅ **All nine groups now exist**, and the order of arrival is the point: Display
 landed with `TtBackdrop` in slice 3, Visualizer with `TtVisualizer` in slice 4,
 neither a moment earlier. Inside Audio the crossfade slider and the loop-style
-selector are **still absent** while `15 §S4b` is open — the rule outlives the
-last group — and that group carries one line of prose saying so instead.
+selector stayed **absent** while `15 §S4b` was open — the rule outlived the last
+group, and the group said so in a line of prose — and arrived in v2.0 with the
+engine they drive.
 
 The rule is written here because the alternative had already shipped: `TtSingleRail`
 carried a loop-style pair with hardcoded `aria-pressed` and **no `onclick` at all**
 for three phases — an inert control, in production, reading as finished work. A
 greyed-out Display group would be the same object with better manners.
 
-The loop-style pair itself stays in Z4 where `§2` puts it, now wired: the pressed
-state reports the **effective** style, which is `hard` while S4b is open, and a
-stored `'crossfade'` renders the visible notice `05 §2` promised beside it.
+The loop-style pair itself stays in Z4 where `§2` puts it, now wired: until
+v2.0 the pressed state reported the **effective** style — `hard` while S4b was
+open, with the visible notice `05 §2` promised beside a stored `'crossfade'`.
+Since S4b passed both styles are real, and the pair simply shows the stored one.
 
 ### Reset app — two steps, and the second one states the cost
 

@@ -189,8 +189,12 @@ Three habits that found the rest:
   hidden, and the **late Finished screen** (`overshootMs > 2 s`) states when
   zero was actually reached. Keep the visibility/focus latch — it is the only
   reason a hidden countdown finishes at all.
-- **Crossfade is deferred** until S4b passes: ship `singleLoopStyle: 'hard'`; a
-  stored `'crossfade'` falls back with **TT-SYS-205**.
+- **Crossfade shipped in v2.0, exactly as S4b measured it** (`docs/05 §2`):
+  `tt-crossfade.ts` is the spike's module moved in unchanged; margin 0.3 s,
+  guard 0.03 s, the importer's length before `element.duration`, the next track
+  armed 8 s ahead, Z2 for 0 s. **Exactly one advance**: the transition is real
+  when the incoming `play()` resolves, and every deck event names its deck — a
+  fading deck's `ended` is dropped. TT-SYS-205 is retired.
 - **The chime is synthesised** with `OscillatorNode`s — no `public/audio/`.
 - **The master stage is two nodes**, `userGain` then `fadeGain` (`docs/05 §1`).
   One shared node throws `NotSupportedError` when the volume changes mid-fade.
@@ -251,8 +255,8 @@ Three habits that found the rest:
   — it beats them. A component adopting `.tt-key`/`.tt-seg`/`.tt-switch` must
   drop its own competing rules for that element.
 - **A settings group ships with its feature, never before it** — no disabled
-  placeholders (`docs/03 §6`). Crossfade and the loop-style selector are still
-  absent from Audio.
+  placeholders (`docs/03 §6`). Crossfade and the loop-style selector stayed out
+  of Audio until S4b passed, and arrived with the engine (v2.0).
 - **The ⚙ panel is a left side sheet with no backdrop and no `aria-modal`** — a
   full-bleed backdrop is exactly what `03 §2` forbids over the player.
 - **`scrimAuto` is solved arithmetic** that reports its 0.60 cap rather than
@@ -303,11 +307,9 @@ Resolved and pinned: TypeScript `~5.9` (TS 7 crashes svelte-check, `docs/11 §4`
 
 ### Open items, in the order they block things
 
-1. **Spike S4b** is the only open spike, and its harness must be fixed first: the
-   overlap metric reads back the `gain.value` it scheduled itself, so it cannot
-   fail (`docs/15 §S4`). Measure the overlap from the audio (an Analyser or an
-   `OfflineAudioContext` render), then run the 0/1/2/5 s sweep — that unblocks
-   the crossfade loop style and inter-track crossfade.
+1. **No spike is open.** S4b's harness was rebuilt to measure the audio, passed,
+   and the crossfade shipped in v2.0 exactly as measured — mind the seek caveat
+   under the spike rule above.
 2. **Post-1.1 directions** are in `docs/16`'s backlog section.
 3. `docs/AUDIT-BACKLOG.md` — see its header for the open count; no release
    blocker remains.
