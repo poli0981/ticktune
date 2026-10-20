@@ -1,218 +1,170 @@
 <script lang="ts">
   /**
-   * Spike S4 harness — docs/15 §S4, feeding docs/05 §1-2.
+   * Spike S4b harness — docs/15 §S4.
    *
-   * Three questions:
-   *   1. does the A/B equal-power crossfade sound clean at 0/1/2/5 s?
-   *   2. does the gate-click `resume()` reliably unlock autoplay, and does
-   *      playback never start before that gesture?
-   *   3. does the `timeupdate` trigger schedule accurately — including on real
-   *      VBR MP3s, where `element.duration` is least trustworthy?
+   * Measures crossfades on the SHIPPING graph (`buildTtGraph`), from the audio:
+   * an AudioWorklet probe per deck reads the signal before and after its gain,
+   * and a third reads the master around `fadeGain`. The old harness read back
+   * the `gain.value` it had scheduled, so it could not fail; this one runs four
+   * deliberately broken controls first and calls itself INVALID unless every
+   * one of them fails.
    *
-   * Builds the docs/05 §1 graph exactly:
-   *   elementA → MediaElementSource → gainA ─┐
-   *                                          ├→ masterGain → Analyser → dest
-   *   elementB → MediaElementSource → gainB ─┘
-   *
-   * NOT the audio engine. The scope rule keeps engine code behind this spike;
-   * this is the throwaway that decides what the engine should do.
+   * Load the files from `pnpm s4b:fixtures` (test/generated/s4b/, including
+   * manifest.json), press Unlock, then a sweep. `pnpm s4b` drives the same page
+   * through Playwright; these buttons are for Firefox and Safari by hand.
    */
+  import { onMount } from 'svelte';
+  import {
+    contextState,
+    loadFiles,
+    loadedFileCount,
+    loadedFixtures,
+    run,
+    unlock,
+    type TtS4bRunResult,
+  } from './tt-s4b-runner';
+  import { fullPlan, quickPlan, type TtS4bRunConfig } from './tt-s4b-sweep-plan';
+  import { judgeRun, verdict, type TtJudgedRun, type TtVerdict } from './tt-s4b-verdict';
 
-  let ctx: AudioContext | null = null;
-  let master: GainNode | null = null;
-  let analyser: AnalyserNode | null = null;
-  const el: HTMLAudioElement[] = [];
-  const gain: (GainNode | null)[] = [null, null];
-  const srcNode: (MediaElementAudioSourceNode | null)[] = [null, null];
-
-  let files = $state<File[]>([]);
-  let fadeS = $state(2);
-  let log = $state<string[]>([]);
   let ctxState = $state('none');
-  let rms = $state<number[]>([]);
-  let measuring = $state(false);
-  let overlapMs = $state<number | null>(null);
+  let fileCount = $state(0);
+  let fixtureCount = $state(0);
+  let busy = $state(false);
+  let progress = $state('');
+  let judged = $state<TtJudgedRun[]>([]);
+  let raw = $state<TtS4bRunResult[]>([]);
+  let result = $state<TtVerdict | null>(null);
 
-  const say = (m: string) => (log = [...log, `${new Date().toISOString().slice(11, 23)}  ${m}`]);
-
-  /** docs/05 §1: created at boot, resumed only on a user gesture. */
-  function boot() {
-    if (ctx) return;
-    ctx = new AudioContext();
-    master = ctx.createGain();
-    analyser = ctx.createAnalyser();
-    analyser.fftSize = 2048;
-    master.connect(analyser).connect(ctx.destination);
-    ctxState = ctx.state;
-    say(`AudioContext created, state=${ctx.state} (must be "suspended" before any gesture)`);
-  }
-
-  /** Stands in for the legal-gate Accept click — the autoplay-unlock gesture. */
-  async function unlock() {
-    boot();
-    await ctx!.resume();
-    ctxState = ctx!.state;
-    say(`resume() → state=${ctx!.state}`);
-  }
-
-  function attach(i: 0 | 1, f: File) {
-    el[i] ??= new Audio();
-    const a = el[i]!;
-    a.src = URL.createObjectURL(f);
-    a.preload = 'auto';
-    // createMediaElementSource may be called ONCE per element — reuse it and
-    // just swap .src, which is what the engine will have to do too.
-    if (!srcNode[i]) {
-      srcNode[i] = ctx!.createMediaElementSource(a);
-      gain[i] = ctx!.createGain();
-      gain[i]!.gain.value = 0;
-      srcNode[i]!.connect(gain[i]!).connect(master!);
-    }
-    say(`element ${'AB'[i]} ← ${f.name}`);
-  }
-
-  /** docs/05 §2: gainOut = cos(t·π/2), gainIn = sin(t·π/2). */
-  function equalPowerCurves(steps = 64): [Float32Array, Float32Array] {
-    const out = new Float32Array(steps);
-    const inn = new Float32Array(steps);
-    for (let i = 0; i < steps; i++) {
-      const t = i / (steps - 1);
-      out[i] = Math.cos((t * Math.PI) / 2);
-      inn[i] = Math.sin((t * Math.PI) / 2);
-    }
-    return [out, inn];
-  }
-
-  async function runCrossfade() {
-    if (files.length < 2) return say('need two files');
-    await unlock();
-    attach(0, files[0]!);
-    attach(1, files[1]!);
-
-    const now = ctx!.currentTime;
-    gain[0]!.gain.setValueAtTime(1, now);
-    gain[1]!.gain.setValueAtTime(0, now);
-    await el[0]!.play();
-    say('A playing');
-
-    // Let A settle, then fade.
-    await new Promise((r) => setTimeout(r, 1200));
-
-    const t = ctx!.currentTime;
-    const dur = Math.max(0.001, fadeS);
-    await el[1]!.play();
-    if (fadeS === 0) {
-      gain[0]!.gain.setValueAtTime(0, t);
-      gain[1]!.gain.setValueAtTime(1, t);
-      say('hard cut (fade = 0)');
-    } else {
-      const [outC, inC] = equalPowerCurves();
-      gain[0]!.gain.setValueCurveAtTime(outC, t, dur);
-      gain[1]!.gain.setValueCurveAtTime(inC, t, dur);
-      say(`equal-power crossfade over ${dur}s scheduled at ctx.currentTime=${t.toFixed(3)}`);
-    }
-    void measureOverlap(dur);
-  }
-
-  /** Samples Analyser RMS to see the actual overlap window, per docs/15 §S4. */
-  async function measureOverlap(durS: number) {
-    if (!analyser) return;
-    measuring = true;
-    rms = [];
-    const buf = new Uint8Array(analyser.fftSize);
-    const started = performance.now();
-    const deadline = started + (durS + 1.5) * 1000;
-    let firstBoth: number | null = null;
-    let lastBoth: number | null = null;
-
-    while (performance.now() < deadline) {
-      analyser.getByteTimeDomainData(buf);
-      let sum = 0;
-      for (const v of buf) {
-        const d = (v - 128) / 128;
-        sum += d * d;
+  async function sweep(plan: TtS4bRunConfig[]): Promise<TtVerdict> {
+    busy = true;
+    judged = [];
+    raw = [];
+    try {
+      for (const [i, cfg] of plan.entries()) {
+        progress = `${i + 1}/${plan.length} · ${cfg.label}`;
+        const results = await run(cfg).catch((e: unknown) => {
+          progress = `${cfg.label}: ${String(e)}`;
+          return [] as TtS4bRunResult[];
+        });
+        raw = [...raw, ...results];
+        judged = [...judged, ...results.map(judgeRun)];
       }
-      const r = Math.sqrt(sum / buf.length);
-      rms = [...rms.slice(-240), r];
-      const bothAudible = (gain[0]?.gain.value ?? 0) > 0.02 && (gain[1]?.gain.value ?? 0) > 0.02;
-      if (bothAudible) {
-        firstBoth ??= performance.now();
-        lastBoth = performance.now();
-      }
-      await new Promise((r2) => requestAnimationFrame(() => r2(null)));
+      result = verdict(judged);
+      return result;
+    } finally {
+      busy = false;
+      progress = '';
     }
-    overlapMs = firstBoth && lastBoth ? Math.round(lastBoth - firstBoth) : 0;
-    measuring = false;
-    say(`measured overlap ≈ ${overlapMs} ms (target ${Math.round(durS * 1000)} ms ±150)`);
   }
 
-  function stop() {
-    el.forEach((a) => a?.pause());
-    say('stopped');
-  }
+  const report = () =>
+    JSON.stringify({ verdict: result, runs: judged, raw, at: new Date().toISOString() }, null, 2);
 
-  const peak = $derived(rms.length ? Math.max(...rms) : 0);
+  onMount(() => {
+    // The automation seam scripts/s4b-sweep.ts drives — the same code as the buttons.
+    (window as unknown as { __ttS4b: unknown }).__ttS4b = {
+      unlock: async () => (ctxState = await unlock()),
+      fixtures: () => loadedFixtures(),
+      run,
+      judge: judgeRun,
+      verdict,
+      plans: { quick: quickPlan, full: fullPlan },
+    };
+  });
 </script>
 
-<section class="mx-auto max-w-4xl p-8 font-mono text-sm">
-  <h1 class="mb-1 text-xl font-semibold">S4 — crossfade &amp; AudioContext unlock</h1>
+<section class="mx-auto max-w-5xl p-8 font-mono text-sm">
+  <h1 class="mb-1 text-xl font-semibold">S4b — crossfade trigger, measured from the audio</h1>
   <p class="mb-6 text-xs text-tt-muted">
-    docs/15 §S4 → docs/05 §1–2. Pick <strong>two</strong> files; use real VBR MP3s from
-    <code>test/test_playlist/</code>, not only the generated tones — <code>element.duration</code>
-    is least reliable on exactly those.
+    docs/15 §S4. Load everything in <code>test/generated/s4b/</code> (with
+    <code>manifest.json</code>), press Unlock, then run a sweep. Corpus runs need
+    <code>pnpm s4b:fixtures --corpus</code>.
   </p>
 
   <div class="flex flex-wrap items-center gap-4">
     <input
       type="file"
       multiple
-      accept="audio/*"
-      onchange={(e) => {
-        files = Array.from((e.currentTarget as HTMLInputElement).files ?? []);
-        boot();
+      accept="audio/*,.json"
+      data-testid="s4b-files"
+      onchange={async (e) => {
+        await loadFiles(Array.from((e.currentTarget as HTMLInputElement).files ?? []));
+        fileCount = loadedFileCount();
+        fixtureCount = loadedFixtures().length;
       }}
     />
-    <label
-      >fade
-      <select bind:value={fadeS} class="ml-1 border border-tt-line bg-tt-surface px-2 py-1">
-        {#each [0, 1, 2, 5] as s (s)}<option value={s}>{s}s</option>{/each}
-      </select>
-    </label>
-    <button class="tt-b" onclick={unlock}>unlock (gesture)</button>
-    <button class="tt-b" onclick={runCrossfade} disabled={files.length < 2}>run crossfade</button>
-    <button class="tt-b" onclick={stop}>stop</button>
+    <button
+      class="tt-b"
+      data-testid="s4b-unlock"
+      onclick={async () => {
+        ctxState = await unlock();
+      }}>unlock (gesture)</button
+    >
+    <button
+      class="tt-b"
+      disabled={busy || ctxState !== 'running' || !fixtureCount}
+      onclick={() => void sweep(quickPlan(loadedFixtures()))}>quick sweep</button
+    >
+    <button
+      class="tt-b"
+      disabled={busy || ctxState !== 'running' || !fixtureCount}
+      onclick={() => void sweep(fullPlan(loadedFixtures()))}>full sweep</button
+    >
+    <button
+      class="tt-b"
+      disabled={!judged.length}
+      onclick={() => void navigator.clipboard.writeText(report())}>copy JSON</button
+    >
   </div>
 
   <div class="mt-5 flex flex-wrap gap-6 border-y border-tt-line py-3">
-    <span>ctx <strong>{ctxState}</strong></span>
-    <span>gainA <strong>{(gain[0]?.gain.value ?? 0).toFixed(3)}</strong></span>
-    <span>gainB <strong>{(gain[1]?.gain.value ?? 0).toFixed(3)}</strong></span>
-    <span>peak RMS <strong>{peak.toFixed(3)}</strong></span>
-    {#if overlapMs !== null}
-      <span class:bad={Math.abs(overlapMs - fadeS * 1000) > 150}>
-        overlap <strong>{overlapMs} ms</strong> (target {fadeS * 1000} ±150)
+    <span>ctx <strong data-testid="s4b-ctx">{ctxState || contextState()}</strong></span>
+    <span>files <strong>{fileCount}</strong></span>
+    <span>manifest <strong>{fixtureCount}</strong></span>
+    {#if progress}<span class="text-tt-warn">{progress}</span>{/if}
+    {#if result}
+      <span class:bad={result.outcome !== 'PASS'} data-testid="s4b-outcome">
+        verdict <strong>{result.outcome}</strong>
       </span>
     {/if}
-    {#if measuring}<span class="text-tt-warn">measuring…</span>{/if}
   </div>
 
-  {#if rms.length}
-    <svg viewBox="0 0 240 60" class="mt-4 h-16 w-full" preserveAspectRatio="none">
-      <polyline
-        fill="none"
-        stroke="var(--color-tt-signal)"
-        stroke-width="1"
-        points={rms.map((v, i) => `${i},${60 - Math.min(1, v * 3) * 60}`).join(' ')}
-      />
-    </svg>
-    <p class="text-xs text-tt-muted">
-      Analyser RMS over the fade — a dip in the middle means the curves are not equal-power.
-    </p>
+  {#if result}
+    <ul class="mt-4 space-y-1 text-xs">
+      {#each result.criteria as c (c.name)}
+        <li class:bad={!c.pass}>{c.pass ? '✓' : '✗'} {c.name} — {c.detail}</li>
+      {/each}
+    </ul>
   {/if}
 
-  <ul class="mt-5 space-y-0.5 text-xs text-tt-muted">
-    {#each log.slice(-14) as line (line)}<li>{line}</li>{/each}
-  </ul>
+  {#if judged.length}
+    <table class="mt-5 w-full text-xs">
+      <thead>
+        <tr class="text-left text-tt-muted">
+          <th>run</th>
+          <th>ok</th>
+          <th>overlap err</th>
+          <th>end guard</th>
+          <th>head loss</th>
+          <th>gap</th>
+          <th>clicks</th>
+        </tr>
+      </thead>
+      <tbody>
+        {#each judged as r, i (i)}
+          <tr class:bad={!r.ok}>
+            <td>{r.label}</td>
+            <td>{r.ok ? '✓' : '✗'}</td>
+            <td>{r.metrics.overlapErrMs ?? '–'}</td>
+            <td>{r.metrics.endGuardSignalMs ?? r.metrics.endGuardEndedMs ?? '–'}</td>
+            <td>{r.metrics.headLossMs ?? '–'}</td>
+            <td>{r.metrics.gapMs ?? '–'}</td>
+            <td>{r.metrics.clicks.length}</td>
+          </tr>
+        {/each}
+      </tbody>
+    </table>
+  {/if}
 </section>
 
 <style>
