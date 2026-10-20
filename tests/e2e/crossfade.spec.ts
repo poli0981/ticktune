@@ -151,34 +151,37 @@ const rmsIn = (rec: Rec, from: number, to: number): number[] =>
 const median = (v: number[]): number => [...v].sort((a, b) => a - b)[v.length >> 1] ?? 0;
 
 /**
- * How fast the media clock ran against the page's before `until` — the slope
- * of the active deck's position over the first track's solo stretch.
+ * Whether this browser's media clock keeps real time from the first sample —
+ * the capability every assertion about how LONG something took depends on.
+ * Measured per run over the first track, from Start (`from`) to `until`, never
+ * assumed from a browser name (docs/13 §3):
+ *
+ * - its LEAD: how far the position ever ran ahead of the time since Start.
+ *   CI's Linux WebKit, with no audio device, starts every track ~1.07 s in —
+ *   the position jumps there within 130 ms and runs true from then on — so 5 s
+ *   tracks end every ~4.05 s and a trigger can fall inside the previous fade;
+ * - its RATE: the slope over the rest, which that jump alone leaves at ~1.0 —
+ *   the first version of this check measured only the rate, and passed WebKit.
+ *
+ * Where either is off, the durations are skipped, the numbers go into the
+ * report, and everything about wiring is still asserted.
  */
-function clockRate(rec: Rec, until: number): number {
-  const pts = rec.pos.filter(([t, p]) => t < until - 100 && p > 300);
+function realTime(rec: Rec, from: number, until: number): boolean {
+  const pts = rec.pos.filter(([t, p]) => t > from && t < until - 100 && p > 0);
   expect(pts.length, 'the tt-media-pos seam reports a playing deck').toBeGreaterThan(10);
-  const n = pts.length;
-  const mt = pts.reduce((s, [t]) => s + t, 0) / n;
-  const mp = pts.reduce((s, [, p]) => s + p, 0) / n;
-  const cov = pts.reduce((s, [t, p]) => s + (t - mt) * (p - mp), 0);
-  const varT = pts.reduce((s, [t]) => s + (t - mt) ** 2, 0);
-  return cov / varT;
-}
-
-/**
- * Whether this browser's media clock keeps real time — the capability every
- * assertion about how LONG something took depends on. Measured per run, never
- * assumed from a browser name (docs/13 §3): CI's Linux WebKit, with no audio
- * device, played 5 s tracks in ~4.05 s of page time and reported `currentTime`
- * up to ~1.5× ahead of it. Where it does not, the durations are skipped, said
- * so in the report, and everything about wiring is still asserted.
- */
-function realTime(rec: Rec, until: number): boolean {
-  const rate = clockRate(rec, until);
-  const ok = Math.abs(rate - 1) < 0.1;
+  const lead = Math.max(...pts.map(([t, p]) => p - (t - from)));
+  const run = pts.filter(([, p]) => p > 300);
+  const n = run.length;
+  const mt = run.reduce((s, [t]) => s + t, 0) / n;
+  const mp = run.reduce((s, [, p]) => s + p, 0) / n;
+  const cov = run.reduce((s, [t, p]) => s + (t - mt) * (p - mp), 0);
+  const rate = cov / run.reduce((s, [t]) => s + (t - mt) ** 2, 0);
+  const ok = lead < 300 && Math.abs(rate - 1) < 0.1;
   test.info().annotations.push({
     type: 'media clock',
-    description: `${rate.toFixed(3)}× page time${ok ? '' : ' — duration assertions skipped (docs/13 §3)'}`,
+    description:
+      `lead ${Math.round(lead)} ms, ${rate.toFixed(3)}× page time` +
+      (ok ? '' : ' — duration assertions skipped (docs/13 §3)'),
   });
   return ok;
 }
@@ -205,7 +208,12 @@ async function logCodes(page: Page): Promise<string[]> {
   return page.getByTestId('tt-set-log').locator('code').allTextContents();
 }
 
-const start = (page: Page) => page.getByRole('button', { name: 'Bắt đầu' }).click();
+/** Click Start, and return the page-clock moment just before — the media clock's zero. */
+async function start(page: Page): Promise<number> {
+  const at = await mark(page);
+  await page.getByRole('button', { name: 'Bắt đầu' }).click();
+  return at;
+}
 
 /**
  * A docs/03 §7 hotkey, from the page itself. The bottom bar hides itself three
@@ -238,7 +246,7 @@ test.describe('crossfade — docs/05 §2', () => {
     await page.getByTestId('tt-repeat').click(); // ON by default (docs/02 §3.1)
     await setDuration(page, 0, 1, 0);
     await record(page);
-    await start(page);
+    const startedAt = await start(page);
 
     // 2 s fades on 5 s tracks: A→B at ~2.7 s, B→C at ~5.4 s, C ends ~10.4 s.
     await expect(page.getByTestId('tt-playlist-ended')).toBeVisible({ timeout: 20_000 });
@@ -246,7 +254,7 @@ test.describe('crossfade — docs/05 §2', () => {
 
     const f = fades(rec);
     expect(f).toHaveLength(2);
-    if (realTime(rec, f[0]!.start)) {
+    if (realTime(rec, startedAt, f[0]!.start)) {
       for (const { start: s, end: e } of f) {
         expect(e - s).toBeGreaterThan(1_800);
         expect(e - s).toBeLessThan(2_700);
@@ -294,7 +302,7 @@ test.describe('crossfade — docs/05 §2', () => {
     await page.getByTestId('tt-repeat').click();
     await setDuration(page, 0, 1, 0);
     await record(page);
-    await start(page);
+    const startedAt = await start(page);
     await expect(html(page)).toHaveAttribute('data-tt-xfade', '0');
 
     await expect(page.getByTestId('tt-playlist-ended')).toBeVisible({ timeout: 25_000 });
@@ -305,7 +313,7 @@ test.describe('crossfade — docs/05 §2', () => {
     expect(v.map(([, i]) => i)).toEqual([0, 1, 2]);
     const solo = median(rmsIn(rec, v[0]![0] + 1_000, v[0]![0] + 3_000));
     expect(solo).toBeGreaterThan(0.02);
-    const timed = realTime(rec, v[1]![0]);
+    const timed = realTime(rec, startedAt, v[1]![0]);
     for (const k of [1, 2]) {
       // Each whole track played before the next — the cut is at its end.
       if (timed) expect(v[k]![0] - v[k - 1]![0]).toBeGreaterThan(4_500);
@@ -329,7 +337,7 @@ test.describe('crossfade — docs/05 §2', () => {
     await page.getByTestId('tt-repeat').click();
     await setDuration(page, 0, 1, 0);
     await record(page);
-    await start(page);
+    const startedAt = await start(page);
 
     // During the first fade, which keeps the length it started with.
     await expect(html(page)).toHaveAttribute('data-tt-xfade-active', '1', { timeout: 10_000 });
@@ -340,7 +348,7 @@ test.describe('crossfade — docs/05 §2', () => {
     const rec = await recording(page);
     const f = fades(rec);
     expect(f).toHaveLength(2);
-    if (realTime(rec, f[0]!.start)) {
+    if (realTime(rec, startedAt, f[0]!.start)) {
       // 1 s as set; then 3 s, which on a 5 s track is 2.5 s — half its length.
       expect(f[0]!.end - f[0]!.start).toBeGreaterThan(850);
       expect(f[0]!.end - f[0]!.start).toBeLessThan(1_600);
@@ -361,7 +369,7 @@ test.describe('crossfade — docs/05 §2', () => {
     await stageTones(page);
     await setDuration(page, 0, 1, 0);
     await record(page);
-    await start(page);
+    const startedAt = await start(page);
 
     await expect(html(page)).toHaveAttribute('data-tt-xfade-active', '1', { timeout: 10_000 });
     await page.waitForTimeout(700);
@@ -388,7 +396,7 @@ test.describe('crossfade — docs/05 §2', () => {
     expect(Math.min(...rmsIn(rec, resumedAt + 300, e - 100))).toBeGreaterThan(solo / 2);
 
     // The REST of the curve: what was left at the pause, not a fresh 2 s.
-    if (realTime(rec, s)) {
+    if (realTime(rec, startedAt, s)) {
       const rest = 2_000 - (pausedAt - s);
       expect(e - resumedAt).toBeGreaterThan(rest - 250);
       expect(e - resumedAt).toBeLessThan(rest + 500);
@@ -445,8 +453,7 @@ test.describe('crossfade — docs/05 §2', () => {
     await stageSingle(page);
     await setDuration(page, 0, 0, 30);
     await record(page);
-    const startedAt = await mark(page);
-    await start(page);
+    const startedAt = await start(page);
     // Switched on the rail while the track is already playing — by keyboard:
     // the ?ttdebug=1 panel sits over the rail and takes the pointer.
     await page.getByTestId('tt-crossfade-toggle').focus();
@@ -460,7 +467,7 @@ test.describe('crossfade — docs/05 §2', () => {
     const f = fades(rec);
     expect(f.length).toBeGreaterThanOrEqual(1);
     // The fade's own moment, not the 5 s wrap's.
-    if (realTime(rec, f[0]!.start)) expect(f[0]!.start - startedAt).toBeLessThan(4_000);
+    if (realTime(rec, startedAt, f[0]!.start)) expect(f[0]!.start - startedAt).toBeLessThan(4_000);
     const [loopAt] = rec.loop.find(([, text]) => text === 'Loop ×2')!;
     expect(loopAt).toBeGreaterThanOrEqual(f[0]!.start);
     expect(loopAt).toBeLessThan(f[0]!.start + 500);
