@@ -10,10 +10,12 @@
  * suite runs against a CSP at all — Astro's dev server and `astro preview` send
  * no headers — so without this the coupling is untested until production.
  *
- * Not wired into CI: it needs wrangler and a browser download. Run it before a
- * release, and whenever _headers or the gate script changes.
+ * Runs in CI since v1.1 — the last step of e2e.yml, against `wrangler dev`
+ * (local workerd, no Cloudflare credentials). It used to be manual-only, which
+ * meant the one check that sees the real policy ran only when someone
+ * remembered to. Locally:
  *
- *   pnpm build && pnpm exec wrangler dev --port 8788 --local &
+ *   pnpm build && pnpm exec wrangler dev --port 8788 --ip 127.0.0.1 &
  *   node scripts/verify-csp.mjs
  */
 import { chromium, devices } from '@playwright/test';

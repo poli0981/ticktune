@@ -16,19 +16,38 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - uses: actions/checkout@v7
-      - uses: pnpm/action-setup@v6.1.0
-      - uses: actions/setup-node@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: pnpm
 
       - run: pnpm install --frozen-lockfile
 
-      # docs/13 §3: chromium + firefox every PR; WebKit is added on the release
-      # branch. The mobile projects are the ones that assert hard invariant 6.
+      # Browsers are ~600 MB and were downloaded on every run. Keyed on the exact
+      # Playwright version, so a bump re-downloads and nothing stale is reused.
+      - name: Playwright version
+        id: pw
+        run: echo "version=$(pnpm exec playwright --version | awk '{print $2}')" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: pw-cache
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-${{ steps.pw.outputs.version }}
+
+      # docs/13 §3: all three engines on every PR — chromium, firefox and desktop
+      # webkit, plus the two mobile projects that assert hard invariant 6. (This
+      # comment used to say WebKit ran only on a release branch; it never did.)
       - name: Install browsers
+        if: steps.pw-cache.outputs.cache-hit != 'true'
         run: pnpm exec playwright install --with-deps chromium firefox webkit
+      # A cache hit restores the browsers but not the OS libraries they link.
+      - name: Install browser system dependencies
+        if: steps.pw-cache.outputs.cache-hit == 'true'
+        run: pnpm exec playwright install-deps chromium firefox webkit
 
       - name: Build
         run: pnpm build
@@ -36,8 +55,25 @@ jobs:
       - name: Run Playwright
         run: pnpm test:e2e
 
+      # docs/09 §4, docs/10 §7: the ONLY check that runs the built site under its
+      # real, enforcing CSP. `astro preview` sends no headers, so every spec above
+      # passes with no policy at all — a hash mismatch or a missing origin would
+      # surface first in production. `wrangler dev` serves dist/ through the same
+      # Workers Static Assets layer that applies `_headers`, locally, with no
+      # Cloudflare credentials.
+      - name: CSP under wrangler dev
+        env:
+          WRANGLER_SEND_METRICS: 'false'
+        run: |
+          pnpm exec wrangler dev --port 8788 --ip 127.0.0.1 > wrangler-dev.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -sf http://127.0.0.1:8788/ > /dev/null && break
+            sleep 1
+          done
+          pnpm verify:csp || { echo '--- wrangler dev log ---'; cat wrangler-dev.log; exit 1; }
+
       - if: ${{ !cancelled() }}
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: playwright-report
           path: playwright-report/
