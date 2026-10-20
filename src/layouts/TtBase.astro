@@ -21,6 +21,12 @@ interface Props {
   alternates?: { hreflang: string; href: string }[];
   /** Social-card image, same-origin. Overridable per page. */
   ogImage?: string;
+  /**
+   * The spike harnesses pass `false`. They run on localhost in browsers the
+   * measurement scripts launch for real, where tests/e2e/_fixtures.ts cannot
+   * fulfil the beacon — and a harness run is not a visit.
+   */
+  analytics?: boolean;
 }
 
 const {
@@ -30,6 +36,7 @@ const {
   noindex = false,
   alternates = [],
   ogImage = '/og/ticktune.png',
+  analytics = true,
 } = Astro.props;
 
 const repo = 'https://github.com/poli0981/ticktune';
@@ -115,12 +122,14 @@ const ogImageUrl = new URL(ogImage, Astro.site);
       E2E never sends real beacons: tests/e2e/_fixtures.ts fulfils both origins
       with an empty response for every spec.
     */}
-    <script
-      is:inline
-      type="module"
-      src="https://static.cloudflareinsights.com/beacon.min.js"
-      data-cf-beacon='{"token": "46c4fdb729df436091a0cb204d77dcc7"}'
-    ></script>
+    {analytics && (
+      <script
+        is:inline
+        type="module"
+        src="https://static.cloudflareinsights.com/beacon.min.js"
+        data-cf-beacon='{"token": "46c4fdb729df436091a0cb204d77dcc7"}'
+      ></script>
+    )}
   </head>
 
   <body>
