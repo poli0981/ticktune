@@ -252,9 +252,18 @@ of a broken track. Matrix re-verified during Spike S3.
   `getByteFrequencyData` per frame.
 - Styles: **bars** (64 log-spaced bins, mirrored), **wave** (time-domain polyline),
   **ring** (radial bars orbiting the countdown — the signature look).
-- Canvas sized to CSS px × `min(devicePixelRatio, 2)`; renders only when visible
+- Canvas sized to CSS px × `min(devicePixelRatio, 2)`, and since v2.0 to no more
+  than 1440p's pixel count (`backingScale()`); renders only when visible
   and not reduced-motion; skips frames if the frame budget is exceeded twice
   in a row (adaptive degrade).
+
+  **The pixel cap is the render-cost probe's finding** (`13 §5`). With no GPU,
+  every frame of a full-window canvas crosses the CPU, and at 4K that cost
+  33 ms a frame under a 6× CPU throttle, and the visualizer still drew every
+  frame — the degrade below never saw it, because the cost is in getting the
+  canvas to the screen, after the draw calls it times. A background element gains
+  nothing from more pixels than a 1440p screen has; at 1440p and below nothing
+  changed.
 
   **Two details P5 slice 4 had to decide, because this line does not:**
 

@@ -124,6 +124,26 @@ export interface TtDegradeState {
 /** 60 fps leaves ~16.7 ms; over 20 ms the visualizer is costing the page. */
 export const TT_FRAME_BUDGET_MS = 20;
 
+/** The most backing-store pixels the canvas may have: 1440p's count. */
+const TT_VIZ_MAX_PIXELS = 2560 * 1440;
+
+/**
+ * The canvas backing-store scale — docs/05 §6: CSS px × `min(dpr, 2)`, and no
+ * more than 1440p's pixel count in all.
+ *
+ * The cap is the render-cost probe's finding (docs/13 §5, v2.0). Without a GPU
+ * every frame of a full-window canvas crosses the CPU, and at 4K that — not
+ * the drawing — cost 33 ms a frame under a 6× CPU throttle, out of sight of
+ * the degrade below, which can only time the draw calls. A background element
+ * does not need more pixels than a 1440p screen has; at 1440p and below
+ * nothing changes.
+ */
+export function backingScale(cssWidth: number, cssHeight: number, dpr: number): number {
+  const byDpr = Math.min(dpr || 1, 2);
+  const area = cssWidth * cssHeight;
+  return area > 0 ? Math.min(byDpr, Math.sqrt(TT_VIZ_MAX_PIXELS / area)) : byDpr;
+}
+
 export function nextDegrade(
   lastFrameMs: number,
   previous: TtDegradeState,

@@ -27,7 +27,11 @@ export default defineConfig({
     baseURL: `http://localhost:${PORT}`,
     locale: 'vi-VN',
     timezoneId: 'Asia/Ho_Chi_Minh',
-    launchOptions: { args: ['--mute-audio'] },
+    // TT_PERF_SOFTWARE=1: no GPU, so the glow is rastered on the CPU — the
+    // worst case a strong GPU would hide (docs/13 §5).
+    launchOptions: {
+      args: ['--mute-audio', ...(process.env['TT_PERF_SOFTWARE'] ? ['--disable-gpu'] : [])],
+    },
     // No /sw.js: its install would share the CPU with the first measured frames.
     serviceWorkers: 'block',
   },

@@ -11,8 +11,8 @@ tracks all of them.
 - ✅ **20 closed** since — the release blocker in P7 slice A; the other nineteen
   were closed by P4–P7 and v1.1 but only **recorded** in the v1.1 review
   (2026-10-20), each with the phase that actually closed it
-- ⬜ **2 open**, neither a release blocker: the countdown render-cost probe and
-  the EULA's governing law
+- ✅ **1 closed in v2.0** — the countdown render-cost probe (`13 §5`)
+- ⬜ **1 open**, not a release blocker: the EULA's governing law
 
 Severity is the *verified* severity. Several findings were downgraded when the
 verifier showed the original claim overreached; where that happened, the
@@ -337,7 +337,18 @@ Low-severity documentation-completeness gap, not a GPL compliance failure. Three
 
 ---
 
-### 🟡 medium · Countdown rendering cost at rAF is never spiked, yet the signature visual stacks three blurred text-shadows, a ghost layer, scanlines and a canvas on the same frames
+### ✅ ~~🟡 medium~~ · Countdown rendering cost at rAF is never spiked, yet the signature visual stacks three blurred text-shadows, a ghost layer, scanlines and a canvas on the same frames
+
+**CLOSED in v2.0 (2026-10-21).** `pnpm perf:render` drives the real app into
+the `SS.mmm` regime at 1440p and 4K, 1× and 6× CPU, visualizer off/bars/ring,
+with and without a GPU, and asserts no long task and ≤ 20 ms of main thread a
+frame (`13 §5` has the table). The text paint does **not** dominate: the
+countdown alone holds ≥ 212 fps even rastered on the CPU at 4K, so none of the
+listed mitigations was needed. The probe found the cost elsewhere — a full 4K
+visualizer canvas without a GPU, 33 ms a frame under the throttle, invisible to
+the adaptive degrade — and the canvas is now capped at 1440p's pixel count
+(`05 §6`). Part (b) was already resolved: the ghost string is per format
+(`04 §4`).
 
 **Owner phase:** P5 (visuals) · **Lens:** technical-risk
 

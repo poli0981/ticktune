@@ -4,6 +4,7 @@
   import { settings } from '../state/settings.svelte';
   import {
     TT_BAR_COUNT,
+    backingScale,
     barHeights,
     beatEnergy,
     nextDegrade,
@@ -124,17 +125,18 @@
         return;
       }
 
-      // CSS px × min(dpr, 2) — docs/05 §6. Capped because a 3× phone-class
-      // ratio triples the fill cost for a difference nobody can see on a
+      // CSS px × min(dpr, 2), and never past 1440p's pixel count — docs/05 §6.
+      // Both caps for the same reason: a phone-class ratio or a 4K window
+      // multiplies the fill cost for a difference nobody can see on a
       // background element.
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const w = canvas.clientWidth;
       const h = canvas.clientHeight;
-      if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
-        canvas.width = Math.round(w * dpr);
-        canvas.height = Math.round(h * dpr);
+      const scale = backingScale(w, h, window.devicePixelRatio);
+      if (canvas.width !== Math.round(w * scale) || canvas.height !== Math.round(h * scale)) {
+        canvas.width = Math.round(w * scale);
+        canvas.height = Math.round(h * scale);
       }
-      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
       ctx.clearRect(0, 0, w, h);
 
       const accent =

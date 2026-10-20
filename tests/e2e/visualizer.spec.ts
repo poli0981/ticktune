@@ -122,7 +122,7 @@ test.describe('the visualizer canvas', () => {
     });
   }
 
-  test('sizes its backing store to CSS px x min(dpr, 2) — docs/05 §6', async ({
+  test('sizes its backing store to CSS px x min(dpr, 2), within 1440p — docs/05 §6', async ({
     browserName,
     page,
   }) => {
@@ -132,9 +132,14 @@ test.describe('the visualizer canvas', () => {
 
     const ok = await page.evaluate(() => {
       const c = document.querySelector('[data-testid=tt-visualizer]') as HTMLCanvasElement;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      // backingScale() in tt-visualizer.ts, restated: this runs in the page.
+      const area = c.clientWidth * c.clientHeight;
+      const k = Math.min(
+        Math.min(window.devicePixelRatio || 1, 2),
+        Math.sqrt((2560 * 1440) / area),
+      );
       return (
-        c.width === Math.round(c.clientWidth * dpr) && c.height === Math.round(c.clientHeight * dpr)
+        c.width === Math.round(c.clientWidth * k) && c.height === Math.round(c.clientHeight * k)
       );
     });
     expect(ok).toBe(true);
