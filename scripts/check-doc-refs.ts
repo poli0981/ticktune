@@ -121,7 +121,9 @@ for (const path of sources) {
         continue;
       }
       if (!sections.get(chapter)!.has(section)) {
-        const have = [...sections.get(chapter)!].sort().join(', ');
+        const have = [...sections.get(chapter)!]
+          .sort((a, b) => a.localeCompare(b, 'en', { numeric: true }))
+          .join(', ');
         broken.push(
           `${path}:${i + 1}  ${chapter} §${section} — ${chapterFile.get(chapter)} has no §${section}` +
             `\n           it defines: ${have}`,
