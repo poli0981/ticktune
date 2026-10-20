@@ -136,7 +136,7 @@
       "repeat": "Repeat",
       "empty": "No tracks yet.",
       "ended": "Playlist ended",
-      "totals": "{{count}} tracks",
+      "totals": "Tracks: {{count}}",
       "drag": "Drag to reorder {{title}}",
       "remove": "Remove {{title}}",
       "moved": "{{title}} — position {{to}} of {{total}}"
