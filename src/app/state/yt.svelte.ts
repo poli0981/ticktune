@@ -42,7 +42,7 @@ class YtStore {
    * `TtYtPlayer` already solves the same problem one layer down with
    * `#pendingId`. This is that idea at the store boundary.
    */
-  #pending: { track: TtTrack; play: boolean } | null = null;
+  #pending: { track: TtTrack; play: boolean; cue: boolean } | null = null;
 
   #overlay = $state<TtYtOverlayState | null>(null);
   /** docs/06 §4's countdown-to-skip, in ms. Null when no card is counting. */
@@ -135,7 +135,10 @@ class YtStore {
     const pending = this.#pending;
     if (pending === null || this.#player === null) return;
     this.#pending = null;
-    this.#player.load(pending.track);
+    // A cue stays a cue: replaying it as `load` would autoplay on ready —
+    // the paused-state bug `cue()` exists to fix.
+    if (pending.cue) this.#player.cue(pending.track);
+    else this.#player.load(pending.track);
     this.applyVolume();
     if (pending.play) this.#player.play();
   }
@@ -148,11 +151,31 @@ class YtStore {
     if (this.#player === null) {
       // Held, not dropped. `attach` is the only thing that can act on it, and it
       // is one microtask away — see `#pending`.
-      this.#pending = { track, play: false };
+      this.#pending = { track, play: false, cue: false };
       return;
     }
 
     this.#player.load(track);
+    this.applyVolume();
+  }
+
+  /**
+   * Select `track` WITHOUT playing it — ⏭/⏮/jump while the run is paused.
+   *
+   * `load` autoplays (`loadVideoById`), which used to start the music under a
+   * paused session and a frozen countdown. The run resumes it with `play()`.
+   */
+  cue(track: TtTrack): void {
+    this.#positionMs = null;
+    this.#durationMs = null;
+    this.#trackId = track.id;
+
+    if (this.#player === null) {
+      this.#pending = { track, play: false, cue: true };
+      return;
+    }
+
+    this.#player.cue(track);
     this.applyVolume();
   }
 

@@ -46,6 +46,7 @@ beforeEach(() => {
   events = null;
   api = {
     loadVideoById: vi.fn(),
+    cueVideoById: vi.fn(),
     playVideo: vi.fn(),
     pauseVideo: vi.fn(),
     setVolume: vi.fn(),
@@ -106,6 +107,40 @@ describe('one instance, reused — docs/06 §2', () => {
     expect(api.loadVideoById).toHaveBeenCalledWith('ccccccccccc');
     expect(api.playVideo).toHaveBeenCalled();
     expect(p.ready).toBe(true);
+  });
+
+  it('a cue selects the video and does NOT play it — paused ⏭/⏮/jump', () => {
+    // loadVideoById autoplays; during a paused run that started the music with
+    // the countdown frozen. A cue leaves it stopped until the run resumes.
+    const p = started();
+    vi.mocked(api.playVideo).mockClear();
+
+    p.cue(track({ videoId: 'ddddddddddd' }));
+
+    expect(api.cueVideoById).toHaveBeenCalledWith('ddddddddddd');
+    expect(api.loadVideoById).not.toHaveBeenCalledWith('ddddddddddd');
+    expect(api.playVideo).not.toHaveBeenCalled();
+  });
+
+  it('a cue issued before the API is ready stays a cue on ready', () => {
+    const p = new TtYtPlayer(ports, host as unknown as TtYtPlayerHost);
+    p.cue(track({ videoId: 'eeeeeeeeeee' }));
+    events?.onReady();
+
+    expect(api.cueVideoById).toHaveBeenCalledWith('eeeeeeeeeee');
+    expect(api.playVideo).not.toHaveBeenCalled();
+  });
+
+  it('a pause before the API is ready is honoured on ready', () => {
+    // `#onReady` used to call playVideo() unconditionally, so pausing while the
+    // API was still loading was undone the moment it arrived.
+    const p = new TtYtPlayer(ports, host as unknown as TtYtPlayerHost);
+    p.load(track({ videoId: 'fffffffffff' }));
+    p.pause();
+    events?.onReady();
+
+    expect(api.cueVideoById).toHaveBeenCalledWith('fffffffffff');
+    expect(api.playVideo).not.toHaveBeenCalled();
   });
 
   it('ignores a track with no videoId rather than constructing anything', () => {

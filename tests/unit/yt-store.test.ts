@@ -57,6 +57,7 @@ let yt: typeof YtMod.yt;
 function makeApi(): Made['api'] {
   return {
     loadVideoById: vi.fn(),
+    cueVideoById: vi.fn(),
     playVideo: vi.fn(),
     pauseVideo: vi.fn(),
     setVolume: vi.fn(),
