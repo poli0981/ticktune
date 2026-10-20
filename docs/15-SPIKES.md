@@ -416,6 +416,48 @@ plus a BS.1770-4 meter accurate enough and affordable enough?
   the boost limit's safety margin. Safari's minimum `OfflineAudioContext` rate
   is a manual check.
 
+### Result — ❌ FAIL (2026-10-21)
+
+153 files on Edge 155: 6 signals, the three 10:02 files, 103 corpus files and 41
+of the owner's CC0 / YouTube Audio Library masters — each at three rates,
+against ffmpeg `ebur128` at the native rate:
+
+| Rate | Within 0.5 LU — all / music only | Worst error | 10:02 time | 10:02 peak memory | Errors |
+|---|---|---|---|---|---|
+| 16 kHz | 94.1 % / 95.2 % | **42.5 LU** (the 8 kHz tone); music **1.79 LU** | 942 ms | **495 MB** | 0 |
+| 24 kHz | 96.7 % / 97.3 % | music **1.20 LU** | 1 091 ms | 393 MB | 0 |
+| 48 kHz | 100 % / 100 % | 0.18 LU | 1 554 ms | **537 MB** | 0 |
+
+Two separate failures, either of them enough:
+
+1. **A reduced rate under-reads bright material, always in the same
+   direction.** K-weighting lifts everything above ~1.5 kHz by 4 dB, and a 16 kHz
+   decode simply has no energy above 8 kHz (12 kHz at 24 kHz): pink noise reads
+   1.7 LU low at 16 kHz, the 8 kHz tone sits exactly at Nyquist and vanishes,
+   and the brightest real master read 1.79 LU low (1.20 at 24 kHz). Normalising
+   on that number would push exactly the brightest tracks the loudest. At 48 kHz
+   the meter is right: every file within 0.18 LU.
+2. **The rate does not bound the memory.** Peak private bytes for one 10:02 file
+   ran 260–540 MB at every rate, with no ordering by rate — Chrome decodes at the
+   file's own rate and resamples afterwards, so the full native-rate PCM exists
+   either way. The reduced rate was the plan's lever for memory, and it is not
+   one. Time was never the problem: ≤ 1.6 s for 10:02 everywhere.
+
+**So loudness normalisation is not built in v2.0** (the scope rule). The
+remedies, for a later spike:
+
+- **Slice and accumulate, at 48 kHz** — decode ≤ 30 s at a time and sum the
+  400 ms block energies across slices, which is exactly what BS.1770 gating
+  needs; peak memory falls with the slice. WAV, MP3, ADTS, FLAC and Ogg can be
+  cut on frame boundaries; M4A needs a demuxer.
+- **WebCodecs `AudioDecoder`** — chunk-by-chunk decode with near-constant
+  memory, also needing a demuxer per container.
+- **Tags only** — ReplayGain / R128 when the file carries them, no decode at all.
+  Smaller, but it leaves untagged files unnormalised, and it is inside this
+  spike's area, so it is an owner decision, not a fallback.
+
+Results: `test/s6-results/` (local, git-ignored — they name corpus files).
+
 ## Exit
 
 Each spike's findings are written back into its target chapter (04 / 05 / 06) and
@@ -432,4 +474,4 @@ against the P1 timer engine it ran on; S1 gates P4; S3 and S4 gate P2
 | **S4a** | ✅ **PASS** | 2026-07-21 | Crossfade judged clean by ear on headphones **and** speakers (the criterion no instrument can answer); graph, `createMediaElementSource` reuse and gesture `resume()` all exercised. Gates released for P2's audio graph |
 | **S4b** | 🟡 **quick sweep PASS — full sweep (real music) pending** | 2026-10-20 | Harness v2 (`§S4`): measured from the audio on the shipping graph, four controls proven to fail. Quick sweep on Edge 155: 31/31 test-file crossfades within ±150 ms, 0 s via a pre-armed deck, the master fade on schedule, header-less VBR on time only by the TRUE duration. The full sweep with the corpus decides the formal result. Gates the crossfade loop style and inter-track crossfade |
 | **S5** | ✅ **GO** | 2026-10-21 | 40/40 hidden 25-minute runs notified from the worker on time — Edge 155, Chrome 155, Brave and Firefox 158, launched undriven (under Playwright every page reported `visible`, so a driven browser could not answer this). Worker late 9–207 ms; Chromium's tick never past 371 ms, Firefox's up to 3.2 s (three times in ten runs). S2's main-thread stall did not reproduce. Owner's everyday-browser run and click-to-focus outstanding. Releases the finish notification (`04 §2`) |
-| **S6** | 🟡 harness built, runs pending | — | Gates loudness normalisation |
+| **S6** | ❌ **FAIL** | 2026-10-21 | 153 files incl. the owner's 41 masters. A reduced-rate decode under-reads bright material (16 kHz: music 95.2 % within 0.5 LU but worst 1.79 LU; 24 kHz: worst 1.20 LU), and the rate does not bound memory — Chrome decodes at the native rate first, so a 10:02 file peaked at 260–540 MB at every rate. 48 kHz is accurate (≤ 0.18 LU) but 537 MB. Normalisation not built in v2.0; slice-and-accumulate, WebCodecs, or tags-only are the routes (`§S6`, `05 §1`) |
