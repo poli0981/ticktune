@@ -144,7 +144,7 @@ function ttBundledPackages() {
 }
 
 /** The spike harnesses (docs/15) — `src/spike/pages/<slug>.astro`. */
-const TT_SPIKE_SLUGS = ['s1-youtube', 's3-metadata', 's4-crossfade'];
+const TT_SPIKE_SLUGS = ['s1-youtube', 's3-metadata', 's4-crossfade', 's5-notify', 's6-loudness'];
 
 /**
  * Route the spike harnesses for `astro dev`, or for a build with TT_SPIKES=1 —

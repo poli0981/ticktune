@@ -8,7 +8,7 @@ import { expect, test } from './_fixtures';
  * the shipped dist/ must answer each of them with the 404 page.
  */
 
-for (const slug of ['s1-youtube', 's3-metadata', 's4-crossfade']) {
+for (const slug of ['s1-youtube', 's3-metadata', 's4-crossfade', 's5-notify', 's6-loudness']) {
   test(`/spike/${slug}/ is a 404 in the shipped build`, async ({ request }) => {
     const res = await request.get(`/spike/${slug}/`);
     expect(res.status()).toBe(404);

@@ -21,6 +21,8 @@ risk-retiring purpose while letting the measured code survive:
 | S3 | **P2** (audio/import) | throwaway `spike/s3-metadata` |
 | **S4a** | **P2** (audio graph + unlock) — ✅ passed | throwaway `spike/s4-crossfade` |
 | **S4b** | **the crossfade loop style only** (P2 §Z4 toggle, P3 inter-track) | same harness, after the upgrade in §S4 |
+| **S5** | **the finish notification** (v2.0) | throwaway `spike/s5-notify` — dev-only, `pnpm s5` |
+| **S6** | **loudness normalisation** (v2.0) | throwaway `spike/s6-loudness` — dev-only, `pnpm s6` |
 
 P1 (scaffold, mobile gate, timer engine, countdown display, settings/Dexie, log)
 touches no area a spike covers except the timer, which S2 measures directly. No
@@ -312,6 +314,69 @@ next, and the Exit row below changes only with its result.
   two decks carry correlated signals, which no equal-power pair can flatten.
   Music's end and start are uncorrelated; the corpus runs measure it.
 
+## S5 — Finish notification from a worker, tab hidden (→ `04 §2`)
+
+**The question.** S2 (`§S2`) measured a hidden, silent tab finishing minutes
+late and traced the stall to the MAIN THREAD's message processing — which only
+*infers* that the worker kept time. If a notification created by the dedicated
+worker itself, at the deadline, arrives on time while the tab is hidden, TickTune
+can alert the user without a service worker, a push server or any server-side
+state. If it is minutes late too, nothing is built.
+
+- **Harness** (`/spike/s5-notify`, dev-only): a worker with the same 200 ms
+  derived tick as `tt-timer.worker.ts` records the gaps between its own ticks —
+  the number S2 never had — and at the deadline calls `new Notification()` if the
+  page last said it was hidden. It writes its record to IndexedDB
+  `ticktune-s5` from the worker, so a discarded tab still reports. The page
+  records when it saw the fire, its visibility timeline, and whether a
+  notification click focused the tab.
+- **Automated runs** (`pnpm s5`): Edge, Chrome, Brave and Firefox at once, each
+  launched the way a user runs it — a plain process on a fresh profile, nothing
+  attached to its pages. Under Playwright the harness reported `visible` however
+  it was hidden — a cover tab, a minimised window, a persistent context (measured,
+  Edge 155) — so a driven browser cannot answer this question. The Chromium
+  family gets `--remote-debugging-port`, used only at the browser level (grant
+  notifications, open tabs, close); Firefox gets a `user.js` that allows
+  notifications and its tabs on the command line. Per browser, 10 harness tabs of
+  25 minutes start themselves from their query and sit in the background, behind
+  a visible 30 s control in the front tab that must not notify (a control whose
+  window the OS covered anyway is reported inconclusive, not passed). Worker and
+  page post every record to the script's own same-origin server. Safari is not on
+  the dev box, and the owner runs one confirmation in their everyday browser,
+  including the notification click.
+- **GO** if, on Chrome and Edge, hidden and silent for ≥ 25 minutes across zero,
+  the worker notifies within 2 s of the deadline in ≥ 9 of 10 runs; exactly one
+  notification per run; none when the tab is visible. Brave and Firefox are
+  recorded against the same bound; click-to-focus per browser; every limit
+  written down with its number. **NO-GO:** nothing is built and the numbers go
+  to `04 §2`.
+
+## S6 — Loudness from a reduced-rate decode (→ `05 §1`)
+
+**The question.** Opt-in loudness normalisation needs each local file's
+integrated loudness. Playback streams through `MediaElementSource` and
+`05 §1` forbids decoding whole tracks *for playback* — so the meter must decode
+separately, once, and let go. Is `OfflineAudioContext(…, 16 kHz).decodeAudioData`
+plus a BS.1770-4 meter accurate enough and affordable enough?
+
+- **Meter** (`tt-s6-loudness.ts`, pure): K-weighting derived from the analog
+  prototype for the actual rate (checked against the published 48 kHz table to
+  1e-6), 400 ms blocks with 75 % overlap, −70 LUFS absolute and −10 LU relative
+  gates, mono weighted as dual mono, sample peak.
+- **Fixtures** (`pnpm s6:fixtures [--corpus]`): EBU Tech 3341-style signals,
+  10:02 of music-like noise as MP3 320k, FLAC and WAV — the longest track the app
+  accepts — and every corpus file in place, each with ffmpeg's `ebur128` at the
+  native rate as the reference.
+- **Sweep** (`pnpm s6`): every file at 16, 24 and 48 kHz in system Edge;
+  loudness, sample peak, decode and compute time from the page, and MEMORY from
+  outside — the private bytes of the browser and all its children every 100 ms,
+  each analysis's peak over the sample just before it.
+- **PASS** at 16 kHz (else 24 kHz): ≥ 95 % of files within 0.5 LU of the
+  reference and none beyond 1 LU; a 10:02 file decoded and measured in ≤ 3 s and
+  ≤ 400 MB; no decode errors. The p99 peak under-read at the chosen rate becomes
+  the boost limit's safety margin. Safari's minimum `OfflineAudioContext` rate
+  is a manual check.
+
 ## Exit
 
 Each spike's findings are written back into its target chapter (04 / 05 / 06) and
@@ -327,3 +392,5 @@ against the P1 timer engine it ran on; S1 gates P4; S3 and S4 gate P2
 | S3 | ✅ **PASS** | 2026-07-21 | Tag matrix + 103-file/598 MB real corpus in **1 362 ms** (budget 10 s); 7.26 MB cover extracted; 0 false positives from the new `onlyV1` rule. The U+FFFD rule was falsified and replaced (`05 §5`). ID3v2.2 and APEv2 found in the wild |
 | **S4a** | ✅ **PASS** | 2026-07-21 | Crossfade judged clean by ear on headphones **and** speakers (the criterion no instrument can answer); graph, `createMediaElementSource` reuse and gesture `resume()` all exercised. Gates released for P2's audio graph |
 | **S4b** | 🟡 **quick sweep PASS — full sweep (real music) pending** | 2026-10-20 | Harness v2 (`§S4`): measured from the audio on the shipping graph, four controls proven to fail. Quick sweep on Edge 155: 31/31 test-file crossfades within ±150 ms, 0 s via a pre-armed deck, the master fade on schedule, header-less VBR on time only by the TRUE duration. The full sweep with the corpus decides the formal result. Gates the crossfade loop style and inter-track crossfade |
+| **S5** | 🟡 harness built, runs pending | — | Gates the finish notification |
+| **S6** | 🟡 harness built, runs pending | — | Gates loudness normalisation |
