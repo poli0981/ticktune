@@ -153,9 +153,15 @@ cause there would put a confident wrong sentence in front of the user.
 
 - **No thumbnail is rendered by the app.** oEmbed's `thumbnail_url` is stored
   and appears only as a text row in track info; the images inside the player
-  are the player's own. So `img-src https://i.ytimg.com` in `09 §4` is
-  currently unused by this document — a candidate for removal once a live
-  YouTube session is measured without it.
+  are the player's own, loaded by its frame under YouTube's policy, not ours.
+  **`img-src https://i.ytimg.com` was removed in v2.0** after measuring it
+  (`tests/manual/yt-matrix.md` has the run): Edge 155, the enforcing CSP under
+  `wrangler dev`, real YouTube, two videos — the app's own document loaded
+  nothing from `i.ytimg.com` with the origin allowed, and raised no violation
+  without it. S1's one `i.ytimg.com` line was the embed's poster, a frame
+  request. The run could not cover playback itself — YouTube refuses an
+  automated browser (`150`) — so a playing session is a line of the v2.0 live
+  checklist, on the preview, before the tag.
 - Duration is **not** in oEmbed. Since v2.0 it comes from the Data API through
   the same Worker — `### Durations` below. Publish date is not fetched: nothing
   renders it.
@@ -350,7 +356,8 @@ rule 5). Settings → Visualizer states the limit, so it never reads as a bug.
 ## 7. CSP + privacy touchpoints
 
 - CSP additions (full policy in `09 §4`): `frame-src` youtube-nocookie.com +
-  youtube.com; `script-src` www.youtube.com (iframe_api); `img-src` i.ytimg.com;
+  youtube.com; `script-src` www.youtube.com (iframe_api); no `img-src` origin
+  since v2.0 (`§3`);
   `connect-src 'self'` covers the oEmbed proxy.
 - Privacy Policy discloses: entering YouTube mode loads Google's player, which may
   set cookies/collect data per Google's privacy policy; local modes make no

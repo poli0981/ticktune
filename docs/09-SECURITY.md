@@ -71,7 +71,7 @@ hashed asset, the font and an HTML route separately.
 default-src 'self';
 script-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://static.cloudflareinsights.com;
 frame-src https://www.youtube-nocookie.com https://www.youtube.com;
-img-src 'self' data: blob: https://i.ytimg.com;
+img-src 'self' data: blob:;
 media-src 'self' blob:;
 style-src 'self' 'unsafe-inline';
 font-src 'self';
