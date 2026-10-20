@@ -351,6 +351,43 @@ state. If it is minutes late too, nothing is built.
   written down with its number. **NO-GO:** nothing is built and the numbers go
   to `04 §2`.
 
+### Result — ✅ GO (2026-10-21)
+
+Four browsers launched undriven on fresh profiles, ten 25-minute runs each in
+background tabs, all at once on the Windows 11 dev box (2560×1440), silent
+throughout:
+
+| Browser | Hidden, notified, ≤ 2 s | Worker late | Shown late | Page saw it | Max tick gap | Ticks > 1 s |
+|---|---|---|---|---|---|---|
+| Edge 155 | **10/10** | 47–117 ms | 52–122 ms | 50–121 ms | 298 ms | 0 |
+| Chrome 155 | **10/10** | 47–106 ms | 51–119 ms | 51–112 ms | 371 ms | 0 |
+| Brave (Chromium 155) | **10/10** | 52–80 ms | 63–100 ms | 61–98 ms | 371 ms | 0 |
+| Firefox 158 | **10/10** | 9–207 ms | 33–217 ms | 10–210 ms | **3 167 ms** | 3 |
+
+- **The worker keeps time while hidden** — the number S2 never had. On the
+  Chromium family its own 200 ms tick never stretched past 371 ms in 25 minutes.
+  **Firefox throttles worker timers at times**: three gaps over a second across
+  ten runs, the longest 3.2 s. None fell on a deadline here, but one could, so on
+  Firefox the notification is good to "a few seconds", not to 2 s.
+- **The visible control.** In a 2-run smoke of the same runner, all four
+  controls were visible at zero and did not notify. In the full run every
+  control window was covered by another window when its 30 s ran out (the
+  desktop app was in front), so the runner reported all four inconclusive rather
+  than passed. "Visible → silent" rests on the smoke run and on the one branch
+  the hidden runs exercise (`hiddenAtFire`).
+- **⚠️ S2's stall did not reproduce here.** The page saw the worker's message
+  50–210 ms after the deadline in every hidden run. S2 measured the shipping
+  app's `done` arriving minutes late (`§S2`); why this harness's main thread was
+  prompt is not known. The feature notifies from the worker either way, so
+  nothing in it depends on the answer — but `§S2`'s "a worker cannot route
+  around it" was about reacting in the page, not about the worker's clock.
+- **Still the owner's**: one run in an everyday browser profile, clicking the
+  notification (click-to-focus has no automated measurement here), and Safari,
+  which has no `Notification` in workers and takes the main-thread path in the
+  feature.
+
+Results: `test/s5-results/` (local, git-ignored).
+
 ## S6 — Loudness from a reduced-rate decode (→ `05 §1`)
 
 **The question.** Opt-in loudness normalisation needs each local file's
@@ -363,10 +400,12 @@ plus a BS.1770-4 meter accurate enough and affordable enough?
   prototype for the actual rate (checked against the published 48 kHz table to
   1e-6), 400 ms blocks with 75 % overlap, −70 LUFS absolute and −10 LU relative
   gates, mono weighted as dual mono, sample peak.
-- **Fixtures** (`pnpm s6:fixtures [--corpus]`): EBU Tech 3341-style signals,
-  10:02 of music-like noise as MP3 320k, FLAC and WAV — the longest track the app
-  accepts — and every corpus file in place, each with ffmpeg's `ebur128` at the
-  native rate as the reference.
+- **Fixtures** (`pnpm s6:fixtures [--corpus] [--extra <dir>]`): EBU Tech
+  3341-style signals, 10:02 of music-like noise as MP3 320k, FLAC and WAV — the
+  longest track the app accepts — every corpus file in place, and with `--extra`
+  any further folder of real masters (the v2.0 sweep added the owner's CC0 and
+  YouTube Audio Library set, 41 files the app accepts), each with ffmpeg's
+  `ebur128` at the native rate as the reference.
 - **Sweep** (`pnpm s6`): every file at 16, 24 and 48 kHz in system Edge;
   loudness, sample peak, decode and compute time from the page, and MEMORY from
   outside — the private bytes of the browser and all its children every 100 ms,
@@ -392,5 +431,5 @@ against the P1 timer engine it ran on; S1 gates P4; S3 and S4 gate P2
 | S3 | ✅ **PASS** | 2026-07-21 | Tag matrix + 103-file/598 MB real corpus in **1 362 ms** (budget 10 s); 7.26 MB cover extracted; 0 false positives from the new `onlyV1` rule. The U+FFFD rule was falsified and replaced (`05 §5`). ID3v2.2 and APEv2 found in the wild |
 | **S4a** | ✅ **PASS** | 2026-07-21 | Crossfade judged clean by ear on headphones **and** speakers (the criterion no instrument can answer); graph, `createMediaElementSource` reuse and gesture `resume()` all exercised. Gates released for P2's audio graph |
 | **S4b** | 🟡 **quick sweep PASS — full sweep (real music) pending** | 2026-10-20 | Harness v2 (`§S4`): measured from the audio on the shipping graph, four controls proven to fail. Quick sweep on Edge 155: 31/31 test-file crossfades within ±150 ms, 0 s via a pre-armed deck, the master fade on schedule, header-less VBR on time only by the TRUE duration. The full sweep with the corpus decides the formal result. Gates the crossfade loop style and inter-track crossfade |
-| **S5** | 🟡 harness built, runs pending | — | Gates the finish notification |
+| **S5** | ✅ **GO** | 2026-10-21 | 40/40 hidden 25-minute runs notified from the worker on time — Edge 155, Chrome 155, Brave and Firefox 158, launched undriven (under Playwright every page reported `visible`, so a driven browser could not answer this). Worker late 9–207 ms; Chromium's tick never past 371 ms, Firefox's up to 3.2 s (three times in ten runs). S2's main-thread stall did not reproduce. Owner's everyday-browser run and click-to-focus outstanding. Releases the finish notification (`04 §2`) |
 | **S6** | 🟡 harness built, runs pending | — | Gates loudness normalisation |
