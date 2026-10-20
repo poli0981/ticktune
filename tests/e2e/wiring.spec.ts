@@ -10,7 +10,7 @@ import {
   storedSettings,
 } from './_helpers';
 import { installWallClockShift, shiftWallClock } from './_helpers-clock';
-import { fireYt, gotoYouTubeApp, stageLinks, ytCalls } from './_helpers-yt';
+import { fireYt, gotoYouTubeApp, stageLinks, ytCalls, ytReady } from './_helpers-yt';
 
 /**
  * v1.1's runtime wiring fixes — one spec per defect, each written to fail on
@@ -151,6 +151,8 @@ test.describe('runtime wiring — v1.1', () => {
     await setDuration(page, 0, 1, 0);
     await page.getByRole('button', { name: 'Bắt đầu' }).click();
     await expect(page.getByTestId('tt-yt-frame')).toBeVisible();
+    // Paused from PLAYING: the video must be up before the pause is about it.
+    await ytReady(page);
     await fireYt(page, 'playing');
 
     await transport(page).click();

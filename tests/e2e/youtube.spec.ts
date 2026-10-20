@@ -11,6 +11,7 @@ import {
   watchForFlash,
   ytCalls,
   ytProbe,
+  ytReady,
 } from './_helpers-yt';
 
 /**
@@ -271,6 +272,8 @@ test.describe('youtube mode', () => {
       await setDuration(page, 0, 2, 0);
       await page.getByRole('button', { name: 'Bắt đầu' }).click();
       await expect(page.getByTestId('tt-yt-frame')).toBeVisible();
+      // Every spec here is about a video that is up and playing.
+      await ytReady(page);
     });
 
     test('advances the queue when the player reports ENDED', async ({ page }) => {

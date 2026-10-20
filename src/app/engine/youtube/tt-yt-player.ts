@@ -244,6 +244,15 @@ export class TtYtPlayer {
       return;
     }
 
+    if (!this.#ready) {
+      // Created, not ready: a call now would reach a player with no methods and
+      // be lost — and `#onReady` would then open the FIRST pending video, not
+      // this one. A ⏭ or an ENDED in the first second did exactly that. The
+      // newest request simply replaces the pending one.
+      this.#pendingId = videoId;
+      return;
+    }
+
     if (autoplay) this.#api.loadVideoById(videoId);
     else this.#api.cueVideoById(videoId);
   }
