@@ -16,6 +16,8 @@ const ONE = 'jNQXAC9IVRw';
 const TWO = '9bZkp7q19f0';
 
 test.describe('YouTube lengths from the Data API — docs/06 §3', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
+
   test('fill the queue total and enable "Match queue length"', async ({ page }) => {
     dismissUnloadDialogs(page);
     const asked = await mockDurations(page, { [ONE]: 213_000, [TWO]: 187_000 });
