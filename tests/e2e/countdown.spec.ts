@@ -71,6 +71,10 @@ test.describe('countdown', () => {
     // Transport lives in the Z7 bar (docs/03 §2); there is deliberately no
     // second control row duplicating it.
     await page.getByTestId('tt-playpause').click();
+    // Wait for the paused state to LAND before sampling. Reading straight after
+    // the click raced the last animation frame, which could still repaint the
+    // digits once — a flake that CI retries were quietly absorbing.
+    await expect(page.getByTestId('tt-playpause')).toHaveAttribute('aria-label', 'Phát');
     const frozen = await digits(page).textContent();
     await page.waitForTimeout(900);
     expect(await digits(page).textContent()).toBe(frozen);
