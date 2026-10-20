@@ -5,6 +5,7 @@
 .github/ISSUE_TEMPLATE/
 
 dist/
+dist-spikes/
 .astro/
 .wrangler/
 node_modules/

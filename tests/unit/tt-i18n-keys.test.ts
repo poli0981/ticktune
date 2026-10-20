@@ -165,7 +165,7 @@ describe('every key has a caller, and every caller has a key', () => {
   function sources(dir: string): string[] {
     return readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
       const full = join(dir, e.name);
-      if (e.isDirectory()) return e.name === 'i18n' || e.name === 'spike' ? [] : sources(full);
+      if (e.isDirectory()) return e.name === 'i18n' ? [] : sources(full);
       return /\.(svelte|ts)$/.test(e.name) ? [readFileSync(full, 'utf8')] : [];
     });
   }

@@ -1,0 +1,18 @@
+---
+import TtBase from '../../layouts/TtBase.astro';
+---
+
+<TtBase title="spike/s4-crossfade — TickTune" noindex>
+  <!--
+    THROWAWAY harness — docs/15 §Scope rule. Routed ONLY by `astro dev` or a
+    `TT_SPIKES=1` build into dist-spikes/ (ttSpikeRoutes in astro.config.mjs),
+    never by the dist/ that CI tests and deploy.yml ships. Until v2.0 these were
+    plain pages under src/pages/spike/, and every deploy published them.
+  -->
+  <div id="tt-spike"></div>
+  <script>
+    if (!document.documentElement.dataset.ttBlocked) {
+      import('../s4/mount-s4.ts');
+    }
+  </script>
+</TtBase>

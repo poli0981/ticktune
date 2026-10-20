@@ -26,6 +26,15 @@ P1 (scaffold, mobile gate, timer engine, countdown display, settings/Dexie, log)
 touches no area a spike covers except the timer, which S2 measures directly. No
 audio-engine, importer, or YouTube code is written before S1/S3/S4 pass.
 
+**Where the harnesses live, and where they do not.** `src/spike/pages/` plus one
+folder per harness (`src/spike/s1`, `s3`, `s4`). They are routed only for
+`astro dev`, or for a `TT_SPIKES=1` build, which goes to **`dist-spikes/`** —
+never to the `dist/` that CI tests and `deploy.yml` ships (`ttSpikeRoutes` in
+`astro.config.mjs`). `pnpm spikes` builds and previews them on port 4330. Until
+v2.0 they were plain pages under `src/pages/spike/`, and every deploy published
+them; `tests/e2e/spikes.spec.ts` and `tests/unit/tt-no-spikes-in-dist.test.ts`
+keep them out.
+
 ## S1 — YouTube error matrix & playback chain (→ `06 §2, §4`)
 
 - **Goal:** confirm real-world mapping of onError codes (esp. age-restricted vs
