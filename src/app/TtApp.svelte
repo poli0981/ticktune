@@ -752,6 +752,16 @@
       : 'styled';
   });
 
+  /*
+   * Settings → Display → Theme (v2.0), on <html> for the same reason: every
+   * token in global.css is overridden under `html[data-tt-theme='light']`, and
+   * the sheet, the modals and the toasts all live outside `main`. Only this
+   * island sets it, so the landing and the legal pages stay dark.
+   */
+  $effect(() => {
+    document.documentElement.dataset['ttTheme'] = settings.current.theme;
+  });
+
   /**
    * The cover the backdrop may use — docs/03 §2 Z1 "cover".
    *
@@ -1176,6 +1186,7 @@
         remainingMs={displayMs}
         glowIntensity={settings.current.glowIntensity}
         size={settings.current.countdownSize}
+        face={settings.current.clockFace}
         {focusMode}
       />
     </div>

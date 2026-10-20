@@ -230,7 +230,8 @@
    */
   function setCustom(end: 0 | 1, value: string) {
     const base =
-      settings.current.gradientCustom ?? gradientStops(settings.current.gradientPreset, null);
+      settings.current.gradientCustom ??
+      gradientStops(settings.current.gradientPreset, null, settings.current.theme);
     const next: [string, string] = end === 0 ? [value, base[1]] : [base[0], value];
     void settings.patch({ gradientCustom: next });
   }
@@ -387,6 +388,25 @@
   <section data-testid="tt-set-display">
     <h3>{i18n.t('settings.group.display')}</h3>
 
+    <!-- v2.0 — the LED rack or the LCD one (docs/03 §1). /app/ only. -->
+    <div class="tt-row">
+      <span>{i18n.t('settings.display.theme')}</span>
+      <div class="tt-seg" role="group" aria-label={i18n.t('settings.display.theme')}>
+        <button
+          aria-pressed={s.theme === 'dark'}
+          data-testid="tt-set-theme-dark"
+          onclick={() => void settings.patch({ theme: 'dark' })}
+          >{i18n.t('settings.display.themeDark')}</button
+        >
+        <button
+          aria-pressed={s.theme === 'light'}
+          data-testid="tt-set-theme-light"
+          onclick={() => void settings.patch({ theme: 'light' })}
+          >{i18n.t('settings.display.themeLight')}</button
+        >
+      </div>
+    </div>
+
     <div class="tt-row tt-stack">
       <span>{i18n.t('settings.display.background')}</span>
       <div class="tt-seg tt-wrap" role="group" aria-label={i18n.t('settings.display.background')}>
@@ -436,7 +456,7 @@
             class="tt-swatch"
             aria-pressed={!s.gradientCustom && s.gradientPreset === 0}
             aria-label={i18n.t('settings.display.preset0')}
-            style="background-image: {gradientCss(0)}"
+            style="background-image: {gradientCss(0, null, s.theme)}"
             data-testid="tt-set-preset-0"
             onclick={() => void settings.patch({ gradientPreset: 0, gradientCustom: null })}
           ></button>
@@ -444,7 +464,7 @@
             class="tt-swatch"
             aria-pressed={!s.gradientCustom && s.gradientPreset === 1}
             aria-label={i18n.t('settings.display.preset1')}
-            style="background-image: {gradientCss(1)}"
+            style="background-image: {gradientCss(1, null, s.theme)}"
             data-testid="tt-set-preset-1"
             onclick={() => void settings.patch({ gradientPreset: 1, gradientCustom: null })}
           ></button>
@@ -452,7 +472,7 @@
             class="tt-swatch"
             aria-pressed={!s.gradientCustom && s.gradientPreset === 2}
             aria-label={i18n.t('settings.display.preset2')}
-            style="background-image: {gradientCss(2)}"
+            style="background-image: {gradientCss(2, null, s.theme)}"
             data-testid="tt-set-preset-2"
             onclick={() => void settings.patch({ gradientPreset: 2, gradientCustom: null })}
           ></button>
@@ -460,7 +480,7 @@
             class="tt-swatch"
             aria-pressed={!s.gradientCustom && s.gradientPreset === 3}
             aria-label={i18n.t('settings.display.preset3')}
-            style="background-image: {gradientCss(3)}"
+            style="background-image: {gradientCss(3, null, s.theme)}"
             data-testid="tt-set-preset-3"
             onclick={() => void settings.patch({ gradientPreset: 3, gradientCustom: null })}
           ></button>
@@ -468,7 +488,7 @@
             class="tt-swatch"
             aria-pressed={!s.gradientCustom && s.gradientPreset === 4}
             aria-label={i18n.t('settings.display.preset4')}
-            style="background-image: {gradientCss(4)}"
+            style="background-image: {gradientCss(4, null, s.theme)}"
             data-testid="tt-set-preset-4"
             onclick={() => void settings.patch({ gradientPreset: 4, gradientCustom: null })}
           ></button>
@@ -476,7 +496,7 @@
             class="tt-swatch"
             aria-pressed={!s.gradientCustom && s.gradientPreset === 5}
             aria-label={i18n.t('settings.display.preset5')}
-            style="background-image: {gradientCss(5)}"
+            style="background-image: {gradientCss(5, null, s.theme)}"
             data-testid="tt-set-preset-5"
             onclick={() => void settings.patch({ gradientPreset: 5, gradientCustom: null })}
           ></button>
@@ -490,14 +510,14 @@
             type="color"
             aria-label={i18n.t('settings.display.customFrom')}
             data-testid="tt-set-custom-from"
-            value={s.gradientCustom?.[0] ?? gradientStops(s.gradientPreset, null)[0]}
+            value={s.gradientCustom?.[0] ?? gradientStops(s.gradientPreset, null, s.theme)[0]}
             oninput={(e) => setCustom(0, e.currentTarget.value)}
           />
           <input
             type="color"
             aria-label={i18n.t('settings.display.customTo')}
             data-testid="tt-set-custom-to"
-            value={s.gradientCustom?.[1] ?? gradientStops(s.gradientPreset, null)[1]}
+            value={s.gradientCustom?.[1] ?? gradientStops(s.gradientPreset, null, s.theme)[1]}
             oninput={(e) => setCustom(1, e.currentTarget.value)}
           />
           {#if s.gradientCustom}
@@ -702,6 +722,25 @@
           data-testid="tt-set-size-l"
           onclick={() => void settings.patch({ countdownSize: 'l' })}
           >{i18n.t('settings.countdown.sizeL')}</button
+        >
+      </div>
+    </div>
+
+    <!-- v2.0 — seven or fourteen segments; both fit the same §4 cap. -->
+    <div class="tt-row">
+      <span>{i18n.t('settings.countdown.face')}</span>
+      <div class="tt-seg" role="group" aria-label={i18n.t('settings.countdown.face')}>
+        <button
+          aria-pressed={s.clockFace === 'dseg7'}
+          data-testid="tt-set-face-dseg7"
+          onclick={() => void settings.patch({ clockFace: 'dseg7' })}
+          >{i18n.t('settings.countdown.face7')}</button
+        >
+        <button
+          aria-pressed={s.clockFace === 'dseg14'}
+          data-testid="tt-set-face-dseg14"
+          onclick={() => void settings.patch({ clockFace: 'dseg14' })}
+          >{i18n.t('settings.countdown.face14')}</button
         >
       </div>
     </div>

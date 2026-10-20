@@ -127,6 +127,37 @@ describe('Hide scrollbars — v1.1, docs/03 §6 Display', () => {
   });
 });
 
+describe('Theme and clock face — v2.0, docs/03 §1', () => {
+  it('writes theme from Display, dark by default', async () => {
+    mount();
+    expect(screen.getByTestId('tt-set-theme-dark').getAttribute('aria-pressed')).toBe('true');
+    await fireEvent.click(screen.getByTestId('tt-set-theme-light'));
+    expect(patch).toHaveBeenCalledWith({ theme: 'light' });
+    await fireEvent.click(screen.getByTestId('tt-set-theme-dark'));
+    expect(patch).toHaveBeenCalledWith({ theme: 'dark' });
+  });
+
+  it('writes clockFace from Countdown, seven segments by default', async () => {
+    mount();
+    expect(screen.getByTestId('tt-set-face-dseg7').getAttribute('aria-pressed')).toBe('true');
+    await fireEvent.click(screen.getByTestId('tt-set-face-dseg14'));
+    expect(patch).toHaveBeenCalledWith({ clockFace: 'dseg14' });
+  });
+
+  it('shows the light presets in the swatches when the theme is light', () => {
+    vi.spyOn(settings, 'current', 'get').mockReturnValue({
+      ...TT_DEFAULT_SETTINGS,
+      theme: 'light',
+      background: 'gradient',
+    });
+    mount();
+    const swatch = screen.getByTestId('tt-set-preset-0');
+    // The light set's first stop, not the dark chassis colour.
+    expect(swatch.getAttribute('style')).toContain('#e8e4da');
+    expect(swatch.getAttribute('style')).not.toContain('#0e0d0b');
+  });
+});
+
 describe('End Behavior controls reach the field they name — docs/02 §3.3', () => {
   it('writes endFadeMs from the slider', async () => {
     mount();

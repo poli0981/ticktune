@@ -1,7 +1,7 @@
 <script lang="ts">
   import { formatRemaining } from '../engine/timer/tt-format';
 
-  import type { TtSize } from '../state/tt-settings-schema';
+  import type { TtClockFace, TtSize } from '../state/tt-settings-schema';
 
   interface Props {
     remainingMs: number;
@@ -11,11 +11,26 @@
     size?: TtSize;
     /** docs/03 §4 — Focus grows the digits ~20%, subject to the §4 cap. */
     focusMode?: boolean;
+    /** v2.0, docs/03 §1 — seven or fourteen segments, the same advance widths. */
+    face?: TtClockFace;
   }
 
-  const { remainingMs, glowIntensity = 0.8, size = 'm', focusMode = false }: Props = $props();
+  const {
+    remainingMs,
+    glowIntensity = 0.8,
+    size = 'm',
+    focusMode = false,
+    face = 'dseg7',
+  }: Props = $props();
 
   const f = $derived(formatRemaining(remainingMs));
+
+  /*
+   * The ghost is the all-segments glyph of the face in use: `8` lights every
+   * segment of DSEG7, `~` every segment of DSEG14 (measured; its `8` leaves the
+   * diagonals dark). The engine stays face-blind — the mapping is the face's.
+   */
+  const ghost = $derived(face === 'dseg14' ? f.ghost.replaceAll('8', '~') : f.ghost);
 
   /** docs/02 §3.1's mapping, and the only place it exists in code. */
   const SIZE_VW: Record<TtSize, number> = { s: 14, m: 18, l: 22 };
@@ -41,9 +56,10 @@
   style:--tt-size-vw={SIZE_VW[size]}
   style:--tt-focus-scale={focusMode ? 1.2 : 1}
   data-tt-size={size}
+  data-tt-face={face}
   aria-hidden="true"
 >
-  <span class="tt-ghost" aria-hidden="true">{f.ghost}</span>
+  <span class="tt-ghost" aria-hidden="true">{ghost}</span>
   <span class="tt-live">{f.text}</span>
 </div>
 
@@ -150,6 +166,33 @@
   /* docs/03 §2 / docs/04 §4: below 60 s the digits go red. */
   .tt-danger {
     color: var(--color-tt-danger);
+  }
+
+  /* DSEG14 (v2.0). The same advance widths as DSEG7 (measured), so the 22.2cqw
+     cap above holds unchanged — public/fonts/dseg14/PROVENANCE.md. */
+  .tt-countdown[data-tt-face='dseg14'] {
+    font-family: var(--font-digit14);
+  }
+
+  /*
+   * Light (v2.0): an LCD, not an LED. Segments are dark ink on the panel and do
+   * not glow; the unlit ones stay faintly visible, as on a real LCD; the window
+   * is the same panel recessed rather than smoked glass.
+   */
+  :global(html[data-tt-theme='light']) .tt-live {
+    text-shadow: none;
+  }
+  :global(html[data-tt-theme='light']) .tt-ghost {
+    opacity: 0.08;
+  }
+  :global(html[data-tt-theme='light']) .tt-countdown::before {
+    background:
+      linear-gradient(180deg, rgb(0 0 0 / 4%), transparent 38%),
+      color-mix(in srgb, var(--color-tt-void) 72%, transparent);
+    border-color: rgb(0 0 0 / 10%);
+    box-shadow:
+      inset 0 0.02em 0.06em rgb(0 0 0 / 16%),
+      0 0.04em 0.12em rgb(0 0 0 / 8%);
   }
 
   /* Digits never animate per tick — LED authenticity (docs/03 §8). Nothing to

@@ -28,6 +28,7 @@ lockfile as the truth.
 | @fontsource/be-vietnam-pro | 5.3.0 | OFL-1.1 (pkg MIT) | UI font, VI diacritics. **Installed in P6 slice A** — see the note below |
 | @fontsource/jetbrains-mono | 5.3.0 | OFL-1.1 (pkg MIT) | Mono/meta font. **Installed in P6 slice A** |
 | @fontsource/chakra-petch | 5.3.0 | OFL-1.1 (pkg MIT) | Display font for the v1.1 "Rack Unit" redesign (labels, headings, keycaps); full Vietnamese subset checked before adoption. CSS-imported, so it is in `knip.json` `ignoreDependencies` and `make-notices.ts` `CSS_ONLY` like the other two |
+| DSEG14 Classic (vendored, v2.0) | **v0.46** — the same release asset as DSEG7 (SHA-256 recorded in `public/fonts/dseg14/PROVENANCE.md`), retrieved 2026-10-21 | OFL-1.1 | The second clock face; `public/fonts/dseg14/` + OFL.txt |
 | DSEG7 Classic (vendored) | **v0.46** ✅ *verified 2026-07-21 via GitHub Releases API — latest **stable** release, published 2020-03-15. A `v0.50beta1` tag exists but is not a release; do not vendor a beta into a distributed font.* | OFL-1.1 | Seven-segment digits; `public/fonts/dseg7/` + OFL.txt |
 
 ## 3. Dev dependencies

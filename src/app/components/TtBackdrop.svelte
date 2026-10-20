@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { TT_PALETTE } from '../../lib/tt-palette';
+  import { ttPalette } from '../../lib/tt-palette';
   import { backdrop } from '../state/backdrop.svelte';
   import { settings } from '../state/settings.svelte';
   import { gradientCss } from '../engine/visuals/tt-gradient';
@@ -9,6 +9,7 @@
     parseHex,
     relativeLuminance,
     scrimFor,
+    scrimForLight,
   } from '../engine/visuals/tt-contrast';
 
   /**
@@ -107,7 +108,7 @@
   const baseStyle = $derived(
     s.background === 'solid'
       ? `background: var(--color-tt-void)`
-      : `background-image: ${gradientCss(s.gradientPreset, s.gradientCustom)}`,
+      : `background-image: ${gradientCss(s.gradientPreset, s.gradientCustom, s.theme)}`,
   );
 
   /**
@@ -121,25 +122,37 @@
   let sampledLuminance = $state<number | null>(null);
 
   // The digits are what the scrim protects (`--color-tt-digit`), read from the
-  // one palette module rather than a hex copy that could drift from the CSS.
-  const DIGIT_RGB = parseHex(TT_PALETTE.digit);
-  const TEXT_LUMINANCE = DIGIT_RGB ? relativeLuminance(...DIGIT_RGB) : 1;
+  // one palette module rather than a hex copy that could drift from the CSS —
+  // and per theme since v2.0: lit warm white on dark, dark LCD segments on light.
+  const palette = $derived(ttPalette(s.theme));
+  const textLuminance = $derived.by(() => {
+    const rgb = parseHex(palette.digit);
+    return rgb ? relativeLuminance(...rgb) : 1;
+  });
 
   const baseLuminance = $derived.by(() => {
     if (s.background === 'solid') {
-      const rgb = parseHex(TT_PALETTE.void);
+      const rgb = parseHex(palette.void);
       return rgb ? relativeLuminance(...rgb) : 0;
     }
-    // The brighter stop is the one the digits have to survive.
-    const css = gradientCss(s.gradientPreset, s.gradientCustom);
-    const stops = [...css.matchAll(/#[0-9a-fA-F]{6}/g)].map((m) => parseHex(m[0]));
-    return Math.max(...stops.map((rgb) => (rgb ? relativeLuminance(...rgb) : 0)), 0);
+    // The stop the digits have to survive: the brighter one under light digits,
+    // the darker one under dark digits.
+    const css = gradientCss(s.gradientPreset, s.gradientCustom, s.theme);
+    const lums = [...css.matchAll(/#[0-9a-fA-F]{6}/g)]
+      .map((m) => parseHex(m[0]))
+      .map((rgb) => (rgb ? relativeLuminance(...rgb) : 0));
+    return s.theme === 'light' ? Math.min(...lums, 1) : Math.max(...lums, 0);
   });
 
+  /*
+   * Black over the picture for lit digits, white under dark ones (v2.0). The
+   * light solver works in sRGB, because a white scrim composited on gamma
+   * values lifts less than linear arithmetic promises (`tt-contrast.ts`).
+   */
   const scrim = $derived(
-    scrimFor(
+    (s.theme === 'light' ? scrimForLight : scrimFor)(
       sampledLuminance ?? baseLuminance,
-      TEXT_LUMINANCE,
+      textLuminance,
       s.scrimAuto ? s.scrimStrength : Math.min(TT_SCRIM_MAX, s.scrimStrength),
     ),
   );
@@ -313,12 +326,28 @@
     transition: opacity var(--duration-tt-slow) var(--ease-tt);
   }
 
+  /* Light (v2.0): the scrim and Focus's dim wash toward the paper instead. */
+  :global(html[data-tt-theme='light']) .tt-scrim,
+  :global(html[data-tt-theme='light']) .tt-focus-dim {
+    background: #fff;
+  }
+
   /* Warm-white lines, matching the digits rather than a cold CRT blue. */
   .tt-scanlines {
     background: repeating-linear-gradient(
       to bottom,
       rgb(255 244 222 / 3%) 0px,
       rgb(255 244 222 / 3%) 1px,
+      transparent 1px,
+      transparent 3px
+    );
+  }
+  /* On the light panel the rows are an LCD's, so they darken rather than glow. */
+  :global(html[data-tt-theme='light']) .tt-scanlines {
+    background: repeating-linear-gradient(
+      to bottom,
+      rgb(29 31 26 / 4%) 0px,
+      rgb(29 31 26 / 4%) 1px,
       transparent 1px,
       transparent 3px
     );

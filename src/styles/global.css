@@ -40,6 +40,19 @@
   unicode-range: U+0030-0039, U+002D, U+002E, U+003A;
 }
 
+/* DSEG14 Classic — the second clock face (v2.0, `clockFace`). Same release and
+   licence: public/fonts/dseg14/PROVENANCE.md. Same advance widths as DSEG7
+   (measured), so the 22.2cqw cap holds for both. `~` is its all-segments
+   glyph, which the ghost layer uses. Fetched only when the face is chosen. */
+@font-face {
+  font-family: 'DSEG14 Classic';
+  src: url('/fonts/dseg14/DSEG14Classic-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: block;
+  unicode-range: U+0030-0039, U+002D, U+002E, U+003A, U+007E;
+}
+
 /* ─────────────────────────────────────────────────────────────────────────────
    "Rack Unit" design tokens — docs/03 §1 is authoritative.
 
@@ -73,6 +86,7 @@
   --color-tt-muted: #a39b8e; /* engraved labels, secondary text */
 
   --font-digit: 'DSEG7 Classic', 'JetBrains Mono', monospace;
+  --font-digit14: 'DSEG14 Classic', 'JetBrains Mono', monospace;
   --font-display: 'Chakra Petch', 'Be Vietnam Pro', system-ui, sans-serif;
   --font-ui: 'Be Vietnam Pro', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -150,6 +164,38 @@
      Safari uses the ::-webkit rules below. `scrollbar-color` inherits, so it is
      set once here; `scrollbar-width` does not, so the rule below covers all. */
   scrollbar-color: var(--color-tt-outline) transparent;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Light — the same rack in LCD dress (v2.0, docs/03 §1). `/app/` only: TtApp sets
+   `data-tt-theme` on <html>, and the landing and the legal pages never do.
+
+   Dark segments on a reflective panel instead of lit ones behind smoked glass;
+   the chassis goes aluminium. Every text colour holds 4.5:1 on void, surface
+   and surface-2, and `outline` 3:1 — the dark palette's own rule.
+   tests/unit/tt-palette.test.ts mirrors this block against TT_PALETTE_LIGHT.
+   ──────────────────────────────────────────────────────────────────────────── */
+html[data-tt-theme='light'] {
+  --color-tt-void: #e8e4da;
+  --color-tt-surface: #f4f1ea;
+  --color-tt-surface-2: #fbf9f4;
+  --color-tt-line: #cdc6b8;
+  --color-tt-outline: #857b6c;
+  --color-tt-signal: #8f5200;
+  --color-tt-on-signal: #ffffff;
+  --color-tt-digit: #1d1f1a;
+  --color-tt-warn: #a84800;
+  --color-tt-danger: #b8241a;
+  --color-tt-text: #1c1a16;
+  --color-tt-muted: #5d564b;
+
+  /* The same depth, lit from the room instead of from the panel. */
+  --tt-shadow-key:
+    inset 0 1px 0 rgb(255 255 255 / 70%), inset 0 -1px 0 rgb(0 0 0 / 12%), 0 1px 0 rgb(0 0 0 / 14%);
+  --tt-shadow-pressed: inset 0 2px 4px rgb(0 0 0 / 18%);
+  --tt-shadow-panel: inset 0 1px 0 rgb(255 255 255 / 60%), 0 10px 28px rgb(0 0 0 / 12%);
+
+  color-scheme: light;
 }
 
 html,

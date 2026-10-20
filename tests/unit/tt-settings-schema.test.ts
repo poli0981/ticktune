@@ -32,7 +32,19 @@ describe('defaults', () => {
       // v1.1. Additive with a `false` default, so no schema bump: a row written
       // before it existed gains it through the defaults spread.
       hideScrollbars: false,
+      // v2.0, both additive with their long-term default on day one.
+      theme: 'dark',
+      clockFace: 'dseg7',
     });
+  });
+
+  it('clamps theme and clockFace to their sets and keeps an old row readable', () => {
+    expect(clampSettings({ theme: 'sepia' }).theme).toBe('dark');
+    expect(clampSettings({ theme: 'light' }).theme).toBe('light');
+    expect(clampSettings({ clockFace: 'nixie' }).clockFace).toBe('dseg7');
+    expect(clampSettings({ clockFace: 'dseg14' }).clockFace).toBe('dseg14');
+    const old = clampSettings({ schema: 2, lang: 'en' });
+    expect([old.theme, old.clockFace]).toEqual(['dark', 'dseg7']);
   });
 
   it('clamps hideScrollbars to a boolean and keeps an old row readable', () => {

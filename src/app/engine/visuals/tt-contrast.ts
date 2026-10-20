@@ -106,3 +106,40 @@ export function scrimFor(
    */
   return Math.min(TT_SCRIM_MAX, Math.max(clampedFloor, needed));
 }
+
+/** sRGB transfer, per channel, 0–1 — the inverse of `relativeLuminance`'s curve. */
+function toSrgb(linear: number): number {
+  return linear <= 0.0031308 ? linear * 12.92 : 1.055 * linear ** (1 / 2.4) - 0.055;
+}
+function toLinear(s: number): number {
+  return s <= 0.04045 ? s / 12.92 : ((s + 0.055) / 1.055) ** 2.4;
+}
+
+/**
+ * The light theme's scrim (v2.0) — WHITE at alpha `a`, lifting whatever is
+ * under dark LCD digits. Same contract as `scrimFor`: never below the user's
+ * floor, never past `TT_SCRIM_MAX`.
+ *
+ * ⚠️ **Solved in sRGB, not in linear light.** The browser composites the scrim
+ * on gamma-encoded values, `s' = a + (1 − a)·s`. For the black scrim the linear
+ * shortcut `bg·(1 − a)` errs on the safe side (gamma darkens further than
+ * linear), but for a white one it does the opposite — it promises more lift
+ * than the screen delivers — so this closes the form on `s` and linearises at
+ * the end. Exact for a grey background; the sampled luminance is treated as one.
+ */
+export function scrimForLight(
+  backgroundLuminance: number,
+  textLuminance: number,
+  floor: number,
+): number {
+  const clampedFloor = Math.min(TT_SCRIM_MAX, Math.max(TT_SCRIM_MIN, floor));
+  const s = toSrgb(Math.min(1, Math.max(0, backgroundLuminance)));
+  const lifted = (a: number) => toLinear(a + (1 - a) * s);
+
+  if (contrastRatio(lifted(clampedFloor), textLuminance) >= TT_MIN_CONTRAST) return clampedFloor;
+
+  // ratio = (lifted + .05) / (text + .05) = 4.5  =>  lifted = 4.5·(text + .05) − .05
+  const target = toSrgb(Math.min(1, TT_MIN_CONTRAST * (textLuminance + 0.05) - 0.05));
+  const needed = (target - s) / (1 - s);
+  return Math.min(TT_SCRIM_MAX, Math.max(clampedFloor, needed));
+}

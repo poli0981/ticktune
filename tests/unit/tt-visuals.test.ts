@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest';
-import { TT_PALETTE } from '../../src/lib/tt-palette';
+import { TT_PALETTE, TT_PALETTE_LIGHT } from '../../src/lib/tt-palette';
 import {
   TT_GRADIENT_PRESETS,
+  TT_GRADIENT_PRESETS_LIGHT,
   gradientCss,
   gradientStops,
 } from '../../src/app/engine/visuals/tt-gradient';
@@ -14,6 +15,7 @@ import {
   parseHex,
   relativeLuminance,
   scrimFor,
+  scrimForLight,
 } from '../../src/app/engine/visuals/tt-contrast';
 import { dominantHue, hueOf } from '../../src/app/engine/visuals/tt-dominant-hue';
 
@@ -254,5 +256,66 @@ describe('dominant hue — docs/03 §5', () => {
     expect(hue).not.toBeNull();
     // Orange-red, not the near-grey's incidental blue.
     expect(hue!).toBeLessThan(40);
+  });
+});
+
+describe('the light theme — docs/03 §1 (v2.0)', () => {
+  const DARK_DIGIT = relativeLuminance(...parseHex(TT_PALETTE_LIGHT.digit)!);
+  /** What the screen shows: white at `a` over `bg`, composited in sRGB. */
+  const lifted = (bgLinear: number, a: number): number => {
+    const s = bgLinear <= 0.0031308 ? bgLinear * 12.92 : 1.055 * bgLinear ** (1 / 2.4) - 0.055;
+    const c = a + (1 - a) * s;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+
+  it('has the same six presets, every stop pale enough for dark digits at the floor', () => {
+    expect(TT_GRADIENT_PRESETS_LIGHT).toHaveLength(TT_GRADIENT_PRESETS.length);
+    for (const [from, to] of TT_GRADIENT_PRESETS_LIGHT) {
+      for (const stop of [from, to]) {
+        const bg = relativeLuminance(...parseHex(stop)!);
+        expect(contrastRatio(lifted(bg, TT_SCRIM_MIN), DARK_DIGIT)).toBeGreaterThan(
+          TT_MIN_CONTRAST,
+        );
+      }
+    }
+  });
+
+  it('picks the light set by theme, and a custom pair wins in both', () => {
+    expect(gradientStops(2, null, 'light')).toEqual(TT_GRADIENT_PRESETS_LIGHT[2]);
+    expect(gradientStops(2, null)).toEqual(TT_GRADIENT_PRESETS[2]);
+    expect(gradientStops(2, ['#101010', '#202020'], 'light')).toEqual(['#101010', '#202020']);
+    expect(gradientCss(0, null, 'light')).toContain(TT_GRADIENT_PRESETS_LIGHT[0]![0]);
+  });
+
+  it('the white scrim lands ON 4.5:1 over black — solved in sRGB, not linear light', () => {
+    const a = scrimForLight(0, DARK_DIGIT, TT_SCRIM_MIN);
+    expect(a).toBeGreaterThan(TT_SCRIM_MIN);
+    expect(a).toBeLessThanOrEqual(TT_SCRIM_MAX);
+    expect(contrastRatio(lifted(0, a), DARK_DIGIT)).toBeCloseTo(TT_MIN_CONTRAST, 3);
+    // The linear shortcut would have stopped at 0.24 — and the screen, which
+    // blends in sRGB, would then show the digits at well under 4.5:1.
+    expect(contrastRatio(lifted(0, 0.24), DARK_DIGIT)).toBeLessThan(TT_MIN_CONTRAST);
+  });
+
+  it('keeps the floor on a pale background and never goes below it', () => {
+    const paper = relativeLuminance(...parseHex(TT_PALETTE_LIGHT.void)!);
+    for (const floor of [0.35, 0.45, 0.6]) {
+      expect(scrimForLight(paper, DARK_DIGIT, floor)).toBeCloseTo(floor, 6);
+      expect(scrimForLight(0.01, DARK_DIGIT, floor)).toBeGreaterThanOrEqual(floor - 1e-9);
+    }
+  });
+
+  it('every light text colour holds 4.5:1 on the light chassis', () => {
+    const paper = relativeLuminance(...parseHex(TT_PALETTE_LIGHT.void)!);
+    for (const ink of [
+      TT_PALETTE_LIGHT.text,
+      TT_PALETTE_LIGHT.digit,
+      TT_PALETTE_LIGHT.signal,
+      TT_PALETTE_LIGHT.danger,
+    ]) {
+      expect(contrastRatio(relativeLuminance(...parseHex(ink)!), paper), ink).toBeGreaterThan(
+        TT_MIN_CONTRAST,
+      );
+    }
   });
 });

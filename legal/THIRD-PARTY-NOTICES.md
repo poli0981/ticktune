@@ -25,6 +25,7 @@ transitive ones included — is generated at build time and served at
 | Dexie.js | Apache-2.0 | IndexedDB wrapper; its NOTICE is reproduced in the full attribution |
 | i18next | MIT | in-app translations |
 | DSEG7 Classic (font) | SIL OFL 1.1 | © 2017 keshikan (http://www.keshikan.net), **Reserved Font Name "DSEG"**. v0.46, vendored unmodified; its licence ships as `/fonts/dseg7/OFL.txt` |
+| DSEG14 Classic (font) | SIL OFL 1.1 | © 2017 keshikan (http://www.keshikan.net), **Reserved Font Name "DSEG"**. v0.46, vendored unmodified; its licence ships as `/fonts/dseg14/OFL.txt` |
 | Chakra Petch (font) | SIL OFL 1.1 | via @fontsource (packaging MIT) |
 | Be Vietnam Pro (font) | SIL OFL 1.1 | via @fontsource (packaging MIT) |
 | JetBrains Mono (font) | SIL OFL 1.1 | via @fontsource (packaging MIT) |

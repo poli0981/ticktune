@@ -1,6 +1,6 @@
 import { test, expect, type Page } from './_fixtures';
 import { dismissUnloadDialogs, setDuration } from './_helpers';
-import { gotoYouTubeApp, stageLinks } from './_helpers-yt';
+import { gotoYouTubeApp, gotoYouTubeAppReturning, stageLinks } from './_helpers-yt';
 
 /**
  * docs/06 §1.2 / docs/03 §2 — the player is visible and unobscured, end to end.
@@ -119,6 +119,36 @@ test.describe('the player survives every viewport width', () => {
         width,
       );
     });
+  }
+});
+
+/*
+ * v2.0: the theme and the clock face are new inputs to the same geometry. The
+ * face changes the glyphs (DSEG14 measured at DSEG7's widths) and the theme
+ * changes every surface, and either could move the digits or paint over the
+ * player — so every combination re-runs the two narrowest widths, where the
+ * >= 1 h regime came closest to pushing the player off screen.
+ */
+test.describe('…and in every theme × clock face — docs/03 §1, §4', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
+
+  for (const theme of ['dark', 'light'] as const) {
+    for (const clockFace of ['dseg7', 'dseg14'] as const) {
+      for (const width of [1280, 1024]) {
+        test(`${theme} × ${clockFace} at ${width} px`, async ({ page }) => {
+          await gotoYouTubeAppReturning(page, {}, { theme, clockFace });
+          await stageLinks(page, [ID]);
+          await setDuration(page, 2, 0, 0);
+          await page.getByRole('button', { name: 'Bắt đầu' }).click();
+          await expect(page.getByTestId('tt-yt-frame')).toBeVisible();
+          await expect(page.locator('html')).toHaveAttribute('data-tt-theme', theme);
+          await expect(page.locator('.tt-countdown')).toHaveAttribute('data-tt-face', clockFace);
+          await page.setViewportSize({ width, height: 800 });
+          await page.evaluate(() => document.fonts.ready);
+          expectPlayerCompliant(await playerGeometry(page));
+        });
+      }
+    }
   }
 });
 
