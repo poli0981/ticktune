@@ -20,15 +20,23 @@ import { describe, expect, it } from 'vitest';
  * to `font-src` — the policy is deliberately tight and a bundler default is a
  * poor reason to loosen it.
  *
- * ## Skipped when there is no build
+ * ## Skipped when there is no build — locally only
  *
- * `pnpm test` runs without `dist/`, and a test that silently passes on a
- * missing directory would be worse than none. `pnpm build` runs in CI before
- * the E2E job, so this is a real gate there.
+ * A local `pnpm test` may run without `dist/`, and a test that silently passes
+ * on a missing directory would be worse than none, so it skips there. In CI it
+ * must NOT skip: the comment that used to stand here said "`pnpm build` runs in
+ * CI before the E2E job", but ci.yml ran the unit tests BEFORE its build and
+ * e2e.yml never runs vitest at all — so this suite was skipped on every CI run
+ * since it was written. ci.yml now builds first (docs/13 §1), and under `CI` a
+ * missing build fails the suite instead of hiding it.
  */
 
 const DIST = join(process.cwd(), 'dist');
 const hasBuild = existsSync(join(DIST, '_astro'));
+
+it.runIf(!!process.env['CI'])('CI built the site before running this suite', () => {
+  expect(hasBuild, 'dist/_astro is missing — run `pnpm build` before `pnpm test`').toBe(true);
+});
 
 /** Every built CSS file, which is where `@font-face src` ends up. */
 function builtCss(): { name: string; text: string }[] {

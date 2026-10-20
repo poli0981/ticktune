@@ -113,6 +113,11 @@ test.describe('legal pages', () => {
     const en = await legalHrefs(page, 'article.tt-prose');
     expect(en.length).toBeGreaterThan(0);
     expect(en.every((h) => h.startsWith('/en/legal/'))).toBe(true);
+
+    // Every legal route is a directory. A rewritten link without the trailing
+    // slash still worked — through a 307 in production that `astro preview`
+    // never shows, which is why only an assertion on the href can catch it.
+    expect([...vi, ...en].filter((h) => !h.endsWith('/'))).toEqual([]);
   });
 
   test('the landing footer links the reader to their OWN language', async ({ page }) => {

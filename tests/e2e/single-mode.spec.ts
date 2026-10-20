@@ -124,6 +124,8 @@ test.describe('single mode', () => {
 
     const digits = page.locator('.tt-countdown .tt-live');
     await page.getByTestId('tt-playpause').click();
+    // Sample only once the paused state has landed — see countdown.spec.ts.
+    await expect(page.getByTestId('tt-playpause')).toHaveAttribute('aria-label', 'Phát');
     const frozen = await digits.textContent();
     await page.waitForTimeout(900);
     expect(await digits.textContent()).toBe(frozen);
