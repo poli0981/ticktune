@@ -260,6 +260,9 @@
       "resetNo": "Huỷ"
     },
     "display": {
+      "theme": "Giao diện",
+      "themeDark": "Tối (LED)",
+      "themeLight": "Sáng (LCD)",
       "background": "Nền",
       "bgSolid": "Màu trơn",
       "bgGradient": "Chuyển sắc",
@@ -301,6 +304,9 @@
       "sizeS": "Nhỏ",
       "sizeM": "Vừa",
       "sizeL": "Lớn",
+      "face": "Mặt số",
+      "face7": "7 đoạn",
+      "face14": "14 đoạn",
       "end": "Khi về 0",
       "endFade": "Nhỏ dần",
       "endFadeValue": "{{seconds}} giây",

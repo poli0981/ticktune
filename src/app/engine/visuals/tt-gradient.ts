@@ -35,6 +35,21 @@ export const TT_GRADIENT_PRESETS: readonly (readonly [string, string])[] = [
   ['#0a0f06', '#19240f'],
 ] as const;
 
+/**
+ * The same six moods for the light theme (v2.0) — pale, because the digits are
+ * dark there (`TT_PALETTE_LIGHT.digit`) and the white scrim
+ * (`scrimForLight`) lifts toward the paper, never away from it. Same index,
+ * same character: graphite becomes aluminium, amber a warm wash, and so on.
+ */
+export const TT_GRADIENT_PRESETS_LIGHT: readonly (readonly [string, string])[] = [
+  ['#e8e4da', '#f4f1ea'],
+  ['#f2e6d2', '#faf3e7'],
+  ['#f1dfda', '#f9efec'],
+  ['#d9ebe7', '#eef6f4'],
+  ['#dfdff0', '#efeff9'],
+  ['#e0e8d5', '#f0f4ea'],
+] as const;
+
 /** `#rrggbb`, the same shape `clampSettings` validates `gradientCustom` against. */
 const HEX = /^#[0-9a-fA-F]{6}$/;
 
@@ -48,9 +63,11 @@ const HEX = /^#[0-9a-fA-F]{6}$/;
 export function gradientStops(
   preset: number,
   custom: readonly [string, string] | null,
+  theme: 'dark' | 'light' = 'dark',
 ): readonly [string, string] {
   if (custom && HEX.test(custom[0]) && HEX.test(custom[1])) return [custom[0], custom[1]];
-  return TT_GRADIENT_PRESETS[preset] ?? TT_GRADIENT_PRESETS[0]!;
+  const set = theme === 'light' ? TT_GRADIENT_PRESETS_LIGHT : TT_GRADIENT_PRESETS;
+  return set[preset] ?? set[0]!;
 }
 
 /**
@@ -63,7 +80,8 @@ export function gradientStops(
 export function gradientCss(
   preset: number,
   custom: readonly [string, string] | null = null,
+  theme: 'dark' | 'light' = 'dark',
 ): string {
-  const [from, to] = gradientStops(preset, custom);
+  const [from, to] = gradientStops(preset, custom, theme);
   return `linear-gradient(160deg, ${from} 0%, ${to} 100%)`;
 }

@@ -236,8 +236,9 @@ through CSS and so cannot appear in a module graph. It is not hand-maintained;
 see scripts/make-notices.ts. The curated human-readable summary is at
 /legal/third-party.
 
-DSEG7 Classic is vendored rather than installed, and its OFL text ships
-separately at /fonts/dseg7/OFL.txt (OFL section 2).
+DSEG7 Classic and DSEG14 Classic are vendored rather than installed, and
+their OFL text ships separately at /fonts/dseg7/OFL.txt and
+/fonts/dseg14/OFL.txt (OFL section 2).
 
 ${sections.length} components follow.
 

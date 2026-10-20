@@ -46,11 +46,48 @@ carries a "large text only" footnote. `outline` is 3.2:1 at worst: the WCAG
 1.4.11 boundary for controls. `line` is decorative and never the only edge of
 something clickable. Amber on its own fill (`on-signal`) is 10.3:1.
 
+### The light theme — the same rack in LCD dress (v2.0)
+
+`theme: 'light'` (`02 §3.1`) overrides every colour token under
+`html[data-tt-theme='light']`, which only the `/app/` island sets — the landing
+and the legal pages stay dark. The dark theme is an LED display: lit segments
+behind smoked glass. The light one is an LCD: **dark segments on a reflective
+panel**, so the digits lose their glow, the unlit segments stay faintly visible
+(the ghost at 8 % instead of 6 %), and the display window is the same panel
+recessed rather than tinted glass.
+
+```css
+html[data-tt-theme='light'] {
+  --color-tt-void: #E8E4DA;  --color-tt-surface: #F4F1EA;  --color-tt-surface-2: #FBF9F4;
+  --color-tt-line: #CDC6B8;  --color-tt-outline: #857B6C;  --color-tt-signal: #8F5200;
+  --color-tt-on-signal: #FFFFFF;  --color-tt-digit: #1D1F1A;  --color-tt-warn: #A84800;
+  --color-tt-danger: #B8241A;  --color-tt-text: #1C1A16;  --color-tt-muted: #5D564B;
+}
+```
+
+The same rule as the dark palette, re-measured: every text colour holds 4.5:1
+on chassis, panel and keycap (worst: warn 4.61, signal 4.90, danger 5.00),
+`outline` 3.28:1, white on amber 6.22:1. Z1 follows: six pale presets mirror
+the six dark ones (`TT_GRADIENT_PRESETS_LIGHT`), and the scrim turns **white**,
+solved by `scrimForLight` — in sRGB, because a white scrim composited on gamma
+values lifts less than linear arithmetic promises; the linear shortcut would
+have stopped at 0.24 over black, where 4.5:1 needs 0.53.
+
+### The clock face — DSEG7 or DSEG14 (v2.0)
+
+`clockFace` picks DSEG7 Classic or DSEG14 Classic, the same family, release and
+licence (`public/fonts/dseg14/PROVENANCE.md`). DSEG14 was measured before it was
+offered: `8:88:88` at 4.48 × font-size and `88.888` at 4.08 ×, exactly DSEG7's
+widths, so `§4`'s cap holds for both faces unchanged. Its all-segments glyph is
+`~`, so the ghost maps `8 → ~` for it.
+
 ⚠️ **The JS copies.** The scrim's contrast maths, the visualizer's fallback
 colour and the gradient presets need numbers, not `var()`s. They read
 `src/lib/tt-palette.ts`, and `tests/unit/tt-palette.test.ts` parses the `@theme`
 block and fails if the two disagree — a palette change made in CSS alone used to
-leave the scrim protecting digits of a colour that no longer existed.
+leave the scrim protecting digits of a colour that no longer existed. Since
+v2.0 it parses the light override against `TT_PALETTE_LIGHT` too, and fails if
+any dark colour token has no light counterpart.
 
 **Scales** (on `:root`, read through `var()` in scoped CSS):
 
@@ -492,8 +529,8 @@ truth. Do not restate a default here; it will drift.
 | Group | Controls | `TtSettings` fields | Ships |
 |-------|----------|---------------------|-------|
 | General | Language EN/VI · reopen legal pages · export / import the settings file (`02 §3.4`, v2.0) · reset app (clears Dexie) | `lang` | **P5 s2** |
-| Display | Background: Solid / Gradient (6 presets + custom) / Image / Slideshow (multi-upload, interval, fade or Ken Burns) / Cover-art blur · scrim strength · scanlines · auto-theme · **hide scrollbars** (v1.1; applies inside `/app/`, the static pages keep the slim custom bar) | `background`, `gradientPreset`, `gradientCustom`, `slideshowIntervalMs`, `slideshowTransition`, `scrimStrength`, `scrimAuto`, `scanlines`, `autoTheme`, `hideScrollbars` | **P5 s3**, v1.1 |
-| Countdown | Glow intensity · size (S/M/L) · **End Behavior**: fade-out duration, chime, flash, and what happens at zero (stay / restart / loop — see `02 §3.3`) | `glowIntensity`, `countdownSize`, `endFadeMs`, `endChime`, `endFlash`, `endAction` | **P5 s2** |
+| Display | **Theme: Dark (LED) / Light (LCD)** (v2.0, `§1`) · Background: Solid / Gradient (6 presets + custom) / Image / Slideshow (multi-upload, interval, fade or Ken Burns) / Cover-art blur · scrim strength · scanlines · auto-theme · **hide scrollbars** (v1.1; applies inside `/app/`, the static pages keep the slim custom bar) | `theme`, `background`, `gradientPreset`, `gradientCustom`, `slideshowIntervalMs`, `slideshowTransition`, `scrimStrength`, `scrimAuto`, `scanlines`, `autoTheme`, `hideScrollbars` | **P5 s3**, v1.1, v2.0 |
+| Countdown | Glow intensity · size (S/M/L) · **clock face 7/14-segment** (v2.0) · **End Behavior**: fade-out duration, chime, flash, and what happens at zero (stay / restart / loop — see `02 §3.3`) | `glowIntensity`, `countdownSize`, `clockFace`, `endFadeMs`, `endChime`, `endFlash`, `endAction` | **P5 s2** |
 | Visualizer | Style off/bars/wave/ring · sensitivity | `visualizer`, `visualizerSensitivity` | **P5 s4** |
 | Audio | Volume · mute · ~~crossfade~~ · ~~single-mode loop style~~ | `volume`, `muted`, (`crossfadeMs`, `singleLoopStyle` — S4b) | **P5 s2**, partly |
 | Playback | Shuffle · Repeat playlist · allow duplicates | `shuffle`, `repeatPlaylist`, `allowDuplicates` | **P5 s2** |

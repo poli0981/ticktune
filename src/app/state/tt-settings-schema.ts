@@ -28,6 +28,10 @@ type TtBackground = 'solid' | 'gradient' | 'image' | 'slideshow' | 'cover';
 type TtSlideXfade = 'fade' | 'kenburns';
 /** Exported since P5 slice 2: `TtCountdown` and the ⚙ panel both name it. */
 export type TtSize = 's' | 'm' | 'l';
+/** v2.0, docs/03 §1: the "Rack Unit" in LED (dark) or LCD (light) dress. */
+type TtTheme = 'dark' | 'light';
+/** v2.0, docs/03 §1: seven or fourteen segments — same advance widths. */
+export type TtClockFace = 'dseg7' | 'dseg14';
 type TtVisualizer = 'off' | 'bars' | 'wave' | 'ring';
 
 export interface TtSettings {
@@ -53,9 +57,16 @@ export interface TtSettings {
    * purpose, because `patch()` writes the whole object (`02 §3.2`).
    */
   hideScrollbars: boolean;
+  /**
+   * v2.0 — `/app/` only; the landing and the legal pages stay dark. A NEW field,
+   * so no migration (`02 §3.2`), and `dark` is its long-term default on day one.
+   */
+  theme: TtTheme;
 
   glowIntensity: number;
   countdownSize: TtSize;
+  /** v2.0 — DSEG7 or DSEG14 Classic; both render at the same width (`03 §4`). */
+  clockFace: TtClockFace;
   endFadeMs: number;
   endChime: boolean;
   endFlash: boolean;
@@ -91,8 +102,10 @@ export const TT_DEFAULT_SETTINGS: TtSettings = {
   scanlines: true,
   autoTheme: true,
   hideScrollbars: false,
+  theme: 'dark',
   glowIntensity: 0.8,
   countdownSize: 'm',
+  clockFace: 'dseg7',
   endFadeMs: 2_000,
   endChime: true,
   endFlash: false,
@@ -127,6 +140,8 @@ const MODES: TtMode[] = ['single', 'playlist', 'youtube'];
 const BACKGROUNDS: TtBackground[] = ['solid', 'gradient', 'image', 'slideshow', 'cover'];
 const XFADES: TtSlideXfade[] = ['fade', 'kenburns'];
 const SIZES: TtSize[] = ['s', 'm', 'l'];
+const THEMES: TtTheme[] = ['dark', 'light'];
+const FACES: TtClockFace[] = ['dseg7', 'dseg14'];
 const VISUALIZERS: TtVisualizer[] = ['off', 'bars', 'wave', 'ring'];
 const LOOPS: TtLoopStyle[] = ['hard', 'crossfade'];
 const END_ACTIONS: TtEndAction[] = ['stay', 'restart', 'loop'];
@@ -214,8 +229,10 @@ export function clampSettings(raw: unknown): TtSettings {
     scanlines: bool(r['scanlines'], d.scanlines),
     autoTheme: bool(r['autoTheme'], d.autoTheme),
     hideScrollbars: bool(r['hideScrollbars'], d.hideScrollbars),
+    theme: oneOf(r['theme'], THEMES, d.theme),
     glowIntensity: num(r['glowIntensity'], 0, 1, d.glowIntensity),
     countdownSize: oneOf(r['countdownSize'], SIZES, d.countdownSize),
+    clockFace: oneOf(r['clockFace'], FACES, d.clockFace),
     endFadeMs: num(r['endFadeMs'], 0, 5_000, d.endFadeMs),
     endChime: bool(r['endChime'], d.endChime),
     endFlash: bool(r['endFlash'], d.endFlash),

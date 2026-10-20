@@ -164,10 +164,12 @@ interface TtSettings {
   scanlines: boolean;
   autoTheme: boolean;                       // 03 §5
   hideScrollbars: boolean;                  // v1.1 — 03 §6 Display; /app/ only
+  theme: 'dark' | 'light';                  // v2.0 — 03 §1; /app/ only, on <html>
 
   // ── Countdown (03 §6 Countdown) ───────────────────────────────────────────
   glowIntensity: number;                    // 0 – 1, scales the 3 shadow alphas
   countdownSize: TtSize;                    // s/m/l → 14vw / 18vw / 22vw
+  clockFace: 'dseg7' | 'dseg14';            // v2.0 — 03 §1; same widths, 03 §4
   endFadeMs: number;                        // 0 – 5_000
   endChime: boolean;
   endFlash: boolean;
@@ -205,8 +207,10 @@ export const TT_DEFAULT_SETTINGS: TtSettings = {
   scanlines: true,
   autoTheme: true,            // 03 §5
   hideScrollbars: false,      // additive, no schema bump (§3.2)
+  theme: 'dark',              // v2.0, additive — its long-term default on day one
   glowIntensity: 0.8,
   countdownSize: 'm',
+  clockFace: 'dseg7',         // v2.0, additive
   endFadeMs: 2_000,           // 03 §6
   endChime: true,             // D4
   endFlash: false,

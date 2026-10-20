@@ -260,6 +260,9 @@
       "resetNo": "Cancel"
     },
     "display": {
+      "theme": "Theme",
+      "themeDark": "Dark (LED)",
+      "themeLight": "Light (LCD)",
       "background": "Background",
       "bgSolid": "Solid",
       "bgGradient": "Gradient",
@@ -301,6 +304,9 @@
       "sizeS": "Small",
       "sizeM": "Medium",
       "sizeL": "Large",
+      "face": "Clock face",
+      "face7": "7-segment",
+      "face14": "14-segment",
       "end": "At zero",
       "endFade": "Fade out",
       "endFadeValue": "{{seconds}} s",

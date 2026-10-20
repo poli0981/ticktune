@@ -1,6 +1,7 @@
 import { test, expect, type Page } from './_fixtures';
 import AxeBuilder from '@axe-core/playwright';
-import { gotoApp, gotoSingleMode, setDuration, stageSingle } from './_helpers';
+import { gotoApp, gotoSingleMode, setDuration, stageSingle, storedSettings } from './_helpers';
+import { seedSettings } from './_helpers-yt';
 
 /**
  * The accessibility pass — `docs/13 §6`, P7 slice B.
@@ -103,6 +104,61 @@ test.describe('axe — docs/13 §6', () => {
 
   test('the Player is clean', async ({ page }) => {
     await gotoSingleMode(page);
+    await stageSingle(page);
+    await setDuration(page, 0, 0, 30);
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await expect(page.locator('.tt-countdown')).toBeVisible();
+    await scan(page);
+  });
+});
+
+/**
+ * The light theme (v2.0, docs/03 §1) — every app screen again. Its palette was
+ * picked by arithmetic (tests/unit/tt-palette.test.ts), but axe reads the
+ * rendered page: a hard-coded colour that only looked right on dark is exactly
+ * what the arithmetic cannot see.
+ */
+async function goLight(page: Page): Promise<void> {
+  await gotoApp(page);
+  await page.keyboard.press('s');
+  await page.getByTestId('tt-set-theme-light').click();
+  await expect.poll(() => storedSettings(page)).toMatchObject({ theme: 'light' });
+  await page.keyboard.press('Escape');
+  await expect(page.locator('html')).toHaveAttribute('data-tt-theme', 'light');
+}
+
+test.describe('axe, light theme — docs/13 §6', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
+  test.skip(
+    ({ browserName }) => browserName !== 'chromium',
+    'axe findings are engine-independent; one project is the honest cost',
+  );
+
+  test('the legal gate is clean', async ({ page }) => {
+    await goLight(page);
+    // A returning light-theme user whose acceptance is out of date.
+    await seedSettings(page, { legalAccepted: null });
+    await page.reload();
+    await page.waitForFunction(() => !!document.documentElement.dataset['ttBooted']);
+    await expect(page.locator('[role=dialog]')).toBeVisible();
+    await expect(page.locator('html')).toHaveAttribute('data-tt-theme', 'light');
+    await scan(page);
+  });
+
+  test('Setup is clean', async ({ page }) => {
+    await goLight(page);
+    await scan(page);
+  });
+
+  test('the Settings panel is clean', async ({ page }) => {
+    await goLight(page);
+    await page.keyboard.press('s');
+    await expect(page.getByTestId('tt-settings')).toBeVisible();
+    await scan(page);
+  });
+
+  test('the Player is clean', async ({ page }) => {
+    await goLight(page);
     await stageSingle(page);
     await setDuration(page, 0, 0, 30);
     await page.getByRole('button', { name: 'Bắt đầu' }).click();
