@@ -110,10 +110,14 @@
       onclick={onstop}>⏹</button
     >
 
+    <!-- A toggle button: the label names the control, aria-pressed carries its
+         state. The state used to live only in the emoji, which a screen reader
+         announces as "speaker" either way. -->
     <button
       class="tt-ctl"
       data-testid="tt-mute"
       aria-label={i18n.t('player.transport.mute')}
+      aria-pressed={muted}
       onclick={onmute}
     >
       {muted ? '🔇' : '🔊'}

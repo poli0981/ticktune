@@ -35,7 +35,10 @@
       "retry": "Thử lại"
     },
     "drop": {
-      "hint": "MP3 · M4A · AAC · FLAC · WAV · OGG · Opus · WebM — tối đa 10:02"
+      "hint": "MP3 · M4A · AAC · FLAC · WAV · OGG · Opus · WebM — tối đa 10:02",
+      "single": "Kéo thả một tệp nhạc vào đây, hoặc bấm để chọn",
+      "multiple": "Kéo thả các tệp nhạc hoặc thư mục vào đây, hoặc bấm để chọn",
+      "busy": "Đang nhập…"
     },
     "staged": {
       "remove": "Bỏ"
@@ -49,7 +52,8 @@
       "minutes": "phút",
       "seconds": "giây",
       "match": "Khớp độ dài",
-      "matchLocked": "Cần biết thời lượng của mọi bài trong danh sách"
+      "matchLocked": "Cần biết thời lượng của mọi bài trong danh sách",
+      "preset": "{{minutes}} phút"
     },
     "start": "Bắt đầu",
     "hint": {
@@ -197,7 +201,8 @@
     "title": "HẾT GIỜ",
     "late": {
       "at": "lúc {{time}}",
-      "ago": "{{duration}} trước"
+      "ago": "{{duration}} trước",
+      "why": "Thẻ chạy nền bị trình duyệt tạm dừng, nên ứng dụng chỉ phản hồi được khi bạn quay lại. Thời gian đã đếm vẫn chính xác."
     },
     "unit": {
       "hours": "{{count}} giờ",

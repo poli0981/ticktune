@@ -77,10 +77,7 @@
         duration: agoText,
       })}
     </p>
-    <p class="tt-why">
-      Thẻ chạy nền bị trình duyệt tạm dừng, nên ứng dụng chỉ phản hồi được khi bạn quay lại. Thời
-      gian đã đếm vẫn chính xác.
-    </p>
+    <p class="tt-why">{i18n.t('finished.late.why')}</p>
   {/if}
 
   <div class="tt-actions">
@@ -116,8 +113,7 @@
   .tt-late {
     font-size: 1.05rem;
     color: var(--color-tt-warn);
-  }
-  .tt-late strong {
+    /* The clock time and the duration change width digit by digit otherwise. */
     font-variant-numeric: tabular-nums;
   }
 

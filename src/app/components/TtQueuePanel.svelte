@@ -155,6 +155,21 @@
   // ── context menu (docs/02 §8) ─────────────────────────────────────────────
 
   let menu = $state<{ track: TtTrack; x: number; y: number } | null>(null);
+  /**
+   * Where focus was when the menu opened — the row, for both the keyboard and
+   * the right-click path. The menu's items hold focus while it is open, and
+   * closing it removes them from the DOM, which used to drop focus to `<body>`:
+   * a keyboard user who pressed Esc lost their place in the queue entirely.
+   */
+  let opener: HTMLElement | null = null;
+
+  function closeMenu() {
+    menu = null;
+    const back = opener;
+    opener = null;
+    // After the menu has left the DOM, or the focus would land on a dying node.
+    queueMicrotask(() => back?.focus());
+  }
 
   const menuItems = $derived.by((): TtMenuItem[] => {
     const i = menu === null ? -1 : tracks.findIndex((t) => t.id === menu?.track.id);
@@ -167,6 +182,7 @@
   });
 
   function openMenu(track: TtTrack, x: number, y: number) {
+    opener = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     menu = { track, x, y };
   }
 
@@ -178,7 +194,7 @@
 
   function onMenuSelect(id: TtMenuItem['id']) {
     const target = menu?.track;
-    menu = null;
+    closeMenu();
     if (!target) return;
     if (id === 'info') oninfo(target);
     else if (id === 'up') move(target.id, -1);
@@ -272,11 +288,20 @@
             context menu the right-click does, so the reorder items are reachable
             without a pointer.
           -->
+          <!-- Enter jumps, as double-click does: playing a chosen track was
+               pointer-only, against docs/03 §8's full keyboard support. -->
           <button
             class="tt-row-main"
             aria-current={track.id === currentId ? 'true' : undefined}
             ondblclick={() => onjump(track.id)}
-            onkeydown={(e) => onRowKeydown(e, track)}
+            onkeydown={(e) => {
+              if (e.key === 'Enter' && !e.altKey && !e.ctrlKey && !e.metaKey) {
+                e.preventDefault();
+                onjump(track.id);
+                return;
+              }
+              onRowKeydown(e, track);
+            }}
           >
             <strong>{text(track.title)}</strong>
             <span>{text(track.artist)}</span>
@@ -319,7 +344,7 @@
     x={menu.x}
     y={menu.y}
     onselect={onMenuSelect}
-    onclose={() => (menu = null)}
+    onclose={closeMenu}
   />
 {/if}
 

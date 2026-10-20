@@ -3,7 +3,7 @@
   import { i18n } from '../state/i18n.svelte';
   import TtQueuePanel from './TtQueuePanel.svelte';
   import TtToast from './TtToast.svelte';
-  import { positionText } from '../engine/importer/tt-track-display';
+  import { positionText, text } from '../engine/importer/tt-track-display';
   import type { TtTrack } from '../engine/importer/types';
   import { session } from '../state/session.svelte';
   import { settings } from '../state/settings.svelte';
@@ -161,8 +161,10 @@
     {#if track}
       <div class="tt-staged" data-testid="tt-staged">
         <div class="tt-staged-text">
-          <strong>{track.title}</strong>
-          <span>{track.artist || '—'} · {positionText(track.durationMs)}</span>
+          <!-- Hard invariant 5: missing text is `N/A`. This row used an em dash
+               for a missing artist — the one surface that bypassed `text()`. -->
+          <strong>{text(track.title)}</strong>
+          <span>{text(track.artist)} · {positionText(track.durationMs)}</span>
         </div>
         <button
           class="tt-remove"
@@ -254,7 +256,12 @@
 
     <div class="tt-presets">
       {#each PRESETS as p (p)}
-        <button class="tt-preset" onclick={() => setFromMs(p * 60_000)}>{p}′</button>
+        <!-- The visible label is "5′"; the accessible one says what the unit is. -->
+        <button
+          class="tt-preset"
+          aria-label={i18n.t('setup.countdown.preset', { minutes: p })}
+          onclick={() => setFromMs(p * 60_000)}>{p}′</button
+        >
       {/each}
       <!-- docs/03 §3: disabled on an empty queue or any unknown duration, and
            one-shot — it does not recompute when the queue changes later.
