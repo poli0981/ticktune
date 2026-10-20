@@ -241,6 +241,17 @@ or business-critical, so the legal text needs no change.
 6. **Say it where users decide to trust it** — the landing FAQ (`16 §P6`) states
    the visible/hidden distinction plainly rather than burying it in the EULA.
 
+##### S5 (v2.0): the WORKER keeps time while hidden
+
+`15 §S5` measured what S2 could only infer: a dedicated worker's own 200 ms
+tick, and a `new Notification()` it creates at the deadline, across 25 hidden,
+silent minutes. **40 of 40 runs on time** — worker late 9–207 ms on Edge 155,
+Chrome 155, Brave and Firefox 158; the Chromium family's tick never stretched
+past 371 ms, Firefox's up to 3.2 s three times in ten runs. That releases the
+v2.0 finish notification, which fires from the worker so its timing never
+waits on the page. The Finished screen's late rule above is unchanged: a
+notification is the alert, the screen is still the honest record.
+
 ##### What this does *not* change
 
 `13 §7`'s live check — "countdown accurate vs phone stopwatch over 10 min
