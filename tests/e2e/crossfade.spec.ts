@@ -56,6 +56,8 @@ async function stageTones(page: Page): Promise<void> {
 interface Rec {
   rms: [number, number][];
   urls: [number, number][];
+  /** The active deck's media position, ms — the media clock, against the page's. */
+  pos: [number, number][];
   /** Every change of `data-tt-xfade-active`. */
   xf: [number, string][];
   /** Every change of the current row's index; -1 when no row is current. */
@@ -65,7 +67,7 @@ interface Rec {
 
 async function record(page: Page): Promise<void> {
   await page.evaluate(() => {
-    const rec: Rec = { rms: [], urls: [], xf: [], rows: [], loop: [] };
+    const rec: Rec = { rms: [], urls: [], pos: [], xf: [], rows: [], loop: [] };
     (window as unknown as { __ttRec: Rec }).__ttRec = rec;
     const html = document.documentElement;
     new MutationObserver((records) => {
@@ -110,6 +112,7 @@ async function record(page: Page): Promise<void> {
       const t = performance.now();
       rec.rms.push([t, Number(text('tt-rms-now') || 0)]);
       rec.urls.push([t, Number(text('tt-live-urls') || 0)]);
+      rec.pos.push([t, Number(text('tt-media-pos') || 0)]);
     }, 50);
   });
 }
@@ -146,6 +149,39 @@ const rmsIn = (rec: Rec, from: number, to: number): number[] =>
   rec.rms.filter(([t]) => t >= from && t <= to).map(([, v]) => v);
 
 const median = (v: number[]): number => [...v].sort((a, b) => a - b)[v.length >> 1] ?? 0;
+
+/**
+ * How fast the media clock ran against the page's before `until` — the slope
+ * of the active deck's position over the first track's solo stretch.
+ */
+function clockRate(rec: Rec, until: number): number {
+  const pts = rec.pos.filter(([t, p]) => t < until - 100 && p > 300);
+  expect(pts.length, 'the tt-media-pos seam reports a playing deck').toBeGreaterThan(10);
+  const n = pts.length;
+  const mt = pts.reduce((s, [t]) => s + t, 0) / n;
+  const mp = pts.reduce((s, [, p]) => s + p, 0) / n;
+  const cov = pts.reduce((s, [t, p]) => s + (t - mt) * (p - mp), 0);
+  const varT = pts.reduce((s, [t]) => s + (t - mt) ** 2, 0);
+  return cov / varT;
+}
+
+/**
+ * Whether this browser's media clock keeps real time — the capability every
+ * assertion about how LONG something took depends on. Measured per run, never
+ * assumed from a browser name (docs/13 §3): CI's Linux WebKit, with no audio
+ * device, played 5 s tracks in ~4.05 s of page time and reported `currentTime`
+ * up to ~1.5× ahead of it. Where it does not, the durations are skipped, said
+ * so in the report, and everything about wiring is still asserted.
+ */
+function realTime(rec: Rec, until: number): boolean {
+  const rate = clockRate(rec, until);
+  const ok = Math.abs(rate - 1) < 0.1;
+  test.info().annotations.push({
+    type: 'media clock',
+    description: `${rate.toFixed(3)}× page time${ok ? '' : ' — duration assertions skipped (docs/13 §3)'}`,
+  });
+  return ok;
+}
 
 async function openSettings(page: Page): Promise<void> {
   await page.keyboard.press('s');
@@ -210,9 +246,11 @@ test.describe('crossfade — docs/05 §2', () => {
 
     const f = fades(rec);
     expect(f).toHaveLength(2);
-    for (const { start: s, end: e } of f) {
-      expect(e - s).toBeGreaterThan(1_800);
-      expect(e - s).toBeLessThan(2_700);
+    if (realTime(rec, f[0]!.start)) {
+      for (const { start: s, end: e } of f) {
+        expect(e - s).toBeGreaterThan(1_800);
+        expect(e - s).toBeLessThan(2_700);
+      }
     }
 
     // The queue moved ONCE per fade, and when the fade began — not at the
@@ -267,9 +305,10 @@ test.describe('crossfade — docs/05 §2', () => {
     expect(v.map(([, i]) => i)).toEqual([0, 1, 2]);
     const solo = median(rmsIn(rec, v[0]![0] + 1_000, v[0]![0] + 3_000));
     expect(solo).toBeGreaterThan(0.02);
+    const timed = realTime(rec, v[1]![0]);
     for (const k of [1, 2]) {
       // Each whole track played before the next — the cut is at its end.
-      expect(v[k]![0] - v[k - 1]![0]).toBeGreaterThan(4_500);
+      if (timed) expect(v[k]![0] - v[k - 1]![0]).toBeGreaterThan(4_500);
       expect(median(rmsIn(rec, v[k]![0] + 300, v[k]![0] + 1_500))).toBeGreaterThan(solo / 2);
     }
 
@@ -298,13 +337,16 @@ test.describe('crossfade — docs/05 §2', () => {
     await expect(html(page)).toHaveAttribute('data-tt-xfade', '3000');
 
     await expect(page.getByTestId('tt-playlist-ended')).toBeVisible({ timeout: 20_000 });
-    const f = fades(await recording(page));
+    const rec = await recording(page);
+    const f = fades(rec);
     expect(f).toHaveLength(2);
-    // 1 s as set; then 3 s, which on a 5 s track is 2.5 s — half its length.
-    expect(f[0]!.end - f[0]!.start).toBeGreaterThan(850);
-    expect(f[0]!.end - f[0]!.start).toBeLessThan(1_600);
-    expect(f[1]!.end - f[1]!.start).toBeGreaterThan(2_300);
-    expect(f[1]!.end - f[1]!.start).toBeLessThan(3_200);
+    if (realTime(rec, f[0]!.start)) {
+      // 1 s as set; then 3 s, which on a 5 s track is 2.5 s — half its length.
+      expect(f[0]!.end - f[0]!.start).toBeGreaterThan(850);
+      expect(f[0]!.end - f[0]!.start).toBeLessThan(1_600);
+      expect(f[1]!.end - f[1]!.start).toBeGreaterThan(2_300);
+      expect(f[1]!.end - f[1]!.start).toBeLessThan(3_200);
+    }
   });
 
   test('a pause mid-fade is silent, and play resumes the rest of the same fade', async ({
@@ -346,9 +388,11 @@ test.describe('crossfade — docs/05 §2', () => {
     expect(Math.min(...rmsIn(rec, resumedAt + 300, e - 100))).toBeGreaterThan(solo / 2);
 
     // The REST of the curve: what was left at the pause, not a fresh 2 s.
-    const rest = 2_000 - (pausedAt - s);
-    expect(e - resumedAt).toBeGreaterThan(rest - 250);
-    expect(e - resumedAt).toBeLessThan(rest + 500);
+    if (realTime(rec, s)) {
+      const rest = 2_000 - (pausedAt - s);
+      expect(e - resumedAt).toBeGreaterThan(rest - 250);
+      expect(e - resumedAt).toBeLessThan(rest + 500);
+    }
 
     // And the queue heard the fade once — at its start, not again on resume.
     expect(
@@ -415,7 +459,8 @@ test.describe('crossfade — docs/05 §2', () => {
 
     const f = fades(rec);
     expect(f.length).toBeGreaterThanOrEqual(1);
-    expect(f[0]!.start - startedAt).toBeLessThan(4_000); // the fade, not the 5 s wrap
+    // The fade's own moment, not the 5 s wrap's.
+    if (realTime(rec, f[0]!.start)) expect(f[0]!.start - startedAt).toBeLessThan(4_000);
     const [loopAt] = rec.loop.find(([, text]) => text === 'Loop ×2')!;
     expect(loopAt).toBeGreaterThanOrEqual(f[0]!.start);
     expect(loopAt).toBeLessThan(f[0]!.start + 500);
@@ -430,15 +475,20 @@ test.describe('crossfade — docs/05 §2', () => {
      * Red against: the `setNext` effect without its player-screen gate — at
      * ~2.7 s B began fading in under the End Behavior's fade-out, and the
      * engine's track moved while the queue (correctly) did not.
+     *
+     * 1 s, the shortest countdown, so zero lands well before A's trigger
+     * (~2.7 s) and the trigger well inside the 2 s end fade. At 2 s, CI's Linux
+     * WebKit — whose media clock runs fast (`realTime`) — reached the trigger
+     * first, and the spec measured that browser instead of the gate.
      */
     await gotoApp(page, '/app/?ttdebug=1');
     await stageTones(page);
-    await setDuration(page, 0, 0, 2);
+    await setDuration(page, 0, 0, 1);
     await record(page);
     await start(page);
 
     await expect(page.getByTestId('tt-finished')).toBeVisible({ timeout: 6_000 });
-    // Past where A's trigger lay (~2.7 s) and the 2 s end fade.
+    // Past where A's trigger lay (~2.7 s) and the end fade (1–3 s).
     await page.waitForTimeout(3_500);
     const rec = await recording(page);
 
