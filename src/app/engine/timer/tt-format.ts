@@ -67,18 +67,3 @@ export function formatRemaining(remainingMs: number): TtFormatted {
 
   return { text, ghost: ghostFor(text), regime, danger: ms < MINUTE_MS };
 }
-
-/**
- * Delay until the next visible change.
- *
- * In the 1 Hz regimes the display must flip ON the second boundary, so the next
- * wake is `remaining % 1000` — not a flat 1000, which would drift the flip away
- * from the boundary by however late the previous tick was (docs/04 §4).
- * Below 60 s the caller drives rAF instead and this is not used.
- */
-export function nextTickDelayMs(remainingMs: number): number {
-  if (remainingMs <= 0) return 0;
-  if (remainingMs < MINUTE_MS) return 0;
-  const rem = remainingMs % 1000;
-  return rem === 0 ? 1000 : rem;
-}
