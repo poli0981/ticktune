@@ -275,6 +275,43 @@ threshold spent 127 of the 150 ms tolerance on a perfect 5 s fade.
   owner-run lines of the v2.0 live checklist.
 - **Timebox:** 0.5–1 day (v1); the v2 harness is a v2.0 deliverable.
 
+### S4b results — quick sweep, 2026-10-20 (Edge 155, Windows 11)
+
+**Quick sweep: PASS** — 46 configurations, 48 runs, 9.1 min. The formal S4b
+verdict also needs real music (the acceptance says so), so the full sweep —
+three repeats plus the corpus as shipped and remuxed without its header — runs
+next, and the Exit row below changes only with its result.
+
+| Criterion | Result |
+|---|---|
+| Harness can fail | ✅ all four controls FAILED, as they must |
+| Test-file crossfades (25 A→B, 4 loop, 2 pause) | ✅ 31/31: overlap −2…+26 ms from ideal, end guard +64…+211 ms, head loss 0…21 ms, incoming start 0…24 ms after `play()`, no click |
+| A→B curve fit and power (25 runs) | each deck's measured fade within ±2 ms of its schedule, start and length; equal-power deviation ≤ 0.34 dB |
+| 0 s | ✅ **Z2** (start a pre-armed idle deck at `ended`): gap 11–24 ms, no click. Z1 (today's `src` swap) 13–27 ms, also clean. Z3 (10 ms crossover before the end) clicks every time |
+| Master fade mid-crossfade | ✅ `fadeGain` fade within −1 / +1 ms of schedule, crossfade overlap identical to its control (0 ms drift), no click, no exception from the `userGain` write |
+| Header-less VBR | ✅ on time by the TRUE duration (end guard 240 ms, both directions); ❌ by `element.duration` — the estimate is so wrong the trigger concludes the fade cannot fit (`too-short`) and never starts |
+
+**What the sweeps decided for the engine** (each found by a run that failed first):
+
+- **The trigger runs on the true duration**, the importer's
+  `parseBlob({ duration: true })` value, with `element.duration` only as a
+  fallback. By the element's estimate, raw ADTS fired 0.2–0.5 s early and
+  header-less VBR never crossfaded at all.
+- **The incoming deck is armed early** (src set, metadata loaded) — every
+  passing run used it; incoming audio then starts 0–24 ms after `play()`.
+- **A pause mid-fade holds atomically and de-clicks.** `pause()` on a playing
+  element is a step: 6–8 clicks per run. `cancelScheduledValues` on an active
+  curve restores the pre-curve value, and the render thread played a quantum of
+  it before the next call landed. The pass: `cancelAndHoldAtTime`, a 15 ms ramp
+  to zero, and the element paused 45 ms later (the render thread runs ahead of
+  `currentTime`; at +5 ms one run in three still clicked). Firefox has no
+  `cancelAndHoldAtTime` and falls back — it is a manual line of the v2.0 live
+  checklist.
+- **Constants:** margin 0.3 s, guard 0.03 s, latency 0, 0 s switch Z2.
+- Loop crossfades of a TONE into itself show up to 7 dB of power ripple: the
+  two decks carry correlated signals, which no equal-power pair can flatten.
+  Music's end and start are uncorrelated; the corpus runs measure it.
+
 ## Exit
 
 Each spike's findings are written back into its target chapter (04 / 05 / 06) and
@@ -289,4 +326,4 @@ against the P1 timer engine it ran on; S1 gates P4; S3 and S4 gate P2
 | S2 | 🔴 **FAIL — and the contingency failed too** | 2026-07-21 | Hidden+silent: `done` **2m 57s late**. Control run with keep-alive **ON**: still **52.4 s late**, 105× the bound. The audibility exemption does not protect the timer, so `15 §S2`'s contingency is **withdrawn, not adopted**. The stall is in main-thread message processing, so a worker cannot route around it. P2 needs a product decision, not a code fix (`04 §2`) |
 | S3 | ✅ **PASS** | 2026-07-21 | Tag matrix + 103-file/598 MB real corpus in **1 362 ms** (budget 10 s); 7.26 MB cover extracted; 0 false positives from the new `onlyV1` rule. The U+FFFD rule was falsified and replaced (`05 §5`). ID3v2.2 and APEv2 found in the wild |
 | **S4a** | ✅ **PASS** | 2026-07-21 | Crossfade judged clean by ear on headphones **and** speakers (the criterion no instrument can answer); graph, `createMediaElementSource` reuse and gesture `resume()` all exercised. Gates released for P2's audio graph |
-| **S4b** | 🟡 open | — | Overlap-timing ±150 ms and the 0/1/2/5 s sweep still unrecorded, and the harness needs the fixes in §S4 before the numbers would mean anything. Gates the crossfade loop style only |
+| **S4b** | 🟡 **quick sweep PASS — full sweep (real music) pending** | 2026-10-20 | Harness v2 (`§S4`): measured from the audio on the shipping graph, four controls proven to fail. Quick sweep on Edge 155: 31/31 test-file crossfades within ±150 ms, 0 s via a pre-armed deck, the master fade on schedule, header-less VBR on time only by the TRUE duration. The full sweep with the corpus decides the formal result. Gates the crossfade loop style and inter-track crossfade |
