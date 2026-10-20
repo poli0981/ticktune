@@ -1,5 +1,13 @@
 ---
 import type { StaticDict } from '../../i18n/static/en';
+/*
+ * Imported, not linked from public/ (v2.0): Vite emits each under a content
+ * hash in /_astro/, which `_headers` serves `immutable` for a year. As
+ * /demo/hero.mp4 it got the platform's max-age=0 and was revalidated on every
+ * visit — Lighthouse's "efficient cache lifetimes", on the LCP element.
+ */
+import heroMp4 from '../../assets/demo/hero.mp4?url';
+import heroPoster from '../../assets/demo/hero-poster.webp?url';
 
 /**
  * Landing hero — docs/03 §3 item 1.
@@ -137,8 +145,8 @@ for (const row of t.limits) {
         -->
         <video
           class="tt-hero-video"
-          src="/demo/hero.mp4"
-          poster="/demo/hero-poster.webp"
+          src={heroMp4}
+          poster={heroPoster}
           width="960"
           height="540"
           autoplay
@@ -162,7 +170,7 @@ for (const row of t.limits) {
         -->
         <img
           class="tt-hero-still"
-          src="/demo/hero-poster.webp"
+          src={heroPoster}
           alt={t.heroMediaAlt}
           width="960"
           height="540"

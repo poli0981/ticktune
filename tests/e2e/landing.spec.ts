@@ -173,7 +173,8 @@ test.describe('landing', () => {
     await page.goto('/');
 
     const video = page.locator('video.tt-hero-video');
-    await expect(video).toHaveAttribute('poster', /^\/demo\//);
+    // Content-hashed under /_astro/ since v2.0 — immutable, same-origin.
+    await expect(video).toHaveAttribute('poster', /^\/_astro\/hero-poster\.[\w-]+\.webp$/);
     // Muted is not decoration: an unmuted autoplay video is blocked outright,
     // so losing this attribute means the hero silently stops playing.
     await expect(video).toHaveAttribute('muted', '');
@@ -185,11 +186,14 @@ test.describe('landing', () => {
      * every spec in this file. Asserting the count keeps a second format from
      * creeping back without someone re-reading why.
      */
-    await expect(video).toHaveAttribute('src', /^\/demo\/.*\.mp4$/);
+    await expect(video).toHaveAttribute('src', /^\/_astro\/hero\.[\w-]+\.mp4$/);
     expect(await video.locator('source').count()).toBe(0);
 
     // docs/03 §8 — the still exists so reduced motion has something to show.
-    await expect(page.locator('img.tt-hero-still')).toHaveAttribute('src', /^\/demo\//);
+    await expect(page.locator('img.tt-hero-still')).toHaveAttribute(
+      'src',
+      /^\/_astro\/hero-poster\.[\w-]+\.webp$/,
+    );
   });
 
   test('reduced motion swaps the looping hero for a still — docs/03 §8', async ({ page }) => {
