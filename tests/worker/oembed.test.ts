@@ -232,16 +232,49 @@ describe('caching — docs/06 §3, docs/09 §3', () => {
   });
 });
 
-describe('CORS — the whole reason this endpoint exists', () => {
-  it('sends the header on success AND on failure', async () => {
-    // docs/06 §3: YouTube's own oEmbed sends no CORS headers, which is why the
-    // browser cannot call it directly. An error response without the header
-    // would be unreadable to the client — it could not even see the status.
+describe('same-origin only — no CORS headers', () => {
+  it('sends no Access-Control-Allow-Origin, on success or on failure', async () => {
+    /*
+     * This test used to assert `*`, on the reasoning that an error without the
+     * header "would be unreadable to the client". The client calls this route
+     * on its OWN origin (tt-yt-driver.ts), where responses are readable with no
+     * CORS header at all — so `*` only ever let other websites use this Worker
+     * as a free oEmbed proxy, billed to us per request.
+     */
     fetchMock.mockResolvedValue(Response.json({ title: 't' }));
-    expect((await call(OEMBED + GOOD_ID)).headers.get('access-control-allow-origin')).toBe('*');
+    const ok = await call(OEMBED + GOOD_ID);
+    expect(ok.headers.get('access-control-allow-origin')).toBeNull();
+    expect(ok.headers.get('x-content-type-options')).toBe('nosniff');
 
     fetchMock.mockResolvedValue(new Response('', { status: 403 }));
-    expect((await call(OEMBED + GOOD_ID)).headers.get('access-control-allow-origin')).toBe('*');
+    expect((await call(OEMBED + GOOD_ID)).headers.get('access-control-allow-origin')).toBeNull();
+  });
+});
+
+describe('a 200 that is not a JSON object is transient — not a crash', () => {
+  it.each([
+    ['an HTML challenge page', () => new Response('<html>challenge</html>', { status: 200 })],
+    ['a literal null body', () => new Response('null', { status: 200 })],
+  ])('turns %s into an uncached 502', async (_label, make) => {
+    // Both used to throw out of the handler (res.json() / data['title']), and
+    // Cloudflare answered with its 1101 HTML page instead of our JSON.
+    fetchMock.mockResolvedValue(make());
+    const res = await call(OEMBED + GOOD_ID);
+    expect(res.status).toBe(502);
+    await expect(res.json()).resolves.toEqual({ error: 'upstream_unreachable' });
+    expect(cache.put).not.toHaveBeenCalled();
+  });
+
+  it('bounds the upstream wait — a stalled youtube.com is transient too', async () => {
+    fetchMock.mockImplementation((_url: URL, init?: RequestInit) => {
+      expect(init?.signal, 'the upstream fetch must carry a timeout signal').toBeInstanceOf(
+        AbortSignal,
+      );
+      return Promise.reject(new DOMException('The operation timed out.', 'TimeoutError'));
+    });
+    const res = await call(OEMBED + GOOD_ID);
+    expect(res.status).toBe(502);
+    expect(cache.put).not.toHaveBeenCalled();
   });
 });
 

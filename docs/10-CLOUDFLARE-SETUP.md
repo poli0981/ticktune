@@ -217,7 +217,8 @@ Everything domain-independent was verified locally against `wrangler dev` on
   overlay silently not appearing.
 - ✅ DSEG7 loads under `font-src 'self'`.
 - ✅ `/api/yt/oembed?id=dQw4w9WgXcQ` → 200 JSON with
-  `Cache-Control: public, max-age=21600` and CORS; `?id=xxx` and a missing `id`
+  `Cache-Control: public, max-age=21600` and **no** `Access-Control-Allow-Origin`
+  (same-origin only since v1.1); `?id=xxx` and a missing `id`
   → 400 `invalid_id`; non-GET → 405.
 - ✅ Unknown path → the styled 404 via `not_found_handling`.
 - ✅ The `§7` one-inline-script assertion fails the build when violated — proven
