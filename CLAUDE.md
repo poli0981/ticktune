@@ -7,9 +7,10 @@
 
 TickTune (`poli0981/ticktune`, GPL-3.0-only): a desktop-only static web app —
 user-supplied music (local files or YouTube links) behind a large DSEG7 digital
-countdown. Astro 7 static pages + one Svelte 5 island at `/app/`, deployed to
-Cloudflare Workers Static Assets with exactly one API route
-(`GET /api/yt/oembed`). Vietnamese default UI, English mirror.
+countdown, styled as broadcast rack hardware ("Rack Unit", `docs/03`). Astro 7
+static pages + one Svelte 5 island at `/app/`, deployed to Cloudflare Workers
+Static Assets with exactly one API route (`GET /api/yt/oembed`). Vietnamese
+default UI, English mirror.
 
 The island is **hand-mounted**, not mounted with an Astro client directive:
 `src/pages/app/index.astro` imports `src/app/mount.ts` behind the `docs/07 §3.2`
@@ -39,10 +40,12 @@ the reasoning and the numbers are in `docs/01 §3`.
 5. **Fallback rendering:** missing text → `N/A`, missing numeric → `–`.
 6. **Mobile blocked site-wide** via the inline head gate (`docs/07`). Do not add
    mobile layouts; do not remove the gate.
-7. **No GSAP** (license conflict with GPL-3.0 — use Motion). New deps require a
-   GPL-compat license check; **distributed** deps also require an entry in
-   `legal/THIRD-PARTY-NOTICES.md`. Dev-only tooling is covered by that file's
-   dev-tooling paragraph and gets no row (`docs/11 §5`).
+7. **No GSAP** (licence conflict with GPL-3.0). Animation is CSS keyframes and
+   transitions; if a library is ever needed, Motion (MIT) is the vetted one —
+   none is installed. New deps require a GPL-compat license check;
+   **distributed** deps also require an entry in `legal/THIRD-PARTY-NOTICES.md`.
+   Dev-only tooling is covered by that file's dev-tooling paragraph and gets no
+   row (`docs/11 §5`).
 8. **Security:** `{@html}` is banned; CSP in `docs/09 §4` is authoritative — any
    new origin requires updating CSP + privacy policy in the same PR.
 
@@ -57,8 +60,8 @@ the reasoning and the numbers are in `docs/01 §3`.
   cannot see (its globs exclude `.json`). A key with no caller **fails the
   build** — if a lookup cannot be a literal, add a prefix to
   `CALLED_INDIRECTLY_PREFIX` with a reason, never a blanket exemption.
-  ⚠️ **The statics are still VI literals** (`/`, `/404`, `TtBase.astro`) —
-  `08 §1`'s route-based EN mirrors are P6's.
+  The static pages have their own dictionaries, `src/i18n/static/{en,vi}.ts`
+  (`/` is VI, `/en/` is EN), whose parity is a type error rather than a test.
   ⚠️ **The guard shapes the markup, and that is intended.** A key held in a
   variable has no greppable caller, so option lists (the hotkey table, the
   `endAction` options, the log-level filter) are written out as literals rather
@@ -73,18 +76,21 @@ the reasoning and the numbers are in `docs/01 §3`.
 
 ```bash
 pnpm dev          # astro dev
-pnpm build        # astro build → dist/  (+ scripts/inject-csp-hash.ts)
+pnpm build        # astro build → dist/ + CSP hash + notices + size budget
 pnpm lint         # eslint + prettier check
-pnpm check        # astro check + svelte-check
+pnpm check        # astro check + svelte-check + worker tsc
 pnpm knip         # unused code gate — must stay clean
-pnpm test         # vitest unit + component
-pnpm test:e2e     # playwright
-pnpm wrangler deploy
+pnpm test         # vitest unit + component + worker, with coverage
+pnpm test:e2e     # playwright: chromium, firefox, webkit + mobile gate
+pnpm verify:csp   # the served CSP in a real browser, under wrangler dev
+node scripts/check-doc-refs.ts   # every `NN §M` citation resolves
 ```
+
+Never `wrangler deploy` by hand — production is a signed tag (`docs/14 §5`).
 
 ## Doc map (read before touching the area)
 
-Architecture `docs/01` · Data flow & limits `docs/02` · UI/"On Air" tokens
+Architecture `docs/01` · Data flow & limits `docs/02` · UI/"Rack Unit" tokens
 `docs/03` · Timer `docs/04` · Audio `docs/05` · YouTube `docs/06` · Mobile gate
 `docs/07` · i18n `docs/08` · Security/CSP `docs/09` · Cloudflare `docs/10` ·
 Versions `docs/11` · Standards & log codes `docs/12` · Testing `docs/13` ·
@@ -106,258 +112,200 @@ or the sweep produces numbers that mean nothing.
 
 ## Current status
 
-P1 **complete (8/8)** and P2 **shipped as v0.2.0** (2026-07-22, live on
-`https://ticktune.net`) — exit reviews for both in `docs/16`. Single mode plays
-local audio behind the countdown, with the import pipeline, the End Behavior and
-the late-finish Finished screen.
+**v1.1.0** (2026-10-20) is the current release, live on `https://ticktune.net`.
+P1–P7 are complete — v1.0.0 closed P7 — and every phase's exit review is in
+`docs/16`. v1.1 was a full review rather than a phase: supply chain and CI, the
+runtime wiring, Cloudflare Web Analytics with Legal 1.1, the "Rack Unit"
+redesign with the hide-scrollbars setting, and this docs sync — `docs/16`'s
+v1.1 section has the review.
 
-**P3 shipped as v0.4.0** (2026-07-22, live). Playlist plays a queue, reorders by
-pointer drag and `Alt+↑/↓`, has `TtContextMenu` and an import progress bar.
+**Releases are tag-only (decided 2026-10-20).** Workers Builds runs
+`npx wrangler versions upload` for every push, so a branch gets a preview URL
+and **never** production; production changes only when a signed `vX.Y.Z` tag is
+pushed, and `deploy.yml` verifies the signature against
+`https://github.com/poli0981.gpg` and that the tag is on `main` before it
+deploys. Never `wrangler deploy` by hand. Until v1.1 every pushed branch —
+Dependabot's included — went straight to 100% of production (`docs/14 §5`).
 
-**P4 — YouTube is CLOSED (3/3 slices), live as v0.5.2.** The exit criterion —
-`tests/manual/p4-live-checklist.md` against the deployed site, including the
-`yt-matrix` block and the region-blocked id from a Vietnamese connection — was
-**run and passed on 2026-07-23**. **511 unit + component + worker tests, 79 E2E
-on Chromium, five gates green.** Exit review in `docs/16 §P4`.
+The live checklist for a release runs against the PR's **preview deployment**,
+before the merge: `astro dev`/`astro preview` are excluded because they do not
+run the Worker, but the preview version does. A failure there costs a
+force-push; the same failure after a tag costs a patch release, which is what
+v0.5.1 and v0.5.2 were.
 
-⚠️ **The lesson worth carrying, and it recurred three times:** YouTube playback
-did **not work at all** — the first Start cued nothing and the app never
-contacted Google, because `onStart` is synchronous while the rail mounts a
-microtask later. Three more wiring defects sat beside it (Stop → Start left a
-dead player; ⏭, Stop and Về thiết lập stopped the wrong engine; the whole End
-Behavior was dead for returning users). **The values and the engines were all
-correct.** After nine "declared but never written" *fields*, this phase's bugs
-were the layer above: wiring between correct parts, which no engine test can see.
-That is what the E2E tier exists for — reverting the four fixes turns 15 of its
-specs red.
+### The lesson this project keeps relearning
 
-It then happened twice more, in the patch releases: the offline banner never
-appeared because `navigator.onLine` never flipped (`06 §8` had already said the
-import result is the authority — prose only), and the fix for THAT deadlocked
-Start, because the banner blocked the only action that could gather the evidence
-to clear it. **When an action is gated on evidence, ask what gathers that
-evidence and whether the gate forbids it.**
+**The engines are right and the wiring between them is wrong.** P4's YouTube
+playback did not work at all — `onStart` is synchronous while the rail mounts a
+microtask later — with every value and engine correct. P5's milestones announced
+"one minute remaining" on a 12-second run because the shell passed the idle
+preview's display value as the crossing baseline. v1.1's review found
+seventeen runtime defects, most of that same shape: a fade timer that paused the
+next run, a removed track that kept playing, a decode error nobody routed. No unit test of a
+pure function can see the arguments its caller chooses; that is what
+`tests/e2e/wiring.spec.ts` exists for, and each of its specs was shown red on
+the old code.
 
-**P5 — Visuals & settings is COMPLETE (4/4 slices).** v0.6.0 (i18n + ⚙ panel +
-Focus), v0.7.0 (Z1 backgrounds), v0.8.0 (visualizer + a11y). Exit review in
-`docs/16 §P5`; nothing carries out of the phase.
+Three habits that found the rest:
 
-The measurement that shaped it, and it held up: **14 of the 26 `TtSettings`
-fields were declared, defaulted, clamped, persisted, unit-tested — and read by
-nothing.** All fourteen are consumed now, and each slice shipped a test that its
-field is genuinely READ rather than merely present.
+- **Grep for the READ, not the declaration.** 14 of 26 `TtSettings` fields were
+  declared, defaulted, clamped, persisted, unit-tested — and read by nothing.
+  The same search found the whole diagnostics API, `ttLog.subscribe` and
+  `__TT_VERSION__` with no consumer. Every field now ships with a test that it
+  is genuinely read.
+- **Measure what a document promises.** Six claims failed that test in P7 alone
+  (the CSP "rollout", the notify fan-out, `localStorage`, a second Google
+  origin…), and v1.1 found that the bottom bar's "fade" had always been a cut:
+  its idle class was the bare word `hidden`, which Tailwind compiles to its own
+  `display: none` utility. **Never give a component class a bare utility name.**
+- **When an action is gated on evidence, ask what gathers that evidence and
+  whether the gate forbids it.** The offline banner blocked the only action
+  that could clear it (v0.5.2).
 
-⚠️ **The habit that found the rest:** grepping for the **READ**, not the
-declaration, also turned up the whole `02 §7` diagnostics API, `ttLog.subscribe`
-and `__TT_VERSION__` — three more things declared and consumed by nobody. Apply
-it to any API a doc describes, not just to schema fields.
+### Decisions not to re-derive
 
-Slice 1 shipped `docs/08 §2`'s runtime, both dictionaries, the `§3` key guard,
-Z6's language toggle, and ~145 literals migrated. It also changed
-`visualizer`'s default to `'off'` **with a `schema` 1 → 2 migration**, because
-changing a default reaches nobody who has used the app before — `load()` lets
-the stored row win and `patch()` writes the whole object. That reasoning is in
-`docs/02 §3.2` and applies to every default this suite ever changes.
+**Data and settings**
 
-Slice 2 shipped the ⚙ panel (**7 of `03 §6`'s 9 groups**), Focus mode, and
-`F H S ]`. Three rules from it that are not taste:
-
-- **A group ships with its feature, never before it.** Display and Visualizer
-  are not rendered at all; nor is crossfade or the loop-style selector inside
-  Audio. A disabled placeholder is `TtSingleRail`'s inert-button defect with
-  better manners (`docs/03 §6`).
-- **The ⚙ panel is a left side sheet with no backdrop and no `aria-modal`.** A
-  full-bleed backdrop is exactly what `docs/03 §2` forbids over the YouTube
-  player, so the page behind genuinely stays live and the ARIA must not lie.
-- **`--tt-yt-reserve` is the one mechanism for "no overlay covers the player".**
-  Published on `.tt-main`; every fixed layer insets its right edge by it.
-
-Slice 4 shipped the visualizer (`05 §6`), the beat-reactive tally (`03 §1`) and
-`03 §8`'s five spoken milestones. Two rules from it:
-
-- **The beat is published BEFORE the style is consulted.** `05 §6`'s "even
-  Visualizer: off keeps one live beat element" is why `TtVisualizer` still
-  mounts at `off` and still reads the analyser. Publishing from inside the draw
-  path would make `off` silently kill the tally, so the E2E asserts the pulse
-  **at the `off` setting**.
-- **Adaptive degrade measures this component's own work**, never the gap between
-  frames — a page at 30 fps for unrelated reasons would otherwise degrade the
-  visualizer forever over someone else's cost.
-
-⚠️ **And the signature defect recurred, in the milestones.** The pure rule was
-right and unit-tested at every boundary; the shell passed it the **display**
-value as the crossing baseline, which is initialised to 90 000 for the idle
-preview — so a 12-second run announced *"one minute remaining"*. Caught by E2E
-on its first run. No unit test of a pure function can see the arguments its
-caller chooses.
-
-Slice 3 shipped the Z1 stack (`03 §2`) and the Display group — nine fields, the
-largest block of the fourteen. Three pure engines carry the decisions:
-`tt-gradient.ts`, `tt-contrast.ts`, `tt-dominant-hue.ts`. Four rules from it:
-
-- **`scrimAuto` is solved arithmetic**, not a slider: `scrimFor()` closes the
-  form on 4.5:1, returns the user's floor when the background is already dark
-  (`02 §3.1`'s "never lowers it"), and **reports the 0.60 cap** rather than
-  exceeding the documented range.
-- **Auto-theme is a `hue-rotate`**, never a rebuild of the stops — the presets
-  are dark by design and a unit test asserts they clear 4.5:1 at minimum scrim;
-  rotating hue preserves that, sampling a colour would discard it.
-- **Slideshow pictures are session-only and the panel says so.** The choice
-  persists, the images do not; Z1 composites so the gradient underneath is
-  already painted.
-- **A second `TtUrlLedger` instance** — `05 §3`'s `queueLength + 2` is about the
-  audio graph, and folding backgrounds in would void `09 §5`'s leak canary.
-
-🔴 **Do not build anything derived from the YouTube thumbnail.** `03 §5` used to
-specify hue extraction from it and was corrected in slice 3. S1 measured
-`i.ytimg.com` sending `ACAO: *`, so the canvas is **not** tainted — the technical
-objection is gone and only the unread ToS remains, which makes building it a
-*decision*. YouTube mode gets the generated gradient, per the audit's own
-recommendation. Same ruling covers `06 §6`'s blurred `hqdefault`.
-
-🔴 **Slice 2's measurement found a ToS bug that was already live in v0.5.2:**
-in the `≥ 1 h` countdown regime the YouTube player was pushed **off screen at
-every viewport below 1920 px** — 224 px of 384 at 1280. `8:88:88` is 4.48 em wide
-against `88:88`'s 3.46, no flex item could shrink below min-content, and the
-overflow went off the right edge. Every existing spec used a one-minute
-countdown. Fixed structurally (`flex: none` rails + a `cqw` size cap in a
-container-query column) and guarded by `tests/e2e/yt-visibility.spec.ts`.
-⚠️ That guard's first version probed the player's **centre** and stayed green
-while the digits overlapped its left edge by 79 px — it samples a 5×5 grid now.
-`TtTrackInfo`'s `inset: 0` backdrop was breaking the same rule and is fixed too.
-
-**Spike S1 PASSED** and rewrote `docs/02 §6`, `03 §2`, `06 §3` and `06 §4`. Its
-load-bearing result: **`onError` does not discriminate** — private,
-age-restricted, region-blocked, deleted, malformed and embed-off all report
-**150**, and `onError 100` was never observed on either host. Cause lives in the
-**oEmbed status**, at import.
-
-Decisions from P3/P4 that are not taste and should not be "simplified":
-
-- **Reorder is pointer events, never HTML5 `draggable`** — Playwright cannot
-  synthesise a native drag, so DnD would ship with no E2E coverage at all.
-- **The import progress bar is gated behind a delay**, because P2's "a spinner
-  would flash" was a requirement, not a scheduling note.
-- **Sources do not mix** — a queue is all-local or all-links, decided by the mode
-  (`docs/06 §5`).
-- **A status is only a cause if our own endpoint produced it.** Our Worker always
-  answers `application/json`; anything else — a static 404, a captive portal, a
-  proxy, a Cloudflare challenge — is transient, and the track survives as
-  `pending` rather than being blamed on its owner.
-- **The `docs/03 §2` ToS carve-out is real, not precautionary.** S1 measured a
-  collapsed rail leaving the player `0×0` and Focus leaving it at opacity 0.06,
-  both with audio running. `TtYouTubeRail` renders **no collapse control at
-  all**. ⚠️ `checkVisibility({checkOpacity:true})` returns **true** at 0.06 — it
-  cannot be the guard; assert computed opacity plus the box, as the E2E does.
-- **A cause we cannot attribute to the video is transient.** 5xx, an unparseable
-  200, and any non-JSON response all keep the track as `pending`, and the Worker
-  never caches a transient verdict — a retry that hits the cache is not a retry.
-- **The `pending` re-check runs AFTER `start()` returns, never inside it.**
-  `start()` is synchronous because `docs/05 §1`'s gesture chain is; the re-check
-  is fire-and-forget from the shell and patches the queue as answers land.
-- **Backfill fills blanks only.** oEmbed's title beats the player's, so
+- **Changing a default reaches nobody who has used the app** — `load()` lets the
+  stored row win and `patch()` writes the whole object — so a default change
+  ships with a `schema` migration (`docs/02 §3.2`); `visualizer: 'off'` was
+  1 → 2. A **new** field needs none, and gets its long-term default on day one
+  (`hideScrollbars: false`).
+- **The playback cursor is a track id** (`docs/02 §5.1`). `crypto.randomUUID()`
+  for track ids, not nanoid (`docs/02 §2`).
+- **Backfill fills blanks only** — oEmbed's title beats the player's, so
   `session.patchTrack` never overwrites a value that is already there.
-- **The E2E YouTube seam is `page.route` over `iframe_api`**, not
-  `addInitScript` setting `window.YT` — routing exercises the real `loadApi()`.
-  ⚠️ The oEmbed mock **must** send `content-type: application/json`, or every
-  cause case silently becomes `pending` and passes for the wrong reason.
 
-⚠️ **Firefox CI cannot test audible output** — on the Linux runner
-`AudioContext.resume()` hangs (no audio device), so the four audio-signal E2E
-tests are skipped there and Chromium alone covers them (`docs/13 §3`). Real
-Firefox audio is a manual check.
+**Audio and time**
 
-🔴 **S2 failed, and its documented remedy failed too** (`docs/04 §2`). Hidden +
-silent: `done` fired 2 m 57 s late. Control run with the keep-alive oscillator
-**ON**: still **52.4 s late**, 105× the ±500 ms bound, again fired by the
-visibility latch rather than the worker. Audibility does not protect the timer,
-and the stall is in main-thread message processing — so no worker-side code
-routes around it.
+- **S2 failed, and so did its remedy** (`docs/04 §2`): hidden + silent, `done`
+  fired 2 m 57 s late; with the keep-alive oscillator ON, still 52.4 s late —
+  the stall is main-thread message processing. **Do not build a keep-alive
+  source.** The promise is re-scoped: accurate while visible, best-effort while
+  hidden, and the **late Finished screen** (`overshootMs > 2 s`) states when
+  zero was actually reached. Keep the visibility/focus latch — it is the only
+  reason a hidden countdown finishes at all.
+- **Crossfade is deferred** until S4b passes: ship `singleLoopStyle: 'hard'`; a
+  stored `'crossfade'` falls back with **TT-SYS-205**.
+- **The chime is synthesised** with `OscillatorNode`s — no `public/audio/`.
+- **The master stage is two nodes**, `userGain` then `fadeGain` (`docs/05 §1`).
+  One shared node throws `NotSupportedError` when the volume changes mid-fade.
+- **The beat is published BEFORE the style is consulted**, so `Visualizer: off`
+  keeps the tally pulsing (`05 §6`); the E2E asserts the pulse at `off`.
+- **Adaptive degrade measures the visualizer's own work**, never the gap
+  between frames.
+- **The timer worker is created eagerly** (the driver's constructor), and a
+  worker error falls back to a main-thread interval with **TT-SYS-207** — a tab
+  left open across a deploy used to 404 its worker chunk and never reach
+  `done`.
 
-**Do not build a keep-alive source into the P2 audio engine.** It was tried and
-withdrawn.
+**YouTube**
 
-✅ **Decided 2026-07-21 — the promise is re-scoped** (`docs/04 §2` option 3):
+- **S1: `onError` does not discriminate** — private, age-restricted,
+  region-blocked, deleted, malformed and embed-off all report **150**. The
+  cause lives in the **oEmbed status**, at import.
+- **A status is only a cause if our own endpoint produced it.** The Worker
+  always answers `application/json`; anything else — a static 404, a captive
+  portal, a challenge — is transient, the track stays `pending`, and the Worker
+  never caches a transient verdict. Both fetches time out (client 10 s, Worker
+  8 s) into that same transient branch. The route sends **no CORS headers**: it
+  is called same-origin, and `ACAO: *` only made it a free proxy for others.
+- **The `pending` re-check runs AFTER `start()` returns**, never inside it —
+  `start()` is synchronous because the gesture chain is.
+- **Paused means silent.** ⏭/⏮/jump while paused **cue** rather than load
+  (`cueVideoById`), and the autoplay intent survives the player becoming ready.
+- **Sources do not mix** — a queue is all-local or all-links (`docs/06 §5`).
+- **The ToS carve-out is real** (`docs/03 §2`): S1 measured a collapsed rail
+  leaving the player `0×0` and Focus leaving it at opacity 0.06, audio running.
+  `TtYouTubeRail` renders **no collapse control**. ⚠️
+  `checkVisibility({checkOpacity:true})` returns **true** at 0.06 — assert
+  computed opacity plus the box, as the E2E does.
+- **`--tt-yt-reserve` is the one mechanism for "no overlay covers the player"**,
+  published on `.tt-main`; **every** fixed layer insets its right edge by it —
+  since v1.1 the bottom bar and the debug panel too. The context menu has no
+  backdrop for the same reason: a capture-phase listener closes it instead.
+- **The countdown cap `22.2cqw` is a ToS floor** (`docs/03 §4`): in the ≥ 1 h
+  regime the player was once pushed off screen below 1920 px. The rails are
+  `flex: none`; `tests/e2e/yt-visibility.spec.ts` samples a 5×5 grid, never the
+  centre. The v1.1 display window behind the digits is a pseudo-element bleeding
+  0.08em — the arithmetic that keeps it off the player is in `03 §4`.
+- 🔴 **Nothing derived from the YouTube thumbnail** — no hue, no blurred
+  background. S1 showed the canvas is not tainted, so the only objection left is
+  the unread ToS, which makes building it a *decision* nobody has taken.
+- **The E2E YouTube seam is `page.route` over `iframe_api`**, not a stubbed
+  `window.YT`. ⚠️ The oEmbed mock **must** send `content-type: application/json`
+  or every cause case silently becomes `pending` and passes for the wrong reason.
 
-> The countdown is accurate while the tab is visible. While backgrounded it is
-> best-effort: elapsed time is always computed correctly, but the browser may not
-> let the app react until you return.
+**UI**
 
-P2 therefore ships a **late variant of the Finished screen**: when
-`overshootMs > LATE_THRESHOLD_MS` (2 s) it states when zero was actually reached
-and how long ago, instead of implying "now" (`docs/03 §3.5`). The End Behavior
-still fires; only the wording changes. Keep the visibility/focus latch — it is
-the only reason a hidden countdown finishes at all, and derived time makes the
-value on return exact.
+- **The "Rack Unit" tokens live in `global.css` `@theme`, and their JS mirror in
+  `src/lib/tt-palette.ts`** — the scrim maths, the visualizer fallback and the
+  gradient presets read numbers; `tt-palette.test.ts` fails if the two disagree.
+- **Primitives are in `@layer components`, and Svelte's scoped CSS is unlayered**
+  — it beats them. A component adopting `.tt-key`/`.tt-seg`/`.tt-switch` must
+  drop its own competing rules for that element.
+- **A settings group ships with its feature, never before it** — no disabled
+  placeholders (`docs/03 §6`). Crossfade and the loop-style selector are still
+  absent from Audio.
+- **The ⚙ panel is a left side sheet with no backdrop and no `aria-modal`** — a
+  full-bleed backdrop is exactly what `03 §2` forbids over the player.
+- **`scrimAuto` is solved arithmetic** that reports its 0.60 cap rather than
+  exceeding it; **auto-theme is a `hue-rotate`**, never a rebuilt gradient.
+- **Slideshow pictures are session-only**, and the panel says so; backgrounds
+  use a second `TtUrlLedger` so `09 §5`'s leak canary stays meaningful.
+- **Reorder is pointer events, never HTML5 `draggable`** — Playwright cannot
+  synthesise a native drag. **The import progress bar is delay-gated**, because
+  "a spinner would flash" was a requirement.
+- **Fonts are `@fontsource` CSS imports, which knip cannot see** — all three
+  families sit in `ignoreDependencies` and in `make-notices.ts` `CSS_ONLY`.
+  Removing them restores the silent `system-ui` fallback.
 
-Resolved: TypeScript pinned `~5.9` — TS 7 crashes svelte-check (`docs/11 §4`).
-DSEG7 Classic tag confirmed **v0.46** stable (`docs/11 §2`). Island mount
-mechanism measured — hand-mount wins (`docs/01 §3`).
+**Static pages and legal**
 
-Open items, in the order they block things:
+- **Static key parity is a COMPILE error**: `vi.ts` is annotated against
+  `typeof en`, and `en.ts` is deliberately not `as const`.
+- **hreflang lives in the page, asserted as reciprocity**; `@astrojs/sitemap`'s
+  i18n mode is unused because VI has no path prefix.
+- **A material legal change bumps `TT_LEGAL_VERSION`** in the same PR, and
+  legal changes are batched — every bump re-prompts every user. 1.1 carried the
+  analytics disclosure, the 7-day log retention and the role addresses at once.
+- **Contacts are role addresses on `poli0981.dev`**: privacy@, legal@,
+  copyright@, security@, press@, collab@. `games@`, `dmca@`, `takedown@`,
+  `code@` and `sponsor@` are deliberately unused — there is no hosted user
+  content to take down.
+- **The perf budget is P7's measurement**, fixed when the surface was final.
 
-1. **P6 — landing + legal, two slices. Slice A is built; slice B is next.**
-   Slice B = the four `/legal/*` routes in both languages, the VI translations
-   under `legal/vi/`, and re-pointing `TT_LEGAL_LINKS` from GitHub blob URLs to
-   the local routes (with `/en/legal/*` for EN users).
+**Testing**
 
-   From slice A, do not re-derive: **static key parity is a COMPILE error**
-   (`vi.ts` is annotated against `typeof en`; `en.ts` is deliberately not
-   `as const`, which would forbid translating) · **hreflang lives in the page,
-   asserted as reciprocity**, and `@astrojs/sitemap`'s i18n mode is unused
-   because VI has no path prefix · **the fonts are finally installed** — they
-   were named in `03 §1`/`11 §2` for four phases while nothing shipped them.
+- **E2E specs import `test` from `tests/e2e/_fixtures.ts`**, never from
+  `@playwright/test` (ESLint enforces it): its auto fixture stubs the analytics
+  beacon, so CI never pollutes the real page-view numbers.
+- **Firefox CI cannot test audible output** — `AudioContext.resume()` hangs on
+  the runner, which has no audio device — so `skipWithoutAudio()` skips the
+  audio-signal specs there. Everywhere else it checks the **capability**
+  (`AudioContext` present), never a browser name: P7 found a skip that named
+  WebKit for a reason that was not happening. Real Firefox audio is a manual
+  check.
+- **Build before test**: two unit suites read `dist/`, and under `CI` a missing
+  `dist/` is a failure, not a skip.
 
-   ⚠️ **knip cannot see CSS imports**, so both `@fontsource` packages sit in
-   `ignoreDependencies` beside `tailwindcss`. Removing them restores the silent
-   `system-ui` fallback.
+Resolved and pinned: TypeScript `~5.9` (TS 7 crashes svelte-check, `docs/11 §4`)
+· DSEG7 Classic **v0.46** (`docs/11 §2`) · island mount by hand (`docs/01 §3`).
 
-   Two decisions from slice 4 worth not re-deriving: **the perf budget is P7's**
-   (settled 2026-07-24 — `13 §5` was right, `16`'s table was wrong; a number
-   fixed two phases before the surface is final is a number that gets
-   re-measured) · **the a11y milestones are written** and their rule is in
-   `03 §8`, including the three cases the one-line spec did not state.
+### Open items, in the order they block things
 
-   ✅ **`tests/manual/p5-live-checklist.md` was run on 2026-07-23 and every line
-   passed first time**, including the `≥ 1 h` geometry block and a real Firefox
-   pass. It corrected its own rule: the requirement is a real **deployment**, not
-   specifically a TAG — `astro dev`/`astro preview` are excluded because they do
-   not run the Worker, but the **per-PR Cloudflare build does**, so the checklist
-   runs *before* the merge from now on. A failure there costs a force-push; the
-   same failure after a tag costs a patch release, which is what v0.5.1 and
-   v0.5.2 were. Only a short production re-check stays tag-scoped.
+1. **Spike S4b** is the only open spike, and its harness must be fixed first: the
+   overlap metric reads back the `gain.value` it scheduled itself, so it cannot
+   fail (`docs/15 §S4`). Measure the overlap from the audio (an Analyser or an
+   `OfflineAudioContext` render), then run the 0/1/2/5 s sweep — that unblocks
+   the crossfade loop style and inter-track crossfade.
+2. **Post-1.1 directions** are in `docs/16`'s backlog section.
+3. `docs/AUDIT-BACKLOG.md` — see its header for the open count; no release
+   blocker remains.
 
-   Settled decisions, not to be re-litigated: **crossfade deferred** (ship
-   `singleLoopStyle: 'hard'`; a stored `'crossfade'` falls back with
-   **TT-SYS-205**, which is a real log entry since P3 and was a doc-only promise
-   before) · **the chime is synthesised with `OscillatorNode`s** — no
-   `public/audio/`, no asset, closes the 🟡 audit finding (`docs/05 §7`) ·
-   **`crypto.randomUUID()` for track ids**, not nanoid (`docs/02 §2`) ·
-   **hardcoded VI** with keys filed in `docs/08 §3.1` · **the playback cursor is
-   a track id** (`docs/02 §5.1`).
-
-   The master stage is now **two** nodes — `userGain` then `fadeGain`
-   (`docs/05 §1`). One shared `masterGain` throws `NotSupportedError` when the
-   user changes volume during the end fade; do not merge them back.
-2. **Cloudflare/GitHub dashboard** — one item left, zone-side and not fixable
-   from code: disable **CodeQL Default setup**, or `codeql.yml` stays
-   `startup_failure` (confirmed still failing on `main` at v0.2.0).
-   ~~Web Analytics auto-injection~~ and ~~HSTS~~ are **done** — both re-measured
-   against the live site on 2026-07-22: no beacon in the served HTML, and
-   `Strict-Transport-Security: max-age=15552000; includeSubDomains; preload`
-   (`docs/10 §11`).
-3. **Spikes still open: S4b only.** Overlap timing ±150 ms and the 0/1/2/5 s
-   sweep — and note the harness cannot produce a valid number until it is fixed
-   (its overlap metric reads back its own scheduled `gain.value`, so it cannot
-   fail; `docs/15 §S4`). S1 has passed; its every id is filled in
-   `tests/manual/yt-matrix.md`, and the region-blocked row carries into the P4
-   live checklist as the one item needing a Vietnamese connection.
-4. `docs/AUDIT-BACKLOG.md` — ~21 open findings, **1 release blocker** (generated
-   third-party notices, `legal/THIRD-PARTY-NOTICES.md`). P3 closed the 🟠
-   queue-mutation finding by writing `docs/02 §5.1`; S1 refuted the `s.ytimg.com`
-   CSP prediction. ⚠️ Still open and **P4-relevant**: the modified use of the
-   YouTube thumbnail (`docs/06 §6`) — S1 answered only its CORS half, the terms
-   were never read, so **do not build the blurred-thumbnail background**.
+**CodeQL runs as GitHub default setup — keep it enabled.** The old instruction to
+disable it applied only while the advanced `codeql.yml` existed; that file is
+gone (`docs/14 §1`).
 
 `test/` is a **local-only, git-ignored** ~651 MB audio corpus for spikes S3/S4.
 Never commit it, never reference it from shipped code, never assume it exists in
