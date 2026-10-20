@@ -22,7 +22,7 @@ import type { StaticDict } from '../../i18n/static/en';
 
 interface Props {
   t: StaticDict;
-  lang: 'vi' | 'en';
+  lang: 'vi' | 'en' | 'ja';
 }
 
 const { t, lang } = Astro.props;
@@ -53,7 +53,7 @@ const { t, lang } = Astro.props;
 
       <h1>{t.notFound.heading}</h1>
       <p class="tt-body">{t.notFound.body}</p>
-      <a class="tt-key tt-key-primary tt-back" href={lang === 'vi' ? '/' : '/en/'}>
+      <a class="tt-key tt-key-primary tt-back" href={{ vi: '/', en: '/en/', ja: '/ja/' }[lang]}>
         {t.common.backHome}
       </a>
     </div>

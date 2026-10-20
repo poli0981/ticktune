@@ -1,0 +1,357 @@
+{
+  "gate": {
+    "intro": "ご利用の前に、以下をお読みのうえ同意してください：",
+    "point": {
+      "files": "あなたの音楽がこの端末の外に出ることはありません。",
+      "filesRest": "ファイルはこのセッションの間だけブラウザーのメモリに保持され、どのサーバーにもアップロードされません。",
+      "analytics": "アクセスは匿名で集計されます。",
+      "analyticsRest": "Cloudflare Web Analytics がページビューと読み込み速度を計測します。Cookie は使わず、ファイルについては何も記録しません。",
+      "responsibility": "開くコンテンツの責任はご自身にあります。",
+      "responsibilityRest": "TickTune はそのコンテンツを審査も保存もしません。",
+      "youtube": "YouTube モードは YouTube の公式プレーヤーを使います",
+      "youtubeRest": "。利用すると、YouTube と Google の規約にも同意したことになります。",
+      "asIs": "本ソフトウェアは「現状のまま」提供され、いかなる保証もありません。"
+    },
+    "full": "全文（英語）：",
+    "link": {
+      "eula": "利用規約",
+      "disclaimer": "免責事項",
+      "privacy": "プライバシー",
+      "thirdParty": "サードパーティ"
+    },
+    "agree": "上記の規約を読み、同意します。",
+    "accept": "同意して続ける",
+    "stored": "この端末にのみ保存されます"
+  },
+  "setup": {
+    "mode": {
+      "label": "モード",
+      "single": "シングル",
+      "playlist": "プレイリスト",
+      "youtube": "YouTube"
+    },
+    "offline": {
+      "title": "ネットワークに接続されていません。",
+      "youtube": "YouTube モードの再生には接続が必要です。",
+      "local": "ローカルの音楽は通常どおり再生できます。",
+      "retry": "再試行"
+    },
+    "drop": {
+      "hint": "MP3 · M4A · AAC · FLAC · WAV · OGG · Opus · WebM — 最長 10:02",
+      "single": "音声ファイルをここにドロップ、またはクリックして選択",
+      "multiple": "音声ファイルやフォルダーをここにドロップ、またはクリックして選択",
+      "busy": "読み込み中…"
+    },
+    "staged": {
+      "remove": "削除"
+    },
+    "progress": {
+      "label": "ファイルを読み込み中",
+      "text": "読み込み中 {{done}}/{{total}}"
+    },
+    "countdown": {
+      "hours": "時間",
+      "minutes": "分",
+      "seconds": "秒",
+      "match": "曲の長さに合わせる",
+      "matchLocked": "キュー内のすべての曲の長さが分かっている必要があります",
+      "preset": "{{minutes}} 分"
+    },
+    "start": "開始",
+    "hint": {
+      "single": "音声ファイルを 1 つ選んでください。",
+      "playlist": "音声ファイルを 1 つ以上選んでください。",
+      "youtubeOffline": "YouTube の動画を再生するにはネットワーク接続が必要です。",
+      "range": "カウントダウンは 1 秒から 24 時間の範囲で設定してください。",
+      "singleOnly": "シングルモードはファイル 1 つだけです。減らすか、プレイリストに戻してください。",
+      "unplayable": "選択したファイルは再生できません。"
+    },
+    "panel": {
+      "source": "ソース",
+      "timer": "タイマー"
+    }
+  },
+  "yt": {
+    "setup": {
+      "paste": {
+        "label": "YouTube のリンクを貼り付け — 1 行に 1 つ",
+        "submit": "キューに追加"
+      }
+    },
+    "err": {
+      "skip": "今すぐスキップ",
+      "skipIn": "{{seconds}} 秒後にスキップ",
+      "ambiguous": " · 原因不明",
+      "blocked": {
+        "title": "ここでは再生できません",
+        "cause": "所有者が埋め込みを無効にしているか、年齢制限・地域制限のある動画です。"
+      },
+      "gone": {
+        "title": "この動画はありません",
+        "cause": "動画が削除されたか、非公開になりました。"
+      },
+      "invalid": {
+        "title": "無効なリンク",
+        "cause": "YouTube はこのパラメーターを受け付けません。"
+      },
+      "player": {
+        "title": "プレーヤーのエラー",
+        "cause": "HTML5 プレーヤーがエラーを報告しました。"
+      }
+    }
+  },
+  "player": {
+    "transport": {
+      "prev": "前の曲",
+      "play": "再生",
+      "pause": "一時停止",
+      "next": "次の曲",
+      "stop": "停止",
+      "mute": "ミュート",
+      "volume": "音量"
+    },
+    "loop": {
+      "label": "ループ方式",
+      "count": "ループ ×{{count}}",
+      "hard": "ハードカット",
+      "crossfade": "クロスフェード",
+      "locked": "スパイク S4b の計測待ちです",
+      "fallback": "クロスフェードは保存されていますが、このビルドにはありません — ハードカットで再生します。",
+      "hint": "右クリックで曲の情報"
+    },
+    "focus": {
+      "hint": "H キーでフォーカスモードを終了",
+      "railLocked": "プレーヤーは常に表示が必要です — YouTube の規約"
+    },
+    "milestone": {
+      "min10": "残り 10 分",
+      "min5": "残り 5 分",
+      "min1": "残り 1 分",
+      "sec10": "残り 10 秒",
+      "zero": "時間です"
+    },
+    "queue": {
+      "label": "再生",
+      "shuffle": "シャッフル",
+      "repeat": "リピート",
+      "empty": "まだ曲がありません。",
+      "ended": "プレイリストが終了しました",
+      "totals": "曲数: {{count}}",
+      "drag": "{{title}} をドラッグして並べ替え",
+      "remove": "{{title}} を削除",
+      "moved": "{{title}} — {{total}} 曲中 {{to}} 番目"
+    },
+    "menu": {
+      "label": "曲のオプション",
+      "info": "曲の情報",
+      "up": "上へ移動",
+      "down": "下へ移動",
+      "remove": "キューから削除"
+    },
+    "trackinfo": {
+      "open": "曲の情報",
+      "close": "閉じる",
+      "title": "タイトル",
+      "artist": "アーティスト",
+      "album": "アルバム",
+      "year": "年",
+      "genre": "ジャンル",
+      "trackNo": "トラック番号",
+      "duration": "長さ",
+      "codec": "コーデック",
+      "bitrate": "ビットレート",
+      "sampleRate": "サンプルレート",
+      "channels": "チャンネル数",
+      "fileSize": "サイズ",
+      "fileName": "ファイル名",
+      "channel": "チャンネル",
+      "videoId": "動画 ID",
+      "url": "URL",
+      "thumbnail": "サムネイル",
+      "status": "状態",
+      "source": "ソース",
+      "sourceLocal": "ローカルファイル",
+      "sourceYoutube": "YouTube",
+      "addedAt": "追加日時",
+      "coverArt": "カバーアート",
+      "coverArtYes": "あり"
+    },
+    "badge": {
+      "single": "シングル",
+      "playlist": "プレイリスト",
+      "youtube": "YOUTUBE"
+    }
+  },
+  "toast": {
+    "summary": "追加 {{added}} · スキップ {{skipped}}",
+    "dismiss": "閉じる",
+    "skipped": "スキップ",
+    "import": {
+      "TT-IMP-001": "対応していない形式",
+      "TT-IMP-002": "上限の 10:02 を超えています",
+      "TT-IMP-003": "合計 91:00 を超えています",
+      "TT-IMP-004": "曲数の上限を超えています",
+      "TT-IMP-005": "追加済みのファイルと重複しています",
+      "TT-IMP-006": "タグを読み取れません — ファイル名を使います",
+      "TT-IMP-007": "タグの文字コードが壊れています — ファイル名を使います",
+      "TT-IMP-008": "ドロップしたフォルダーの項目が多すぎます",
+      "TT-YT-001": "確認できませんでした — 開始時に再試行します",
+      "TT-YT-002": "YouTube の動画リンクではありません",
+      "TT-YT-003": "50 リンクの上限を超えています",
+      "TT-YT-004": "YouTube に拒否されました（理由不明）",
+      "TT-YT-100": "動画が削除されたか非公開です",
+      "TT-YT-101": "所有者が埋め込みを許可していません"
+    }
+  },
+  "finished": {
+    "title": "タイムアップ",
+    "late": {
+      "at": "{{time}} 時点",
+      "ago": "{{duration}} 前",
+      "why": "このタブがバックグラウンドにある間はブラウザーが一時停止していたため、戻ってきた時点でしか反応できませんでした。計った時間そのものは正確です。"
+    },
+    "unit": {
+      "hours": "{{count}} 時間",
+      "minutes": "{{count}} 分",
+      "seconds": "{{count}} 秒"
+    },
+    "action": {
+      "restart": "もう一度",
+      "back": "設定に戻る"
+    }
+  },
+  "header": {
+    "settings": "設定",
+    "fullscreen": "全画面"
+  },
+  "settings": {
+    "title": "設定",
+    "close": "設定を閉じる",
+    "jump": "グループへ移動",
+    "group": {
+      "general": "一般",
+      "display": "表示",
+      "visualizer": "ビジュアライザー",
+      "countdown": "カウントダウン",
+      "audio": "オーディオ",
+      "playback": "再生",
+      "hotkeys": "キーボードショートカット",
+      "diagnostics": "診断",
+      "about": "このアプリについて"
+    },
+    "general": {
+      "lang": "言語",
+      "legal": "法的文書（英語）",
+      "reset": "アプリをリセット",
+      "resetHint": "この端末に保存されたすべての設定を削除します。",
+      "resetConfirm": "保存された設定をすべて削除しますか？ 規約への同意も一緒に保存されているため、もう一度同意を求められます。",
+      "resetYes": "すべて削除",
+      "resetNo": "キャンセル"
+    },
+    "display": {
+      "background": "背景",
+      "bgSolid": "単色",
+      "bgGradient": "グラデーション",
+      "bgImage": "画像",
+      "bgSlideshow": "スライドショー",
+      "bgCover": "カバーアート",
+      "preset": "プリセット",
+      "preset0": "スタジオ",
+      "preset1": "シグナル",
+      "preset2": "残り火",
+      "preset3": "クリムゾン",
+      "preset4": "バイオレット",
+      "preset5": "フォレスト",
+      "custom": "カスタムカラー",
+      "customFrom": "グラデーションの開始色",
+      "customTo": "グラデーションの終了色",
+      "customClear": "プリセットに戻す",
+      "pictures": "画像",
+      "picturesEmpty": "画像が選ばれていません。画像はこの端末の外に出ず、保存もされないため、再読み込み後は選び直してください。それまではグラデーションが表示されます。",
+      "picturesCount": "{{count}} 枚を選択中。このセッションの間だけメモリに保持されます。",
+      "picturesClear": "画像を削除",
+      "interval": "切り替え間隔",
+      "intervalValue": "{{seconds}} 秒",
+      "transition": "トランジション",
+      "transitionFade": "フェード",
+      "transitionKenBurns": "ケン・バーンズ",
+      "scrim": "減光",
+      "scrimAuto": "自動で減光を強める",
+      "scrimAutoHint": "背景が明るすぎて数字が読みにくいときに減光を足します。減らすことはありません。",
+      "scanlines": "走査線",
+      "autoTheme": "カバーアートから色を付ける",
+      "autoThemeHint": "ローカルファイルのみ。YouTube モードは通常のグラデーションのままです。",
+      "hideScrollbars": "スクロールバーを隠す",
+      "hideScrollbarsHint": "ホイールやキーボードでのスクロールはそのまま使えます。アプリ内だけに適用され、トップページと法的文書のページは細いバーのままです。"
+    },
+    "countdown": {
+      "glow": "グロー",
+      "size": "数字のサイズ",
+      "sizeS": "小",
+      "sizeM": "中",
+      "sizeL": "大",
+      "end": "ゼロになったら",
+      "endFade": "フェードアウト",
+      "endFadeValue": "{{seconds}} 秒",
+      "endChime": "チャイム",
+      "endFlash": "画面フラッシュ",
+      "endAction": "その後",
+      "endActionStay": "停止",
+      "endActionRestart": "もう一度実行",
+      "endActionLoop": "止めるまで繰り返す"
+    },
+    "visualizer": {
+      "style": "スタイル",
+      "off": "オフ",
+      "bars": "バー",
+      "wave": "波形",
+      "ring": "リング",
+      "sensitivity": "感度",
+      "youtubeHint": "YouTube モードでは使えません — 動画の音声は YouTube のプレーヤーのもので、計測できません。",
+      "tallyHint": "ビジュアライザーがオフでも、ロゴ横のランプはビートに合わせて点滅します。"
+    },
+    "audio": {
+      "volume": "音量",
+      "mute": "ミュート",
+      "deferred": "クロスフェードとシングル曲のループ方式はまだこのビルドにありません — スパイク S4b を待っています。"
+    },
+    "playback": {
+      "shuffle": "シャッフル",
+      "repeat": "プレイリストをリピート",
+      "duplicates": "重複を許可",
+      "duplicatesHint": "次の読み込みから適用されます。追加済みの曲には影響しません。"
+    },
+    "hotkeys": {
+      "space": "再生 / 一時停止",
+      "arrows": "前の曲 / 次の曲",
+      "updown": "音量 ±5",
+      "m": "ミュート",
+      "f": "全画面",
+      "h": "フォーカスモード",
+      "s": "設定",
+      "bracket": "右パネルの表示 / 非表示",
+      "esc": "ダイアログやパネルを閉じる",
+      "altUpDown": "選択した曲を移動",
+      "note": "入力欄に入力している間、ショートカットは無効です。"
+    },
+    "diagnostics": {
+      "level": "レベル",
+      "all": "すべて",
+      "info": "情報",
+      "warn": "警告",
+      "error": "エラー",
+      "empty": "まだ記録はありません。",
+      "copy": "診断情報をコピー",
+      "copied": "クリップボードにコピーしました。",
+      "copyFailed": "クリップボードを使えませんでした。下のテキストを選択して手動でコピーしてください。",
+      "clear": "ログを消去",
+      "privacy": "ファイル名や曲名は含まれません — バグ報告にそのまま貼り付けられます。"
+    },
+    "about": {
+      "version": "バージョン",
+      "license": "ライセンス",
+      "repo": "ソースコード",
+      "thirdParty": "サードパーティの通知"
+    }
+  }
+}

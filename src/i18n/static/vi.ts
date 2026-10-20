@@ -18,6 +18,7 @@ export const vi: StaticDict = {
     sourceOffer: 'Mã nguồn — GPL-3.0',
     switchTo: 'English',
     switchToLabel: 'Switch to English',
+    langNav: 'Ngôn ngữ',
   },
 
   landing: {

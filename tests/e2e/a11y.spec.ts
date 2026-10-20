@@ -74,6 +74,18 @@ test.describe('axe — docs/13 §6', () => {
     await scan(page);
   });
 
+  test('the Japanese landing is clean (v2.0)', async ({ page }) => {
+    await page.goto('/ja/');
+    await scan(page);
+  });
+
+  test('Setup is clean in Japanese (v2.0)', async ({ page }) => {
+    await gotoApp(page);
+    await page.getByTestId('tt-lang-ja').click();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'ja');
+    await scan(page);
+  });
+
   test('a legal document is clean', async ({ page }) => {
     // The only long-form prose surface, and the one most likely to be read with
     // a screen reader — it is where someone checks what the app does with them.

@@ -28,22 +28,53 @@ import type { StaticDict } from '../../i18n/static/en';
 
 interface Props {
   t: StaticDict;
-  lang: 'vi' | 'en';
+  lang: 'vi' | 'en' | 'ja';
 }
 
 const { t, lang } = Astro.props;
 
-/** docs/08 §1 — `/` is VI and the x-default; `/en/` is the EN mirror. */
+/**
+ * docs/08 §1 — `/` is VI and the x-default; `/en/` is the EN mirror and, since
+ * v2.0, `/ja/` the JA one. Every landing names all three, itself included,
+ * which is the reciprocity search engines check.
+ */
+const HOME = { vi: '/', en: '/en/', ja: '/ja/' } as const;
 const alternates = [
-  { hreflang: 'vi', href: new URL('/', Astro.site).href },
-  { hreflang: 'en', href: new URL('/en/', Astro.site).href },
-  { hreflang: 'x-default', href: new URL('/', Astro.site).href },
+  { hreflang: 'vi', href: new URL(HOME.vi, Astro.site).href },
+  { hreflang: 'en', href: new URL(HOME.en, Astro.site).href },
+  { hreflang: 'ja', href: new URL(HOME.ja, Astro.site).href },
+  { hreflang: 'x-default', href: new URL(HOME.vi, Astro.site).href },
 ];
 
-const otherHref = lang === 'vi' ? '/en/' : '/';
+/** The other two, each named in itself — an endonym needs no translation. */
+const ENDONYM = { vi: 'Tiếng Việt', en: 'English', ja: '日本語' } as const;
+const others = (['vi', 'en', 'ja'] as const).filter((l) => l !== lang);
+
+/**
+ * Structured data (v2.0) — what the page already says, in schema.org's terms.
+ *
+ * A JSON-LD block is a DATA block: the browser never executes it, `script-src`
+ * does not govern it, and scripts/inject-csp-hash.ts skips it when counting the
+ * site's one inline script. `<` is escaped so no string in it can close the tag.
+ */
+const jsonLd = JSON.stringify({
+  '@context': 'https://schema.org',
+  '@type': 'WebApplication',
+  name: 'TickTune',
+  url: new URL(HOME[lang], Astro.site).href,
+  description: t.landing.description,
+  inLanguage: lang,
+  applicationCategory: 'MultimediaApplication',
+  operatingSystem: 'Desktop web browser',
+  browserRequirements: 'Requires JavaScript; desktop browsers only.',
+  isAccessibleForFree: true,
+  offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
+  license: 'https://www.gnu.org/licenses/gpl-3.0.html',
+}).replaceAll('<', '\\u003c');
 ---
 
 <TtBase title={t.landing.title} description={t.landing.description} {lang} {alternates}>
+  <script is:inline type="application/ld+json" set:html={jsonLd} />
   <main class="tt-page">
     <!--
       The language switch is a LINK, not a toggle: these are separate routes
@@ -51,17 +82,14 @@ const otherHref = lang === 'vi' ? '/en/' : '/';
       in-place toggle is a different mechanism for a different surface.
       `hreflang` on the anchor tells assistive tech the target language.
     -->
-    {/* ⚠️ The page's ONLY navigation landmark, holding exactly one link —
-         tests/e2e/landing.spec.ts clicks `getByRole('navigation').getByRole('link')`. */}
-    <nav class="tt-lang" aria-label={t.common.switchToLabel}>
-      <a
-        class="tt-key tt-key-sm"
-        href={otherHref}
-        hreflang={lang === 'vi' ? 'en' : 'vi'}
-        lang={lang === 'vi' ? 'en' : 'vi'}
-      >
-        {t.common.switchTo}
-      </a>
+    {/* ⚠️ The page's ONLY navigation landmark — one link per OTHER language
+         since v2.0 (tests/e2e/landing.spec.ts). */}
+    <nav class="tt-lang" aria-label={t.common.langNav}>
+      {others.map((l) => (
+        <a class="tt-key tt-key-sm" href={HOME[l]} hreflang={l} lang={l}>
+          {ENDONYM[l]}
+        </a>
+      ))}
     </nav>
 
     <TtHero t={t.landing} common={t.common} />

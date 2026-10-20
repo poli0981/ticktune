@@ -4,7 +4,7 @@ import '../styles/global.css';
 interface Props {
   title?: string;
   description?: string;
-  lang?: 'vi' | 'en';
+  lang?: 'vi' | 'en' | 'ja';
   /** Throwaway spike pages set this — they are not product surface. */
   noindex?: boolean;
   /**
@@ -79,7 +79,7 @@ const ogImageUrl = new URL(ogImage, Astro.site);
     <meta property="og:description" content={description} />
     <meta property="og:url" content={canonical} />
     <meta property="og:image" content={ogImageUrl} />
-    <meta property="og:locale" content={lang === 'vi' ? 'vi_VN' : 'en_US'} />
+    <meta property="og:locale" content={{ vi: 'vi_VN', en: 'en_US', ja: 'ja_JP' }[lang]} />
     <meta name="twitter:card" content="summary_large_image" />
 
     {/*
@@ -173,7 +173,8 @@ const ogImageUrl = new URL(ogImage, Astro.site);
           </span>
         </div>
 
-        {/* Bilingual and hardcoded — no JS i18n runs on mobile (docs/07 §4). */}
+        {/* Trilingual and hardcoded — no JS i18n runs on mobile (docs/07 §4). HTML
+            only, so the gate's inline script — and the CSP hash — are untouched. */}
         <p
           lang="vi"
           class="font-display text-lg leading-snug font-semibold text-balance text-tt-text"
@@ -186,6 +187,11 @@ const ogImageUrl = new URL(ogImage, Astro.site);
           Sorry — TickTune isn't available on mobile.
           <br />
           Please use a desktop browser and try again.
+        </p>
+        <p lang="ja" class="text-sm leading-relaxed text-balance text-tt-muted">
+          申し訳ありません — TickTune はモバイル端末に対応していません。
+          <br />
+          パソコンのブラウザーでお試しください。
         </p>
 
         <a

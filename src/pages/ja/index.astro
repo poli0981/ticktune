@@ -1,0 +1,9 @@
+---
+// The Japanese landing — docs/08 §1's `/ja/` mirror (v2.0). Same component as
+// `/` and `/en/`, Japanese dictionary; the three-way hreflang set is built
+// inside TtLanding. Its legal links go to the English texts.
+import TtLanding from '../../components/landing/TtLanding.astro';
+import { ja } from '../../i18n/static/ja';
+---
+
+<TtLanding t={ja} lang="ja" />

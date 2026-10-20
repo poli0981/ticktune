@@ -38,6 +38,8 @@ export const en = {
     /** docs/08 §1: the language switch on the statics is a route, not a toggle. */
     switchTo: 'Tiếng Việt',
     switchToLabel: 'Chuyển sang tiếng Việt',
+    /** v2.0 — the landing's language nav, now two links; each link is an endonym. */
+    langNav: 'Language',
   },
 
   landing: {

@@ -16,7 +16,8 @@
  */
 import type { TtEndAction, TtLoopStyle, TtMode } from '../../lib/tt-domain-types';
 
-export type TtLang = 'vi' | 'en';
+/** v2.0 adds Japanese — app, landing and 404; the legal documents stay EN for it. */
+export type TtLang = 'vi' | 'en' | 'ja';
 
 /*
  * The unions below are intentionally NOT exported yet. They are reachable
@@ -142,7 +143,7 @@ export const TT_DEFAULT_SETTINGS: TtSettings = {
   allowDuplicates: false,
 };
 
-const LANGS: TtLang[] = ['vi', 'en'];
+const LANGS: TtLang[] = ['vi', 'en', 'ja'];
 const MODES: TtMode[] = ['single', 'playlist', 'youtube'];
 const BACKGROUNDS: TtBackground[] = ['solid', 'gradient', 'image', 'slideshow', 'cover'];
 const XFADES: TtSlideXfade[] = ['fade', 'kenburns'];
@@ -260,5 +261,8 @@ export function clampSettings(raw: unknown): TtSettings {
 /** docs/08 §2: persisted choice wins, else `navigator.language`, else EN. */
 export function initialLang(stored: TtLang | null, navigatorLanguage: string | undefined): TtLang {
   if (stored) return stored;
-  return navigatorLanguage?.toLowerCase().startsWith('vi') ? 'vi' : 'en';
+  const nav = navigatorLanguage?.toLowerCase() ?? '';
+  if (nav.startsWith('vi')) return 'vi';
+  if (nav.startsWith('ja')) return 'ja';
+  return 'en';
 }

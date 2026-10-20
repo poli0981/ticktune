@@ -1,0 +1,9 @@
+---
+// The JA 404 mirror (v2.0), like /en/404: reachable and noindex, but NOT the
+// fallback for unknown `/ja/*` paths — Cloudflare serves the single
+// dist/404.html. See TtNotFound.astro.
+import TtNotFound from '../../components/landing/TtNotFound.astro';
+import { ja } from '../../i18n/static/ja';
+---
+
+<TtNotFound t={ja} lang="ja" />
