@@ -50,8 +50,11 @@ vi.mock('../../src/app/engine/youtube/tt-yt-import', async (importOriginal) => (
  */
 const lookup = vi.fn<(videoId: string) => Promise<unknown>>();
 const lookedUp: string[] = [];
+/** docs/06 §3 (v2.0) — the lengths call; `null` is "not now", as on a preview. */
+const lookupDurations = vi.fn<(ids: readonly string[]) => Promise<Map<string, number> | null>>();
 
 vi.mock('../../src/app/engine/youtube/tt-yt-driver', () => ({
+  lookupDurations: (ids: readonly string[]) => lookupDurations(ids),
   browserYtPorts: () => ({
     newId: () => 'generated',
     now: () => 0,
@@ -119,6 +122,8 @@ beforeEach(async () => {
   lastInput = null;
   lastPorts = null;
   lookedUp.length = 0;
+  // resetAllMocks wiped the implementation; "not now" is the honest default.
+  lookupDurations.mockResolvedValue(null);
   scan.pending = null;
   ({ session } = await import('../../src/app/state/session.svelte'));
   ({ settings } = await import('../../src/app/state/settings.svelte'));
@@ -208,6 +213,51 @@ describe('mode switching — docs/03 §3', () => {
     const fresh = (await import('../../src/app/state/session.svelte')).session;
     fresh.adoptMode('youtube');
     expect(fresh.mode).toBe('youtube');
+  });
+});
+
+describe('link lengths — docs/06 §3 (v2.0)', () => {
+  const link = (id: string, videoId: string, over: Partial<TtTrack> = {}) =>
+    track(id, { source: 'youtube', videoId, durationMs: null, ...over });
+
+  it('asks once for the paste and fills what came back, blanks only', async () => {
+    session.setMode('youtube');
+    lookupDurations.mockResolvedValueOnce(new Map([['dQw4w9WgXcQ', 213_000]]));
+    importLinks.mockResolvedValueOnce(
+      result([link('a', 'dQw4w9WgXcQ'), link('b', '9bZkp7q19f0', { durationMs: 99_000 })]),
+    );
+    await session.importLinks('two links');
+    await vi.waitFor(() => expect(session.queue[0]?.durationMs).toBe(213_000));
+
+    // One call, and only for the link without a length.
+    expect(lookupDurations).toHaveBeenCalledTimes(1);
+    expect(lookupDurations).toHaveBeenCalledWith(['dQw4w9WgXcQ']);
+    expect(session.queue[1]?.durationMs).toBe(99_000);
+  });
+
+  it('"not now" leaves the lengths unknown and the import intact', async () => {
+    session.setMode('youtube');
+    lookupDurations.mockResolvedValueOnce(null);
+    importLinks.mockResolvedValueOnce(result([link('a', 'dQw4w9WgXcQ')]));
+    await session.importLinks('one link');
+    await vi.waitFor(() => expect(lookupDurations).toHaveBeenCalledTimes(1));
+
+    expect(session.queue).toHaveLength(1);
+    expect(session.queue[0]?.durationMs).toBeNull();
+    expect(session.matchableMs).toBeNull();
+  });
+
+  it('an answer for a row removed meanwhile is dropped, not resurrected', async () => {
+    session.setMode('youtube');
+    let answer: (m: Map<string, number>) => void = () => {};
+    lookupDurations.mockReturnValueOnce(new Promise((r) => (answer = r)));
+    importLinks.mockResolvedValueOnce(result([link('a', 'dQw4w9WgXcQ')]));
+    await session.importLinks('one link');
+    session.removeTrack('a');
+    answer(new Map([['dQw4w9WgXcQ', 213_000]]));
+    await Promise.resolve();
+
+    expect(session.queue).toEqual([]);
   });
 });
 
