@@ -37,15 +37,75 @@
 
   let menu = $state<HTMLDivElement | null>(null);
   let active = $state(0);
+  /** The item buttons, for roving focus. Index-aligned with `items`. */
+  const buttons: HTMLButtonElement[] = $state([]);
 
   const enabled = $derived(items.filter((i) => !i.disabled));
 
   $effect(() => {
-    // Focus the first item that can actually be chosen. Landing on a disabled
+    // Start on the first item that can actually be chosen. Landing on a disabled
     // "Chuyển lên" at the top of the list would make the menu feel inert.
     const first = items.findIndex((i) => !i.disabled);
     active = first < 0 ? 0 : first;
-    menu?.focus();
+  });
+
+  /*
+   * Real focus on the active item — roving focus, not a highlight class.
+   *
+   * The menu container used to hold focus while the arrows moved a CSS class,
+   * so a screen reader heard "menu" and nothing else: the item a keyboard user
+   * was about to activate was never announced. Moving DOM focus is what makes
+   * `role="menuitem"` mean something.
+   */
+  $effect(() => {
+    buttons[active]?.focus();
+  });
+
+  /*
+   * "Click anywhere else closes the menu" — WITHOUT an element covering the page.
+   *
+   * 🔴 This used to be a full-viewport `position: fixed; inset: 0` backdrop. In
+   * YouTube mode the menu opens from the queue directly under the player, and
+   * that backdrop covered the player's rect for as long as the menu was open —
+   * the exact overlay `docs/03 §2`'s carve-out forbids (the transparent layer
+   * took every click meant for the player's own controls). yt-visibility never
+   * sampled that moment, so nothing noticed.
+   *
+   * A capture-phase listener on the window does the same job with nothing on
+   * screen: an outside pointerdown closes the menu and is swallowed, together
+   * with the click that follows, so a stray click still cannot land on a queue
+   * row underneath (a "×" on another row would otherwise remove a track). A
+   * click INTO the YouTube iframe never reaches this window at all — it moves
+   * focus to the frame, so `blur` closes the menu, and the player keeps the
+   * click, which is what its terms require.
+   */
+  $effect(() => {
+    const outside = (e: Event) => !(menu && e.target instanceof Node && menu.contains(e.target));
+    const swallowClick = (e: Event) => {
+      e.preventDefault();
+      e.stopPropagation();
+    };
+    const onPointerDown = (e: PointerEvent) => {
+      if (!outside(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      window.addEventListener('click', swallowClick, { capture: true, once: true });
+      onclose();
+    };
+    const onContextMenu = (e: MouseEvent) => {
+      if (!outside(e)) return;
+      e.preventDefault();
+      e.stopPropagation();
+      onclose();
+    };
+    window.addEventListener('pointerdown', onPointerDown, true);
+    window.addEventListener('contextmenu', onContextMenu, true);
+    window.addEventListener('blur', onclose);
+    return () => {
+      window.removeEventListener('pointerdown', onPointerDown, true);
+      window.removeEventListener('contextmenu', onContextMenu, true);
+      window.removeEventListener('blur', onclose);
+    };
   });
 
   /**
@@ -95,22 +155,6 @@
   }
 </script>
 
-<!--
-  A full-viewport backdrop rather than a document-level listener: it makes
-  "click anywhere else closes the menu" a rendering fact instead of a listener
-  that has to be added and removed correctly, and it stops a stray click landing
-  on a queue row underneath.
--->
-<div
-  class="tt-backdrop"
-  role="presentation"
-  onpointerdown={onclose}
-  oncontextmenu={(e) => {
-    e.preventDefault();
-    onclose();
-  }}
-></div>
-
 <div
   bind:this={menu}
   class="tt-menu"
@@ -123,7 +167,9 @@
 >
   {#each items as item, i (item.id)}
     <button
+      bind:this={buttons[i]}
       role="menuitem"
+      tabindex={i === active ? 0 : -1}
       class="tt-item"
       class:tt-active={i === active}
       class:tt-danger={item.danger}
@@ -141,11 +187,6 @@
 </div>
 
 <style>
-  .tt-backdrop {
-    position: fixed;
-    inset: 0;
-    z-index: 30;
-  }
   .tt-menu {
     position: fixed;
     z-index: 31;

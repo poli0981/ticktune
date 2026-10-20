@@ -125,6 +125,12 @@
   .tt-gate-card {
     width: 100%;
     max-width: 34rem;
+    /* Scrolls itself: `main` is inert behind the gate, so nothing else can. On
+       a short window or at 200% zoom the Accept button used to sit below the
+       viewport with no way to reach it — consent made impossible by layout. */
+    max-height: calc(100dvh - 3rem);
+    overflow-y: auto;
+    overscroll-behavior: contain;
     padding: 1.75rem;
     background: var(--color-tt-surface);
     border: 1px solid var(--color-tt-line);

@@ -66,11 +66,15 @@
       el.value = '';
     }}
   />
+  <!-- Translated since v1.1: these were Vietnamese literals that stayed
+       Vietnamese in the English UI, and said "one file" in Playlist mode too. -->
   <span class="tt-drop-text">
     {#if busy}
-      Đang nhập…
+      {i18n.t('setup.drop.busy')}
+    {:else if multiple}
+      {i18n.t('setup.drop.multiple')}
     {:else}
-      Kéo thả một tệp nhạc vào đây, hoặc bấm để chọn
+      {i18n.t('setup.drop.single')}
     {/if}
   </span>
   <span class="tt-drop-hint">{i18n.t('setup.drop.hint')}</span>

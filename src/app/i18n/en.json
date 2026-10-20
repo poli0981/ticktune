@@ -35,7 +35,10 @@
       "retry": "Try again"
     },
     "drop": {
-      "hint": "MP3 · M4A · AAC · FLAC · WAV · OGG · Opus · WebM — up to 10:02"
+      "hint": "MP3 · M4A · AAC · FLAC · WAV · OGG · Opus · WebM — up to 10:02",
+      "single": "Drop an audio file here, or click to choose",
+      "multiple": "Drop audio files or folders here, or click to choose",
+      "busy": "Importing…"
     },
     "staged": {
       "remove": "Remove"
@@ -49,7 +52,8 @@
       "minutes": "minutes",
       "seconds": "seconds",
       "match": "Match length",
-      "matchLocked": "Every track in the queue needs a known duration"
+      "matchLocked": "Every track in the queue needs a known duration",
+      "preset": "{{minutes}} minutes"
     },
     "start": "Start",
     "hint": {
@@ -197,7 +201,8 @@
     "title": "TIME UP",
     "late": {
       "at": "at {{time}}",
-      "ago": "{{duration}} ago"
+      "ago": "{{duration}} ago",
+      "why": "The browser paused this tab while it was in the background, so the app could only react when you came back. The time it counted is still exact."
     },
     "unit": {
       "hours": "{{count}} h",

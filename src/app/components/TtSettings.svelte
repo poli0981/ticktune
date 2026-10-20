@@ -80,7 +80,7 @@
   let resetArmed = $state(false);
 
   async function confirmReset() {
-    await settings.reset();
+    await settings.reset(navigator.language);
     ttLog.info('TT-USR-101', 'settings reset to defaults');
     resetArmed = false;
     onreset();

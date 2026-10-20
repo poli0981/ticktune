@@ -91,9 +91,17 @@ class SettingsStore {
     }
   }
 
-  /** Settings → General → "reset app" (docs/03 §6). */
-  async reset(): Promise<void> {
-    this.#value = { ...TT_DEFAULT_SETTINGS };
+  /**
+   * Settings → General → "reset app" (docs/03 §6).
+   *
+   * The app becomes a first-time visitor again, so the language is decided the
+   * way a first visit decides it (`initialLang`: navigator.language → EN), not
+   * copied from the defaults. It used to land on the default 'vi' — an English
+   * browser saw Vietnamese right after a reset, then English after a reload,
+   * because only the reload went through `load()`'s rule.
+   */
+  async reset(navigatorLanguage?: string): Promise<void> {
+    this.#value = { ...TT_DEFAULT_SETTINGS, lang: initialLang(null, navigatorLanguage) };
     try {
       await this.#database().settings.delete(ROW_KEY);
     } catch {

@@ -55,7 +55,14 @@ function probeDurationViaElement(file: File): Promise<number | null> {
   return new Promise((resolve) => {
     const url = URL.createObjectURL(file);
     const el = new Audio();
+    let settled = false;
+    // Once only: `loadedmetadata` and the 5 s guard both call this, and the
+    // guard timer used to stay armed for every file after it had answered.
+    // (`timer` is declared below; `done` can only run after it exists.)
     const done = (value: number | null): void => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
       el.removeAttribute('src');
       URL.revokeObjectURL(url);
       resolve(value);
@@ -67,7 +74,7 @@ function probeDurationViaElement(file: File): Promise<number | null> {
     el.addEventListener('error', () => done(null));
     // A file the browser accepts but never reports metadata for would otherwise
     // hang the whole sequential import.
-    setTimeout(() => done(null), 5_000);
+    const timer = setTimeout(() => done(null), 5_000);
 
     el.preload = 'metadata';
     el.src = url;

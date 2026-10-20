@@ -107,6 +107,13 @@ html[data-tt-blocked] body > *:not(.tt-mobile-gate) {
   visibility: hidden;
 }
 
+/* `visibility: hidden` keeps the layout (that is the SEO point above), so the
+   invisible page still scrolled — and showed a scrollbar — behind the notice. */
+html[data-tt-blocked],
+html[data-tt-blocked] body {
+  overflow: hidden;
+}
+
 /* Decoration is suppressed at render time; the stored preference survives
    (docs/02 §3.1, docs/03 §8). The countdown is content, not decoration, and
    keeps updating. */
