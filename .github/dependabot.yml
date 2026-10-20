@@ -23,13 +23,32 @@ updates:
       # either alone is not enough.
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
+      # `engines.node` is `>=24 <25` and `.nvmrc` is 24, so `@types/node` must
+      # track Node 24's API surface. A major here (26.x) type-checks against
+      # functions the supported runtime does not have — #14 sat open for three
+      # months proposing exactly that. Bump it deliberately, together with
+      # `.nvmrc` and `engines`, when the project moves to the next Node LTS.
+      - dependency-name: '@types/node'
+        update-types: ['version-update:semver-major']
+    # pnpm 11 refuses packages published less than a day ago
+    # (`minimumReleaseAge`), so a Dependabot PR opened on release day fails
+    # `pnpm install --frozen-lockfile` with ERR_PNPM_MINIMUM_RELEASE_AGE_VIOLATION
+    # (#62 did). Waiting a few days costs nothing and lets that guard hold.
+    cooldown:
+      default-days: 3
+      semver-major-days: 7
     commit-message:
       prefix: chore
       include: scope
 
+  # Actions are pinned to full commit SHAs with a `# vX.Y.Z` comment (SonarCloud
+  # githubactions:S7637). Dependabot understands that form and bumps the SHA and
+  # the comment together, so pinning costs no maintenance.
   - package-ecosystem: github-actions
     directory: '/'
     schedule:
       interval: weekly
+    cooldown:
+      default-days: 3
     commit-message:
       prefix: chore

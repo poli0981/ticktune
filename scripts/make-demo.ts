@@ -34,13 +34,14 @@
  * nothing reflows, a `poster` frame that can paint before the video arrives, and
  * a hard size assertion at the end of this script.
  */
-import { execFileSync, spawn } from 'node:child_process';
+import { execFileSync } from 'node:child_process';
 import { mkdirSync, readdirSync, renameSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import ffmpegPath from 'ffmpeg-static';
-import { chromium } from '@playwright/test';
+import { preview } from 'astro';
+import { chromium, type Browser } from '@playwright/test';
+import { ensureFfmpeg } from './ensure-ffmpeg.ts';
 
-const FFMPEG = ffmpegPath as unknown as string;
+const FFMPEG = ensureFfmpeg();
 const PORT = 4331;
 const ORIGIN = `http://localhost:${PORT}`;
 const WORK = 'test/generated/demo';
@@ -72,9 +73,15 @@ function ff(args: string[]): void {
   execFileSync(FFMPEG, ['-hide_banner', '-loglevel', 'error', '-y', ...args]);
 }
 
+/**
+ * Throws rather than exiting: a `process.exit` inside the capture's `try` skipped
+ * its `finally`, which is what left the preview server running. The top-level
+ * `catch` at the bottom turns the throw into the exit code.
+ */
+class DemoError extends Error {}
+
 function fail(msg: string): never {
-  console.error(`\n✖ make-demo: ${msg}\n`);
-  process.exit(1);
+  throw new DemoError(msg);
 }
 
 /**
@@ -146,43 +153,44 @@ function demoAudio(out: string): void {
   ]);
 }
 
-mkdirSync(WORK, { recursive: true });
-mkdirSync(OUT, { recursive: true });
-rmSync(join(WORK, 'raw'), { recursive: true, force: true });
-
-const audio = join(WORK, 'demo-audio.mp3');
-demoAudio(audio);
-console.log('  ✓ synthesised demo audio');
-
-/*
- * Serve the built site. `astro preview` is what the E2E harness uses, so the
- * capture is of the same bytes the suite tests and the deploy ships.
- */
-const server = spawn('npx', ['astro', 'preview', '--port', String(PORT)], {
-  stdio: 'ignore',
-  shell: process.platform === 'win32',
-});
-
-async function waitForServer(): Promise<void> {
-  for (let i = 0; i < 60; i++) {
-    try {
-      const res = await fetch(`${ORIGIN}/app/`);
-      if (res.ok) return;
-    } catch {
-      /* not up yet */
-    }
-    await new Promise((r) => setTimeout(r, 500));
+async function capture(audio: string): Promise<string> {
+  /*
+   * Serve the built site. `astro preview` is what the E2E harness uses, so the
+   * capture is of the same bytes the suite tests and the deploy ships.
+   *
+   * Through Astro's own API rather than `spawn('npx', …, { shell: true })`: on
+   * Windows `kill()` reached only the `cmd.exe` wrapper and left `astro preview`
+   * holding the port, and resolving `npx` through PATH was a SonarCloud finding
+   * (S4036) in a repo that uses pnpm anyway. `stop()` in the `finally` below is
+   * now guaranteed to reach the real server.
+   */
+  const server = await preview({ root: process.cwd(), logLevel: 'error', server: { port: PORT } });
+  try {
+    const res = await fetch(`${ORIGIN}/app/`).catch(() => null);
+    if (!res?.ok) fail(`${ORIGIN} did not serve /app/ — is dist/ built?`);
+    await record(audio);
+  } finally {
+    await server.stop();
   }
-  fail(`${ORIGIN} never came up — is dist/ built?`);
+
+  const raw = readdirSync(join(WORK, 'raw')).find((f) => f.endsWith('.webm'));
+  if (!raw) fail('Playwright produced no video — did the run abort?');
+  return join(WORK, 'raw', raw);
 }
 
-try {
-  await waitForServer();
-
+async function record(audio: string): Promise<void> {
   const browser = await chromium.launch({
     // The visualizer needs a real analyser; the tab must be allowed to sound.
     args: ['--autoplay-policy=no-user-gesture-required'],
   });
+  try {
+    await drive(browser, audio);
+  } finally {
+    await browser.close();
+  }
+}
+
+async function drive(browser: Browser, audio: string): Promise<void> {
   const context = await browser.newContext({
     viewport: { width: CAP_W, height: CAP_H },
     recordVideo: { dir: join(WORK, 'raw'), size: { width: CAP_W, height: CAP_H } },
@@ -234,90 +242,103 @@ try {
   // tail, so the settling time never reaches the file.
   await page.waitForTimeout((CLIP_SECONDS + 4) * 1000);
 
+  // Closing the context is what flushes the recording to disk.
   await context.close();
-  await browser.close();
-} finally {
-  server.kill();
 }
 
-const raw = readdirSync(join(WORK, 'raw')).find((f) => f.endsWith('.webm'));
-if (!raw) fail('Playwright produced no video — did the run abort?');
-const rawPath = join(WORK, 'raw', raw);
+function encode(rawPath: string): void {
+  /*
+   * Keep the TAIL, not the head: everything before it is the gate, the import and
+   * the settings panel, which is setup rather than product. `-sseof` makes that
+   * independent of how long any of those steps happened to take.
+   */
+  const trimmed = join(WORK, 'trimmed.webm');
+  ff(['-sseof', `-${CLIP_SECONDS}`, '-i', rawPath, '-an', '-c', 'copy', trimmed]);
 
-/*
- * Keep the TAIL, not the head: everything before it is the gate, the import and
- * the settings panel, which is setup rather than product. `-sseof` makes that
- * independent of how long any of those steps happened to take.
- */
-const trimmed = join(WORK, 'trimmed.webm');
-ff(['-sseof', `-${CLIP_SECONDS}`, '-i', rawPath, '-an', '-c', 'copy', trimmed]);
+  /*
+   * H.264 only, and the measurement is why.
+   *
+   * The first version also emitted VP9/WebM on the usual "webm for size, mp4 for
+   * reach" reasoning. Both halves turned out to be wrong here: the WebM came out
+   * LARGER (140 KB vs 119 KB) at visually equivalent quality, and WebKit stalled
+   * on it — timed out waiting for the video on every landing spec, 13 of them,
+   * because Safari's VP9 support is inconsistent and it sat on the first
+   * <source> rather than moving to the fallback.
+   *
+   * So a second format cost bytes, cost compatibility, and bought nothing. One
+   * H.264 file plays everywhere this app runs.
+   */
+  ff([
+    '-i',
+    trimmed,
+    '-an',
+    '-vf',
+    `scale=${W}:${H}:flags=lanczos`,
+    '-c:v',
+    'libx264',
+    '-profile:v',
+    'main',
+    '-pix_fmt',
+    'yuv420p',
+    '-crf',
+    '30',
+    '-preset',
+    'slow',
+    '-movflags',
+    '+faststart',
+    join(OUT, 'hero.mp4'),
+  ]);
 
-/*
- * H.264 only, and the measurement is why.
- *
- * The first version also emitted VP9/WebM on the usual "webm for size, mp4 for
- * reach" reasoning. Both halves turned out to be wrong here: the WebM came out
- * LARGER (140 KB vs 119 KB) at visually equivalent quality, and WebKit stalled
- * on it —  timed out waiting for  on every landing spec, 13 of
- * them, because Safari's VP9 support is inconsistent and it sat on the first
- * <source> rather than moving to the fallback.
- *
- * So a second format cost bytes, cost compatibility, and bought nothing. One
- * H.264 file plays everywhere this app runs.
- */
-ff([
-  '-i',
-  trimmed,
-  '-an',
-  '-vf',
-  `scale=${W}:${H}:flags=lanczos`,
-  '-c:v',
-  'libx264',
-  '-profile:v',
-  'main',
-  '-pix_fmt',
-  'yuv420p',
-  '-crf',
-  '30',
-  '-preset',
-  'slow',
-  '-movflags',
-  '+faststart',
-  join(OUT, 'hero.mp4'),
-]);
+  /*
+   * The poster is what paints first and is therefore the LCP candidate. Taken a
+   * second in, because frame zero can catch a fade still in progress.
+   */
+  ff([
+    '-ss',
+    '1',
+    '-i',
+    trimmed,
+    '-frames:v',
+    '1',
+    '-vf',
+    `scale=${W}:${H}:flags=lanczos`,
+    '-quality',
+    '80',
+    join(OUT, 'hero-poster.webp'),
+  ]);
 
-/*
- * The poster is what paints first and is therefore the LCP candidate. Taken a
- * second in, because frame zero can catch a fade still in progress.
- */
-ff([
-  '-ss',
-  '1',
-  '-i',
-  trimmed,
-  '-frames:v',
-  '1',
-  '-vf',
-  `scale=${W}:${H}:flags=lanczos`,
-  '-quality',
-  '80',
-  join(OUT, 'hero-poster.webp'),
-]);
+  const sizes = ['hero.mp4', 'hero-poster.webp'].map((f) => {
+    const kb = statSync(join(OUT, f)).size / 1024;
+    console.log(`  ${kb.toFixed(0).padStart(5)} KB  ${f}`);
+    return { f, kb };
+  });
 
-const sizes = ['hero.mp4', 'hero-poster.webp'].map((f) => {
-  const kb = statSync(join(OUT, f)).size / 1024;
-  console.log(`  ${kb.toFixed(0).padStart(5)} KB  ${f}`);
-  return { f, kb };
-});
+  const video = sizes.filter((s) => !s.f.endsWith('.webp'));
+  const worst = Math.max(...video.map((s) => s.kb));
+  if (worst > MAX_VIDEO_KB) {
+    fail(
+      `the largest hero video is ${worst.toFixed(0)} KB, over the ${MAX_VIDEO_KB} KB ceiling. ` +
+        `The hero is the LCP element on a page that scores 100 — raise the CRF rather than the ceiling.`,
+    );
+  }
 
-const video = sizes.filter((s) => !s.f.endsWith('.webp'));
-const worst = Math.max(...video.map((s) => s.kb));
-if (worst > MAX_VIDEO_KB) {
-  fail(
-    `the largest hero video is ${worst.toFixed(0)} KB, over the ${MAX_VIDEO_KB} KB ceiling. ` +
-      `The hero is the LCP element on a page that scores 100 — raise the CRF rather than the ceiling.`,
-  );
+  renameSync(rawPath, join(WORK, 'source.webm'));
 }
 
-renameSync(rawPath, join(WORK, 'source.webm'));
-console.log(`✓ make-demo: hero written to ${OUT}/`);
+try {
+  mkdirSync(WORK, { recursive: true });
+  mkdirSync(OUT, { recursive: true });
+  rmSync(join(WORK, 'raw'), { recursive: true, force: true });
+
+  const audio = join(WORK, 'demo-audio.mp3');
+  demoAudio(audio);
+  console.log('  ✓ synthesised demo audio');
+
+  encode(await capture(audio));
+  console.log(`✓ make-demo: hero written to ${OUT}/`);
+} catch (err) {
+  console.error(`
+✖ make-demo: ${err instanceof DemoError ? err.message : String(err)}
+`);
+  process.exitCode = 1;
+}
