@@ -85,6 +85,17 @@ As a defence-in-depth latch independent of worker scheduling, `visibilitychange
 it has reached 0 (single-fire, shared with the `§6` sleep path). A late `done` is
 recoverable; a missed one is not.
 
+**The worker is created at mount, and its failure is survivable (v1.1).** It is a
+separate hashed chunk, and it used to be created lazily at the first Start with no
+`error` listener. A tab opened before a redeploy then requested a chunk the new
+deploy no longer had; the worker 404'd silently and — because rAF only renders —
+`done` never fired while the tab was visible. The driver now creates the worker
+when the app mounts (while page and assets still match), and if `Worker` is
+missing, its constructor throws, or it raises `error`, the driver logs
+**TT-SYS-207** and a main-thread 200 ms interval takes over the authoritative
+tick. That fallback is throttled like any main-thread timer in a hidden tab — the
+case the visibility latch above already covers — and exact while visible.
+
 ### 🔴 S2 measurements — the silent hidden tab FAILS (Edge 151, Windows 11)
 
 | Case | Hidden for | Worst tick gap | Overshoot at `done` | Verdict |
