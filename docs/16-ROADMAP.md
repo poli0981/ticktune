@@ -1,6 +1,6 @@
 # 16 — Roadmap
 
-Suite 1.0 · 2026-07-21 · Solo-dev pacing alongside OmniDeck/PipDock/poli0981.dev.
+Suite 1.1 · 2026-10-20 · Solo-dev pacing alongside OmniDeck/PipDock/poli0981.dev.
 Durations are effort estimates, not calendar promises. **v1.0 target: late Q3
 2026** (≈ 8 focused weeks from spike start).
 
@@ -515,7 +515,7 @@ S1 answered only the CORS half of — the terms were never read. Shipping the
 generated gradient alone needs no ruling; do not let the visualizer substitute be
 what pulls an unreviewed ToS question into the release.
 
-## P5 — Visuals & settings · **in progress**, slices 1–2 merged, not released
+## P5 — Visuals & settings · **COMPLETE**, four slices · v0.6.0 → v0.8.0
 
 Sliced into four, one release each, because P4's live checklist found a real bug
 on a line nobody expected and a smaller surface per run is what makes that
@@ -1091,21 +1091,102 @@ its subject manufactures work.** The doc-reference resolver's first run reported
 23 broken citations of which **21 were correct**, and acting on it would have
 vandalised twenty-one working pointers.
 
-## Post-1.0 backlog (unordered)
+## v1.1 — the full review · **v1.1.0**, 2026-10-20
 
+Not a phase. After 1.0, one review of everything — supply chain, runtime,
+privacy, design and docs — shipped as five rebase-merged PRs and one signed tag:
+
+| PR | Branch | What it carried |
+|----|--------|-----------------|
+| 1 | `chore/supply-chain-ci` | Dependabot, SonarCloud and Snyk findings; SHA-pinned actions; build-before-test; `verify-csp` in CI; the tag-only `deploy.yml` |
+| 2 | `fix/runtime-wiring` | Seventeen runtime defects, each with a test; `tests/e2e/wiring.spec.ts` |
+| 3 | `feat/analytics-legal` | Cloudflare Web Analytics, its CSP and disclosure; Legal 1.1; role contact addresses; `security.txt` |
+| 4 | `feat/redesign` | The "Rack Unit" design system (`03 §1`), the hide-scrollbars setting, new brand assets and hero capture |
+| 5 | `docs/sync-1.1` | README, `CLAUDE.md`, `CONTRIBUTING`; 62 stale statements across `docs/01–15`; `AUDIT-BACKLOG` closures; 1.1.0 |
+
+### The finding that came first, and it was not in the code
+
+**Every pushed branch deployed to 100% of production.** Workers Builds ran
+`wrangler deploy` for any branch, and `wrangler deployments list` showed the
+morning's production version was a **Dependabot** branch's build. P6 had noticed
+the shape and deferred it. Workers Builds now only uploads versions — each push
+gets a preview URL — and production changes only from a signed tag that
+`deploy.yml` verifies against the published key and finds on `main` (`14 §5`).
+
+### What the review found that no test had
+
+The same lesson as P7, again: each of these was a sentence that a test either
+did not check or checked wrongly.
+
+- **The bottom bar never faded.** Its idle class was the bare word `hidden`,
+  which Tailwind compiles into its own `display: none` utility — the documented
+  fade had always been a cut.
+- **The corpus guard let non-ASCII names through.** Without `-z`, git C-quotes
+  such paths, and three corpus files with CJK/Hangul titles passed every check.
+- **The notices dropped Dexie's `NOTICE`** — the one file Apache-2.0 §4(d) asks
+  to be reproduced. Only the first licence file per package was read.
+- **Two unit suites had never run on CI.** They read `dist/`, and CI ran the
+  tests before the build, so both skipped every time.
+- **The oEmbed route was an open proxy.** `ACAO: *` served nobody — the app
+  calls it same-origin — and let any site spend this Worker's requests.
+- **Two fixed layers could still cover the YouTube player**: the `?ttdebug=1`
+  panel, and in principle the bottom bar. Both now obey `--tt-yt-reserve`.
+- **The redesign's first cut blinded the a11y scan without failing it.** axe
+  cannot measure contrast over a background image or gradient, or under an
+  absolutely positioned pseudo-element on an ancestor; it reports "needs
+  review", and the spec fails only on violations. v1.0 had zero such nodes on
+  the static pages, the first cut 72. Text now sits on solid colour (`03 §1`),
+  which also surfaced the one real failure the texture had been hiding — a
+  text-shadow glow axe counts against contrast — and nothing that carries text
+  fades in (`03 §8`).
+- **The docs had drifted in 62 places**, found by auditing every chapter against
+  the code rather than against itself: a `client:only` the island never used, a
+  Motion library never installed, a toast and a retry path never built, version
+  tables four phases old, `{{count}} tracks` reading "1 tracks".
+
+The runtime defects were the project's signature shape — correct engines, wrong
+wiring: an end-fade timer that paused the next run, a removed track that kept
+playing, a decode failure nobody routed to the queue, ⏭ while paused starting the
+music, a timer worker with no error path. `wiring.spec.ts` has one spec per fix,
+each shown red on the old code.
+
+### Decisions
+
+- **Analytics, on every page, disclosed** (decided 2026-10-20). Hard invariant 1
+  was rewritten rather than quietly broken: user files never leave the browser,
+  and the Cloudflare beacon is the only telemetry, page-level and cookieless,
+  disclosed at the gate. One `TT_LEGAL_VERSION` bump carried it with everything
+  else Legal 1.1 changed.
+- **Role addresses** on `poli0981.dev` replace the single contact address.
+- **A full redesign**, keeping every zone, the ToS geometry and every
+  accessible name the tests address — the screens changed, the contract did not.
+
+## Post-1.1 backlog (unordered)
+
+- **Crossfade (S4b).** Fix the harness first — measure the overlap from the
+  audio (an Analyser or an `OfflineAudioContext` render) rather than reading back
+  the scheduled `gain.value` — then run the 0/1/2/5 s sweep, then build the
+  crossfade loop style and inter-track crossfade.
 - YouTube Data API v3 proxy on the existing Worker (duration/publish date at
-  import; key server-side).
+  import, so "Match queue length" works for links; key server-side, cached).
 - PWA offline for local modes (installable, cache shell; YT mode stays online).
 - **Out-of-page finish notification** (S2 option 2): a service worker has its own
   scheduling and could fire a Notification when a backgrounded tab's countdown
   ends. Needs its own spike, a permission prompt, and a privacy review against
   hard invariant 1 — which is why P2 took option 3 instead (`04 §2`).
+- Settings export/import as a JSON preset (the session-only queue stays
+  non-exportable by design).
+- Countdown faces and themes on the v1.1 token system: alternate segment fonts
+  (DSEG14, Nixie-style), and a light theme for daytime projection.
 - Loudness normalization (EBU R128-ish gain scan on local files, opt-in).
-- JP language pack (`08 §5`).
-- Countdown themes (alternate segment fonts: DSEG14, Nixie-style).
+- JP language pack (`08 §5`); JSON-LD for the landing pages.
+- Spike pages (`/spike/*`) are built into production: inject the routes only in
+  dev or behind a build flag.
+- Repository hygiene: a ruleset for `main` (required checks, linear history, no
+  force-push), delete-branch-on-merge, pruning the stale local branches, a plan
+  for **Node 26 LTS** (Node 24 entered maintenance in October 2026), visual
+  regression snapshots of the redesigned screens, Lighthouse CI.
 - Zone-plan upgrade decision → branded Cloudflare error pages (`10 §8`).
-- SkullMute community preset: shareable settings JSON export/import
-  (session-only queue stays non-exportable by design).
 
 ## Standing rules
 

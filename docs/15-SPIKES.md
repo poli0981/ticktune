@@ -1,6 +1,6 @@
 # 15 — P0 Validation Spikes
 
-Suite 1.0 · 2026-07-21 (scope rule amended 2026-07-21) · Total budget: ~4 working
+Suite 1.1 · 2026-10-20 (scope rule amended 2026-07-21) · Total budget: ~4 working
 days. Findings are written back into the referenced doc section.
 
 ## Scope rule
@@ -138,9 +138,10 @@ meaningless without it.
 | 2026-07-21 | Edge 151 | **3 hidden+SILENT, 30 min** (24.9 min hidden) | **off** | 116 ms | **798 786 ms** | 1.7 ms | **177 509 ms** | 🔴 **FAIL.** 355× over bound. Worker frozen up to 13m 19s; mean hidden interval still 428 ms, so it stalls in bursts. `done` was rescued by the visibility latch (TT-SYS-203), not the worker |
 | 2026-07-21 | Edge 151 | **2 CONTROL, 18.9 min** (17.8 min hidden) | **ON** | 30 908 ms* | **721 190 ms** | 1.5 ms | **52 351 ms** | 🔴 **The remedy fails too.** 105× over bound, `done` again fired by the latch not the worker. *the "visible" render gap is an attribution artefact — a hidden stall observed after returning; fixed in the harness after this run |
 
-Everything below case 1 is still to run — the hidden, minimised, suspended and
-clock-change cases all need a human driving a real browser window, which is
-exactly why they were never going to be automated.
+Cases 1–3 and the case-2 control above have run; cases 4–7 — minimised,
+suspended and clock-change — are still to run. They all need a human driving a
+real browser window, which is exactly why they were never going to be
+automated.
 
 ## S3 — music-metadata coverage & Vietnamese tags (→ `05 §4–5`)
 
@@ -170,9 +171,10 @@ exactly why they were never going to be automated.
   (TT-IMP-007); cover art extracted; every allow-list container in `02 §4` either
   parses or is honestly rejected by the `canPlayType()` probe; 95-file batch
   parses < 10 s total on the dev box.
-- **Prerequisite:** `scripts/make-fixtures.ts` and ffmpeg. Run
-  `scripts/audit-corpus.mjs` first — it reports which acceptance rows the corpus
-  on disk can actually exercise.
+- **Prerequisite:** `scripts/make-fixtures.ts` and ffmpeg (fetched on demand by
+  `scripts/ensure-ffmpeg.ts`), and the local `test/` corpus for the 95-file row.
+  (A corpus-audit script was planned here and never written; S3 ran without
+  it.)
 - **Timebox:** 0.5–1 day.
 
 ## S4 — Crossfade + AudioContext unlock (→ `05 §1–2`)
@@ -232,7 +234,7 @@ against the P1 timer engine it ran on; S1 gates P4; S3 and S4 gate P2
 
 | Spike | Result | Date | Findings written to |
 |-------|--------|------|---------------------|
-| S1 | ✅ **PASS — with findings that rewrote `02 §6`, `03 §2`, `06 §3` and `06 §4`** | 2026-07-22 | Harness `/spike/s1-youtube` shipped in v0.4.1; full run in `tests/manual/yt-matrix.md` (10 ids, 6 causes, Chrome 151, **9 hands-free advances from 1 gesture**, no UNKNOWN bucket, no CSP violations). **🔴 `onError` discriminates nothing** — private, age-restricted, region-blocked, deleted, malformed and embed-off all report **150**, and `onError 100` never fired. **✅ oEmbed does discriminate** — 400/401/403/404 are four distinct causes — **but the Worker flattens them to one body and rewrites 401→404**, so the app currently cannot tell them apart; two Worker changes owed to P4. **🔴 The 2026-07-21 "a deleted video is a 400" finding is RETRACTED**: both samples ended in a character that cannot terminate a base64url id, so they were malformed, not missing; 26-id sweep shows valid-final-char → 404, invalid → 400, no exceptions. **✅ CSP** carries the player (`www-widgetapi.js` comes from `www.youtube.com`, not `s.ytimg.com` — audit prediction refuted). **✅ `i.ytimg.com` sends `ACAO: *`**, so the `03 §5` auto-theme risk does not apply. **Region case answered by inversion** — a VN-only video played from a foreign IP. **Firefox agrees** (user-run). **Controls measured:** 384×216 exactly with all native controls visible — but a **collapsed rail leaves the player 0×0 with audio still playing**, and Focus leaves it at **opacity 0.06 while playing**, so `03 §2`'s carve-out is proven load-bearing rather than precautionary (and `checkVisibility({checkOpacity:true})` returns TRUE at 0.06, so it cannot be P4's guard). **`onError 100` believed unreachable** — cue-only on BOTH hosts, three causes each, 150 six times out of six; `02 §6`'s separate TT-YT-100 path has folded. ⚠️ **One acceptance clause converts into a P4 requirement rather than being verified here:** "controls fully visible in every rail and Focus state" cannot pass against a mock — S1 produced the requirement and the failing measurement, and P4 owes the implementation plus its own assertion. Also owed to P4: the two `worker/index.ts` changes in `06 §3` |
+| S1 | ✅ **PASS — with findings that rewrote `02 §6`, `03 §2`, `06 §3` and `06 §4`** | 2026-07-22 | Harness `/spike/s1-youtube` shipped in v0.4.1; full run in `tests/manual/yt-matrix.md` (10 ids, 6 causes, Chrome 151, **9 hands-free advances from 1 gesture**, no UNKNOWN bucket, no CSP violations). **🔴 `onError` discriminates nothing** — private, age-restricted, region-blocked, deleted, malformed and embed-off all report **150**, and `onError 100` never fired. **✅ oEmbed does discriminate** — 400/401/403/404 are four distinct causes — **but the Worker flattened them to one body and rewrote 401→404**, so the app could not tell them apart — the two Worker changes this owed to P4 both landed (`06 §3`). **🔴 The 2026-07-21 "a deleted video is a 400" finding is RETRACTED**: both samples ended in a character that cannot terminate a base64url id, so they were malformed, not missing; 26-id sweep shows valid-final-char → 404, invalid → 400, no exceptions. **✅ CSP** carries the player (`www-widgetapi.js` comes from `www.youtube.com`, not `s.ytimg.com` — audit prediction refuted). **✅ `i.ytimg.com` sends `ACAO: *`**, so the `03 §5` auto-theme risk does not apply. **Region case answered by inversion** — a VN-only video played from a foreign IP. **Firefox agrees** (user-run). **Controls measured:** 384×216 exactly with all native controls visible — but a **collapsed rail leaves the player 0×0 with audio still playing**, and Focus leaves it at **opacity 0.06 while playing**, so `03 §2`'s carve-out is proven load-bearing rather than precautionary (and `checkVisibility({checkOpacity:true})` returns TRUE at 0.06, so it cannot be P4's guard). **`onError 100` believed unreachable** — cue-only on BOTH hosts, three causes each, 150 six times out of six; `02 §6`'s separate TT-YT-100 path has folded. ⚠️ **One acceptance clause converts into a P4 requirement rather than being verified here:** "controls fully visible in every rail and Focus state" cannot pass against a mock — S1 produced the requirement and the failing measurement, and P4 owes the implementation plus its own assertion. Also owed to P4, and delivered: the two `worker/index.ts` changes in `06 §3` |
 | S2 | 🔴 **FAIL — and the contingency failed too** | 2026-07-21 | Hidden+silent: `done` **2m 57s late**. Control run with keep-alive **ON**: still **52.4 s late**, 105× the bound. The audibility exemption does not protect the timer, so `15 §S2`'s contingency is **withdrawn, not adopted**. The stall is in main-thread message processing, so a worker cannot route around it. P2 needs a product decision, not a code fix (`04 §2`) |
 | S3 | ✅ **PASS** | 2026-07-21 | Tag matrix + 103-file/598 MB real corpus in **1 362 ms** (budget 10 s); 7.26 MB cover extracted; 0 false positives from the new `onlyV1` rule. The U+FFFD rule was falsified and replaced (`05 §5`). ID3v2.2 and APEv2 found in the wild |
 | **S4a** | ✅ **PASS** | 2026-07-21 | Crossfade judged clean by ear on headphones **and** speakers (the criterion no instrument can answer); graph, `createMediaElementSource` reuse and gesture `resume()` all exercised. Gates released for P2's audio graph |

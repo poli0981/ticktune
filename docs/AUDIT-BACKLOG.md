@@ -8,7 +8,11 @@ tracks all of them.
 - ✅ **22 closed** during the bootstrap — table at the end
 - ✅ **3 closed + 1 partially resolved** during P2 slice S1 (2026-07-21)
 - ✅ **1 closed** during P3 slice 1 (2026-07-22) — queue mutation during playback
-- ⬜ **22 open**
+- ✅ **20 closed** since — the release blocker in P7 slice A; the other nineteen
+  were closed by P4–P7 and v1.1 but only **recorded** in the v1.1 review
+  (2026-10-20), each with the phase that actually closed it
+- ⬜ **2 open**, neither a release blocker: the countdown render-cost probe and
+  the EULA's governing law
 
 Severity is the *verified* severity. Several findings were downgraded when the
 verifier showed the original claim overreached; where that happened, the
@@ -65,7 +69,16 @@ legal/THIRD-PARTY-NOTICES.md lines 27–29: "Dev-only tooling (TypeScript, ESLin
 
 ---
 
-### 🟠 high · The entire edge surface — Worker route, oEmbed egress from Cloudflare IPs, edge cache, rate limiting — is unvalidated by any of the four spikes
+### ✅ ~~🟠 high~~ · The entire edge surface — Worker route, oEmbed egress from Cloudflare IPs, edge cache, rate limiting — is unvalidated by any of the four spikes
+
+**CLOSED by P4, not by a spike** — recorded in the v1.1 review, 2026-10-20.
+Every part it asked for exists except the two-colo burst: `/api/yt/oembed` has a
+unit tier (`tests/worker/oembed.test.ts`, run by `pnpm test`), caches through
+`caches.default` and never caches a transient verdict (`06 §3`), the 60/min
+rule's 429 is a handled soft failure (`10 §6`), and `_headers` is asserted by
+`tests/unit/tt-headers.test.ts`. P4's live checklist ran it against the deployed
+Worker. The 24-hour multi-colo burst was never measured, and nothing since has
+suggested Cloudflare egress throttling.
 
 **Owner phase:** P4 (edge surface) · **Lens:** technical-risk
 
@@ -120,7 +133,13 @@ Narrowed to a medium-severity spec gap: the docs never define the relationship b
 
 ---
 
-### 🟠 high · Privacy Policy omits the www.youtube.com script fetch, and the CSP permits youtube.com framing the docs say is never used
+### ✅ ~~🟠 high~~ · Privacy Policy omits the www.youtube.com script fetch, and the CSP permits youtube.com framing the docs say is never used
+
+**CLOSED in P7 slice A** — the policy names the IFrame API fetch from
+`www.youtube.com` (in Legal 1.1, the services table of §4). The optional
+`frame-src` tightening below is **not** done: dropping `www.youtube.com` from
+`frame-src` needs a live measurement that the player never frames it, and is
+left for whoever next changes the CSP.
 
 **Owner phase:** P6 legal pass · **Lens:** legal-compliance
 
@@ -144,7 +163,12 @@ docs/06-YOUTUBE-INTEGRATION.md §2: "IFrame API script loaded lazily on first en
 
 ---
 
-### 🟠 high · YouTube API Services ToS attribution duties are absent from the "non-negotiable" compliance list
+### ✅ ~~🟠 high~~ · YouTube API Services ToS attribution duties are absent from the "non-negotiable" compliance list
+
+**CLOSED** — P7 slice A added `06 §1` rule 5 (attribution by
+non-interference), and Legal 1.1 (2026-10-20) links the YouTube Terms of Service
+and the Google Privacy Policy from the EULA, the Privacy Policy and the notices'
+services table.
 
 **Owner phase:** P6 legal pass · **Lens:** legal-compliance
 
@@ -162,7 +186,12 @@ docs/06-YOUTUBE-INTEGRATION.md §1 rules 1–5 (host, 384×216 visibility, "**Ne
 
 ---
 
-### 🟠 high · Blurring/recoloring YouTube thumbnails is specified as a feature without a ToS check
+### ✅ ~~🟠 high~~ · Blurring/recoloring YouTube thumbnails is specified as a feature without a ToS check
+
+**CLOSED by not building it** (P5 slice 3): the thumbnail clause of `03 §5`
+was removed, YouTube mode uses the generated gradient, and `06 §1` rule 5
+records the ruling. The notices' "never bundled or modified" now matches the
+code.
 
 **Owner phase:** P4 (YouTube) · **Lens:** legal-compliance
 
@@ -180,7 +209,12 @@ docs/06-YOUTUBE-INTEGRATION.md §6: "Substitutes: blurred `hqdefault` thumbnail 
 
 ---
 
-### 🟠 high · OFL obligations are only satisfied for DSEG7; the two @fontsource families ship with no license file, and the Reserved Font Name condition is never mentioned despite planned subsetting
+### ✅ ~~🟠 high~~ · OFL obligations are only satisfied for DSEG7; the two @fontsource families ship with no license file, and the Reserved Font Name condition is never mentioned despite planned subsetting
+
+**CLOSED in P7 slice A** — the full OFL text of every `@fontsource` family
+ships in `/THIRD-PARTY-NOTICES.txt` (`make-notices.ts` `CSS_ONLY`, three
+families since v1.1 added Chakra Petch). DSEG7 ships unmodified, so its Reserved
+Font Name is never engaged.
 
 **Owner phase:** P6 legal pass — @fontsource OFL half only; DSEG7 is already compliant · **Lens:** legal-compliance
 
@@ -198,7 +232,10 @@ docs/01-ARCHITECTURE.md §4: "`fonts/dseg7/` # vendored DSEG7 Classic woff2 + OF
 
 ---
 
-### 🟡 medium · Seven wrong section cross-references between chapters
+### ✅ ~~🟡 medium~~ · Seven wrong section cross-references between chapters
+
+**CLOSED in P7 slice B** — `scripts/check-doc-refs.ts` resolves every
+`NN §M` citation against the target's headings and runs in `ci.yml`.
 
 **Owner phase:** P6 doc sweep · **Lens:** consistency
 
@@ -222,7 +259,14 @@ docs/08-I18N.md:17: "roadmap P6 task (`16 §P6`)"; docs/10-CLOUDFLARE-SETUP.md:9
 
 ---
 
-### 🟡 medium · Six file/directory paths referenced by chapters do not exist in the 01 §4 target directory tree
+### ✅ ~~🟡 medium~~ · Six file/directory paths referenced by chapters do not exist in the 01 §4 target directory tree
+
+**CLOSED in the v1.1 docs sync (2026-10-20).** `01 §4` is rewritten as the tree
+the repository actually has — every path a chapter cites, `src/lib/`,
+`src/i18n/static/`, the full `scripts/`, `tests/manual/` and `tests/worker/`,
+`knip.json`, `legal/` and the root files among them — and the timer worker sits
+with its engine, as the recommendation preferred. Its rule is now stated as
+upkeep: a path a chapter starts citing is added to the tree.
 
 **Owner phase:** P6 doc sweep · **Lens:** consistency
 
@@ -247,7 +291,10 @@ docs/01-ARCHITECTURE.md §3: "| Timer engine | `src/app/engine/timer/` |" vs tre
 
 ---
 
-### 🟡 medium · Privacy Policy tells users settings are stored in localStorage; 02 and 12 forbid it
+### ✅ ~~🟡 medium~~ · Privacy Policy tells users settings are stored in localStorage; 02 and 12 forbid it
+
+**CLOSED in P7 slice A** — the policy states that no `localStorage` or
+`sessionStorage` is used, which is what the code has always done.
 
 **Owner phase:** P6 legal pass · **Lens:** consistency
 
@@ -267,7 +314,12 @@ docs/12-CODE-STANDARDS.md §4 banned-patterns table: "| `localStorage` for struc
 
 ---
 
-### 🟡 medium · GPL-3.0 compliance is incomplete beyond the LICENSE blob: no copyright notice, no SPDX convention, no license metadata, no explicit source offer
+### ✅ ~~🟡 medium~~ · GPL-3.0 compliance is incomplete beyond the LICENSE blob: no copyright notice, no SPDX convention, no license metadata, no explicit source offer
+
+**CLOSED** — `package.json` declares `GPL-3.0-only`, the README carries the
+copyright and licence notice (v1.1), and both Settings → About and the landing
+footer link the source — the GPL §6 offer. Per-file SPDX headers were not
+adopted: the licence is one file, declared in two machine-readable places.
 
 **Owner phase:** P6 legal pass · **Lens:** repo-hygiene
 
@@ -307,7 +359,15 @@ docs/04-TIMER-ENGINE.md §4: "| **< 60 s** | `SS.mmm` | every rAF frame | `42.18
 
 ---
 
-### 🟡 medium · Import pipeline has no cancel, no concurrency rule, no directory handling, and no partial-batch policy — **partially resolved**
+### ✅ ~~🟡 medium~~ · Import pipeline has no cancel, no concurrency rule, no directory handling, and no partial-batch policy
+
+**CLOSED (2026-10-20).** `02 §4` now specifies all four: directories
+recurse, a second drop during a batch is ignored with a toast (single-flight),
+the count cap applies before the scan, and accepted files survive a later file
+tripping an aggregate cap. v1.1 made the single-flight real — the flag used to be
+set only after the DataTransfer scan, so two quick drops ran in parallel and
+could overshoot the 95-file and 91:00 caps. There is still no cancel button, by
+decision (`02 §4`).
 
 **Owner phase:** P3 (playlist) · **Lens:** spec-completeness
 
@@ -341,7 +401,11 @@ docs/04-TIMER-ENGINE.md §4: "| **< 60 s** | `SS.mmm` | every rAF frame | `42.18
 
 ---
 
-### 🟡 medium · i18n runtime policy gaps: no fallback/missing-key behavior, self-contradictory detection rule, ambiguous legal links, and undefined VI legal content before P6 — ✅ **partly resolved**
+### ✅ ~~🟡 medium~~ · i18n runtime policy gaps: no fallback/missing-key behavior, self-contradictory detection rule, ambiguous legal links, and undefined VI legal content before P6
+
+**CLOSED in P6 slice B** — the legal half: the VI legal routes serve the
+Vietnamese translations, and app links go to `/en/legal/*` for English users
+(`ttLegalHref`).
 
 **Owner phase:** P5 (i18n) · **Lens:** spec-completeness
 
@@ -372,7 +436,12 @@ docs/04-TIMER-ENGINE.md §4: "| **< 60 s** | `SS.mmm` | every rAF frame | `42.18
 
 ---
 
-### 🟡 medium · The Worker route `/api/yt/oembed` has no automated test tier — it is mocked everywhere and verified only post-deploy
+### ✅ ~~🟡 medium~~ · The Worker route `/api/yt/oembed` has no automated test tier — it is mocked everywhere and verified only post-deploy
+
+**CLOSED in P4** — `tests/worker/oembed.test.ts` covers the id regex, the
+status mapping, the cache-TTL choice and, since v1.1, the absence of CORS
+headers. It runs under plain Vitest with `pnpm test` rather than the workers
+pool.
 
 **Owner phase:** P4 (worker) · **Lens:** spec-completeness
 
@@ -390,7 +459,13 @@ The Worker handler's own logic in `worker/index.ts` (`^[A-Za-z0-9_-]{11}$` valid
 
 ---
 
-### 🟡 medium · Diagnostics payload shape is asserted by a test but never typed, and console capture has no defined mechanism
+### ✅ ~~🟡 medium~~ · Diagnostics payload shape is asserted by a test but never typed, and console capture has no defined mechanism
+
+**CLOSED** — the payload is typed as `TtDiagnostics`
+(`src/app/engine/log/types.ts`). Console output is **not** captured (`docs/12`,
+corrected in v1.1); global errors and unhandled rejections are, by error
+**name** only (`errorName`, P7 slice B), so no message can carry a file name
+into the payload.
 
 **Owner phase:** P1 (log engine) · **Lens:** spec-completeness
 
@@ -408,7 +483,12 @@ Narrowed to a low-severity doc inconsistency: the docs never define how `console
 
 ---
 
-### 🟡 medium · Roadmap phases do not own several artifacts that earlier phases depend on, and open blockers are unscheduled
+### ✅ ~~🟡 medium~~ · Roadmap phases do not own several artifacts that earlier phases depend on, and open blockers are unscheduled
+
+**CLOSED as moot** — every artifact it named exists and has an owner:
+`.gitignore`, `scripts/guard-no-corpus.mjs` and the pre-commit hook keep `test/`
+out of history; the suite lives at the repository root; the generators belong to
+the phases that use them; and P1–P7 are complete.
 
 **Owner phase:** P6 doc sweep · **Lens:** spec-completeness
 
@@ -426,7 +506,11 @@ Narrowed to repo hygiene only: no doc in the suite mentions a `.gitignore` (16's
 
 ---
 
-### 🟡 medium · Privacy Policy has no controller identity, contact point, retention, or jurisdiction, and docs/09 declares data-subject handling out of scope
+### 🟡 medium · Privacy Policy has no controller identity, contact point, retention, or jurisdiction, and docs/09 declares data-subject handling out of scope — **mostly resolved**
+
+**Mostly resolved.** The Privacy Policy names the controller, a contact
+(privacy@poli0981.dev since Legal 1.1), what is processed where, and retention.
+Still open: the EULA states no governing law.
 
 **Owner phase:** P6 legal pass · **Lens:** legal-compliance
 
@@ -444,7 +528,12 @@ legal/PRIVACY-POLICY.md §7 is the final section ("Material changes re-trigger t
 
 ---
 
-### 🟡 medium · Diagnostics payload is broader than the Privacy Policy discloses, and the bug template overpromises
+### ✅ ~~🟡 medium~~ · Diagnostics payload is broader than the Privacy Policy discloses, and the bug template overpromises
+
+**CLOSED** — the payload carries no file names by construction (log lines
+are codes plus error **names**, never messages — P7 slice B), and Privacy §7
+(Legal 1.1) enumerates it: app version, browser, settings and the coded log. The
+bug template's "no personal files" is therefore accurate.
 
 **Owner phase:** P6 legal pass · **Lens:** legal-compliance
 
@@ -462,7 +551,11 @@ docs/02-DATA-FLOW.md §7: "**Copy Diagnostics** button producing JSON: `{ app:'T
 
 ---
 
-### 🟡 medium · All four legal documents are marked Draft with no finalization task and no defined legal-version constant, despite re-gating promises
+### ✅ ~~🟡 medium~~ · All four legal documents are marked Draft with no finalization task and no defined legal-version constant, despite re-gating promises
+
+**CLOSED in P7** — `TT_LEGAL_VERSION` lives in `src/lib/tt-legal-const.ts`,
+the drafts were promoted to 1.0 before v1.0.0, and CONTRIBUTING's checklist
+requires the bump (v1.1).
 
 **Owner phase:** P6 legal pass · **Lens:** legal-compliance
 
@@ -480,7 +573,11 @@ legal/EULA.md line 5–6: "This draft is written by the developer, not by a lawy
 
 ---
 
-### 🟡 medium · Domain is ticktune.net in README and ticktune.com throughout docs/10, while the EULA scopes itself to an unnamed "official domain"
+### ✅ ~~🟡 medium~~ · Domain is ticktune.net in README and ticktune.com throughout docs/10, while the EULA scopes itself to an unnamed "official domain"
+
+**CLOSED** — the domain is `ticktune.net`, live; `docs/10` was corrected at
+bootstrap, and the EULA names the hosted service at `ticktune.net` (Legal
+1.1).
 
 **Owner phase:** P6 legal pass · **Lens:** legal-compliance
 
@@ -498,7 +595,11 @@ README.md line 7: "**Domain (planned):** `ticktune.net` … All docs use `ticktu
 
 ---
 
-### ⚪ low · Minor stale references: Discord link, auto-theme YouTube behavior, perf-budget phase
+### ✅ ~~⚪ low~~ · Minor stale references: Discord link, auto-theme YouTube behavior, perf-budget phase
+
+**CLOSED** — (a) the Discord pointer is gone from CONTRIBUTING (v1.1);
+(b) `03 §5` no longer derives anything from YouTube thumbnails (P5 slice 3);
+(c) the perf budget is P7's (decided in P5's exit review).
 
 **Owner phase:** P6 doc sweep · **Lens:** consistency
 
@@ -518,7 +619,9 @@ docs/13-TESTING.md §5: "## 5. Performance budget (checked in P7)" vs docs/16-RO
 
 ---
 
-### ⚪ low · Privacy Policy names localStorage as a storage mechanism that the code standards ban
+### ✅ ~~⚪ low~~ · Privacy Policy names localStorage as a storage mechanism that the code standards ban
+
+**CLOSED in P7 slice A** — the same fix as the medium finding above.
 
 **Owner phase:** P6 legal pass · **Lens:** legal-compliance
 

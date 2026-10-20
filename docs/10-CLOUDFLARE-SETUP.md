@@ -1,8 +1,8 @@
 # 10 — Cloudflare Setup Guide
 
-Suite 1.0 · 2026-07-21 · Requested by spec: full CF configuration walkthrough.
-Assumes the domain (placeholder `ticktune.net`) is registered — Cloudflare
-Registrar is fine — and the zone is on the **Free** plan unless noted.
+Suite 1.1 · 2026-10-20 · Requested by spec: full CF configuration walkthrough.
+The domain `ticktune.net` is live; the zone is on the **Free** plan and the
+account on **Workers Paid** unless noted.
 
 ## 1. Zone & DNS
 
@@ -18,9 +18,10 @@ Registrar is fine — and the zone is on the **Free** plan unless noted.
 - Mode: **Full (Strict)** — harmless and correct even with no origin.
 - Edge Certificates: Always Use HTTPS **On** · Minimum TLS **1.2** ·
   TLS 1.3 **On** · Automatic HTTPS Rewrites **On**.
-- **HSTS**: enable, `max-age=31536000` (1 year), includeSubDomains On,
-  preload **Off** initially (turn on + submit to the preload list only after a
-  stable month — preload is effectively irreversible).
+- **HSTS**: enabled, `max-age=31536000` (1 year), includeSubDomains On,
+  preload **On** — served as `max-age=31536000; includeSubDomains; preload`
+  (measured 2026-10-20). Preload is effectively irreversible; it was turned on
+  after the stable month this step originally asked for.
   ⚠️ **Corrected 2026-07-24.** This said `15552000` (6 months) while asking for
   `preload` in the same breath, and the two are contradictory: the HSTS preload
   list requires **`max-age ≥ 31536000`**, so a zone configured exactly as
@@ -92,7 +93,8 @@ leave defaults. Custom rules (5 free) — add one:
 - Rule "api-oembed-guard": match `http.request.uri.path starts_with "/api/"`,
   **60 requests / 1 min per IP** → Block for 1 min, response 429.
 - The app treats a 429 from `/api/*` as a soft failure: track kept as
-  `status:'pending'`, toast `toast.rateLimited`, retry on Start (`06 §5`).
+  `status:'pending'` with cause `rate_limited` → **TT-YT-001**, shown by the
+  import toast as `toast.import.TT-YT-001`, and retried on Start (`06 §8`).
   This is the concrete realization of the spec's "429 custom page".
 
 ## 7. Headers
@@ -106,7 +108,7 @@ step rewrites it.
 
 | Aspect | Rule |
 |--------|------|
-| Ordering | Runs **after** `astro build`, **before** `wrangler deploy`. `pnpm build` = `astro build && tsx scripts/inject-csp-hash.ts` (`CLAUDE.md §Commands`) |
+| Ordering | Runs **after** `astro build`, **before** `wrangler deploy`. `pnpm build` = `astro build && node scripts/inject-csp-hash.ts && node scripts/make-notices.ts && node scripts/check-budget.ts` (`01 §5`) |
 | Input | Globs `dist/**/*.html`; extracts the text of every inline `<script>` (i.e. one without `src`) |
 | Hash | SHA-256 of the script's **exact** text content, base64 → `'sha256-…'` |
 | **Assertion** | The set of distinct hashes must have size **exactly 1** — the mobile gate (`07 §2`) is the only inline script on the site. Size 0 → the gate vanished; size > 1 → an unhashed inline script slipped in. **Either fails the build with a non-zero exit** |
@@ -133,9 +135,11 @@ pages, 52x). Decision per spec's conditional:
 
 ## 9. Offline / "No Internet"
 
-Client-side: `navigator.onLine` + a failed-fetch probe drive a banner; entering
-YouTube mode while offline shows a blocking panel (`yt.err.offline`); local modes
-keep working once loaded. (Full offline PWA is post-1.0, `16 §post`.)
+Client-side: a Setup banner (`setup.offline.*`) appears when `navigator.onLine`
+says offline **or** an import could not reach the network, and it blocks Start
+in YouTube mode only, with a retry button — there is no background probe
+(`06 §8`). Local modes keep working once loaded. (Full offline PWA is post-1.1,
+`16`.)
 
 ## 10. Observability
 

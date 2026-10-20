@@ -1,6 +1,6 @@
 # 07 — Mobile Gate (site-wide block)
 
-Suite 1.0 · 2026-07-21 · Locked decision D2
+Suite 1.1 · 2026-10-20 · Locked decision D2
 
 ## 1. Behavior
 
@@ -42,8 +42,10 @@ if (blocked) document.documentElement.dataset.ttBlocked = '1';
      import('./app/mount');        // Svelte island, engines, fonts-secondary
    }
    ```
-   Fonts: DSEG7 + JetBrains Mono are loaded from the app bundle path only.
-   Be Vietnam Pro subset for the gate/landing stays (few KB, needed for VI text).
+   Fonts are declared site-wide in `global.css`, which `TtBase.astro` imports
+   on every page — but a face is only downloaded when visible text uses it, and
+   `unicode-range` limits it to the subsets that text needs. A blocked page
+   fetches the few faces its notice uses; DSEG7 is never fetched there.
 
    > ✅ **This guard is the chosen mechanism** (measured 2026-07-21, `01 §3`).
    > A plain `client:only` island was tried and rejected: it fetched the island
@@ -55,7 +57,9 @@ if (blocked) document.documentElement.dataset.ttBlocked = '1';
    > site keeps exactly one inline script (the gate in `TtBase.astro`) and the
    > CSP hash assertion in `10 §7` holds. On a blocked viewport the browser
    > therefore fetches one ≈200 B chunk that evaluates the `if` and stops —
-   > zero component or framework bundles.
+   > zero component or framework bundles. The one other script a blocked page
+   > loads is the disclosed Cloudflare Web Analytics beacon (`09 §1`), which is
+   > on every page by decision; `tests/e2e/analytics.spec.ts` asserts it.
    >
    > It reads `data-tt-blocked` rather than re-evaluating the media queries, so
    > the overlay and the loader decide once, together.
@@ -86,7 +90,7 @@ mobile viewport and will therefore see the gate. Mitigation applied:
 
 ## 6. QA
 
-Playwright projects with mobile viewports/touch (`13 §5`): assert overlay visible,
+Playwright projects with mobile viewports/touch (`13 §3`): assert overlay visible,
 app bundle request **absent** (network log), copy present in both languages;
 desktop project asserts overlay hidden and island mounted. Manual check on one real
 Android + one iPad (touch-only) before launch (`13 §7` live checklist).

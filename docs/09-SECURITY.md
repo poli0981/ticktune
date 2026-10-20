@@ -1,6 +1,6 @@
 # 09 — Security
 
-Suite 1.0 · 2026-07-21 · Spec goal: "basic and sufficient" — right-sized for a
+Suite 1.1 · 2026-10-20 · Spec goal: "basic and sufficient" — right-sized for a
 static client-side app, not theater.
 
 ## 1. Threat model
@@ -29,8 +29,9 @@ attacks, GDPR data-subject tooling (nothing to export/delete server-side).
 ```
 
 - No `X-XSS-Protection` (obsolete). No COEP (`require-corp` would break the
-  YouTube iframe). HSTS is set at the Cloudflare zone (`10 §4`) rather than
-  per-response.
+  YouTube iframe). HSTS is set at the Cloudflare zone (`10 §2`) rather than
+  per-response — served as `max-age=31536000; includeSubDomains; preload`
+  (measured 2026-10-20).
 - `X-Frame-Options: DENY` + CSP `frame-ancestors 'none'`: TickTune may embed
   YouTube; nothing may embed TickTune.
 
@@ -133,10 +134,10 @@ Notes:
 
 ## 6. Dependency & CI hygiene
 
-`pnpm-lock.yaml` committed; CI runs `pnpm audit --prod` (fail on high/critical) +
-CodeQL javascript-typescript + Dependabot weekly (`14 §2`). New deps require a
-license check against GPL-3.0 compatibility (`legal/THIRD-PARTY-NOTICES.md`
-process note).
+`pnpm-lock.yaml` committed; CI runs `pnpm audit --prod` (fail on high) and a
+whole-tree audit at `critical`, CodeQL (GitHub default setup) and Dependabot
+weekly (`14 §1`). New deps require a licence check against GPL-3.0
+compatibility, and a distributed one a notices row (`11 §5`).
 
 ## 7. Vulnerability disclosure
 

@@ -1,6 +1,6 @@
 # 06 — YouTube Integration
 
-Suite 1.0 · 2026-07-21 · Locked decision D1
+Suite 1.1 · 2026-10-20 · Locked decision D1
 
 ## 1. Compliance rules (non-negotiable)
 
@@ -40,15 +40,18 @@ Suite 1.0 · 2026-07-21 · Locked decision D1
 
 ## 2. Player lifecycle
 
-- IFrame API script loaded lazily on first entry into YouTube mode
-  (`https://www.youtube.com/iframe_api`, CSP-allowed, §09).
+- IFrame API script loaded lazily, when the player is first created — at the
+  first YouTube-mode Start, after the rail has mounted (`yt.svelte.ts`;
+  `https://www.youtube.com/iframe_api`, CSP-allowed, `09 §4`). Entering the
+  mode alone loads nothing.
 - **One** `YT.Player` instance, reused across the queue: `loadVideoById(nextId)`.
 - Events: `onReady` → first cue; `onStateChange: ENDED` → advance per
   shuffle/loop; `PLAYING` → `getDuration()` backfills `durationMs` and
   `getVideoData()` backfills title/channel if oEmbed was incomplete;
   `onError` → §4.
-- App transport (Space/⏯ etc.) maps to `playVideo/pauseVideo/nextVideo` — the
-  native controls remain usable too.
+- App transport maps ⏯ to `playVideo`/`pauseVideo`; ⏭/⏮/jump select the
+  next id with `loadVideoById`, or `cueVideoById` while paused so a paused run
+  stays silent (v1.1). The native controls remain usable too.
 - Countdown `done` in YouTube mode: `pauseVideo()` + UI dim (no audio-graph fade
   available); chime still plays locally.
 
@@ -127,7 +130,8 @@ released them):
    recover it because the player reports `onError 150` for everything.
 2. **The `error` body now names the cause**, from one shared vocabulary:
    `invalid_id` · `embed_off` · `private` · `not_found` ·
-   `upstream_unreachable` · `unavailable`. The status passes through unchanged.
+   `upstream_unreachable` · `rate_limited` · `unavailable`. The status passes
+   through unchanged.
 
 The map lives in **`src/lib/tt-yt-cause.ts`**, imported by *both* the Worker and
 the app — `src/lib/` exists for exactly this, as `tt-domain-types.ts` explains:
@@ -139,7 +143,11 @@ that 401 and 404 stay distinct.
 means "it failed and we do not know why", which is true; guessing a specific
 cause there would put a confident wrong sentence in front of the user.
 
-- Thumbnails render directly from `https://i.ytimg.com/vi/<id>/hqdefault.jpg`.
+- **No thumbnail is rendered by the app.** oEmbed's `thumbnail_url` is stored
+  and appears only as a text row in track info; the images inside the player
+  are the player's own. So `img-src https://i.ytimg.com` in `09 §4` is
+  currently unused by this document — a candidate for removal once a live
+  YouTube session is measured without it.
 - Duration and publish date are **not** available without the Data API v3 —
   post-1.0 option (same Worker would hold the key server-side). v1 renders `–`
   until the player backfills duration.
@@ -194,9 +202,14 @@ at play time. They are now caught before Start, which is the real win from S1.
 | Signal | Meaning | Overlay | Action | Log |
 |--------|---------|---------|--------|-----|
 | `onError 150` after a **200** oEmbed | **Age-restricted or region-blocked — genuinely indistinguishable.** Both return 200 with full title and channel, then refuse to play | `yt.err.blocked`, subtext naming both as possible causes | skip after 5 s | TT-YT-150 |
-| `onError 100` | Removed/private **mid-session** | `yt.err.gone` | stop → 3 s → next (`02 §6`) | TT-YT-100 |
+| `onError 100` | Removed/private **mid-session** | `yt.err.gone` | skip after 5 s | TT-YT-100 |
 | `onError 2` | Bad parameter | `yt.err.invalid` | skip after 5 s | TT-YT-002 |
-| `onError 5` | HTML5 player failure | `yt.err.player` | retry once → skip | TT-YT-005 |
+| `onError 5` | HTML5 player failure | `yt.err.player` | skip after 5 s | TT-YT-005 |
+
+Every code gets the same handling: one card, a visible countdown, and one
+automatic skip after `OVERLAY_SKIP_MS` (5 s). Suite 1.0 specified a 3 s path
+for `100` and a retry for `5`; neither was built, and a retry of an error the
+player itself raised has never been observed to succeed.
 
 ⚠️ **The last three rows are unobserved, and `100` is now believed unreachable.**
 S1 re-tested it deliberately: the three ids whose oEmbed says *gone* (404),
@@ -266,9 +279,9 @@ is the `docs/03 §3` predicate Playlist → Single already uses.
 ## 6. Degraded visuals (platform limit)
 
 No Analyser access to cross-origin media ⇒ no beat-reactive visualizer and no
-beat-driven tally pulse in YouTube mode (`05 §6`). Substitutes: blurred
-`hqdefault` thumbnail background, slow gradient drift, steady tally light.
-Stated plainly on the landing FAQ so it never reads as a bug.
+beat-driven tally pulse in YouTube mode (`05 §6`). Substitutes: Z1's generated
+gradient and a steady tally light — nothing derived from the thumbnail (`§1`
+rule 5). Settings → Visualizer states the limit, so it never reads as a bug.
 
 ## 7. CSP + privacy touchpoints
 
@@ -276,8 +289,10 @@ Stated plainly on the landing FAQ so it never reads as a bug.
   youtube.com; `script-src` www.youtube.com (iframe_api); `img-src` i.ytimg.com;
   `connect-src 'self'` covers the oEmbed proxy.
 - Privacy Policy discloses: entering YouTube mode loads Google's player, which may
-  set cookies/collect data per Google's privacy policy; local modes contact no
-  third party (`legal/PRIVACY-POLICY.md §4`).
+  set cookies/collect data per Google's privacy policy; local modes make no
+  request to Google at all (`legal/PRIVACY-POLICY.md` §3 and §5). The only third
+  party on every page, local modes included, is the disclosed Cloudflare
+  beacon (`09 §1`).
 
 ## 8. Offline — specified in P4, because nothing else did
 

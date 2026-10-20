@@ -1,5 +1,5 @@
 {
-  // Normative copy lives in docs/01 §5.
+  // The source of truth; docs/01 §5 says what each key is for.
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "ticktune",
   "main": "worker/index.ts",

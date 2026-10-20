@@ -520,11 +520,19 @@ the worse bug.
 - Ring buffer, capacity **500**, in-memory. Entry:
   `{ ts, level: 'info'|'warn'|'error', code: 'TT-XXX-nnn', message, trackId? }`
 - Code registry lives in `12-CODE-STANDARDS.md §6` (single source of truth).
-- Global capture: `window.onerror` + `unhandledrejection` append `TT-SYS-*` entries.
+- Global capture: `window.onerror` + `unhandledrejection` append `TT-SYS-300` /
+  `TT-SYS-301` entries carrying the error's **name** only (`errorName`) — a
+  message can contain a file name or a title the user chose. The browser console
+  is **not** captured.
+- A `message` never carries a user string — no file name, tag value or title
+  (`12 §6`). That is what makes the bug template's "contains no personal files"
+  true by construction.
 - Settings → Diagnostics: log viewer (filter by level), **Copy Diagnostics** button
-  producing JSON: `{ app:'TickTune', version, ua, mode, settings-snapshot,
-  last 50 log entries, captured console errors }` — this is what the bug template
-  (`.github/ISSUE_TEMPLATE/bug_report.yml`) asks the reporter to paste.
+  producing `TtDiagnostics` (`src/app/engine/log/types.ts`):
+  `{ app: 'TickTune', version, ua, capturedAt, mode, settings, log }`, where `log`
+  is the last 50 entries, oldest first — this is what the bug template
+  (`.github/ISSUE_TEMPLATE/bug_report.yml`) asks the reporter to paste. The
+  suite 1.0 sketch also listed "captured console errors"; no such field exists.
 
 ## 8. Right-click metadata modal (spec)
 
