@@ -54,17 +54,17 @@ const docs = [
 <footer class="tt-footer" aria-labelledby="tt-legal">
   <div class="tt-panel tt-rear">
     <div>
-      <h2 id="tt-legal" class="tt-label">{t.legalTitle}</h2>
+      <h2 id="tt-legal" class="tt-label">
+        {t.legalTitle}
+      </h2>
       <ul class="tt-docs">
-        {
-          docs.map((d) => (
-            <li>
-              <a href={d.href} rel="noopener noreferrer">
-                {d.label}
-              </a>
-            </li>
-          ))
-        }
+        {docs.map((d) => (
+          <li>
+            <a href={d.href} rel="noopener noreferrer">
+              {d.label}
+            </a>
+          </li>
+        ))}
       </ul>
       <p class="tt-note">{t.legalNote}</p>
     </div>
@@ -72,14 +72,12 @@ const docs = [
     <div>
       <h2 class="tt-label">{t.contactTitle}</h2>
       <ul class="tt-contacts">
-        {
-          contacts.map((c) => (
-            <li>
-              <span class="tt-contact-label">{`${c.label}:`}</span>{' '}
-              <a href={`mailto:${c.address}`}>{c.address}</a>
-            </li>
-          ))
-        }
+        {contacts.map((c) => (
+          <li>
+            <span class="tt-contact-label">{`${c.label}:`}</span>{' '}
+            <a href={`mailto:${c.address}`}>{c.address}</a>
+          </li>
+        ))}
       </ul>
     </div>
 

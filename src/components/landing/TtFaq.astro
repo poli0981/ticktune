@@ -38,17 +38,15 @@ const { t, faq } = Astro.props;
     <h2 id="tt-faq">{t.faqTitle}</h2>
   </div>
   <div class="tt-faq">
-    {
-      faq.map((item, i) => (
-        <details open={i === 0}>
-          <summary>
-            <span class="tt-led" aria-hidden="true" />
-            <span class="tt-q">{item.q}</span>
-          </summary>
-          <p>{item.a}</p>
-        </details>
-      ))
-    }
+    {faq.map((item, i) => (
+      <details open={i === 0}>
+        <summary>
+          <span class="tt-led" aria-hidden="true" />
+          <span class="tt-q">{item.q}</span>
+        </summary>
+        <p>{item.a}</p>
+      </details>
+    ))}
   </div>
 </section>
 

@@ -49,14 +49,14 @@ const ogImageUrl = new URL(ogImage, Astro.site);
     {noindex && <meta name="robots" content="noindex, nofollow" />}
 
     {/* docs/08 §1 — reciprocal per route; empty on /app/ and the spikes. */}
-    {alternates.map((a) => <link rel="alternate" hreflang={a.hreflang} href={a.href} />)}
+    {alternates.map((a) => (
+      <link rel="alternate" hreflang={a.hreflang} href={a.href} />
+    ))}
 
-    {
-      /*
+    {/*
       Open Graph + Twitter. Pure <meta>, so no CSP implication: the image is
       fetched by the crawler from our origin, never by this page.
-    */
-    }
+    */}
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="TickTune" />
     <meta property="og:title" content={title} />
@@ -66,18 +66,15 @@ const ogImageUrl = new URL(ogImage, Astro.site);
     <meta property="og:locale" content={lang === 'vi' ? 'vi_VN' : 'en_US'} />
     <meta name="twitter:card" content="summary_large_image" />
 
-    {
-      /*
+    {/*
       Favicon — self-hosted, the "On Air" tally dot. SVG first with a PNG
       fallback for the browsers and crawlers that ignore SVG icons.
-    */
-    }
+    */}
     <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
     <link rel="icon" href="/favicon.png" sizes="96x96" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
 
-    {
-      /*
+    {/*
       Mobile gate — docs/07 §2/§3.1. MUST stay `is:inline` and MUST run before
       the parser reaches any module script, so the attribute is set before first
       paint: no flash, no layout shift.
@@ -91,8 +88,7 @@ const ogImageUrl = new URL(ogImage, Astro.site);
       is the source of truth for the criteria (TT_GATE: minWidth 1024,
       blockCoarseOnly). Evaluated once, deliberately: resizing a desktop window
       below 1024 px mid-session must not eject the user.
-    */
-    }
+    */}
     <script is:inline>
       if (
         window.innerWidth < 1024 ||
@@ -101,9 +97,7 @@ const ogImageUrl = new URL(ogImage, Astro.site);
         document.documentElement.dataset.ttBlocked = '1';
       }
     </script>
-
-    {
-      /*
+    {/*
       Cloudflare Web Analytics — every page, /app/ included (decided 2026-10-20).
 
       The ONLY telemetry TickTune has, and it is disclosed: legal/PRIVACY-POLICY.md
@@ -120,47 +114,38 @@ const ogImageUrl = new URL(ogImage, Astro.site);
 
       E2E never sends real beacons: tests/e2e/_fixtures.ts fulfils both origins
       with an empty response for every spec.
-    */
-    }
+    */}
     <script
       is:inline
       type="module"
       src="https://static.cloudflareinsights.com/beacon.min.js"
-      data-cf-beacon='{"token": "46c4fdb729df436091a0cb204d77dcc7"}'></script>
+      data-cf-beacon='{"token": "46c4fdb729df436091a0cb204d77dcc7"}'
+    ></script>
   </head>
 
   <body>
     <slot />
 
-    {
-      /*
+    {/*
       Always rendered, hidden by default; CSS in global.css reveals it when
       data-tt-blocked is present and visually hides everything else. The page's
       real HTML deliberately STAYS in the DOM underneath — that is the SEO
       mitigation in docs/07 §5. Never swap it out, and never UA-sniff crawlers.
-    */
-    }
-    <div
-      class="tt-mobile-gate fixed inset-0 z-(--tt-z-mobile-gate) flex-col items-center justify-center overflow-y-auto bg-tt-void [background-image:var(--tt-grain),radial-gradient(110%_70%_at_50%_0%,rgb(255_178_63/7%),transparent_65%)] p-6"
-    >
-      {
-        /*
+    */}
+    <div class="tt-mobile-gate fixed inset-0 z-(--tt-z-mobile-gate) flex-col items-center justify-center overflow-y-auto bg-tt-void [background-image:var(--tt-grain),radial-gradient(110%_70%_at_50%_0%,rgb(255_178_63/7%),transparent_65%)] p-6">
+      {/*
         v1.1 "Rack Unit": the notice is a powered-down module on the chassis —
         tally lamp idle (docs/03 §1), engraved product plate, status LEDs dark.
         Utilities and global.css primitives only: this layout carries no <style>,
         and `display` stays global.css's (it shows the overlay only when blocked).
-      */
-      }
-      <div
-        class="tt-panel relative flex w-full max-w-sm flex-col items-center gap-5 px-6 pt-4 pb-7 text-center"
-      >
-        <div
-          class="flex w-full items-center justify-between border-b border-black/60 pb-3 shadow-[0_1px_0_rgb(255_255_255/4%)]"
-        >
+      */}
+      <div class="tt-panel relative flex w-full max-w-sm flex-col items-center gap-5 px-6 pt-4 pb-7 text-center">
+        <div class="flex w-full items-center justify-between border-b border-black/60 pb-3 shadow-[0_1px_0_rgb(255_255_255/4%)]">
           <span class="flex items-center gap-2">
             <span
               class="inline-block size-2.5 rounded-full bg-tt-muted shadow-[inset_0_0_0_1px_rgb(0_0_0/45%)]"
-              aria-hidden="true"></span>
+              aria-hidden="true"
+            ></span>
             <span class="tt-label">TickTune</span>
           </span>
           <span class="flex gap-2" aria-hidden="true">
@@ -175,11 +160,13 @@ const ogImageUrl = new URL(ogImage, Astro.site);
           lang="vi"
           class="font-display text-lg leading-snug font-semibold text-balance text-tt-text"
         >
-          Xin lỗi — TickTune không hỗ trợ thiết bị di động.<br />
+          Xin lỗi — TickTune không hỗ trợ thiết bị di động.
+          <br />
           Vui lòng mở bằng trình duyệt trên máy tính.
         </p>
         <p lang="en" class="text-sm leading-relaxed text-balance text-tt-muted">
-          Sorry — TickTune isn't available on mobile.<br />
+          Sorry — TickTune isn't available on mobile.
+          <br />
           Please use a desktop browser and try again.
         </p>
 

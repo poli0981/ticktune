@@ -40,18 +40,16 @@ const parts = (limit: string) => limit.split(/(\d+(?::\d+)?)/);
         </tr>
       </thead>
       <tbody>
-        {
-          t.limits.map((row) => (
-            <tr>
-              <th scope="row">{row.what}</th>
-              <td>
-                {parts(row.limit).map((part, i) =>
-                  i % 2 === 1 ? <span class="tt-fig">{part}</span> : part,
-                )}
-              </td>
-            </tr>
-          ))
-        }
+        {t.limits.map((row) => (
+          <tr>
+            <th scope="row">{row.what}</th>
+            <td>
+              {parts(row.limit).map((part, i) =>
+                i % 2 === 1 ? <span class="tt-fig">{part}</span> : part,
+              )}
+            </td>
+          </tr>
+        ))}
       </tbody>
     </table>
   </div>

@@ -2,19 +2,16 @@
 import TtBase from '../../layouts/TtBase.astro';
 ---
 
-{
-  /*
+{/*
   `noindex` since P6: the app is an empty shell to a crawler — the island is
   hand-mounted client-side, so there is no content here to index, and an
   indexed blank page competes with the landing that is meant to rank. The
   landing links to it, which is how people arrive.
-*/
-}
+*/}
 <TtBase title="TickTune" noindex>
   <div id="tt-app"></div>
 
-  {
-    /*
+  {/*
     The docs/07 §3.2 load guard, and the whole mount mechanism (docs/01 §3).
 
     A MODULE script, not `is:inline`: the site must keep exactly one inline
@@ -25,8 +22,7 @@ import TtBase from '../../layouts/TtBase.astro';
 
     Reads the attribute the gate already set rather than re-testing the media
     queries, so the overlay and the loader decide once, together.
-  */
-  }
+  */}
   <script>
     if (!document.documentElement.dataset.ttBlocked) {
       import('../../app/mount.ts');
