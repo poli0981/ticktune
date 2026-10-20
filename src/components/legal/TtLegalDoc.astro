@@ -60,7 +60,9 @@ const versionGhost = TT_LEGAL_VERSION.replace(/\d/g, '8');
 <TtBase title={`${title} — TickTune`} description={t.landing.description} {lang} {alternates}>
   <main class="tt-page">
     <nav class="tt-legal-nav" aria-label={t.common.switchToLabel}>
-      <a class="tt-key tt-key-sm" href={home}>{t.common.backHome}</a>
+      <a class="tt-key tt-key-sm" href={home}>
+        {t.common.backHome}
+      </a>
       <a class="tt-key tt-key-sm" href={otherHref} hreflang={otherLang} lang={otherLang}>
         {t.common.switchTo}
       </a>
@@ -73,20 +75,21 @@ const versionGhost = TT_LEGAL_VERSION.replace(/\d/g, '8');
           <span class="tt-led" data-on="true"></span>
           <span>TickTune</span>
         </p>
-        <p class="tt-block-title" aria-hidden="true">{title}</p>
+        <p class="tt-block-title" aria-hidden="true">
+          {title}
+        </p>
 
-        {
-          /* One expression, not two: Astro collapses the whitespace between adjacent
+        {/* One expression, not two: Astro collapses the whitespace between adjacent
             expressions, so `{label}\n{version}` rendered as "Version1.0". Shipped
             that way from P6 slice B until P7 — `toContainText` passes on it, which
             is why only reading the built HTML caught it. The explicit `{' '}`
             below is that same rule, kept now that label and value are styled
-            apart. */
-        }
+            apart. */}
         <p class="tt-version" data-testid="tt-legal-version">
-          <span class="tt-version-label">{t.legal.versionLabel}</span>
-          {' '}
-          <span class="tt-version-value" data-ghost={versionGhost}>{TT_LEGAL_VERSION}</span>
+          <span class="tt-version-label">{t.legal.versionLabel}</span>{' '}
+          <span class="tt-version-value" data-ghost={versionGhost}>
+            {TT_LEGAL_VERSION}
+          </span>
         </p>
 
         {/* Not a warning colour: this states which text governs, it does not warn. */}

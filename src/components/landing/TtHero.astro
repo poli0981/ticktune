@@ -67,10 +67,8 @@ for (const row of t.limits) {
 
 <section class="tt-hero">
   <div class="tt-hero-copy">
-    {
-      /* The product plate. Its LED is the power light — the red tally lives on
-         the monitor, where the beat-reactive one sits in the app (docs/03 §1). */
-    }
+    {/* The product plate. Its LED is the power light — the red tally lives on
+         the monitor, where the beat-reactive one sits in the app (docs/03 §1). */}
     <p class="tt-eyebrow">
       <span class="tt-plate">
         <span class="tt-led" data-on="true" aria-hidden="true"></span>
@@ -79,19 +77,19 @@ for (const row of t.limits) {
     </p>
 
     <h1 class="tt-headline">
-      {
-        lines.map((line, i) => (
-          <span class="tt-line" style={`--i: ${i}`}>
-            {line}
-            {i < lines.length - 1 ? ' ' : ''}
-          </span>
-        ))
-      }
+      {lines.map((line, i) => (
+        <span class="tt-line" style={`--i: ${i}`}>
+          {line}
+          {i < lines.length - 1 ? ' ' : ''}
+        </span>
+      ))}
     </h1>
     <p class="tt-sub">{t.heroSub}</p>
 
     <div class="tt-actions">
-      <a class="tt-key tt-key-primary tt-cta" href="/app/">{common.openApp}</a>
+      <a class="tt-key tt-key-primary tt-cta" href="/app/">
+        {common.openApp}
+      </a>
     </div>
   </div>
 
@@ -100,7 +98,9 @@ for (const row of t.limits) {
     <span class="tt-screws tt-screws-r" aria-hidden="true"></span>
     {/* Hardware labelling, not content: "ON AIR" is a studio sign, not copy. */}
     <div class="tt-monitor-strip" aria-hidden="true">
-      <span class="tt-onair"><span class="tt-onair-lamp"></span>On Air</span>
+      <span class="tt-onair">
+        <span class="tt-onair-lamp"></span>On Air
+      </span>
       <span class="tt-monitor-leds">
         <span class="tt-led" data-on="true"></span>
         <span class="tt-led" data-on="true"></span>
@@ -143,7 +143,8 @@ for (const row of t.limits) {
           muted
           loop
           playsinline
-          aria-label={t.heroMediaAlt}></video>
+          aria-label={t.heroMediaAlt}
+        ></video>
 
         <!--
           Shown INSTEAD of the video under `prefers-reduced-motion` — `03 §8` treats
@@ -170,21 +171,19 @@ for (const row of t.limits) {
       <span class="tt-glass" aria-hidden="true"></span>
     </div>
 
-    {
-      readouts.length > 0 && (
-        <div class="tt-gauges" style={`--n: ${readouts.length}`} aria-hidden="true">
-          {readouts.map((r, i) => (
-            <div class="tt-gauge" style={`--i: ${i}`}>
-              <span class="tt-window" data-ghost={r.ghost}>
-                <span class="tt-le" />
-                <span class="tt-digits">{r.value}</span>
-              </span>
-              <span class="tt-gauge-label">{r.label}</span>
-            </div>
-          ))}
-        </div>
-      )
-    }
+    {readouts.length > 0 && (
+      <div class="tt-gauges" style={`--n: ${readouts.length}`} aria-hidden="true">
+        {readouts.map((r, i) => (
+          <div class="tt-gauge" style={`--i: ${i}`}>
+            <span class="tt-window" data-ghost={r.ghost}>
+              <span class="tt-le" />
+              <span class="tt-digits">{r.value}</span>
+            </span>
+            <span class="tt-gauge-label">{r.label}</span>
+          </div>
+        ))}
+      </div>
+    )}
   </figure>
 </section>
 

@@ -34,7 +34,9 @@ const { t, lang } = Astro.props;
       <span class="tt-screws tt-screws-l" aria-hidden="true"></span>
       <span class="tt-screws tt-screws-r" aria-hidden="true"></span>
       <div class="tt-strip" aria-hidden="true">
-        <span class="tt-offair"><span class="tt-offair-lamp"></span>On Air</span>
+        <span class="tt-offair">
+          <span class="tt-offair-lamp"></span>On Air
+        </span>
         <span class="tt-strip-leds">
           <span class="tt-led" data-on="true"></span>
           <span class="tt-led"></span>
@@ -44,7 +46,9 @@ const { t, lang } = Astro.props;
 
       <p class="tt-display" aria-hidden="true">
         <span class="tt-ch">CH</span>
-        <span class="tt-segs"><span class="tt-code">404</span></span>
+        <span class="tt-segs">
+          <span class="tt-code">404</span>
+        </span>
       </p>
 
       <h1>{t.notFound.heading}</h1>

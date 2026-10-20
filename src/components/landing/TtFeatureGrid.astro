@@ -21,17 +21,15 @@ const { t } = Astro.props;
     <h2 id="tt-features">{t.featuresTitle}</h2>
   </div>
   <ul class="tt-grid">
-    {
-      t.features.map((f) => (
-        <li class="tt-panel tt-card">
-          <div class="tt-card-head">
-            <span class="tt-led" data-on="true" aria-hidden="true" />
-            <h3>{f.title}</h3>
-          </div>
-          <p>{f.body}</p>
-        </li>
-      ))
-    }
+    {t.features.map((f) => (
+      <li class="tt-panel tt-card">
+        <div class="tt-card-head">
+          <span class="tt-led" data-on="true" aria-hidden="true" />
+          <h3>{f.title}</h3>
+        </div>
+        <p>{f.body}</p>
+      </li>
+    ))}
   </ul>
 </section>
 

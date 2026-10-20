@@ -51,10 +51,8 @@ const otherHref = lang === 'vi' ? '/en/' : '/';
       in-place toggle is a different mechanism for a different surface.
       `hreflang` on the anchor tells assistive tech the target language.
     -->
-    {
-      /* ⚠️ The page's ONLY navigation landmark, holding exactly one link —
-         tests/e2e/landing.spec.ts clicks `getByRole('navigation').getByRole('link')`. */
-    }
+    {/* ⚠️ The page's ONLY navigation landmark, holding exactly one link —
+         tests/e2e/landing.spec.ts clicks `getByRole('navigation').getByRole('link')`. */}
     <nav class="tt-lang" aria-label={t.common.switchToLabel}>
       <a
         class="tt-key tt-key-sm"

@@ -24,17 +24,15 @@ const { t } = Astro.props;
     <h2 id="tt-modes">{t.modesTitle}</h2>
   </div>
   <ul class="tt-grid">
-    {
-      t.modes.map((m, i) => (
-        <li class="tt-panel tt-mode">
-          <span class="tt-channel" aria-hidden="true">
-            <span class="tt-channel-digit">{i + 1}</span>
-          </span>
-          <h3>{m.name}</h3>
-          <p>{m.body}</p>
-        </li>
-      ))
-    }
+    {t.modes.map((m, i) => (
+      <li class="tt-panel tt-mode">
+        <span class="tt-channel" aria-hidden="true">
+          <span class="tt-channel-digit">{i + 1}</span>
+        </span>
+        <h3>{m.name}</h3>
+        <p>{m.body}</p>
+      </li>
+    ))}
   </ul>
   <p class="tt-unit-note">
     <span class="tt-led tt-note-led" data-on="true" aria-hidden="true"></span>
