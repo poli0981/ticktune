@@ -19,8 +19,29 @@ const DIST = 'dist';
 const HEADERS = join(DIST, '_headers');
 const PLACEHOLDER = '<TT_GATE_HASH>';
 
-/** Inline = a <script> with no src. Matches across newlines. */
-const INLINE_SCRIPT = /<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/gi;
+/**
+ * Every <script> element: group 1 is the opening tag's attributes, group 2 the
+ * body. Matches across newlines. Which ones count as INLINE is decided by
+ * `isInlineScript` below, not by the regex — the old single-regex form used
+ * `(?![^>]*\bsrc=)`, and `\b` also matches inside `data-src=`, so an inline
+ * script carrying a `data-src` attribute was silently not counted (and would
+ * have been blocked in production, the exact failure this file prevents).
+ */
+const SCRIPT = /<script\b([^>]*)>([\s\S]*?)<\/script>/gi;
+
+/**
+ * Types the browser treats as a data block and never executes — a JSON-LD
+ * `<script type="application/ld+json">` is not subject to `script-src` and must
+ * not be counted, or adding structured data would fail the build for nothing.
+ * `importmap` and `module` ARE governed by CSP, so they still count.
+ */
+const DATA_BLOCK = /^(application\/(ld\+)?json|text\/plain|text\/x-template)$/i;
+
+function isInlineScript(attrs: string): boolean {
+  if (/(^|\s)src\s*=/i.test(attrs)) return false;
+  const type = /(^|\s)type\s*=\s*["']?([^"'\s>]+)/i.exec(attrs)?.[2];
+  return !(type && DATA_BLOCK.test(type));
+}
 
 async function htmlFiles(dir: string): Promise<string[]> {
   const out: string[] = [];
@@ -45,8 +66,9 @@ const hashes = new Map<string, string[]>();
 
 for (const page of pages) {
   const html = await readFile(page, 'utf8');
-  for (const m of html.matchAll(INLINE_SCRIPT)) {
-    const body = m[1];
+  for (const m of html.matchAll(SCRIPT)) {
+    const [, attrs = '', body] = m;
+    if (!isInlineScript(attrs)) continue;
     if (body === undefined || body.trim() === '') continue;
     // Hash the exact bytes between the tags — that is what the browser hashes.
     const hash = createHash('sha256').update(body, 'utf8').digest('base64');
@@ -87,6 +109,15 @@ try {
 }
 
 if (!headers.includes(PLACEHOLDER)) {
+  /*
+   * Idempotent, as docs/10 §7 has always claimed: a second run over the same
+   * dist/ finds the hash it would have written and succeeds. Only a DIFFERENT
+   * hash is fatal — that is a stale _headers whose CSP would block the gate.
+   */
+  if (headers.includes(`'sha256-${hash}'`)) {
+    console.log(`✓ inject-csp-hash: sha256-${hash} already present — nothing to do`);
+    process.exit(0);
+  }
   fail(
     `${PLACEHOLDER} not found in ${HEADERS}. A stale _headers would ship a CSP ` +
       'whose hash does not match the gate, blocking it in production.',
