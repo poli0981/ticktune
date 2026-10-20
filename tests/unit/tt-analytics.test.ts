@@ -1,4 +1,4 @@
-import { readFileSync } from 'node:fs';
+import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
@@ -34,6 +34,20 @@ describe('Cloudflare Web Analytics — beacon, CSP and policy agree', () => {
     expect(base).toMatch(
       /<script\s+is:inline\s+type="module"\s+src="https:\/\/static\.cloudflareinsights/,
     );
+  });
+
+  it('only the spike harnesses opt out, and every one of them does', () => {
+    // They run on localhost in browsers `pnpm s4b|s5|s6` launch for real,
+    // where _fixtures.ts cannot fulfil the beacon: a harness run is not a visit.
+    const astroUnder = (dir: string): string[] =>
+      readdirSync(join(process.cwd(), dir), { recursive: true, encoding: 'utf8' })
+        .filter((f) => f.endsWith('.astro'))
+        .map((f) => join(dir, f));
+    const spikes = astroUnder('src/spike/pages');
+    expect(spikes.length).toBeGreaterThan(0);
+    for (const f of spikes) expect(read(f), f).toContain('analytics={false}');
+    for (const f of [...astroUnder('src/pages'), ...astroUnder('src/components')])
+      expect(read(f), f).not.toContain('analytics={false}');
   });
 
   it('the CSP allows exactly the two beacon origins it needs', () => {
