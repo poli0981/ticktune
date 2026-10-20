@@ -173,6 +173,13 @@ Firefox stays name-based, and that asymmetry is the point: its constructor
 there is nothing to feature-test. Skip on a capability where one is detectable;
 name a browser only where the failure is invisible to detection.
 
+The same rule found the next one, in v1.1. **Playwright's headless Firefox
+hides every scrollbar itself**, so `scrollbar-width` computes to `none` whatever
+the page says — the hide-scrollbars spec failed there with
+`data-tt-scrollbars="styled"` sitting correctly in the trace. It now gates its
+computed check on a probe element carrying an inline `thin`, and asserts the
+attribute flip and the persistence — the parts the app controls — everywhere.
+
 ⚠️ Audible **output** is asserted by Chromium and by desktop WebKit wherever it
 exposes `AudioContext` (Linux CI does; Playwright's WebKit on Windows does not),
 never by Firefox CI. Say that rather than implying full coverage.
