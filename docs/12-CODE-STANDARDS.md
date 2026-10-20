@@ -37,7 +37,7 @@ narrowing. Engines export types from a single `types.ts` per engine.
 | `setInterval` accumulation for time | grep-guard in review; time is derived (`04 §1`) |
 | `localStorage` for structured data | Dexie only (settings schema versioned) |
 | Direct `fetch` to youtube.com from client | oEmbed goes through `/api` (`06 §3`) |
-| `console.log` in committed code | `no-console` (allow `warn`/`error`, which also feed the diagnostics buffer) |
+| `console.log` in committed code | `no-console` (allow `warn`/`error` for the browser console). ⚠️ Console output does **not** reach the diagnostics buffer — global capture hooks only `error`/`unhandledrejection`. Anything a bug report needs goes through `ttLog` with a registered code; the timer's codes were console-only until v1.1 |
 
 ## 5. Quality gates (all must pass locally & in CI)
 
@@ -89,6 +89,7 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-SYS-204 | Settings row unreadable/corrupt — reset to defaults (`02 §3.2`) |
 | TT-SYS-205 | A stored setting names a capability this build does not ship — fell back to the shipped value (first use: `singleLoopStyle: 'crossfade'` → `hard` while `15 §S4b` is open, `05 §2`) |
 | TT-SYS-206 | Audio unlock failed at the gesture — playback will retry on Start (`05 §1`). Registered P7 slice B, when desktop WebKit found that a browser with no `AudioContext` trapped the user at the Legal Gate forever: `acceptLegal` called `unlock()` **before** recording consent, and a synchronous throw skipped the rest. Consent must never depend on the audio stack |
+| TT-SYS-207 | The timer worker could not start or raised `error` — a main-thread interval took over the authoritative tick (`04 §2`). Registered v1.1: the worker was created lazily at the first Start, so a tab opened before a redeploy requested a chunk that no longer existed and, with no `error` listener, never reached `done` while visible |
 | TT-SYS-300 | Captured `window.onerror` (error **name** only — never its message, see the rule below) |
 | TT-SYS-301 | Captured `unhandledrejection` (reason **type** only) |
 

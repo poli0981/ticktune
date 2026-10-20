@@ -16,10 +16,16 @@ import type { TtFinishInfo, TtTickSample, TtTimerLogCode } from './types';
  *     about, where a hidden AND silent tab gets its worker throttled too.
  */
 
+/** The worker's cadence, mirrored by the main-thread fallback (docs/04 §2). */
+const FALLBACK_TICK_MS = 200;
+
 export interface TtTimerDriverOptions {
   onRemaining: (remainingMs: number) => void;
   onDone: (info: TtFinishInfo) => void;
-  onLog?: (code: TtTimerLogCode | 'TT-SYS-202', detail?: Record<string, number>) => void;
+  onLog?: (
+    code: TtTimerLogCode | 'TT-SYS-202' | 'TT-SYS-207',
+    detail?: Record<string, number>,
+  ) => void;
   /** Spike S2 only — see TtTickSample and docs/15 §S2. */
   onSample?: (sample: TtTickSample) => void;
 }
@@ -29,6 +35,9 @@ export class TtTimerDriver {
   readonly #opts: TtTimerDriverOptions;
 
   #worker: Worker | null = null;
+  /** Set once the worker could not start or errored; the fallback owns ticking. */
+  #workerBroken = false;
+  #fallback: ReturnType<typeof setInterval> | null = null;
   #raf: number | null = null;
   #wakeLock: WakeLockSentinel | null = null;
   #wakeLockWarned = false;
@@ -49,6 +58,18 @@ export class TtTimerDriver {
 
     document.addEventListener('visibilitychange', this.#onVisibility);
     window.addEventListener('focus', this.#onVisibility);
+
+    /*
+     * Created EAGERLY, at app mount — not at the first Start.
+     *
+     * 🔴 The worker is a separate hashed chunk. Created lazily, a tab opened
+     * before a redeploy asked for a file the new deploy no longer has: the
+     * worker 404'd, nothing listened for its `error`, and because rAF only
+     * repaints, `done` never fired while the tab was visible — the countdown
+     * sat at 0.000 until a visibility change happened to run the latch. Loading
+     * it at mount fetches it while the page and its assets still match.
+     */
+    this.#ensureWorker();
   }
 
   get remainingMs(): number {
@@ -96,6 +117,7 @@ export class TtTimerDriver {
     document.removeEventListener('visibilitychange', this.#onVisibility);
     window.removeEventListener('focus', this.#onVisibility);
     this.#stopRaf();
+    this.#stopFallback();
     void this.#releaseWakeLock();
     this.#worker?.terminate();
     this.#worker = null;
@@ -103,8 +125,13 @@ export class TtTimerDriver {
 
   // ── worker ────────────────────────────────────────────────────────────────
 
-  #ensureWorker(): Worker {
-    this.#worker ??= (() => {
+  #ensureWorker(): Worker | null {
+    if (this.#worker !== null || this.#workerBroken) return this.#worker;
+    if (typeof Worker === 'undefined') {
+      this.#breakWorker();
+      return null;
+    }
+    try {
       const w = new Worker(new URL('./tt-timer.worker.ts', import.meta.url), { type: 'module' });
       w.addEventListener('message', (e: MessageEvent<{ type: string }>) => {
         // The worker is the authoritative source of `done`, but the core owns
@@ -113,14 +140,56 @@ export class TtTimerDriver {
         if (e.data.type === 'done' || e.data.type === 'tick') this.#timer.tick();
         this.#emit();
       });
-      return w;
-    })();
+      // A chunk that 404s, or a throw inside the worker. Either way it will
+      // never tick again, and silence here is a countdown that never ends.
+      w.addEventListener('error', (e) => {
+        e.preventDefault();
+        this.#breakWorker();
+      });
+      this.#worker = w;
+    } catch {
+      this.#breakWorker();
+    }
     return this.#worker;
   }
 
+  /**
+   * The worker is gone for good: log TT-SYS-207 once and let a main-thread
+   * interval carry the authoritative tick. It is throttled like any timer in a
+   * hidden tab — exactly the case the visibility latch already covers — and
+   * exact while visible, because time is derived (docs/04 §1).
+   */
+  #breakWorker(): void {
+    if (this.#workerBroken) return;
+    this.#workerBroken = true;
+    this.#worker?.terminate();
+    this.#worker = null;
+    this.#opts.onLog?.('TT-SYS-207');
+    if (this.#timer.phase === 'running') this.#startFallback();
+  }
+
+  #startFallback(): void {
+    if (this.#fallback !== null) return;
+    this.#fallback = setInterval(() => {
+      this.#timer.tick();
+      this.#emit();
+    }, FALLBACK_TICK_MS);
+  }
+
+  #stopFallback(): void {
+    if (this.#fallback !== null) clearInterval(this.#fallback);
+    this.#fallback = null;
+  }
+
   #postToWorker(msg: { type: 'start'; endAtEpoch: number } | { type: 'stop' }): void {
-    if (msg.type === 'stop' && this.#worker === null) return;
-    this.#ensureWorker().postMessage(msg);
+    const w = msg.type === 'stop' ? this.#worker : this.#ensureWorker();
+    if (w !== null) {
+      w.postMessage(msg);
+      return;
+    }
+    if (!this.#workerBroken) return; // a stop before any worker existed
+    if (msg.type === 'start') this.#startFallback();
+    else this.#stopFallback();
   }
 
   #syncWorker(): void {
