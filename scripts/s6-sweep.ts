@@ -73,8 +73,9 @@ const pid = bs.process().pid;
 // Memory sampler: epoch ms, private bytes of the browser and all its descendants.
 mkdirSync(OUT, { recursive: true });
 const memCsv = resolve(OUT, `mem-${Date.now()}.csv`);
+// Absolute: nothing here is looked up on PATH.
 const ps = spawn(
-  'powershell',
+  'C:/Windows/System32/WindowsPowerShell/v1.0/powershell.exe',
   [
     '-NoProfile',
     '-Command',
