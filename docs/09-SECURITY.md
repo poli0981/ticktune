@@ -7,11 +7,11 @@ static client-side app, not theater.
 
 | Asset | Threats considered | Posture |
 |-------|--------------------|---------|
-| Visitors' browsers | XSS, clickjacking, malicious third-party scripts | Strict CSP, no inline event handlers, zero third-party scripts except YouTube IFrame API (loaded only in YT mode) |
-| User media/privacy | Exfiltration, tracking | Files never transmitted; no analytics; fonts self-hosted; youtube-nocookie |
+| Visitors' browsers | XSS, clickjacking, malicious third-party scripts | Strict CSP, no inline event handlers; third-party scripts are exactly two: the YouTube IFrame API (only in YT mode) and the Cloudflare Web Analytics beacon (every page, since v1.1) |
+| User media/privacy | Exfiltration, tracking | Files never transmitted; the only telemetry is the cookieless Cloudflare Web Analytics beacon (page-level timing, disclosed in the Privacy Policy, no access to app state); fonts self-hosted; youtube-nocookie |
 | The site itself | Defacement via supply chain, CI compromise | Lockfile-pinned deps, `pnpm audit` + CodeQL + Dependabot in CI, least-privilege workflow permissions (`14 §3`) |
-| Edge endpoint `/api/yt/oembed` | Abuse as open proxy, request floods | Strict `videoId` validation (11-char regex only — it is *not* a URL proxy), 6 h edge cache, CF rate-limiting rule (`10 §6`) |
-| DDoS / bots | Volumetric attacks | Cloudflare default DDoS mitigation + Bot Fight Mode (`10 §5`) — appropriate scale for this project |
+| Edge endpoint `/api/yt/oembed` | Abuse as open proxy, request floods | Strict `videoId` validation (11-char regex only — it is *not* a URL proxy), same-origin only (no CORS headers since v1.1), bounded upstream wait, 6 h edge cache, CF rate-limiting rule (`10 §6`) |
+| DDoS / bots | Volumetric attacks | Cloudflare default DDoS mitigation + WAF and rate-limit rules (`10 §5`–`§6`); Bot Fight Mode stays **off** (`10 §4`) |
 
 Out of scope (no backend, no accounts, no PII stored): SQLi, authn/z, session
 attacks, GDPR data-subject tooling (nothing to export/delete server-side).
@@ -65,13 +65,13 @@ hashed asset, the font and an HTML route separately.
 
 ```
 default-src 'self';
-script-src 'self' https://www.youtube.com https://www.youtube-nocookie.com;
+script-src 'self' https://www.youtube.com https://www.youtube-nocookie.com https://static.cloudflareinsights.com;
 frame-src https://www.youtube-nocookie.com https://www.youtube.com;
 img-src 'self' data: blob: https://i.ytimg.com;
 media-src 'self' blob:;
 style-src 'self' 'unsafe-inline';
 font-src 'self';
-connect-src 'self';
+connect-src 'self' https://cloudflareinsights.com;
 worker-src 'self' blob:;
 frame-ancestors 'none';
 base-uri 'self';
@@ -81,8 +81,9 @@ upgrade-insecure-requests
 ```
 
 Notes:
-- `style-src 'unsafe-inline'` is required by Svelte/Motion runtime style writes;
-  acceptable given zero third-party scripts and no user-generated HTML anywhere
+- `style-src 'unsafe-inline'` is required by Svelte's runtime style writes
+  (`style:` directives, CSS custom properties); acceptable given that no
+  user-generated HTML exists anywhere
   (all user strings render through Svelte text interpolation — never `{@html}`;
   enforced by lint rule, `12 §4`).
 - The mobile-gate inline script must carry a hash: build step computes its SHA-256
@@ -139,11 +140,12 @@ process note).
 
 ## 7. Vulnerability disclosure
 
-`.github/SECURITY.md` is the policy; GitHub **Private Vulnerability Reporting**
-is the channel. No email address appears anywhere in this project by design
-(`10 §4` leaves email obfuscation off precisely because there is nothing to
-obfuscate), so a private path had to come from somewhere — without one,
-`legal/EULA.md §8` routes every report, security included, to public issues.
+`.github/SECURITY.md` is the policy. Two private channels: GitHub **Private
+Vulnerability Reporting**, and **security@poli0981.dev** — both also published in
+`/.well-known/security.txt` (RFC 9116; its `Expires` field must be renewed every
+year, or scanners treat the file as stale). Until v1.1 this section said no email
+address appeared anywhere in the project, while the Privacy Policy published one;
+the role addresses are now deliberate and listed in `10 §4`.
 
 ⚠️ PVR must be **enabled** in repo Settings → Security → Private vulnerability
 reporting, or the link in `SECURITY.md` 404s.

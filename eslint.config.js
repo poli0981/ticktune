@@ -142,4 +142,26 @@ export default tseslint.config(
     languageOptions: { globals: { ...globals.node, ...globals.browser } },
     rules: { 'no-undef': 'off' },
   },
+
+  // Every E2E spec takes `test` from the shared fixtures, whose automatic
+  // fixture stubs the Cloudflare Web Analytics beacon. A spec importing
+  // Playwright's own `test` would send real beacons from CI and pollute the
+  // site's visit numbers — so it is a lint error, not a convention.
+  {
+    files: ['tests/e2e/**/*.spec.ts'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@playwright/test',
+              message:
+                "Import { test, expect } from './_fixtures' — it stubs the analytics beacon so CI never reports fake visits.",
+            },
+          ],
+        },
+      ],
+    },
+  },
 );

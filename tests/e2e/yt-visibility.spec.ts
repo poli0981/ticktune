@@ -1,4 +1,4 @@
-import { test, expect, type Page } from '@playwright/test';
+import { test, expect, type Page } from './_fixtures';
 import { dismissUnloadDialogs, setDuration } from './_helpers';
 import { gotoYouTubeApp, stageLinks } from './_helpers-yt';
 

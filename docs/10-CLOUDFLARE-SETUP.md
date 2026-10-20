@@ -31,8 +31,8 @@ Registrar is fine — and the zone is on the **Free** plan unless noted.
   `script-src` blocks — and it **cannot** be allow-listed, because the injected
   loader carries a per-request token (`__CF$cv$params`) so its hash changes on
   every request. Turning either on costs a console error on every page, ~8
-  Lighthouse points, and a contradiction with `legal/PRIVACY-POLICY.md §1`'s
-  "no … fingerprinting". Found in P6 slice A; see `16 §P6`.
+  Lighthouse points, and a contradiction with the Privacy Policy's "no
+  fingerprinting". Found in P6 slice A; see `16 §P6`.
 
 ## 3. Worker deploy (Workers Static Assets)
 
@@ -67,9 +67,9 @@ pnpm wrangler deploy       # uses wrangler.jsonc from 01 §5
 | Setting | Value |
 |---------|-------|
 | Security → Settings → Security level | Medium |
-| **Bot Fight Mode** | On (Free-plan bot mitigation) |
+| **Bot Fight Mode** | **Off** — it injects an un-hashable inline script (`§2`); the WAF and rate-limit rules (`§5`–`§6`) carry bot mitigation |
 | Browser Integrity Check | On |
-| Scrape Shield (email obfuscation) | Off — no emails on pages; avoids DOM mutation |
+| Scrape Shield (email obfuscation) | **Off** — the site does publish role addresses (`@poli0981.dev`: privacy, security, legal, copyright, press, collab — footer, legal pages, `/.well-known/security.txt`), but obfuscation rewrites the HTML at the edge and injects a decoder script; the aliases sit behind Google Workspace spam filtering instead. Mail for `ticktune.net` itself still uses Cloudflare Email Routing |
 | DDoS | Managed rules are always-on by default; nothing to configure |
 
 ## 5. WAF (Free plan)
@@ -145,24 +145,29 @@ keep working once loaded. (Full offline PWA is post-1.0, `16 §post`.)
   invoke the Worker, so only `/api/yt/oembed` calls are logged. This is disclosed
   in `legal/PRIVACY-POLICY.md`; changing the setting or the plan changes the
   policy (`wrangler.jsonc` says the same next to the setting).
-- Optional, privacy-consistent: **Cloudflare Web Analytics** (cookieless, no
-  fingerprinting). If enabled, its beacon origin must be added to CSP
-  `script-src`/`connect-src` and disclosed in the Privacy Policy — default is
-  **off**; decide before launch.
+- **Cloudflare Web Analytics — ON since v1.1, via the manual snippet.** Decided
+  2026-10-20: the beacon (`<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": …}'>`)
+  is in `src/layouts/TtBase.astro`, so it is on every page including `/app/`.
+  The CSP gains exactly `script-src https://static.cloudflareinsights.com` and
+  `connect-src https://cloudflareinsights.com` (`09 §4`), the Privacy Policy
+  discloses it (`§3`–`§4`, both languages) and the Legal Gate summarises it.
+  E2E fulfils both origins locally (`tests/e2e/_fixtures.ts`) so CI never
+  reports visits; Version URLs on workers.dev DO report — filter by host in the
+  dashboard.
+- **Automatic setup stays OFF** (below). The manual snippet replaces it; running
+  both would count every visit twice and re-add the inline bootstrap.
 
-### ⚠️ Automatic beacon injection — turn it OFF (observed live, 2026-07-21)
+### ⚠️ Automatic beacon injection — keep it OFF (observed live, 2026-07-21)
 
 On the first dashboard deploy, Cloudflare **injected its analytics beacon into
 every HTML response at the edge**, without any change to this repository. The
 live page carried a second inline `<script>` (the `__CF$cv$params` bootstrap)
 which loads `https://static.cloudflareinsights.com/beacon.min.js`.
 
-That contradicts three things we assert:
-
-- hard invariant 1 in `CLAUDE.md` — "no telemetry, no analytics";
-- `legal/PRIVACY-POLICY.md §1` — "No analytics, tracking pixels, fingerprinting,
-  or advertising";
-- this very section, which says the default is off.
+At the time that contradicted hard invariant 1 ("no telemetry, no analytics")
+and the Privacy Policy. Analytics are now a deliberate, disclosed choice
+(above) — but the *automatic* route is still wrong for this site, for the reason
+below.
 
 **The CSP blocked both halves** — the inline bootstrap failed the
 `script-src` hash check and `static.cloudflareinsights.com` is not an allowed
@@ -174,8 +179,9 @@ re-tested since deploy.
 Blocking it is not the same as not shipping it, though. The injection must be
 disabled at the source: **Cloudflare dashboard → the zone → Analytics & Logs →
 Web Analytics → disable automatic setup** (and check Workers → ticktune →
-Settings for a per-project toggle). Do **not** "fix" this by adding the beacon
-origin to the CSP.
+Settings for a per-project toggle). Its inline `__CF$cv$params` bootstrap can
+never pass the hash-only `script-src` — the token changes per request — which
+is why the manual, external snippet is the one the site ships.
 
 Re-verify after disabling: the live HTML should contain exactly **one** inline
 script — the mobile gate — matching what `pnpm build` emits, and
@@ -187,7 +193,9 @@ Zone-side, still to do:
 
 - [x] **Cloudflare Web Analytics auto-injection disabled** — re-measured
       2026-07-22 against the live `/`: **zero** occurrences of
-      `cloudflareinsights` or `beacon.min.js` in the served HTML (`§10`)
+      `cloudflareinsights` in the served HTML (`§10`). Since v1.1 the served
+      HTML carries exactly one `beacon.min.js` **external** tag — the manual
+      snippet — and still exactly one inline script, the gate.
 - [x] **HSTS** — re-measured 2026-07-24:
       `max-age=31536000; includeSubDomains; preload`. ⚠️ This row used to read
       `15552000` "exactly what `§2` asks for", and it was wrong in the direction

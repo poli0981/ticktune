@@ -101,6 +101,32 @@ const ogImageUrl = new URL(ogImage, Astro.site);
         document.documentElement.dataset.ttBlocked = '1';
       }
     </script>
+
+    {
+      /*
+      Cloudflare Web Analytics — every page, /app/ included (decided 2026-10-20).
+
+      The ONLY telemetry TickTune has, and it is disclosed: legal/PRIVACY-POLICY.md
+      §3-§4 (EN + VI), the Legal Gate's own summary, and the CSP in docs/09 §4,
+      which gains exactly two origins for it — `static.cloudflareinsights.com`
+      (this script) and `cloudflareinsights.com` (where it reports). It reads
+      page-level timing only; it has no access to anything the app holds.
+
+      An EXTERNAL module script, so the one-inline-script rule that
+      scripts/inject-csp-hash.ts enforces is untouched (it skips any tag with a
+      `src`). The manual snippet, not the zone's automatic injection: automatic
+      injection inserts an inline bootstrap the CSP rightly blocks (docs/10 §10),
+      and running both would count every visit twice.
+
+      E2E never sends real beacons: tests/e2e/_fixtures.ts fulfils both origins
+      with an empty response for every spec.
+    */
+    }
+    <script
+      is:inline
+      type="module"
+      src="https://static.cloudflareinsights.com/beacon.min.js"
+      data-cf-beacon='{"token": "46c4fdb729df436091a0cb204d77dcc7"}'></script>
   </head>
 
   <body>

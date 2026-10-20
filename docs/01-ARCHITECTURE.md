@@ -33,7 +33,7 @@ calls it on its own origin, so `*` only ever served other sites). Details in
 
 ## 2. Principles (in priority order)
 
-1. **User media never leaves the machine.** No upload, no telemetry, no analytics.
+1. **User media never leaves the machine.** No upload, no telemetry beyond the disclosed Cloudflare Web Analytics beacon (page-level, cookieless — `09 §1`).
    Local files live in RAM as `File` objects for the session only (decision D3).
 2. **ToS-clean YouTube.** Official embedded player, visibly rendered, ≥ 200×200 px.
    Never extract audio, never hide the player, never proxy streams.
