@@ -341,13 +341,32 @@ test.describe('Hide scrollbars — v1.1, docs/03 §6', () => {
     await gotoApp(page);
     const width = () =>
       page.evaluate(() => getComputedStyle(document.documentElement).scrollbarWidth);
+    /*
+     * Gate the COMPUTED half on the capability, never on the browser's name
+     * (docs/13 §3). Playwright's headless Firefox hides every scrollbar itself,
+     * for stable screenshots, so `scrollbar-width` computes to `none` there no
+     * matter what the page says — measured on CI, with `data-tt-scrollbars`
+     * correctly "styled" in the trace. A probe carrying an inline `thin` tells
+     * the two cases apart: where it reads back `thin`, the page's CSS is what
+     * decides, and the computed check means something.
+     */
+    const cssDecides = await page.evaluate(() => {
+      const probe = document.createElement('div');
+      probe.style.scrollbarWidth = 'thin';
+      document.body.append(probe);
+      const value = getComputedStyle(probe).scrollbarWidth;
+      probe.remove();
+      return value === 'thin';
+    });
+
     // Styled by default: the custom thin bar, not none.
-    await expect.poll(width).toBe('thin');
+    await expect(page.locator('html')).toHaveAttribute('data-tt-scrollbars', 'styled');
+    if (cssDecides) await expect.poll(width).toBe('thin');
 
     await page.keyboard.press('s');
     await page.getByTestId('tt-set-hidescrollbars').check();
     await expect(page.locator('html')).toHaveAttribute('data-tt-scrollbars', 'hidden');
-    await expect.poll(width).toBe('none');
+    if (cssDecides) await expect.poll(width).toBe('none');
 
     await expect.poll(() => storedSettings(page)).toMatchObject({ hideScrollbars: true });
     await page.reload();
