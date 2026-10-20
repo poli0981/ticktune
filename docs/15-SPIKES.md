@@ -201,7 +201,7 @@ appeared to contradict each other. Split along what each half actually gates:
 | Half | Covers | State | Gates |
 |------|--------|-------|-------|
 | **S4a** | the `05 §1` graph, `createMediaElementSource` reuse, gesture `resume()`, equal-power curve shape, no audible click | ✅ **passed** — measured 2026-07-21, clean by ear on headphones and speakers | P2's audio graph, Single mode, End Behavior |
-| **S4b** | `timeupdate` trigger accuracy (±150 ms), the 0/1/2/5 s sweep, `element.duration` revision on real VBR MP3s | 🟡 **open** | the crossfade loop style only (`03 §2` Z4 toggle) and P3's inter-track crossfade |
+| **S4b** | `timeupdate` trigger accuracy (±150 ms), the 0/1/2/5 s sweep, `element.duration` revision on real VBR MP3s | ✅ **passed** — full sweep 2026-10-20, the corpus as shipped (from the start) | the crossfade loop style only (`03 §2` Z4 toggle) and P3's inter-track crossfade — **released in v2.0** |
 
 P2 therefore ships `singleLoopStyle: 'hard'` and renders the crossfade toggle
 disabled (`05 §2`). Nothing else in P2 depends on S4b.
@@ -313,6 +313,57 @@ next, and the Exit row below changes only with its result.
 - Loop crossfades of a TONE into itself show up to 7 dB of power ripple: the
   two decks carry correlated signals, which no equal-power pair can flatten.
   Music's end and start are uncorrelated; the corpus runs measure it.
+
+### S4b results — full sweep, 2026-10-20 (Edge 155, Windows 11) — ✅ PASS
+
+The quick sweep three times over, plus real music: 57 corpus files — the 16
+Xing-VBR masters and the owner's 41 CC0 / YouTube Audio Library tracks (54 MP3,
+1 FLAC, 2 WAV) — crossfaded from their tails at 1, 2 and 5 s, and the 16
+masters remuxed without their header. 341 configurations, 347 runs, 142 min.
+
+| Criterion | Result |
+|---|---|
+| Harness can fail | ✅ 12/12 controls FAILED, as they must |
+| Test-file crossfades (75 A→B, 12 loop, 6 pause) | ✅ 93/93: overlap −2…+26 ms from ideal (the pause runs carry the +24…26), end guard +67…+219 ms, head loss 0…21 ms, no click |
+| 0 s | ✅ **Z2** 6/6, gap 11–24 ms; Z1 6/6, 11–27 ms; both click-free. Z3 clicked 4 times in every run |
+| Master fade mid-crossfade | ✅ 3/3 on schedule, overlap drift 0 ms |
+| Header-less VBR | ✅ by the TRUE duration 22/22, end guard +109…+291 ms; by `element.duration` 1/22 |
+| Real music, as the sweep plays it | ❌ **151/171** — the 151 at +80…+461 ms; the 20 at −448…+971 ms |
+
+**The 20 were the harness, and it was asked before the engine was blamed.**
+Every one is an MP3; every FLAC and WAV run passed; the failures spread evenly
+over 1, 2 and 5 s (6 / 7 / 7), so the fade length was not it. What they shared
+is how the sweep reaches the end of a track: it **seeks** A to its last
+seconds, to keep the sweep to hours. In a VBR MP3 Chrome seeks by the Xing
+table of contents, whose 1 % steps are seconds wide on a four-minute track,
+and `currentTime` stays that far off the audio for the rest of the file — the
+trigger fired by a clock the audio did not keep. **The app never seeks:** every
+track plays from 0.
+
+So the 20, five passing corpus runs as a check on the method, and the four
+controls ran again **from the start of each track**
+(`pnpm s4b --full --labels <file> --from-start`, 29 runs, 70 min):
+
+| Run | Result |
+|---|---|
+| The 4 controls | ✅ all FAILED again — the harness could still fail in that session |
+| The 20 that failed after the seek | ✅ **20/20**, end guard **+61…+331 ms** (after the seek: −448…+971) |
+| The 5 that passed after the seek | ✅ 5/5, +139…+261 ms (after the seek: +171…+400) |
+
+**Verdict: PASS, as shipped.** Every criterion held, and real music played the
+way the app plays it lands its fade 61–331 ms before the media ends — inside
+the 0…480 ms the acceptance allows, at every fade length, on every container.
+The crossfade loop style and the inter-track crossfade are released, with the
+constants above: the trigger on the importer's true duration (`element.duration`
+only as a fallback), the incoming deck armed early, margin 0.3 s, guard 0.03 s,
+latency 0, the atomic hold and de-click for a pause mid-fade, and Z2 for 0 s.
+
+⚠️ **What the PASS does not cover, written down so nobody assumes it:** a
+**seek** in a VBR MP3. If a seek control is ever added, the trigger cannot
+trust `currentTime` after it — re-derive the remaining time from the audio
+clock, or measure again. Listening to transitions on speakers, Firefox's
+pause-mid-fade fallback, and a fresh-profile gesture stay owner lines of the
+v2.0 live checklist.
 
 ## S5 — Finish notification from a worker, tab hidden (→ `04 §2`)
 
@@ -472,6 +523,6 @@ against the P1 timer engine it ran on; S1 gates P4; S3 and S4 gate P2
 | S2 | 🔴 **FAIL — and the contingency failed too** | 2026-07-21 | Hidden+silent: `done` **2m 57s late**. Control run with keep-alive **ON**: still **52.4 s late**, 105× the bound. The audibility exemption does not protect the timer, so `15 §S2`'s contingency is **withdrawn, not adopted**. The stall is in main-thread message processing, so a worker cannot route around it. P2 needs a product decision, not a code fix (`04 §2`) |
 | S3 | ✅ **PASS** | 2026-07-21 | Tag matrix + 103-file/598 MB real corpus in **1 362 ms** (budget 10 s); 7.26 MB cover extracted; 0 false positives from the new `onlyV1` rule. The U+FFFD rule was falsified and replaced (`05 §5`). ID3v2.2 and APEv2 found in the wild |
 | **S4a** | ✅ **PASS** | 2026-07-21 | Crossfade judged clean by ear on headphones **and** speakers (the criterion no instrument can answer); graph, `createMediaElementSource` reuse and gesture `resume()` all exercised. Gates released for P2's audio graph |
-| **S4b** | 🟡 **quick sweep PASS — full sweep (real music) pending** | 2026-10-20 | Harness v2 (`§S4`): measured from the audio on the shipping graph, four controls proven to fail. Quick sweep on Edge 155: 31/31 test-file crossfades within ±150 ms, 0 s via a pre-armed deck, the master fade on schedule, header-less VBR on time only by the TRUE duration. The full sweep with the corpus decides the formal result. Gates the crossfade loop style and inter-track crossfade |
+| **S4b** | ✅ **PASS — as shipped** | 2026-10-20 | Harness v2 (`§S4`): measured from the audio on the shipping graph, controls proven to fail. Full sweep on Edge 155, 347 runs: 93/93 test-file crossfades within ±150 ms of the ideal overlap, 0 s via a pre-armed deck (Z2, 11–24 ms), the master fade on schedule, header-less VBR on time by the TRUE duration (22/22). Real music 151/171 after a **seek** — the harness's, not the app's: Chrome seeks a VBR MP3 by its Xing table and `currentTime` stays off the audio. From the start, as the app plays: **25/25**, the 20 failures included, end guard +61…+331 ms. Releases the crossfade loop style and inter-track crossfade (v2.0) |
 | **S5** | ✅ **GO** | 2026-10-21 | 40/40 hidden 25-minute runs notified from the worker on time — Edge 155, Chrome 155, Brave and Firefox 158, launched undriven (under Playwright every page reported `visible`, so a driven browser could not answer this). Worker late 9–207 ms; Chromium's tick never past 371 ms, Firefox's up to 3.2 s (three times in ten runs). S2's main-thread stall did not reproduce. Owner's everyday-browser run and click-to-focus outstanding. Releases the finish notification (`04 §2`) |
 | **S6** | ❌ **FAIL** | 2026-10-21 | 153 files incl. the owner's 41 masters. A reduced-rate decode under-reads bright material (16 kHz: music 95.2 % within 0.5 LU but worst 1.79 LU; 24 kHz: worst 1.20 LU), and the rate does not bound memory — Chrome decodes at the native rate first, so a 10:02 file peaked at 260–540 MB at every rate. 48 kHz is accurate (≤ 0.18 LU) but 537 MB. Normalisation not built in v2.0; slice-and-accumulate, WebCodecs, or tags-only are the routes (`§S6`, `05 §1`) |
