@@ -18,6 +18,11 @@ chimeOsc ×2 ─ chimeGain ─────────────────�
 - Two `HTMLAudioElement`s (A/B) enable gapless-ish transitions and crossfade.
   Streaming via media elements — **never** `decodeAudioData` full tracks
   (a 10-min stereo track ≈ 200 MB as Float32 AudioBuffer; ×95 is impossible).
+  **Not even one at a time, for analysis** — `15 §S6` (v2.0) measured a single
+  10:02 file peaking at 260–540 MB whatever `OfflineAudioContext` rate it was
+  decoded to, because the decode happens at the file's native rate first; and a
+  reduced rate under-reads bright material by up to 1.8 LU. Loudness
+  normalisation therefore waits for a sliced or streaming decoder.
 - **Two master-stage nodes, not one.** `userGain` owns volume and mute;
   `fadeGain` owns the End-Behavior fade and nothing else.
 
