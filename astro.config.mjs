@@ -143,7 +143,7 @@ function ttBundledPackages() {
   };
 }
 
-// Normative copy lives in docs/01 §5. Keep the two in sync.
+// This file is the source of truth; docs/01 §5 says what each setting is for.
 export default defineConfig({
   // No SSR — docs/01 §6 non-goal. Exactly one dynamic route exists and it is a
   // Cloudflare Worker (worker/index.ts), not an Astro endpoint.

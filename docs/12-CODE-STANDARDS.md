@@ -1,13 +1,13 @@
 # 12 — Code Standards
 
-Suite 1.0 · 2026-07-21
+Suite 1.1 · 2026-10-20
 
 ## 1. Naming
 
 - Components: `Tt` prefix, PascalCase — `TtCountdown.svelte`, `TtQueuePanel.svelte`.
-- TS modules: kebab-case — `tt-timer.ts`, `yt-error-map.ts`.
+- TS modules: kebab-case — `tt-timer.ts`, `tt-yt-cause.ts`.
 - Runes stores: `*.svelte.ts` in `src/app/state/` — export a single object
-  (`session`, `settings`, `playback`).
+  (`session`, `settings`, `playback`, `yt`, `backdrop`, `i18n`).
 - CSS custom props/tokens: `--color-tt-*`, `--font-*` only via Tailwind `@theme`.
 - i18n keys: `feature.element.state` (`08 §3`). Log codes: `TT-AAA-nnn` (§6).
 - Branches: `feat/*`, `fix/*`, `docs/*`, `chore/*`, `spike/*`.
@@ -16,7 +16,9 @@ Suite 1.0 · 2026-07-21
 
 `strict: true` plus `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`,
 `noImplicitOverride`, `verbatimModuleSyntax`. No `any` (lint error) — `unknown` +
-narrowing. Engines export types from a single `types.ts` per engine.
+narrowing. An engine's shared types live in its `types.ts`; a module may
+export the types of its own API beside it (`tt-chime.ts`, `tt-dominant-hue.ts`),
+and an engine with no shared types (`queue/`, `visuals/`) has no `types.ts`.
 
 ## 3. Architecture rules (enforced by review + lint where possible)
 
@@ -26,7 +28,9 @@ narrowing. Engines export types from a single `types.ts` per engine.
    engine facades through state.
 3. One-way data: components → actions on state → engines → events → state →
    components.
-4. No default exports except Astro pages. Named exports everywhere else.
+4. No default exports except Astro pages and the Worker, whose runtime
+   requires `export default { fetch }` (`worker/index.ts`). Named exports
+   everywhere else.
 
 ## 4. Banned patterns (lint-enforced)
 
@@ -43,10 +47,10 @@ narrowing. Engines export types from a single `types.ts` per engine.
 
 ```bash
 pnpm lint        # eslint 10 flat config + eslint-plugin-svelte + prettier check
-pnpm check       # astro check + svelte-check (TS in templates)
+pnpm check       # astro check + svelte-check + the Worker's own tsc program
 pnpm knip        # unused files/exports/deps — FAILS the build (spec requirement)
 pnpm test        # vitest
-pnpm test:e2e    # playwright (CI: chromium+firefox; full matrix pre-release)
+pnpm test:e2e    # playwright — CI runs all five projects on every PR (13 §3)
 ```
 
 knip config lives in `knip.json`; false positives are fixed or explicitly
@@ -78,7 +82,7 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-YT-002 | Invalid YouTube URL / bad parameter |
 | TT-YT-003 | Rejected: link count would exceed 50 |
 | TT-YT-004 | oEmbed failed for a status nobody has classified — the honest bucket, so an unmeasured failure cannot borrow a confident wrong label from TT-YT-100 |
-| TT-YT-005 | Player HTML5 error — retried/skipped |
+| TT-YT-005 | Player HTML5 error — skipped after 5 s like every player error (`06 §4`) |
 | TT-YT-006 | A `pending` track was re-checked on Start and now resolves — promoted to `ok`, metadata filled (`02 §1`, `06 §8`) |
 | TT-YT-007 | A `pending` track was re-checked on Start and the cause is now a property of the video — marked `error` and dropped from the order (`02 §6`) |
 | TT-YT-100 | Video unavailable (deleted/private) |
@@ -121,8 +125,11 @@ log call.
 ## 7. Commits & PRs
 
 Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `test:`, `spike:`).
-PR template checklist: gates pass, i18n keys added to **both** dictionaries,
-log codes registered, docs updated if behavior changed, screenshots for UI PRs.
+The PR checklist lives in `CONTRIBUTING.md` (there is no PR template): gates
+pass, i18n keys in **both** dictionaries, log codes registered, licence and
+notices for a new dependency, CSP + Privacy Policy for a new origin,
+`TT_LEGAL_VERSION` for a legal change, docs updated if behaviour changed,
+screenshots for UI PRs.
 
 ## 8. Formatting
 

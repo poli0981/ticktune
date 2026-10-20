@@ -1,28 +1,30 @@
 # 11 — Dependencies & Versions
 
-Suite 1.0 · **Verified against live registries: 2026-07-21.** Spec requirement:
-latest-or-LTS everywhere, no components with known critical CVEs.
+Suite 1.1 · **Versions as of v1.1 (2026-10-20), resolved from `pnpm-lock.yaml`.**
+Spec requirement: latest-or-LTS everywhere, no components with known critical
+CVEs. Dependabot moves these weekly, so treat a version here as a floor and the
+lockfile as the truth.
 
 ## 1. Runtime / toolchain
 
-| Component | Version (2026-07-21) | Channel | Notes |
+| Component | Version (v1.1) | Channel | Notes |
 |-----------|---------------------|---------|-------|
 | Node.js | **24.x (Active LTS)** | LTS | Enters maintenance 2026-10-20; Node 26 becomes LTS 2026-10-28 — plan the bump then. EOL v24: 2028-04-30. `engines` + `.nvmrc` pinned. |
 | pnpm | 11.15.1 | latest | Portfolio used 10.x this month; 11 is current major — adopt for new repo, migration is trivial. |
-| Wrangler | **4.114.0** | latest | `compatibility_date: 2026-07-01`. ⚠️ Bumped from 4.112.0 for a **security** reason, not a feature one: its `miniflare` pinned `sharp@0.34.5` **exactly**, and `sharp <0.35.0` carries four libvips CVEs (GHSA-f88m-g3jw-g9cj). An exact pin cannot be moved by `pnpm update`, so the choice was an override or an upstream bump — see `§5` |
+| Wrangler | **4.149.0** | latest | `compatibility_date: 2026-07-01`. Its `miniflare` resolves `sharp@0.35.5`, past the four libvips CVEs in `sharp <0.35.0` (GHSA-f88m-g3jw-g9cj) that first forced a Wrangler bump (4.112 → 4.114, see `§5`) |
 
 ## 2. Application dependencies
 
 | Package | Version | License | Role |
 |---------|---------|---------|------|
-| astro | 7.1.3 | MIT | Static framework; Rolldown toolchain — compatibility already validated in the SoftHarbor spike |
-| svelte | 5.56.7 | MIT | App island, runes |
+| astro | 7.3.8 | MIT | Static framework; Rolldown toolchain — compatibility already validated in the SoftHarbor spike |
+| svelte | 5.57.2 | MIT | App island, runes |
 | @astrojs/svelte | 9.0.1 | MIT | Integration |
 | tailwindcss / @tailwindcss/vite | 4.3.3 | MIT | Styling, `@theme` tokens |
-| motion | 12.42.2 | MIT | Imperative FX (chosen over GSAP for license — D7). **Not installed as of P2** — P2's motion (4 s bottom-bar auto-hide, toasts, `endFlash`) is CSS transitions only; Motion lands with the P5 visuals that need imperative control |
-| music-metadata | 11.14.0 | MIT | `parseBlob` tag/cover extraction. **Production dependency**, dynamically imported at first import action so it stays off the boot chunk (`13 §5` budget) |
-| dexie | 4.4.4 | Apache-2.0 | Settings persistence (Apache-2.0 → GPL-3.0 compatible, one-way) |
-| i18next | 26.3.6 | MIT | App runtime i18n. **Not installed until P5** — `04 §2` item 5 authorises hardcoded VI + filed keys for P2 (`08 §3.1`) |
+| motion | — | MIT | **Not installed.** The vetted choice over GSAP (licence, D7) if imperative animation is ever needed; every animation shipped through v1.1 is CSS keyframes and transitions |
+| music-metadata | 11.16.0 | MIT | `parseBlob` tag/cover extraction. **Production dependency**, dynamically imported at first import action so it stays off the boot chunk (`13 §5` budget) |
+| dexie | 4.4.6 | Apache-2.0 | Settings persistence (Apache-2.0 → GPL-3.0 compatible, one-way) |
+| i18next | 26.4.3 | MIT | App runtime i18n — installed in P5 slice 1, when the dictionaries were wired (`08 §2`) |
 | @fontsource/be-vietnam-pro | 5.3.0 | OFL-1.1 (pkg MIT) | UI font, VI diacritics. **Installed in P6 slice A** — see the note below |
 | @fontsource/jetbrains-mono | 5.3.0 | OFL-1.1 (pkg MIT) | Mono/meta font. **Installed in P6 slice A** |
 | @fontsource/chakra-petch | 5.3.0 | OFL-1.1 (pkg MIT) | Display font for the v1.1 "Rack Unit" redesign (labels, headings, keycaps); full Vietnamese subset checked before adoption. CSS-imported, so it is in `knip.json` `ignoreDependencies` and `make-notices.ts` `CSS_ONLY` like the other two |
@@ -33,20 +35,24 @@ latest-or-LTS everywhere, no components with known critical CVEs.
 | Package | Version | Role |
 |---------|---------|------|
 | typescript | **`~5.9`** (resolved 5.9.3) — TS 7 rejected, **see §4** | Types |
-| eslint | 10.7.0 | Lint (flat config) |
-| eslint-plugin-svelte | 3.22.0 | Svelte rules |
-| prettier | 3.9.5 | Format. **Plugins must be `prettier-plugin-svelte@^4` and `prettier-plugin-tailwindcss@^0.8`** — the 3.x/0.6.x pair crashes on every `.svelte` file with `TypeError: getVisitorKeys is not a function` (the Tailwind plugin wraps the Svelte one and the older pair mis-negotiates prettier 3.9's embedded-language API). Also `prettier-plugin-astro` for `.astro`. |
-| knip | 6.27.0 | Dead/unused code gate (spec requirement) |
-| svelte-check | 4.7.3 | Template type-checking |
-| vitest | 4.1.10 | Unit/component runner |
+| eslint · @eslint/js · typescript-eslint | 10.12.0 · 10.0.1 · 8.71.1 | Lint (flat config) |
+| eslint-plugin-svelte · svelte-eslint-parser | 3.23.1 · 1.9.0 | Svelte rules |
+| globals | 17.13.0 | ESLint environment globals |
+| prettier | 3.9.10 | Format. **Plugins must be `prettier-plugin-svelte@^4` and `prettier-plugin-tailwindcss@^0.8`** — the 3.x/0.6.x pair crashes on every `.svelte` file with `TypeError: getVisitorKeys is not a function` (the Tailwind plugin wraps the Svelte one and the older pair mis-negotiates prettier 3.9's embedded-language API). Also `prettier-plugin-astro` for `.astro`. |
+| knip | 6.41.0 | Dead/unused code gate (spec requirement) |
+| svelte-check · @astrojs/check | 4.7.6 · 0.9.10 | Template type-checking (`pnpm check`) |
+| @sveltejs/vite-plugin-svelte | 7.3.1 | Svelte in Vitest |
+| vitest | 4.1.11 | Unit/component runner |
 | @testing-library/svelte | 5.4.2 | Component tests. ⚠️ Requires `resolve.conditions: ['browser']` in `vitest.config.ts` — without it `import { mount } from 'svelte'` resolves to Svelte 5's **server** build and every component test dies with `mount(...) is not available on the server`. Measured 2026-07-21 against the P1 config, before the tier had any tests in it |
-| happy-dom | 20.11.0 | Test DOM |
-| @playwright/test | 1.61.1 | E2E |
-| @vitest/coverage-v8 | 4.1.10 | Coverage provider — the docs/13 §1 threshold is enforced, so it must exist |
+| happy-dom | 20.14.6 | Test DOM |
+| @playwright/test | 1.64.0 | E2E |
+| @axe-core/playwright | 4.13.0 | The a11y scan (`13 §6`) |
+| @vitest/coverage-v8 | 4.1.11 | Coverage provider — the docs/13 §1 threshold is enforced, so it must exist |
+| @types/node | 24.x | Node types, held to the `engines` major — Dependabot ignores its majors (`14 §1`) |
 | ffmpeg-static | 5.3.0 | **Dev-only asset generation** (`scripts/make-fixtures.ts`, `scripts/make-demo.ts`). Never imported by shipped code and never distributed, so no notice obligation follows (`§5`). Its postinstall downloads an **unchecksummed** prebuilt ffmpeg (GPL), so `pnpm-workspace.yaml` sets `allowBuilds: ffmpeg-static: false` — the binary is fetched on demand by `scripts/ensure-ffmpeg.ts` on a developer machine, never on a CI runner (`14 §2`). |
 | @cloudflare/workers-types | 5.x | Worker globals. Kept in a separate program (`tsconfig.worker.json`) because it conflicts with the DOM lib |
-| @astrojs/sitemap | 3.7.3 | **Dev-only, no notice row** (`§5`) — MIT, runs at build and emits static XML; nothing of it reaches the bundle, exactly like Astro/Vite/Tailwind. Added in P6 slice A because the sitemap is derived from the routes actually built: a hand-authored one is a second source of truth that rots the first time someone adds a page. Its `i18n` option is **not** used — it assumes locales are path prefixes (`/vi/`) and Vietnamese lives at the root, so hreflang stays in the page (`08 §1`) |
-| @astrojs/markdown-satteri | 3.4 → **pinned `0.3.4`** | **Dev-only, no notice row** (`§5`) — MIT, the Markdown processor; it runs at build and emits static HTML. Added in P6 slice B only so `astro.config.mjs` can `import { satteri }` and pass `mdastPlugins` (the legal `.md` cross-link rewrite, `08 §1.1`). ⚠️ **Pin it to exactly the version Astro depends on**, not a range: it is already in the tree as Astro's own dependency, and an exact match dedupes to one copy while a looser range would resolve a second Markdown processor beside the one actually rendering. Astro 7 made Sätteri the default and `markdown.remarkPlugins` now needs `@astrojs/markdown-remark` instead — switching the whole pipeline back to unified to rewrite two links is the wrong trade |
+| @astrojs/sitemap | 3.7.4 | **Dev-only, no notice row** (`§5`) — MIT, runs at build and emits static XML; nothing of it reaches the bundle, exactly like Astro/Vite/Tailwind. Added in P6 slice A because the sitemap is derived from the routes actually built: a hand-authored one is a second source of truth that rots the first time someone adds a page. Its `i18n` option is **not** used — it assumes locales are path prefixes (`/vi/`) and Vietnamese lives at the root, so hreflang stays in the page (`08 §1`) |
+| @astrojs/markdown-satteri | **pinned `0.4.3`** | **Dev-only, no notice row** (`§5`) — MIT, the Markdown processor; it runs at build and emits static HTML. Added in P6 slice B only so `astro.config.mjs` can `import { satteri }` and pass `mdastPlugins` (the legal `.md` cross-link rewrite, `08 §1.1`). ⚠️ **Pin it to exactly the version Astro depends on**, not a range: it is already in the tree as Astro's own dependency, and an exact match dedupes to one copy while a looser range would resolve a second Markdown processor beside the one actually rendering. Astro 7 made Sätteri the default and `markdown.remarkPlugins` now needs `@astrojs/markdown-remark` instead — switching the whole pipeline back to unified to rewrite two links is the wrong trade |
 
 ### The fonts were named for four phases before they were installed
 
@@ -103,8 +109,9 @@ widens its peer range — both must land, since either alone still breaks
 - **At scaffold:** `pnpm audit --prod` must be clean of high/critical before the
   first commit of `pnpm-lock.yaml`. (Registry-only environment here — the audit
   itself runs at scaffold, not in this suite.)
-- **Continuous:** CI gate `pnpm audit --prod` (fail ≥ high) + CodeQL
-  `javascript-typescript` + Dependabot weekly grouped PRs (`14 §2`).
+- **Continuous:** CI gate `pnpm audit --prod` (fail ≥ high) and, since v1.1, a
+  whole-tree audit failing on **critical** — dev tooling included — plus CodeQL
+  (default setup) and Dependabot weekly grouped PRs (`14 §1`).
 - **Policy:** patch/minor updates auto-PR'd; majors get a short written check in
   the PR (breaking changes + license re-check). Security releases jump the queue.
 
@@ -113,9 +120,9 @@ widens its peer range — both must land, since either alone still breaks
   CVEs in `sharp <0.35.0` (GHSA-f88m-g3jw-g9cj) while `pnpm audit --prod` was
   **clean** — correctly, because the vulnerable copy came in via
   `wrangler → miniflare`, a **devDependency**, and `astro`'s own `sharp` was
-  already on a patched 0.35.x. The CI gate is about what ships to users; a
-  dev-only advisory still runs on developer machines and in CI, so it is worth
-  fixing, just not worth failing the production gate over. Run
+  already on a patched 0.35.x. The `--prod` gate is about what ships to users;
+  a dev-only advisory still runs on developer machines and in CI, so it is worth
+  fixing — and since v1.1 a critical one fails CI too. Run
   `pnpm audit --audit-level high` (no `--prod`) when triaging one of these.
 
   **Prefer an upstream bump to an override.** `miniflare` pinned `sharp@0.34.5`
@@ -126,9 +133,9 @@ widens its peer range — both must land, since either alone still breaks
   `wrangler deploy --dry-run` before merge, because a build tool that installs
   is not the same as one that still works.
 
-  ⚠️ **Still open, same class:** `brace-expansion ≤5.0.7` (GHSA-mh99-v99m-4gvg)
-  reaches the tree through **eslint** over 37 paths. Dev-only, no shipped code
-  touches it, and it clears when eslint updates its `minimatch`.
+  ✅ **Closed, same class:** `brace-expansion ≤5.0.7` (GHSA-mh99-v99m-4gvg)
+  reached the tree through **eslint** over 37 paths; it cleared upstream as the
+  advice here predicted — the lockfile now resolves only `5.0.12`.
 - Licenses of any new dependency are checked for GPL-3.0 compatibility **and for
   attribution/notice obligations** before merge, and appended to
   `legal/THIRD-PARTY-NOTICES.md`.
@@ -150,8 +157,9 @@ widens its peer range — both must land, since either alone still breaks
   that a hand-kept table structurally cannot carry the obligation: `music-metadata`
   alone brings `strtok3`, `token-types`, `@borewit/text-codec`,
   `@tokenizer/inflate`, `file-type` and `uint8array-extras` into the bundle, and
-  nobody was ever going to add those rows by hand. **19 components** are
-  attributed where the curated table lists 12.
+  nobody was ever going to add those rows by hand. **20 components** are
+  attributed as of v1.1 (Chakra Petch was the twentieth) where the curated table
+  lists 11.
 
   ⚠️ **Which packages comes from the build, not from `package.json`.** The
   `ttBundledPackages` plugin in `astro.config.mjs` reads the module graph of the

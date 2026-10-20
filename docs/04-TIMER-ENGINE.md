@@ -1,6 +1,6 @@
 # 04 — Timer Engine
 
-Suite 1.0 · 2026-07-21
+Suite 1.1 · 2026-10-20
 
 The countdown is the product. It must be correct after hours in a background tab,
 under CPU throttling, across pause/resume, and it must render milliseconds smoothly
@@ -224,9 +224,8 @@ or business-critical, so the legal text needs no change.
    behaviour. What must not happen is the *screen* claiming the moment is now.
 4. **TT-SYS-203 already covers the event** (`12 §6`, "zero crossed during sleep —
    late finish fired"). No new log code.
-5. **i18n:** new keys under `finished.*` for the late variant, in **both**
-   dictionaries (`08 §3`). Wording lands with the P5 dictionary work; P2 may
-   hardcode VI and file the keys.
+5. **i18n:** `finished.late.{at,ago,why}` in **both** dictionaries (`08 §3`) —
+   the wording itself is owned by `03 §3` item 5.
 6. **Say it where users decide to trust it** — the landing FAQ (`16 §P6`) states
    the visible/hidden distinction plainly rather than burying it in the EULA.
 
@@ -242,8 +241,8 @@ replaced by "report honestly", which `§7`'s `overshootMs` makes testable.
 `navigator.wakeLock.request('screen')` on entering `playing`; released on
 `paused`/`finished`/`setup`. Locks are auto-released when the page hides —
 re-acquire on `visibilitychange → visible` while `playing`. Unsupported browser or
-rejection → log `TT-SYS-202` once + one-time toast "Your screen may sleep during
-the countdown." Never fatal.
+rejection → log `TT-SYS-202` once. Never fatal. (Suite 1.0 also specified a
+one-time toast; it was never built, and the log entry is the whole signal.)
 
 ## 4. Display formats — **single source of truth**
 
@@ -254,10 +253,18 @@ tests exactly this.
 
 | Remaining | Format | Ghost (03 §1) | Update | Example |
 |-----------|--------|---------------|--------|---------|
-| ≥ 1 h | `H:MM:SS` | `8:88:88` | 1 Hz, aligned to the second boundary (next timeout = `remaining % 1000`) | `1:24:07` |
-| 60 s – 1 h | `MM:SS` | `88:88` | 1 Hz aligned | `09:41` |
+| ≥ 1 h | `H:MM:SS` | `8:88:88` | changes at each second boundary | `1:24:07` |
+| 60 s – 1 h | `MM:SS` | `88:88` | changes at each second boundary | `09:41` |
 | **< 60 s** | `SS.mmm` | `88.888` | every rAF frame | `42.183` |
 | 0 | `0.000` held on Finished screen | `88.888` | — | |
+
+**How the update rate is met.** The driver repaints on every animation frame in
+every regime (`tt-timer-driver.ts`), and above 60 s the formatted string simply
+does not change between second boundaries — so the visible change is exactly
+once a second, landing on the boundary because `remaining` is derived each frame.
+Suite 1.0 specified a timeout aligned to `remaining % 1000` instead; it was never
+wired, and its helper was deleted in v1.1 rather than left as an API nothing
+read.
 
 Boundaries are **inclusive at the lower edge**: `3_600_000` renders `1:00:00`,
 `3_599_999` renders `59:59`, `60_000` renders `01:00`, `59_999` renders `59.999`.
@@ -293,9 +300,11 @@ unit-testable (Vitest fake timers for the timer; no audio needed).
 
 ## 7. Test hooks
 
-`TtTimer` accepts three injected functions — `now()` (wall, stands in for
-`Date.now()`), `mono()` (monotonic, stands in for `performance.now()`) and
-`schedule()`. Injecting the two clocks **separately** is what makes `§1`'s
+`TtTimer` accepts injected hooks (`TtTimerHooks`): two clocks — `now()` (wall,
+stands in for `Date.now()`) and `mono()` (monotonic, stands in for
+`performance.now()`) — and the callbacks `onTick`, `onDone`, `onLog` and the S2
+harness's `onSample`. There is no scheduling hook; a test drives `tick()`
+itself. Injecting the two clocks **separately** is what makes `§1`'s
 disambiguation testable: a throttling gap advances both by the same amount, a
 clock jump advances only `now()`. A suite that drove a single clock would pass
 against an implementation that cannot tell them apart.

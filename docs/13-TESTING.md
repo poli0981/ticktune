@@ -1,6 +1,6 @@
 # 13 — Testing Strategy
 
-Suite 1.0 · 2026-07-21
+Suite 1.1 · 2026-10-20
 
 Pyramid: heavy unit coverage on the pure engines (they're pure by design, `01 §3`),
 targeted component tests, thin-but-real E2E, plus a manual matrix for the parts
@@ -15,7 +15,7 @@ that depend on YouTube's servers.
 | YT URL parser | watch/youtu.be/shorts/live/embed/music.youtube + junk lines; 11-char id property test |
 | Metadata mapping | tag→TtTrack mapping; `N/A`/`–` fallback rules; the `onlyV1` non-ASCII rule and the retained U+FFFD check (TT-IMP-007); pure-ASCII ID3v1 **kept** (`05 §5`) |
 | Log | ring-buffer wrap at 500; level filter; diagnostics payload shape |
-| Crossfade math | equal-power curve endpoints/midpoint (`out² + in² = 1`); trigger scheduling margins |
+| Crossfade math | equal-power curve endpoints/midpoint (`out² + in² = 1`). Trigger scheduling is **not** tested — it is what spike S4b has to measure first (`15 §S4`) |
 | Drop pre-scan | depth-first flattening; deterministic `Intl.Collator` order; the entry cap → TT-IMP-008 (`02 §4` step 0) |
 | Object-URL ledger | `acquire` idempotent per key; double release is a no-op; the ≤2-media + ≤queueLength-cover bound under a random add/remove property test (`05 §3`) |
 | Playback order (`02 §5.1`) | Fisher–Yates over an injected `rand` — a permutation, nothing lost or duplicated, one draw per element; the no-immediate-repeat swap at lengths 1 and 2 (the real boundary); `reconcile` under random add/remove; `nextInOrder` at the last element and for a cursor whose track is gone |
@@ -59,13 +59,15 @@ and both suites skipped on every CI run while claiming CI was their gate.
 
 ## 2. Component (Vitest + @testing-library/svelte + happy-dom, `tests/component/`)
 
+Five components have their own suites — TtFinished, TtQueuePanel, TtSettings,
+TtBackdrop and TtYouTubeRail. Setup, the bottom bar, the track-info modal, the
+toast and the legal gate are covered end to end instead (`§3`), where their
+wiring is what fails; the suite 1.0 plan listed component tests for them that
+were never written, and this list no longer pretends otherwise.
+
 TtFinished (**both variants** — normal below the threshold, and the late variant
 rendering a clock time and elapsed phrase with no bare present-tense claim;
-digits hold `0.000` in both) · TtSetup (limits meter, preset buttons in minutes,
-Match-queue-length disabled rules, Start gated by `isReady`) · TtBottomBar
-(`N/A`/`–` fallbacks, 4 s auto-hide, ⏮/⏭ disabled in Single) · TtTrackInfo (every
-`02 §8` field, focus trap, `Esc` restores focus) · TtToast (summary counts,
-`data-tt-code` present) · **TtQueuePanel** (now-playing highlight on exactly one
+digits hold `0.000` in both) · **TtQueuePanel** (now-playing highlight on exactly one
 row and none before Start, an errored row struck through rather than hidden, the
 totals footer rendering `–` when any duration is unknown, the context menu
 resolving to the row that was targeted, all four `02 §8` items with the
@@ -73,11 +75,14 @@ end-of-list move disabled, `Esc` closing without acting, `Alt+↑/↓` moving th
 focused row and announcing where it landed, and rows carrying **no**
 `draggable` attribute — see `§3`) · **TtSettings** (every control patches the
 field it names; the two-step reset; Diagnostics rendering, filtering, copying
-parseable JSON and clearing; About rendering `__TT_VERSION__`; and the
-**absence** of the Display and Visualizer groups, which is the guard against
-shipping a control with no feature under it) · TtOverlay (typed
-variants render correct i18n keys) · TtLegalGate (Accept enables only with
-checkbox).
+parseable JSON and clearing; About rendering `__TT_VERSION__`; all nine groups
+present, and the S4b-gated crossfade and loop-style controls **absent** — the
+guard against shipping a control with no feature under it) · TtBackdrop (every
+background field genuinely read, one picture shown at a time, the scrim never
+below the user's floor, scanlines suppressed under reduced motion without
+rewriting the setting, Focus's dim layer) · TtYouTubeRail (the slot reserved at
+exactly 384×216 px, no collapse control, the player kept and the queue dropped
+in Focus, the typed card rendered inside the player area).
 
 ⚠️ The tier needs `resolve.conditions: ['browser']` in `vitest.config.ts`
 (`11 §3`). TtCountdown was listed here from the start and never had a test; it is
@@ -86,14 +91,17 @@ list rather than left reading as an outstanding gap.
 
 ## 3. E2E (Playwright, `tests/e2e/`)
 
-Fixtures: `scripts/make-fixtures.ts` generates three ~5 s tones (mp3/flac/opus) +
-one 11-min silent mp3 (for TT-IMP-002) + one truncated `corrupt.mp3` that passes
-`canPlayType` and fails at decode (the only way to reach TT-PLY-101 from a test)
-— committed, tiny, self-made (no rights issues).
+Fixtures: `scripts/make-fixtures.ts` generates ~5 s tones in seven containers
+(mp3, flac, opus, m4a, oga, webm, wav) + one 11-min silent mp3 (for TT-IMP-002) +
+one truncated `corrupt.mp3` that passes `canPlayType` and fails at decode (the
+only way to reach TT-PLY-101 from a test — `wiring.spec.ts` finally uses it, in
+v1.1) + `rejected.aiff`, `with-cover.mp3`, five Vietnamese tag fixtures and two
+background PNGs — committed, tiny, self-made (no rights issues).
 
-Every spec carries `test.skip(({ isMobile }) => !!isMobile)`: four projects run
-over the whole `testDir` with no per-project `testMatch`, and on a blocked
-viewport the island never mounts (`07 §6`). Specs that navigate away from a
+Five projects run over the whole `testDir` with no per-project `testMatch`, so
+every spec that needs the island carries `test.skip(({ isMobile }) => !!isMobile)`
+— on a blocked viewport the island never mounts (`07 §6`). `analytics.spec.ts`
+deliberately does not: the beacon is on every page, blocked ones included. Specs that navigate away from a
 non-empty queue must also handle the `beforeunload` guard (`02 §3`) or they hang.
 
 🔴 **The harness serves `dist/`, and does not build it.** `webServer` runs
@@ -165,8 +173,9 @@ Firefox stays name-based, and that asymmetry is the point: its constructor
 there is nothing to feature-test. Skip on a capability where one is detectable;
 name a browser only where the failure is invisible to detection.
 
-⚠️ Chromium remains the only project asserting audible **output**. Say that
-rather than implying four-browser coverage.
+⚠️ Audible **output** is asserted by Chromium and by desktop WebKit wherever it
+exposes `AudioContext` (Linux CI does; Playwright's WebKit on Windows does not),
+never by Firefox CI. Say that rather than implying full coverage.
 
 ⚠️ **`astro preview` is also more permissive than the deployed host, so some
 things are unassertable here by construction.** Measured in P6 slice B: with
@@ -196,7 +205,7 @@ produce the failure — otherwise it is a test that can only pass.
 | Late finish (`04 §2`) | drive a real countdown past its deadline with Playwright's `page.clock` and assert the Finished screen states the actual finish time; below the threshold assert the normal screen is unchanged. **Not** a shipped `?ttovershoot=` hook — a production affordance that lets any URL render a false finish time would prove only that the component has an `if`.<br>Verified 2026-07-21 on `@playwright/test@1.61.1`: `clock.fastForward` moves `Date.now()` and `performance.now()` in step (skew 0), so `04 §1`'s drift rule correctly does **not** re-anchor, and an 8-minute fast-forward on a 5-minute countdown produced a 390 001 ms overshoot. Note it fires with `late: false` and **no TT-SYS-203** — the worker keeps ticking on the real clock because `page.clock` does not reach the worker realm — so the threshold, not the latch, is what this spec exercises |
 | 404 | unknown path serves styled 404 |
 | Legal pages (`03 §3`, `08 §1.1`) | `legal.spec.ts`, P6 slice B. Every case is driven off `TT_LEGAL_DOCS`, so a fifth document extends the suite instead of quietly going uncovered: all 8 routes 200 with their heading and `TT_LEGAL_VERSION`; the canonical banner picks `canonicalEn` vs `canonicalVi` — **asserted against the dictionaries, not against English prose**, because the failure worth catching is the two being swapped, whereas a hardcoded substring just fails on the VI page for being in Vietnamese; no rendered legal href ends in `.md`; the EULA's cross-links stay in their own language. 🔴 **The load-bearing case is the landing footer**, checked on `/en/` as well as `/`: `TtFooter.astro` is the one legal-link call site with no runtime `i18n.lang`, so dropping its `lang` prop yields four valid links that all 200 in the wrong language. **Mutation-verified** — that revert turns exactly this test red and no other |
-| Landing (`03 §3`, `08 §1`) | `landing.spec.ts`, P6 slice A. **hreflang asserted as RECIPROCITY, not presence** — both pages must advertise the same pair, because a page that merely has alternates can still point them somewhere wrong, and that is the failure Search Console reports weeks later. Plus: each page canonicalises to itself; the FAQ carries the `04 §2` item 6 countdown promise **in both languages**; the CTA reaches `/app/`; the GPL source-offer link is present with `rel=noopener`; the hero placeholder is same-origin and labelled; `/app/` is `noindex` while the landing is not. The `docs/07 §5` crawler-content assertion in `mobile-gate.spec.ts` now covers `/en/` too |
+| Landing (`03 §3`, `08 §1`) | `landing.spec.ts`, P6 slice A. **hreflang asserted as RECIPROCITY, not presence** — both pages must advertise the same pair, because a page that merely has alternates can still point them somewhere wrong, and that is the failure Search Console reports weeks later. Plus: each page canonicalises to itself; the FAQ carries the `04 §2` item 6 countdown promise **in both languages**; the CTA reaches `/app/`; the GPL source-offer link is present with `rel=noopener`; the hero is the real capture, same-origin; `/app/` is `noindex` while the landing is not. The `docs/07 §5` crawler-content assertion in `mobile-gate.spec.ts` now covers `/en/` too |
 
 Browsers: CI runs Chromium, Firefox and desktop WebKit on every PR, plus the two
 mobile projects (`mobile-chromium`, `mobile-webkit`) that assert hard invariant 6.
@@ -222,10 +231,10 @@ for media elements) and re-checking the gesture chain (which was already sound).
 Consequences, all deliberate:
 
 - **Only the assertions that need AUDIBLE output are skipped on Firefox** —
-  single-mode playback, the loop counter, the two chime tests, and the one
-  playlist test that waits for a real `ended`. Everything else runs there,
-  including the whole import pipeline, the Finished screens, and seven of the
-  nine playlist tests. Chromium runs all of them, and each phase's
+  single-mode playback, the loop counter, the chime tests and the playlist tests
+  that wait for a real `ended`, each through `skipWithoutAudio()`. Everything
+  else runs there, including the whole import pipeline and the Finished
+  screens. Chromium runs all of them, and each phase's
   `tests/manual/p*-live-checklist.md` carries a real-Firefox item.
 
   **Skip only for the stated reason.** A playlist test that asserts a highlight,
@@ -316,7 +325,7 @@ for the same reason a real user would.
 
 After every production deploy:
 
-- [ ] Landing VI + `/en/` render; hero placeholder present (until real capture)
+- [ ] Landing VI + `/en/` render; the hero plays (silent, looping)
 - [ ] Gate appears on fresh profile; Accept persists across reload
 - [ ] Single mode with a real MP3: plays, countdown accurate vs phone stopwatch over 10 min (±1 s) — **tab visible**, which is the only case that bound applies to (`04 §2`)
 - [ ] Playlist: 3 files, shuffle + repeat, right-click info modal fields

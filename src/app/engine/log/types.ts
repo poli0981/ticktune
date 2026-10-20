@@ -16,7 +16,7 @@ export interface TtLogEntry {
    * by construction rather than by reviewer diligence.
    */
   message: string;
-  /** nanoid — opaque, so it carries nothing identifying. */
+  /** `crypto.randomUUID()` (docs/02 §2) — opaque, so it carries nothing identifying. */
   trackId?: string;
 }
 

@@ -1,6 +1,6 @@
 # 05 — Audio Engine (local modes)
 
-Suite 1.0 · 2026-07-21
+Suite 1.1 · 2026-10-20
 
 Applies to Single and Playlist modes. YouTube playback is a separate engine
 (`06-YOUTUBE-INTEGRATION.md`) — the two never run simultaneously.
@@ -34,7 +34,9 @@ chimeOsc ×2 ─ chimeGain ─────────────────�
   downstream of both deck gains.
 - `cancelScheduledValues(ctx.currentTime)` precedes every `fadeGain` write, which
   Restart / Back-during-fade needs anyway (`02 §3.3`).
-- `AudioContext` is created at boot but `resume()`d only on a user gesture.
+- `AudioContext` is created **lazily** — `playback.#ensure()` builds the driver
+  on the first unlock, load, play or cover import, never at boot — and is
+  `resume()`d only on a user gesture.
   **Three call sites, not one:** the legal-gate Accept click (`02 §1`), the Setup
   Start button, and the bottom-bar play button. The gate alone is not enough —
   it only renders when the stored `legalAccepted.version` differs
@@ -113,9 +115,11 @@ across both decks because it is the same file — **plus ≤ `queueLength` cover
 URLs**, one per imported track. A media URL is therefore keyed per *track*, not
 per deck; keying it per deck breaks the bound the moment a crossfade loop starts.
 
-The fallback duration probe (`§5`) creates a transient URL of its own. It goes
-through the same ledger and is released in a `finally`, so a probe that throws
-cannot leak one.
+The fallback duration probe (`§5`) creates a transient URL of its own,
+**outside** the ledger: it never outlives the probe, so counting it against the
+bound would only blur the leak canary. It is revoked when the probe settles —
+on `loadedmetadata`, on `error`, or at its 5 s guard, whichever comes first,
+exactly once — so a file that never answers cannot leak one.
 
 ## 4. Format support (accept list × engines)
 
@@ -272,9 +276,9 @@ of a broken track. Matrix re-verified during Spike S3.
   would have made "off" silently kill the tally — a defect nothing else in the
   app would have noticed, because the light would simply have stopped moving.
   The E2E asserts the pulse **at the `off` setting** for that reason.
-- **Unavailable in YouTube mode** (cross-origin media, no Analyser access) —
-  UI substitutes thumbnail-blur + slow gradient drift; this is a hard platform
-  limit, documented to the user in the FAQ.
+- **Unavailable in YouTube mode** (cross-origin media, no Analyser access) — a
+  hard platform limit, stated in Settings → Visualizer. Z1 shows the generated
+  gradient; nothing is derived from the video's thumbnail (`03 §5`, `06 §1`).
 
 ## 7. End-behavior chime
 
@@ -330,6 +334,7 @@ peak Analyser RMS > 0. (Headless Chromium's `--mute-audio` mutes the output
 device only; the graph still runs — also measured.)
 
  Real-audio behavior (gapless-ness,
-Safari quirks, chime timing) → Playwright fixtures: three ~5 s generated tones
-(mp3/flac/opus) produced by `scripts/make-fixtures.ts`, committed. Full matrix in
+Safari quirks, chime timing) → Playwright fixtures produced by
+`scripts/make-fixtures.ts`, committed: ~5 s generated tones in seven containers
+(mp3, flac, opus, m4a, oga, webm, wav) plus tag and cover cases. Full matrix in
 `13-TESTING.md`.
