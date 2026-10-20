@@ -30,6 +30,8 @@
     elapsedMs: number;
     /** Peak Analyser RMS — proves the graph carries signal (docs/13 §3). */
     peakRms: number;
+    /** This frame's RMS — what is audible now: a pause or a gap reads ~0. */
+    rmsNow: number;
     /** Live object URLs — the docs/09 §5 leak canary. */
     liveUrls: number;
   }
@@ -44,6 +46,7 @@
     hiddenMs,
     elapsedMs,
     peakRms,
+    rmsNow,
     liveUrls,
   }: Props = $props();
 
@@ -186,6 +189,10 @@
         peak RMS
       </dt>
       <dd data-testid="tt-peak-rms">{peakRms.toFixed(4)}</dd>
+    </div>
+    <div>
+      <dt title="this frame only: a pause or a gap in a crossfade reads ~0">RMS now</dt>
+      <dd data-testid="tt-rms-now">{rmsNow.toFixed(4)}</dd>
     </div>
     <div>
       <dt title="docs/05 §3: at most queueLength + 2">live object URLs</dt>

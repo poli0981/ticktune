@@ -85,13 +85,26 @@ export function buildTtGraph(ctx: AudioContext): TtGraph {
 }
 
 function gainPort(node: GainNode): TtGainPort {
+  const p = node.gain;
   return {
     get value() {
-      return node.gain.value;
+      return p.value;
     },
-    setValue: (v, t) => node.gain.setValueAtTime(v, t),
-    setCurve: (values, start, duration) => node.gain.setValueCurveAtTime(values, start, duration),
-    cancelScheduled: (from) => node.gain.cancelScheduledValues(from),
+    setValue: (v, t) => p.setValueAtTime(v, t),
+    setCurve: (values, start, duration) => p.setValueCurveAtTime(values, start, duration),
+    cancelScheduled: (from) => p.cancelScheduledValues(from),
+    // Atomic where the browser can: a cancel on an active curve otherwise
+    // restores the pre-curve value for a render quantum (S4b). Firefox lacks
+    // `cancelAndHoldAtTime`, so it gets the two-call fallback S4b measured.
+    holdAt: (t, value) => {
+      if (typeof p.cancelAndHoldAtTime === 'function') {
+        p.cancelAndHoldAtTime(t);
+      } else {
+        p.cancelScheduledValues(t);
+        p.setValueAtTime(value, t);
+      }
+    },
+    rampTo: (v, t) => p.linearRampToValueAtTime(v, t),
   };
 }
 
@@ -99,6 +112,10 @@ function mediaPort(el: HTMLAudioElement): TtMediaPort {
   return {
     setSrc: (url) => {
       el.src = url;
+    },
+    unload: () => {
+      el.removeAttribute('src');
+      el.load();
     },
     play: () => el.play(),
     pause: () => el.pause(),
@@ -165,17 +182,27 @@ export class TtAudioDriver {
     // `ArrayBufferLike`, which does not satisfy it.
     this.#rmsBuffer = new Uint8Array(new ArrayBuffer(FFT_SIZE));
 
-    for (const el of this.#graph.elements) {
-      el.addEventListener('timeupdate', () => this.#engine.onTimeUpdate());
-      el.addEventListener('error', () => this.#engine.onMediaError());
+    this.#graph.elements.forEach((el, i) => {
+      // Every event names its deck: with two in use (docs/05 §2) a fading-out
+      // deck still reports, and only the engine knows whose report counts.
+      const deck = i as TtDeckId;
+      el.addEventListener('timeupdate', () => this.#engine.onTimeUpdate(deck));
+      el.addEventListener('error', () => this.#engine.onMediaError(deck));
       // Playlist advance (docs/02 §5). Forwarded only — every decision about
       // what plays next lives in the engine and the play-order module, because
       // this file is excluded from the coverage gate by name (docs/13 §1) and
       // logic parked here would be silently untested.
-      el.addEventListener('ended', () => this.#engine.onEnded());
-    }
+      el.addEventListener('ended', () => this.#engine.onEnded(deck));
+    });
 
-    this.#engine = new TtAudioEngine(this.#ports(), events);
+    this.#engine = new TtAudioEngine(this.#ports(), {
+      ...events,
+      // The E2E seam (docs/13 §3): whether a crossfade is sounding right now.
+      onCrossfadeActive: (active) => {
+        document.documentElement.dataset['ttXfadeActive'] = active ? '1' : '';
+        events.onCrossfadeActive?.(active);
+      },
+    });
     this.#publishState();
 
     window.addEventListener('pagehide', this.#onPageHide);
@@ -254,6 +281,8 @@ export class TtAudioDriver {
    */
   #publishState(): void {
     const status = this.#engine.status;
+    // The configured crossfade, as the engine holds it (docs/13 §3).
+    document.documentElement.dataset['ttXfade'] = String(this.#engine.crossfadeMs);
     document.documentElement.dataset['ttAudio'] =
       status === 'blocked'
         ? 'blocked'

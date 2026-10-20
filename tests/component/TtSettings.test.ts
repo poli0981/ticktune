@@ -74,12 +74,12 @@ describe('the groups that ship, and the ones that deliberately do not', () => {
     }
   });
 
-  it('still hides the S4b-gated Audio controls, which have no implementation', () => {
-    // The rule outlives the last group: crossfade and the loop-style selector
-    // stay absent while docs/15 §S4b is open.
+  it('shows the Audio controls spike S4b gated, now that they have an engine', () => {
+    // The rule cut both ways: absent while docs/15 §S4b was open, and present
+    // the moment it passed — with the crossfade they drive (v2.0).
     mount();
-    expect(screen.queryByTestId('tt-set-crossfade')).toBeNull();
-    expect(screen.queryByTestId('tt-set-loopstyle')).toBeNull();
+    expect(screen.getByTestId('tt-set-crossfade')).toBeTruthy();
+    expect(screen.getByTestId('tt-set-loopstyle')).toBeTruthy();
   });
 
   it('writes every visualizer style, and the sensitivity', async () => {
@@ -107,13 +107,33 @@ describe('the groups that ship, and the ones that deliberately do not', () => {
     expect(group.textContent).toMatch(/YouTube/);
     expect(group.textContent).toMatch(/nhịp|beat/i);
   });
+});
 
-  it('offers no crossfade or loop-style control while spike S4b is open', () => {
-    // Same rule, one level down: `crossfadeMs` and `singleLoopStyle` have no
-    // implementation to drive, so the Audio group says so instead.
+describe('Crossfade and loop style — v2.0, released by spike S4b (docs/05 §2)', () => {
+  it('writes crossfadeMs from the slider, in whole milliseconds, 2 s by default', async () => {
     mount();
-    expect(screen.queryByTestId('tt-set-crossfade')).toBeNull();
-    expect(screen.queryByTestId('tt-set-loopstyle')).toBeNull();
+    const slider = screen.getByTestId('tt-set-crossfade') as HTMLInputElement;
+    expect(slider.value).toBe('2');
+    expect(slider.getAttribute('aria-valuetext')).toMatch(/2\.0/);
+    await fireEvent.input(slider, { target: { value: '3.5' } });
+    expect(patch).toHaveBeenCalledWith({ crossfadeMs: 3_500 });
+  });
+
+  it('says Off at 0 — a hard cut, not "0.0 s"', () => {
+    vi.spyOn(settings, 'current', 'get').mockReturnValue({
+      ...TT_DEFAULT_SETTINGS,
+      crossfadeMs: 0,
+    });
+    mount();
+    const slider = screen.getByTestId('tt-set-crossfade');
+    expect(slider.getAttribute('aria-valuetext')).not.toMatch(/\d/);
+  });
+
+  it('writes singleLoopStyle from the pair, hard by default', async () => {
+    mount();
+    expect(screen.getByTestId('tt-set-loop-hard').getAttribute('aria-pressed')).toBe('true');
+    await fireEvent.click(screen.getByTestId('tt-set-loop-crossfade'));
+    expect(patch).toHaveBeenCalledWith({ singleLoopStyle: 'crossfade' });
   });
 });
 

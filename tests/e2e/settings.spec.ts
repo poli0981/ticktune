@@ -291,12 +291,13 @@ test.describe('hotkeys that arrived with P5 — docs/03 §7', () => {
     await expect(page.getByTestId('tt-brand')).toBeVisible();
   });
 
-  test('the loop-style toggle is no longer inert — docs/05 §2', async ({ page }) => {
+  test('the loop-style toggle is live — both styles are real since S4b (docs/05 §2)', async ({
+    page,
+  }) => {
     /*
-     * It shipped with hardcoded `aria-pressed` and no `onclick` at all. The
-     * pressed state now reports the EFFECTIVE style, and while spike S4b is
-     * open that is always a hard cut — so the crossfade button stays disabled
-     * and says why, rather than pretending to be a choice.
+     * It shipped with hardcoded `aria-pressed` and no `onclick` at all; then,
+     * while spike S4b was open, the crossfade half was disabled and said why.
+     * S4b passed in v2.0: pressing it stores the style the track loops by.
      */
     dismissUnloadDialogs(page);
     await gotoApp(page);
@@ -305,11 +306,10 @@ test.describe('hotkeys that arrived with P5 — docs/03 §7', () => {
     await page.getByRole('button', { name: 'Bắt đầu' }).click();
 
     await expect(page.getByTestId('tt-hard-toggle')).toHaveAttribute('aria-pressed', 'true');
-    await expect(page.getByTestId('tt-crossfade-toggle')).toBeDisabled();
-    // A real handler: pressing the already-active option must not throw or
-    // change the effective style.
-    await page.getByTestId('tt-hard-toggle').click();
-    await expect(page.getByTestId('tt-hard-toggle')).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.getByTestId('tt-crossfade-toggle')).toBeEnabled();
+    await page.getByTestId('tt-crossfade-toggle').click();
+    await expect(page.getByTestId('tt-crossfade-toggle')).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => storedSettings(page)).toMatchObject({ singleLoopStyle: 'crossfade' });
   });
 });
 

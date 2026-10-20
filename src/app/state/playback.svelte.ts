@@ -28,8 +28,10 @@ class PlaybackStore {
   #durationMs = $state<number | null>(null);
   #liveUrls = $state(0);
 
-  /** TT-SYS-205 is a property of the build, so it is reported once per session. */
-  #loopStyleReported = false;
+  /** The loaded track is Single mode's, so the loop style applies to it. */
+  #single = false;
+  /** What the shell said comes next — the track a crossfade lands on. */
+  #nextTrack: TtTrack | null = null;
 
   /**
    * The end-of-run pause, scheduled for when the fade finishes.
@@ -46,6 +48,12 @@ class PlaybackStore {
   onEnded: (() => void) | null = null;
   /** Set by the app shell: the loaded track failed to decode — docs/02 §6. */
   onError: ((trackId: string) => void) | null = null;
+  /**
+   * Set by the app shell: a crossfade into `trackId` became real (docs/05 §2).
+   * The shell advances the queue here — once; the outgoing track's `ended`,
+   * if it comes, is dropped by the engine.
+   */
+  onCrossfade: ((trackId: string) => void) | null = null;
 
   get status(): TtPlaybackStatus {
     return this.#status;
@@ -125,25 +133,22 @@ class PlaybackStore {
       onLiveUrls: (n) => {
         this.#liveUrls = n;
       },
+      onCrossfade: (trackId) => this.#crossfaded(trackId),
     });
+    this.#driver.engine.setCrossfade(settings.current.crossfadeMs);
     return this.#driver;
   }
 
-  /**
-   * docs/05 §2 — the Single-mode loop style, honoured rather than assumed.
-   *
-   * Through P2 nothing read `singleLoopStyle` at all: this call passed a literal
-   * `true`, so a stored `'crossfade'` fell back to hard **silently** — the exact
-   * behaviour docs/05 §2 forbids, and indistinguishable from correctness because
-   * the fallback is what a listener hears either way. TT-SYS-205 is the notice
-   * the doc always promised; `15 §S4b` is what it is waiting on.
-   */
-  #hardLoopForSingle(): boolean {
-    if (settings.current.singleLoopStyle === 'crossfade' && !this.#loopStyleReported) {
-      this.#loopStyleReported = true;
-      ttLog.warn('TT-SYS-205', 'singleLoopStyle=crossfade unavailable, using hard');
+  /** The engine swapped decks: the incoming track is the current one now. */
+  #crossfaded(trackId: string): void {
+    const next = this.#nextTrack;
+    if (next?.id === trackId) {
+      this.#track = next;
+      this.#loops = 1;
+      this.#positionMs = 0;
+      this.#durationMs = next.durationMs;
     }
-    return true;
+    this.onCrossfade?.(trackId);
   }
 
   /**
@@ -158,25 +163,27 @@ class PlaybackStore {
     return this.#ensure().unlock();
   }
 
-  /**
-   * @param loop true in Single mode only. A playlist track loads with
-   *   `loop: false` **so that `ended` fires at all** — `element.loop = true`
-   *   emits no `ended` event (docs/05 §2), which is why Single mode needs no
-   *   mode check on the advance path.
-   */
   #cancelFadePause(): void {
     if (this.#fadePause !== null) clearTimeout(this.#fadePause);
     this.#fadePause = null;
   }
 
-  async load(track: TtTrack, loop: boolean): Promise<void> {
+  /**
+   * @param single true in Single mode, where `singleLoopStyle` decides how the
+   *   track loops (docs/05 §2) — read here, at every load. A playlist track
+   *   loads with no loop **so that `ended` fires at all**: `element.loop = true`
+   *   emits no `ended` event, which is why Single mode needs no mode check on
+   *   the advance path.
+   */
+  async load(track: TtTrack, single: boolean): Promise<void> {
     this.#cancelFadePause();
     const driver = this.#ensure();
     this.#track = track;
+    this.#single = single;
     this.#loops = 1;
     this.#positionMs = 0;
     this.#durationMs = track.durationMs;
-    driver.engine.load(track, loop && this.#hardLoopForSingle());
+    driver.engine.load(track, single ? settings.current.singleLoopStyle : 'none');
     driver.engine.setVolume(settings.current.volume, settings.current.muted);
     driver.refresh();
   }
@@ -204,6 +211,26 @@ class PlaybackStore {
 
   applyVolume(): void {
     this.#driver?.engine.setVolume(settings.current.volume, settings.current.muted);
+  }
+
+  /** `crossfadeMs` reaches the engine — from the next transition on (05 §2). */
+  applyCrossfade(): void {
+    this.#driver?.engine.setCrossfade(settings.current.crossfadeMs);
+    this.#driver?.refresh();
+  }
+
+  /** `singleLoopStyle` reaches the track already looping, not just the next load. */
+  applyLoopStyle(): void {
+    if (this.#single) this.#driver?.engine.setLoopMode(settings.current.singleLoopStyle);
+  }
+
+  /**
+   * What the queue would play next — the shell keeps it current
+   * (`session.peekNext()`). The engine arms it ahead and fades into it.
+   */
+  setNext(track: TtTrack | null): void {
+    this.#nextTrack = track;
+    this.#driver?.engine.setNext(track);
   }
 
   /** Re-arm the fade stage before a run — see runEndBehavior. */

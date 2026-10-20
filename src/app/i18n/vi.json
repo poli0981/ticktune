@@ -115,8 +115,6 @@
       "count": "Loop ×{{count}}",
       "hard": "Cắt thẳng",
       "crossfade": "Chuyển mềm",
-      "locked": "Chờ đo đạc spike S4b",
-      "fallback": "Bản này chưa có chuyển mềm — đang phát bằng cắt thẳng.",
       "hint": "Chuột phải để xem thông tin"
     },
     "focus": {
@@ -330,7 +328,11 @@
     "audio": {
       "volume": "Âm lượng",
       "mute": "Tắt tiếng",
-      "deferred": "Bản này chưa có chuyển mềm và kiểu lặp cho chế độ một bài — đang chờ spike S4b."
+      "crossfade": "Chuyển mềm",
+      "crossfadeOff": "Tắt",
+      "crossfadeValue": "{{seconds}} giây",
+      "crossfadeHint": "Hoà bài này vào bài kế tiếp trong danh sách. 0 là cắt thẳng. Thay đổi có hiệu lực từ lần chuyển bài kế tiếp.",
+      "loopStyle": "Lặp một bài"
     },
     "playback": {
       "shuffle": "Trộn",

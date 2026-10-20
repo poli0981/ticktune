@@ -115,8 +115,6 @@
       "count": "Loop ×{{count}}",
       "hard": "Hard cut",
       "crossfade": "Crossfade",
-      "locked": "Waiting on spike S4b measurements",
-      "fallback": "Crossfade is saved but not in this build — playing with a hard cut.",
       "hint": "Right-click for track info"
     },
     "focus": {
@@ -330,7 +328,11 @@
     "audio": {
       "volume": "Volume",
       "mute": "Mute",
-      "deferred": "Crossfade and the single-track loop style are not in this build yet — they are waiting on spike S4b."
+      "crossfade": "Crossfade",
+      "crossfadeOff": "Off",
+      "crossfadeValue": "{{seconds}} s",
+      "crossfadeHint": "Fades one playlist track into the next. 0 is a hard cut. Changes apply from the next transition.",
+      "loopStyle": "Single-track loop"
     },
     "playback": {
       "shuffle": "Shuffle",

@@ -115,6 +115,14 @@ class SessionStore {
   #exhausted = $state(false);
 
   /**
+   * A shuffled wrap decided AHEAD, by `peekNext()`, for the track it was
+   * decided at — so the track the audio engine arms and fades into is the one
+   * `advance()` then plays (docs/05 §2). Reconciled against the queue at the
+   * wrap, like the order itself (rule 5).
+   */
+  #nextShuffle: { forId: string | null; order: string[] } | null = null;
+
+  /**
    * docs/06 §8. A HINT, not the authority — the browser reports `true` for a
    * captive portal too. The authority is what an import actually got back, and
    * that is why there is no polling probe: the only endpoint worth probing is
@@ -312,6 +320,7 @@ class SessionStore {
   /** Seat the cursor at the head of a freshly built order. Start and Restart. */
   #seat(): void {
     this.#exhausted = false;
+    this.#nextShuffle = null;
     const ids = this.#playableIds();
     this.#shuffled = settings.current.shuffle ? shuffleIds(ids, Math.random) : null;
     this.#currentId = (this.#shuffled ?? ids)[0] ?? null;
@@ -326,6 +335,7 @@ class SessionStore {
    * mean "reorder the future", not "cut off the present".
    */
   setShuffle(on: boolean): void {
+    this.#nextShuffle = null;
     this.#shuffled = on
       ? pinFirst(shuffleIds(this.#playableIds(), Math.random), this.#currentId)
       : null;
@@ -335,6 +345,34 @@ class SessionStore {
   setRepeat(on: boolean): void {
     if (on) this.#exhausted = false;
     void settings.patch({ repeatPlaylist: on });
+  }
+
+  /** The order a wrap starts: Shuffle's reshuffle — the one peeked, if any — or the queue's. */
+  #wrapOrder(): string[] {
+    const ids = this.#playableIds();
+    if (this.#shuffled === null) return ids;
+    const kept = this.#nextShuffle;
+    const order =
+      kept !== null && kept.forId === this.#currentId
+        ? reconcile(kept.order, ids)
+        : withoutImmediateRepeat(shuffleIds(ids, Math.random), this.#currentId);
+    this.#nextShuffle = { forId: this.#currentId, order };
+    return order;
+  }
+
+  /**
+   * The track `advance()` would move to, without moving — or null where it
+   * would report exhaustion (docs/02 §5.1). The audio engine arms it ahead and
+   * crossfades into it (docs/05 §2); Single mode has no next.
+   */
+  peekNext(): TtTrack | null {
+    if (this.#mode === 'single') return null;
+    const id =
+      nextInOrder(this.order, this.#currentId) ??
+      (this.order.length > 0 && settings.current.repeatPlaylist
+        ? (this.#wrapOrder()[0] ?? null)
+        : null);
+    return id === null ? null : (this.#queue.find((t) => t.id === id) ?? null);
   }
 
   /**
@@ -368,11 +406,10 @@ class SessionStore {
 
     // Wrap. docs/02 §5's "reshuffle on wrap, no immediate repeat" is a property
     // of SHUFFLE, so an unshuffled playlist simply returns to its own head.
-    const ids = this.#playableIds();
-    if (this.#shuffled !== null) {
-      this.#shuffled = withoutImmediateRepeat(shuffleIds(ids, Math.random), this.#currentId);
-    }
-    this.#currentId = (this.#shuffled ?? ids)[0] ?? null;
+    const order = this.#wrapOrder();
+    if (this.#shuffled !== null) this.#shuffled = order;
+    this.#nextShuffle = null;
+    this.#currentId = order[0] ?? null;
     return 'wrapped';
   }
 
