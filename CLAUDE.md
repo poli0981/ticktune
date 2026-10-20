@@ -54,15 +54,18 @@ the reasoning and the numbers are in `docs/01 §3`.
 
 - Components `Tt*.svelte`; TS modules kebab-case; state in `*.svelte.ts` runes
   stores; engines in `src/app/engine/**` are pure TS (no svelte imports).
-- i18n keys are stable ids under `docs/08 §3`'s namespaces, added to **both**
-  `src/app/i18n/{en,vi}.json`. ✅ **Live since P5 slice 1**, with three guards:
-  `TtKey` is derived from `en.json` so a typo is a **build** error; the key-diff
-  test covers both directions; and an orphan/caller guard covers what `knip`
-  cannot see (its globs exclude `.json`). A key with no caller **fails the
-  build** — if a lookup cannot be a literal, add a prefix to
+- i18n keys are stable ids under `docs/08 §3`'s namespaces, added to **all
+  three** `src/app/i18n/{en,vi,ja}.json`. ✅ **Live since P5 slice 1**, with
+  three guards: `TtKey` is derived from `en.json` so a typo is a **build** error;
+  the key-diff test covers every direction; and an orphan/caller guard covers
+  what `knip` cannot see (its globs exclude `.json`). A key with no caller
+  **fails the build** — if a lookup cannot be a literal, add a prefix to
   `CALLED_INDIRECTLY_PREFIX` with a reason, never a blanket exemption.
-  The static pages have their own dictionaries, `src/i18n/static/{en,vi}.ts`
-  (`/` is VI, `/en/` is EN), whose parity is a type error rather than a test.
+  The static pages have their own dictionaries, `src/i18n/static/{en,vi,ja}.ts`
+  (`/` is VI, `/en/` is EN, `/ja/` is JA), whose parity is a type error rather
+  than a test. The legal texts are VI + EN only; Japanese links to the English
+  ones (`docs/08 §5`). Two PRs that both add keys merge in sequence, the second
+  rebased with the first's translations — `strict` is off (`docs/14 §5`).
   ⚠️ **The guard shapes the markup, and that is intended.** A key held in a
   variable has no greppable caller, so option lists (the hotkey table, the
   `endAction` options, the log-level filter) are written out as literals rather
@@ -84,8 +87,14 @@ pnpm knip         # unused code gate — must stay clean
 pnpm test         # vitest unit + component + worker, with coverage
 pnpm test:e2e     # playwright: chromium, firefox, webkit + mobile gate
 pnpm verify:csp   # the served CSP in a real browser, under wrangler dev
-node scripts/check-doc-refs.ts   # every `NN §M` citation resolves
+pnpm lhci         # Lighthouse CI on the built static pages (desktop, beacon blocked)
+pnpm test:visual:docker   # screenshots in the pinned Playwright image; --update rewrites
+pnpm perf:render  # the countdown's frame cost, headed; TT_PERF_SOFTWARE=1 = no GPU
+node scripts/check-doc-refs.ts   # every `NN §M` citation resolves — docs AND code comments
 ```
+
+Visual baselines are made **only** inside the pinned image — a screenshot from
+any other machine compares against nothing (`docs/13 §3`).
 
 Never `wrangler deploy` by hand — production is a signed tag (`docs/14 §5`).
 
@@ -179,6 +188,10 @@ Three habits that found the rest:
   for track ids, not nanoid (`docs/02 §2`).
 - **Backfill fills blanks only** — oEmbed's title beats the player's, so
   `session.patchTrack` never overwrites a value that is already there.
+- **The settings file never carries consent** (v2.0, `docs/02 §3.4`): export
+  leaves `legalAccepted` out; import keeps the current one and clamps the rest
+  with the file's own schema. v2.0's fields — `theme`, `clockFace`,
+  `finishNotify` — were additive, long-term defaults on day one.
 
 **Audio and time**
 
@@ -195,6 +208,21 @@ Three habits that found the rest:
   armed 8 s ahead, Z2 for 0 s. **Exactly one advance**: the transition is real
   when the incoming `play()` resolves, and every deck event names its deck — a
   fading deck's `ended` is dropped. TT-SYS-205 is retired.
+- **S5 GO — the WORKER keeps time while hidden** (`docs/04 §2`, `15 §S5`), so
+  the finish notification is created **by the timer worker** at the deadline
+  when the page last reported hidden: local only (no push service), generic
+  text, never a track name, once per run. The driver forwards **every**
+  `visibilitychange` before the latch's early return — the worker decides at
+  zero. Safari's workers have no `Notification`: the page shows it instead,
+  best-effort (TT-SYS-209). S5 was measured in browsers Playwright did **not**
+  drive — under Playwright every page reports `visible`.
+- **S6 FAIL — no loudness normalization.** A reduced-rate decode under-reads
+  bright music, and Chrome decodes at the native rate first anyway (260–540 MB
+  for a 10:02 file at any rate). `05 §1`'s "no `decodeAudioData`" stands; the
+  remedies are in `15 §S6`.
+- **The visualizer canvas is held to 1440p's pixel count** (`backingScale()`,
+  `05 §6`): without a GPU a full 4K canvas cost 33 ms a frame and the degrade,
+  which times only the draw calls, never saw it (`13 §5`).
 - **The chime is synthesised** with `OscillatorNode`s — no `public/audio/`.
 - **The master stage is two nodes**, `userGain` then `fadeGain` (`docs/05 §1`).
   One shared node throws `NotSupportedError` when the volume changes mid-fade.
@@ -220,6 +248,16 @@ Three habits that found the rest:
   is called same-origin, and `ACAO: *` only made it a free proxy for others.
   **The cache key is versioned** (`CACHE_VERSION`): a hit is returned verbatim,
   headers included, so bump it whenever what is stored changes (`06 §3`).
+- **Link lengths come from the Data API, through our Worker** (v2.0,
+  `GET /api/yt/durations`, `06 §3`): `contentDetails.duration` only; the key is
+  the Worker secret `YT_DATA_API_KEY`, sent as `x-goog-api-key` with
+  `Referer: https://ticktune.net/` (the key's website restriction); a versioned
+  per-id cache (24 h for a length, 15 min for "none"); a per-IP rate limit
+  (20 / 60 s) in edge memory; no CORS. 🔴 Set the secret with
+  `wrangler versions secret put` — `secret put` and the dashboard **deploy**.
+- **`img-src` allows no YouTube origin since v2.0** — measured: the app's
+  document never loads `i.ytimg.com`; the player's images are its frame's own.
+  A playing session is a v2.0 live-checklist line (YouTube refuses automation).
 - **The `pending` re-check runs AFTER `start()` returns**, never inside it —
   `start()` is synchronous because the gesture chain is.
 - **Paused means silent.** ⏭/⏮/jump while paused **cue** rather than load
@@ -268,7 +306,21 @@ Three habits that found the rest:
   "a spinner would flash" was a requirement.
 - **Fonts are `@fontsource` CSS imports, which knip cannot see** — all three
   families sit in `ignoreDependencies` and in `make-notices.ts` `CSS_ONLY`.
-  Removing them restores the silent `system-ui` fallback.
+  Removing them restores the silent `system-ui` fallback. `TtBase` preloads the
+  first screen's faces (v2.0): without them the legal pages shifted, CLS 0.197.
+- **The light "LCD" theme is token overrides under
+  `html[data-tt-theme='light']`**, mirrored in `TT_PALETTE_LIGHT`; `/app/` only —
+  the landing and legal pages stay dark. **DSEG14 keeps DSEG7's advance
+  widths**, so the `22.2cqw` ToS cap holds for both faces; its all-segments
+  ghost glyph is `~`, not `8`.
+- **Japanese is three inline keys in the header**, not a dropdown (a menu would
+  cover the player); `html[lang='ja']` finishes the font stacks with LOCAL
+  Japanese faces, so `font-src 'self'` is untouched.
+- **The service worker controls `/app/` only** (v2.0, `10 §9`): network-first
+  shell, cache-first hashed assets, never `/api/*` or another origin;
+  `ignoreVary` on every lookup (`Vary: Origin` once made every module script
+  miss offline); the previous version's cache is kept for a tab opened before a
+  deploy. Registered from the island after `load`, production builds only.
 
 **Static pages and legal**
 
@@ -278,7 +330,15 @@ Three habits that found the rest:
   i18n mode is unused because VI has no path prefix.
 - **A material legal change bumps `TT_LEGAL_VERSION`** in the same PR, and
   legal changes are batched — every bump re-prompts every user. 1.1 carried the
-  analytics disclosure, the 7-day log retention and the role addresses at once.
+  analytics disclosure, the 7-day log retention and the role addresses at once;
+  **2.0** the Data API, the offline cache, notifications, the settings file and
+  the EULA's governing law (Viet Nam).
+- **The legal texts are VI + EN.** A Japanese page links to the English text,
+  marked （英語）: a translation nobody can stand behind is worse than none.
+- **JSON-LD `WebApplication`** on the three landings, emitted with Astro's
+  `set:html` of a `JSON.stringify` whose every `<` is escaped to `<` — so
+  no string in it can close the `<script>`. Its input is our own constant, never
+  user text; `{@html}` stays banned in the island.
 - **Contacts are role addresses on `poli0981.dev`**: privacy@, legal@,
   copyright@, security@, press@, collab@. `games@`, `dmca@`, `takedown@`,
   `code@` and `sponsor@` are deliberately unused — there is no hosted user
@@ -301,6 +361,16 @@ Three habits that found the rest:
 - **Playwright's headless Firefox hides scrollbars itself** — `scrollbar-width`
   computes to `none` there whatever the page says — so a computed scrollbar
   check is gated on a probe, never asserted unconditionally (`13 §3`).
+- **The E2E suite blocks service workers** (`serviceWorkers: 'block'`): once
+  `/sw.js` controls a page, Playwright's WebKit stops routing its requests
+  through `page.route`, and every YouTube mock went dark. `pwa.spec.ts` opts back
+  in; it also polls the stored acceptance before going offline, or the reload
+  wins the race and the gate returns.
+- **Visual baselines exist for one image only** — the pinned
+  `mcr.microsoft.com/playwright:v1.64.1-noble` (`13 §3`). Lighthouse CI and the
+  visual job report, they do not block, until they have earned it.
+- **`check-doc-refs` reads code comments too** since v2.0 — a `docs/NN §M` in a
+  comment rots like one in a chapter.
 
 Resolved and pinned: TypeScript `~5.9` (TS 7 crashes svelte-check, `docs/11 §4`)
 · DSEG7 Classic **v0.46** (`docs/11 §2`) · island mount by hand (`docs/01 §3`).
