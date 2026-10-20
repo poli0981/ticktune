@@ -6,6 +6,7 @@
       "url": [
         "http://localhost:4339/",
         "http://localhost:4339/en/",
+        "http://localhost:4339/ja/",
         "http://localhost:4339/legal/privacy/"
       ],
       "numberOfRuns": 3,

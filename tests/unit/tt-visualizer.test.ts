@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   TT_BAR_COUNT,
   TT_FRAME_BUDGET_MS,
+  backingScale,
   barHeights,
   beatEnergy,
   nextDegrade,
@@ -178,6 +179,37 @@ describe('adaptive degrade — docs/05 §6', () => {
       strikes: 0,
       skip: false,
     });
+  });
+});
+
+describe('canvas backing store — docs/05 §6, docs/13 §5', () => {
+  const pixels = (w: number, h: number, dpr: number) => {
+    const k = backingScale(w, h, dpr);
+    return Math.round(w * k) * Math.round(h * k);
+  };
+
+  it('is CSS px × dpr up to 1440p — nothing changed there', () => {
+    expect(backingScale(1280, 720, 1)).toBe(1);
+    expect(backingScale(1920, 1080, 1)).toBe(1);
+    expect(backingScale(2560, 1440, 1)).toBe(1);
+    expect(backingScale(1280, 720, 2)).toBe(2);
+  });
+
+  it('never exceeds dpr 2, a phone-class ratio included', () => {
+    expect(backingScale(800, 600, 3)).toBe(2);
+    expect(backingScale(800, 600, 0)).toBe(1);
+  });
+
+  it('holds a 4K window, or a HiDPI one, to 1440p’s pixel count', () => {
+    // The render-cost probe's case: without a GPU a full 4K canvas cost 33 ms a frame.
+    expect(backingScale(3840, 2160, 1)).toBeCloseTo(2 / 3, 6);
+    expect(pixels(3840, 2160, 1)).toBeLessThanOrEqual(2560 * 1440);
+    expect(pixels(1920, 1080, 2)).toBeLessThanOrEqual(2560 * 1440);
+    expect(pixels(5120, 2880, 1)).toBeLessThanOrEqual(2560 * 1440);
+  });
+
+  it('a window with no area keeps the dpr rule', () => {
+    expect(backingScale(0, 0, 2)).toBe(2);
   });
 });
 

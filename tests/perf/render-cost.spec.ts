@@ -2,6 +2,7 @@ import { appendFileSync, mkdirSync } from 'node:fs';
 import { test, expect, type Page } from '../e2e/_fixtures';
 import { dismissUnloadDialogs, gotoApp, setDuration, stageSingle } from '../e2e/_helpers';
 import { seedSettings } from '../e2e/_helpers-yt';
+import { TT_FRAME_BUDGET_MS } from '../../src/app/engine/visuals/tt-visualizer';
 
 /**
  * What the countdown costs to draw — docs/13 §5 (v2.0), the audit's
@@ -13,7 +14,8 @@ import { seedSettings } from '../e2e/_helpers-yt';
  * the visualizer drawing on the same frames. This drives the real app into
  * that regime at 1440p and 4K, at 1× and under Chromium's 6× CPU throttle, and
  * records the frame intervals, the long tasks and the main thread's time per
- * frame. The budget it asserts is docs/13 §5's.
+ * frame. The budget it asserts is docs/13 §5's. `TT_PERF_SOFTWARE=1` runs it
+ * without a GPU, the case a strong GPU hides.
  *
  * Run headed on a real machine (playwright.perf.config.ts says why);
  * `test-results/render-cost.jsonl` keeps every row for the docs.
@@ -29,6 +31,8 @@ interface Sample {
   intervals: number[];
   longTasks: number[];
   digits: string[];
+  /** Visualizer frames actually drawn — `clearRect` calls (docs/05 §6's degrade skips some). */
+  drawn: number;
 }
 
 /** Frame intervals, long tasks and what the digits read, over `ms` of rAF. */
@@ -38,6 +42,8 @@ function sample(page: Page, ms: number): Promise<Sample> {
     const longTasks: number[] = [];
     const digits: string[] = [];
     const el = document.querySelector('.tt-countdown');
+    const drawnAt = () => (window as unknown as { __ttDrawn?: number }).__ttDrawn ?? 0;
+    const drawn0 = drawnAt();
     const po = new PerformanceObserver((list) => {
       for (const e of list.getEntries()) longTasks.push(e.duration);
     });
@@ -55,7 +61,7 @@ function sample(page: Page, ms: number): Promise<Sample> {
       requestAnimationFrame(step);
     });
     po.disconnect();
-    return { intervals, longTasks, digits };
+    return { intervals, longTasks, digits, drawn: drawnAt() - drawn0 };
   }, ms);
 }
 
@@ -69,6 +75,16 @@ for (const rate of RATES) {
   for (const style of STYLES) {
     test(`SS.mmm · visualizer ${style} · CPU ${rate}×`, async ({ page }, info) => {
       dismissUnloadDialogs(page);
+      // Count the visualizer's drawn frames: each one starts with a clearRect.
+      await page.addInitScript(() => {
+        const w = window as unknown as { __ttDrawn: number };
+        const clear = CanvasRenderingContext2D.prototype.clearRect;
+        w.__ttDrawn = 0;
+        CanvasRenderingContext2D.prototype.clearRect = function (...a) {
+          w.__ttDrawn += 1;
+          return clear.apply(this, a);
+        };
+      });
       await gotoApp(page);
       await seedSettings(page, { visualizer: style });
       await page.reload();
@@ -111,6 +127,7 @@ for (const rate of RATES) {
         style,
         ...env,
         frames,
+        drawn: run.drawn,
         fps: round((frames / SAMPLE_MS) * 1000),
         p50: round(median),
         p95: round(percentile(run.intervals, 95)),
@@ -135,6 +152,11 @@ for (const rate of RATES) {
       // The digits moved: every sample was a different SS.mmm.
       expect(new Set(run.digits).size).toBe(run.digits.length);
       expect(env.width).toBe(info.project.use.viewport?.width);
+      // docs/13 §5's budget, GPU or not: no long task, and the main thread
+      // inside the visualizer's own 20 ms degrade budget every frame. A full
+      // 4K canvas without a GPU broke the second (32.9 ms) before the pixel cap.
+      expect(row.longTasks).toBe(0);
+      expect(row.taskPerFrame).toBeLessThanOrEqual(TT_FRAME_BUDGET_MS);
     });
   }
 }

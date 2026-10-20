@@ -314,6 +314,40 @@ The real key is checked once per release on the PR's Version URL (`06 §3`).
   YT-mode entry.
 - Visualizer steady-state: no long tasks > 50 ms while playing (Performance
   panel spot-check); adaptive degrade path exercised by forcing 6× CPU throttle.
+- **The per-frame countdown (v2.0, `pnpm perf:render`):** in the `SS.mmm`
+  regime, at 1440p and 4K, 1× and 6× CPU, visualizer off/bars/ring — **no long
+  task, and the main thread within the visualizer's own 20 ms degrade budget
+  every frame**, with or without a GPU. `tests/perf/render-cost.spec.ts`
+  asserts both; `TT_PERF_SOFTWARE=1` runs it with the GPU disabled.
+
+### The render-cost probe — v2.0, closing the audit's last technical item
+
+The audit asked whether the one element re-rastered every frame — the digits
+under a minute, with their glow, the ghost segments, the display window and the
+scanlines — could break the frame rate, and named the mitigations to reach for
+if the text paint dominated. Measured 2026-10-21 on the dev box (Edge 155,
+Windows 11, 240 Hz display), 8 s per configuration after a 2 s warm-up:
+
+| | With the GPU (RTX 5080) | Without (SwiftShader) |
+|---|---|---|
+| Countdown alone, any size, 6× CPU | 240 fps; main thread 2.2 ms a frame | ≥ 212 fps; ≤ 3.9 ms |
+| + visualizer, 1440p, 6× CPU | 240 fps; 2.6 ms | 57 fps; 17.6 ms |
+| + visualizer, 4K, 6× CPU | 239 fps; 2.6 ms | **31 fps; 32.9 ms → 57 fps; 17.5 ms** with the pixel cap |
+| + visualizer, 4K, 1× CPU | 240 fps; 0.4 ms | 130 fps → 81 fps with the pixel cap |
+
+- **The text paint does not dominate.** The countdown alone holds 212 fps or
+  more even rastered on the CPU at 4K — none of the mitigations the audit
+  listed is needed.
+- **The visualizer did, without a GPU, and the degrade could not see it.** It
+  drew every frame while the main thread spent 33 ms on each: the cost is in
+  getting a full 4K canvas to the screen, after the draw calls the degrade
+  times. Its backing store is now capped at 1440p's pixel count
+  (`backingScale()`, `05 §6`), which puts 4K back where 1440p is. The cost of
+  the cap is honest too: with a fast CPU and no GPU, 4K falls from 130 to
+  81 fps, because the compositor now scales the smaller canvas up on the CPU —
+  still above 60, and off the main thread.
+- A strong GPU hides all of it, so the table's right column is the one to
+  re-run when the countdown or the visualizer changes.
 
 **Lighthouse ≥ 95 was P6's gate and was checked by hand** — against the
 Cloudflare PR preview, desktop, on `/` and `/en/`, all four categories. Its SEO
