@@ -13,7 +13,7 @@
   "bugs": "https://github.com/poli0981/ticktune/issues",
   "packageManager": "pnpm@11.15.1",
   "engines": {
-    "node": ">=24 <25"
+    "node": ">=24 <27"
   },
   "scripts": {
     "dev": "astro dev",
