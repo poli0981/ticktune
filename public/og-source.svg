@@ -4,64 +4,102 @@
   social platform renders SVG cards.
 
   Kept as SVG so the card is editable text rather than an opaque binary nobody
-  can change without a design tool.
+  can change without a design tool. The faces it names (DSEG7 Classic, Chakra
+  Petch, Be Vietnam Pro) are not system fonts: the script inlines them into the
+  page it renders in, so the card shows the app's real type.
+
+  The "Rack Unit" identity (docs/03 §1): one rack panel, the brand plate with
+  the lit tally, and the countdown behind smoked glass carrying the card.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630" role="img" aria-label="TickTune">
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#08090C" />
-      <stop offset="100%" stop-color="#10131A" />
+    <radialGradient id="room" cx="0.5" cy="0" r="0.9">
+      <stop offset="0%" stop-color="#2A1E0E" />
+      <stop offset="55%" stop-color="#0E0D0B" />
+    </radialGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1F1C18" />
+      <stop offset="100%" stop-color="#171512" />
     </linearGradient>
+    <linearGradient id="glass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#1A1814" />
+      <stop offset="40%" stop-color="#0B0A08" />
+      <stop offset="100%" stop-color="#080706" />
+    </linearGradient>
+    <filter id="glow" x="-20%" y="-40%" width="140%" height="180%">
+      <feGaussianBlur stdDeviation="14" result="b" />
+      <feMerge>
+        <feMergeNode in="b" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+    <filter id="lamp" x="-200%" y="-200%" width="500%" height="500%">
+      <feGaussianBlur stdDeviation="7" result="b" />
+      <feMerge>
+        <feMergeNode in="b" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
   </defs>
 
-  <rect width="1200" height="630" fill="url(#bg)" />
+  <rect width="1200" height="630" fill="url(#room)" />
 
-  <!-- Tally + wordmark -->
-  <circle cx="96" cy="92" r="9" fill="#FF5D5D" />
-  <text x="120" y="100" fill="#8A93A3" font-family="system-ui, sans-serif" font-size="24"
-    letter-spacing="4">TICKTUNE</text>
+  <!-- The rack panel, with its ears and four screws. -->
+  <rect x="36" y="36" width="1128" height="558" rx="18" fill="url(#panel)" stroke="#2E2A24" stroke-width="2" />
+  <g fill="#0E0D0B" stroke="#746A5C" stroke-width="2">
+    <circle cx="70" cy="70" r="9" />
+    <circle cx="1130" cy="70" r="9" />
+    <circle cx="70" cy="560" r="9" />
+    <circle cx="1130" cy="560" r="9" />
+  </g>
 
-  <!-- The countdown is the product; it carries the card. -->
-  <text
-    x="600"
-    y="360"
-    fill="#E7EBF2"
-    font-family="'JetBrains Mono', ui-monospace, monospace"
-    font-size="180"
-    letter-spacing="6"
-    text-anchor="middle"
-  >09:41</text>
+  <!-- Brand plate: tally lamp, ON AIR caption, wordmark. -->
+  <circle cx="122" cy="116" r="10" fill="#FF3B30" filter="url(#lamp)" />
+  <rect x="146" y="100" width="98" height="32" rx="3" fill="none" stroke="#FF3B30" stroke-opacity="0.6" stroke-width="2" />
+  <text x="195" y="123" fill="#FF3B30" font-family="'Chakra Petch', sans-serif" font-weight="600"
+    font-size="18" letter-spacing="4" text-anchor="middle">ON AIR</text>
+  <text x="268" y="125" fill="#EDE6DA" font-family="'Chakra Petch', sans-serif" font-weight="600"
+    font-size="28" letter-spacing="8">TICKTUNE</text>
 
-  <text
-    x="600"
-    y="440"
-    fill="#8A93A3"
-    font-family="system-ui, sans-serif"
-    font-size="30"
-    text-anchor="middle"
-  >A full-screen countdown with your own music</text>
+  <!-- The display window: smoked glass, ghost segments, lit digits. -->
+  <rect x="226" y="176" width="748" height="250" rx="10" fill="url(#glass)" stroke="#2E2A24" stroke-width="2" />
+  <text x="600" y="372" fill="#F5EEDC" fill-opacity="0.06" font-family="'DSEG7 Classic', monospace"
+    font-size="176" text-anchor="middle">88:88</text>
+  <text x="600" y="372" fill="#F5EEDC" font-family="'DSEG7 Classic', monospace" font-size="176"
+    text-anchor="middle" filter="url(#glow)">25:00</text>
 
-  <text
-    x="600"
-    y="492"
-    fill="#4FD1FF"
-    font-family="system-ui, sans-serif"
-    font-size="24"
-    text-anchor="middle"
-  >Runs entirely in your browser · ticktune.net</text>
+  <text x="600" y="490" fill="#EDE6DA" font-family="'Be Vietnam Pro', sans-serif" font-weight="500"
+    font-size="32" text-anchor="middle">A full-screen countdown with your own music</text>
+  <text x="600" y="536" fill="#FFB23F" font-family="'Chakra Petch', sans-serif" font-weight="600"
+    font-size="20" letter-spacing="3" text-anchor="middle">RUNS IN YOUR BROWSER · TICKTUNE.NET</text>
 
-  <!-- Visualizer hint along the bottom -->
-  <g fill="#4FD1FF" opacity="0.4">
-    <rect x="440" y="560" width="12" height="26" />
-    <rect x="464" y="544" width="12" height="42" />
-    <rect x="488" y="518" width="12" height="68" />
-    <rect x="512" y="552" width="12" height="34" />
-    <rect x="536" y="530" width="12" height="56" />
-    <rect x="560" y="506" width="12" height="80" />
-    <rect x="584" y="530" width="12" height="56" />
-    <rect x="608" y="552" width="12" height="34" />
-    <rect x="632" y="518" width="12" height="68" />
-    <rect x="656" y="544" width="12" height="42" />
-    <rect x="680" y="560" width="12" height="26" />
+  <!-- A level meter down the right edge of the window, amber, mid-song. -->
+  <g fill="#FFB23F">
+    <rect x="1010" y="398" width="34" height="10" rx="2" opacity="0.9" />
+    <rect x="1010" y="382" width="34" height="10" rx="2" opacity="0.9" />
+    <rect x="1010" y="366" width="34" height="10" rx="2" opacity="0.9" />
+    <rect x="1010" y="350" width="34" height="10" rx="2" opacity="0.9" />
+    <rect x="1010" y="334" width="34" height="10" rx="2" opacity="0.9" />
+    <rect x="1010" y="318" width="34" height="10" rx="2" opacity="0.9" />
+    <rect x="1010" y="302" width="34" height="10" rx="2" fill="#FF7A1A" />
+    <rect x="1010" y="286" width="34" height="10" rx="2" fill="#FF7A1A" opacity="0.35" />
+    <rect x="1010" y="270" width="34" height="10" rx="2" fill="#FF3B30" opacity="0.18" />
+    <rect x="1010" y="254" width="34" height="10" rx="2" fill="#FF3B30" opacity="0.18" />
+    <rect x="1010" y="238" width="34" height="10" rx="2" fill="#FF3B30" opacity="0.18" />
+    <rect x="1010" y="222" width="34" height="10" rx="2" fill="#FF3B30" opacity="0.18" />
+  </g>
+  <g fill="#FFB23F">
+    <rect x="1056" y="398" width="34" height="10" rx="2" opacity="0.9" />
+    <rect x="1056" y="382" width="34" height="10" rx="2" opacity="0.9" />
+    <rect x="1056" y="366" width="34" height="10" rx="2" opacity="0.9" />
+    <rect x="1056" y="350" width="34" height="10" rx="2" opacity="0.9" />
+    <rect x="1056" y="334" width="34" height="10" rx="2" opacity="0.9" />
+    <rect x="1056" y="318" width="34" height="10" rx="2" opacity="0.35" />
+    <rect x="1056" y="302" width="34" height="10" rx="2" fill="#FF7A1A" opacity="0.2" />
+    <rect x="1056" y="286" width="34" height="10" rx="2" fill="#FF7A1A" opacity="0.2" />
+    <rect x="1056" y="270" width="34" height="10" rx="2" fill="#FF3B30" opacity="0.18" />
+    <rect x="1056" y="254" width="34" height="10" rx="2" fill="#FF3B30" opacity="0.18" />
+    <rect x="1056" y="238" width="34" height="10" rx="2" fill="#FF3B30" opacity="0.18" />
+    <rect x="1056" y="222" width="34" height="10" rx="2" fill="#FF3B30" opacity="0.18" />
   </g>
 </svg>

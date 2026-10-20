@@ -31,6 +31,33 @@ import { fileURLToPath } from 'node:url';
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const PUBLIC = join(ROOT, 'public');
 
+/*
+ * The app's own faces, inlined as data URLs into the page the SVG renders in.
+ *
+ * The SVGs name DSEG7 Classic, Chakra Petch and Be Vietnam Pro, none of which
+ * is a system font — without this the card fell back to whatever the machine
+ * running the script had, so the countdown on the card was not the countdown
+ * in the app. Inlined rather than linked: `setContent` pages are about:blank,
+ * and a data URL needs no file access policy to load.
+ */
+const FONT_FILES = [
+  ['DSEG7 Classic', 400, join(PUBLIC, 'fonts', 'dseg7', 'DSEG7Classic-Regular.woff2')],
+  [
+    'Chakra Petch',
+    600,
+    'node_modules/@fontsource/chakra-petch/files/chakra-petch-latin-600-normal.woff2',
+  ],
+  [
+    'Be Vietnam Pro',
+    500,
+    'node_modules/@fontsource/be-vietnam-pro/files/be-vietnam-pro-latin-500-normal.woff2',
+  ],
+];
+const FONT_CSS = FONT_FILES.map(([family, weight, file]) => {
+  const data = readFileSync(file.startsWith('node_modules') ? join(ROOT, file) : file);
+  return `@font-face{font-family:'${family}';font-weight:${weight};src:url(data:font/woff2;base64,${data.toString('base64')}) format('woff2')}`;
+}).join('');
+
 /** Render an SVG file to PNG at an exact pixel size. */
 async function rasterise(page, svgPath, out, width, height) {
   const svg = readFileSync(svgPath, 'utf8');
@@ -39,15 +66,19 @@ async function rasterise(page, svgPath, out, width, height) {
    * `setContent`, NOT a `data:text/html,` URL.
    *
    * The data-URL version silently produced blank white PNGs: the inline CSS
-   * contains `background:#08090C`, and the `#` starts the URL's fragment, so
+   * contains `background:#0E0D0B`, and the `#` starts the URL's fragment, so
    * everything from there on was discarded. The script still exited 0 and
    * still wrote files — caught only by looking at the output.
    */
   await page.setContent(
-    `<style>html,body{margin:0;background:#08090C}
+    `<style>${FONT_CSS}html,body{margin:0;background:#0E0D0B}
      svg{display:block;width:${width}px;height:${height}px}</style>${svg}`,
     { waitUntil: 'load' },
   );
+  // `load` does not wait for web fonts — a face is only fetched once used.
+  // A string expression: this file is linted as Node, where `document` is not
+  // a global, and the promise it evaluates to is awaited by Playwright.
+  await page.evaluate('document.fonts.ready.then(() => true)');
   mkdirSync(dirname(out), { recursive: true });
   await page.screenshot({ path: out, omitBackground: false });
   const kb = Math.round(statSync(out).size / 1024);

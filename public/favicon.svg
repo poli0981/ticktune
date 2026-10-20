@@ -1,10 +1,13 @@
 <!--
-  The "On Air" tally light (docs/03 §1) — a glowing dot on the void.
+  The "On Air" tally lamp (docs/03 §1) — a lit lens in a bezel, on the chassis.
   Self-hosted, same-origin, no external reference: img-src 'self' covers it and
   the privacy posture in docs/09 forbids fetching an icon from anywhere else.
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="TickTune">
-  <rect width="64" height="64" rx="12" fill="#08090C" />
-  <circle cx="32" cy="32" r="16" fill="#FF5D5D" opacity="0.18" />
-  <circle cx="32" cy="32" r="9" fill="#FF5D5D" />
+  <rect width="64" height="64" rx="12" fill="#0E0D0B" />
+  <rect x="3.5" y="3.5" width="57" height="57" rx="9" fill="#171512" stroke="#2E2A24" />
+  <circle cx="32" cy="32" r="19" fill="#FF3B30" opacity="0.14" />
+  <circle cx="32" cy="32" r="12.5" fill="#140605" stroke="#746A5C" stroke-width="1.5" />
+  <circle cx="32" cy="32" r="9" fill="#FF3B30" />
+  <circle cx="29" cy="29" r="2.6" fill="#FFFFFF" opacity="0.4" />
 </svg>
