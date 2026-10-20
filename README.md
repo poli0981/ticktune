@@ -18,6 +18,9 @@ Your files never leave your browser.
   local files, reorderable by drag or `Alt+↑/↓`, shuffle and repeat) and
   *YouTube* (up to 50 links, played through YouTube's own embedded player,
   with each link's length looked up so "Match queue length" works there too).
+- **Crossfade**: local tracks fade into each other over 0–5 s (2 s by default,
+  0 for a straight cut), and a single track can loop by fading into itself.
+  Skips and pauses ramp rather than cut, so they no longer click.
 - **A countdown that is derived, never accumulated** — `endAt − now` on every
   tick, so it does not drift. Below 60 s it shows milliseconds.
 - **End Behavior**: fade-out, a synthesised chime, a screen flash, then stay,

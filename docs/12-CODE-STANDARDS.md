@@ -1,6 +1,6 @@
 # 12 — Code Standards
 
-Suite 1.1 · 2026-10-20
+Suite 2.0 · 2026-10-21
 
 ## 1. Naming
 

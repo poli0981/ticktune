@@ -1,6 +1,6 @@
 # 15 — P0 Validation Spikes
 
-Suite 1.1 · 2026-10-20 (scope rule amended 2026-07-21) · Total budget: ~4 working
+Suite 2.0 · 2026-10-21 (scope rule amended 2026-07-21) · Total budget: ~4 working
 days. Findings are written back into the referenced doc section.
 
 ## Scope rule

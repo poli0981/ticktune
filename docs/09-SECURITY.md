@@ -1,6 +1,6 @@
 # 09 — Security
 
-Suite 1.1 · 2026-10-20 · Spec goal: "basic and sufficient" — right-sized for a
+Suite 2.0 · 2026-10-21 · Spec goal: "basic and sufficient" — right-sized for a
 static client-side app, not theater.
 
 ## 1. Threat model

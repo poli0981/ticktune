@@ -1,6 +1,6 @@
 # 06 — YouTube Integration
 
-Suite 1.1 · 2026-10-20 · Locked decision D1
+Suite 2.0 · 2026-10-21 · Locked decision D1
 
 ## 1. Compliance rules (non-negotiable)
 

@@ -1,6 +1,6 @@
 # 02 — Data Flow
 
-Suite 1.0 · 2026-07-21
+Suite 2.0 · 2026-10-21
 
 ## 1. App state machine
 

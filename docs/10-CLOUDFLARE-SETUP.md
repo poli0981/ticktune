@@ -1,6 +1,6 @@
 # 10 — Cloudflare Setup Guide
 
-Suite 1.1 · 2026-10-20 · Requested by spec: full CF configuration walkthrough.
+Suite 2.0 · 2026-10-21 · Requested by spec: full CF configuration walkthrough.
 The domain `ticktune.net` is live; the zone is on the **Free** plan and the
 account on **Workers Paid** unless noted.
 

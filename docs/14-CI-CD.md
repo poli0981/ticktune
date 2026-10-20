@@ -1,6 +1,6 @@
 # 14 — CI/CD
 
-Suite 1.1 · 2026-10-20
+Suite 2.0 · 2026-10-21
 
 Every workflow in this repo is **self-contained** and declares an **explicit
 `permissions:` block**. The portfolio's reusable workflows were checked on
