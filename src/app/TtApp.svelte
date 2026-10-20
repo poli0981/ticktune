@@ -1252,6 +1252,7 @@
       elapsedMs={runStartedAt && nowMs ? nowMs - runStartedAt : 0}
       {peakRms}
       {rmsNow}
+      mediaPosMs={playback.positionMs}
       liveUrls={playback.liveUrls}
     />
   {/if}

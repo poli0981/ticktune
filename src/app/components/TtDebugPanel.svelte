@@ -32,6 +32,8 @@
     peakRms: number;
     /** This frame's RMS — what is audible now: a pause or a gap reads ~0. */
     rmsNow: number;
+    /** The active deck's media position — against the page's clock, its rate. */
+    mediaPosMs: number;
     /** Live object URLs — the docs/09 §5 leak canary. */
     liveUrls: number;
   }
@@ -47,6 +49,7 @@
     elapsedMs,
     peakRms,
     rmsNow,
+    mediaPosMs,
     liveUrls,
   }: Props = $props();
 
@@ -193,6 +196,12 @@
     <div>
       <dt title="this frame only: a pause or a gap in a crossfade reads ~0">RMS now</dt>
       <dd data-testid="tt-rms-now">{rmsNow.toFixed(4)}</dd>
+    </div>
+    <div>
+      <dt title="the active deck's currentTime: does the media clock keep real time?">
+        media position
+      </dt>
+      <dd data-testid="tt-media-pos">{mediaPosMs}</dd>
     </div>
     <div>
       <dt title="docs/05 §3: at most queueLength + 2">live object URLs</dt>
