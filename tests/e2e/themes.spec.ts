@@ -11,6 +11,8 @@ import { gotoApp, gotoSingleMode, setDuration, stageSingle, storedSettings } fro
  */
 
 test.describe('theme — docs/03 §1', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
+
   test('light reaches the whole app, survives a reload, and stays out of the landing', async ({
     page,
   }) => {
@@ -38,6 +40,8 @@ test.describe('theme — docs/03 §1', () => {
 });
 
 test.describe('clock face — docs/03 §1', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
+
   test('DSEG14 reaches the countdown and its ghost, at the same width', async ({ page }) => {
     await gotoSingleMode(page);
     await stageSingle(page);
