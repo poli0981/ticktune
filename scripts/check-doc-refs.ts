@@ -92,9 +92,25 @@ if (sections.size === 0) fail(`found no numbered chapters in ${DOCS}/`);
 
 /*
  * Every file that cites the suite, not just the suite itself — CLAUDE.md is the
- * condensed contract and its references rot the same way.
+ * condensed contract and its references rot the same way, and so do the
+ * `docs/NN §M` pointers in code comments, which until v2.0 nothing read.
  */
-const sources = [...files.map((f) => join(DOCS, f)), 'CLAUDE.md'];
+const CODE = /\.(ts|svelte|astro|mjs|css)$/;
+async function codeFiles(dir: string): Promise<string[]> {
+  const entries = await readdir(dir, { withFileTypes: true }).catch(() => []);
+  const nested = await Promise.all(
+    entries.map((e) => {
+      const path = join(dir, e.name);
+      if (e.isDirectory()) return e.name === '__screenshots__' ? [] : codeFiles(path);
+      return CODE.test(e.name) ? [path] : [];
+    }),
+  );
+  return nested.flat();
+}
+const code = (
+  await Promise.all(['src', 'worker', 'tests', 'scripts'].map((d) => codeFiles(d)))
+).flat();
+const sources = [...files.map((f) => join(DOCS, f)), 'CLAUDE.md', ...code];
 
 const broken: string[] = [];
 let checked = 0;

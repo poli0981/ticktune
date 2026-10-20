@@ -85,7 +85,7 @@ interface TtTrack {
   title: string;              // local: tag title → file name; yt: oEmbed title
   artist: string;             // local: tag artist; yt: channel name
   album?: string; year?: string; genre?: string; trackNo?: string;
-  durationMs: number | null;  // null until known (YT: filled after cue)
+  durationMs: number | null;  // null until known (YT: Data API at import, v2.0; the player after cue if that fails)
   // Local only
   file?: File;                // session RAM; the sole owner of the bytes
   codec?: string; bitrateKbps?: number; sampleRateHz?: number;
@@ -94,7 +94,7 @@ interface TtTrack {
   // YouTube only — declared here, WRITTEN by P4's importer (06 §5)
   videoId?: string;
   thumbnailUrl?: string;      // https://i.ytimg.com/vi/<id>/hqdefault.jpg
-  sourceUrl?: string;         // original pasted URL
+  sourceUrl?: string;         // canonical https://www.youtube.com/watch?v=<id>, built from videoId — not the pasted text
   addedAt: number;            // Date.now()
 }
 ```
@@ -267,16 +267,18 @@ One row, primary key `'app'`. A keyed store rather than a free key/value table s
 a settings read is a single `get('app')` and the whole object is typed as
 `TtSettings` — no per-key parsing, no partial-write races.
 
-**Upgrade policy — additive only for v1.x.** New fields are added to
+**Upgrade policy — additive only** (v1.x, and v2.0's `theme`, `clockFace` and
+`finishNotify` arrived the same way). New fields are added to
 `TtSettings` with a default in `TT_DEFAULT_SETTINGS`; the read path is
 `{ ...TT_DEFAULT_SETTINGS, ...storedRow }`, so a row written by an older build
 gains new fields with their defaults and needs no Dexie version bump. A Dexie
 `version(2)` is required only to **rename or remove** a field, or to change its
 type. `schema` exists to make that boundary explicit and greppable.
 
-Corrupt or unreadable row ⇒ fall back to `TT_DEFAULT_SETTINGS`, log `TT-SYS-204`,
-and rewrite. Never block boot on settings (`§1`: `boot` must always reach `gate`
-or `setup`).
+A row with bad values is clamped field by field (`clampSettings`). An
+unreadable or blocked store ⇒ `TT_DEFAULT_SETTINGS`, log `TT-SYS-204`, and
+nothing is rewritten — the next `patch()` writes the whole object anyway. Never
+block boot on settings (`§1`: `boot` must always reach `gate` or `setup`).
 
 #### schema 1 → 2 (2026-07-23) — the stored `visualizer` is forgotten once
 

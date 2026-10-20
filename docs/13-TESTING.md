@@ -522,3 +522,9 @@ Quoting a broken reference to document it is indistinguishable, to a resolver,
 from making one — so `~~…~~` marks a citation as **history rather than a live
 pointer**, and the linter skips any line containing it. Without that escape the
 only way to write about a bad reference would be to not write about it.
+
+**Since v2.0 it reads the code too.** A `docs/05 §2` in a comment rots exactly
+like one in a chapter, and until then nothing checked one: the resolver now
+walks `src/`, `worker/`, `tests/` and `scripts/` as well — 2 143 citations, every
+one resolving on the day it was switched on. What it still cannot see is a
+citation that resolves to the **wrong** section; that stays a reading job.
