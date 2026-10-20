@@ -37,19 +37,30 @@ Registrar is fine — and the zone is on the **Free** plan unless noted.
 ## 3. Worker deploy (Workers Static Assets)
 
 ```bash
-pnpm build                 # Astro → dist/
+pnpm build                 # Astro → dist/ (+ CSP hash, notices, budget)
 pnpm wrangler deploy       # uses wrangler.jsonc from 01 §5
 ```
 
 - Workers & Pages → ticktune → Settings → **Domains & Routes** → add custom
   domain `ticktune.net` (this provisions DNS + cert).
-- CI does this with `CLOUDFLARE_API_TOKEN` (token scope: Account.Workers Scripts
-  Edit + Zone.Workers Routes Edit only) + `CLOUDFLARE_ACCOUNT_ID` secrets
-  (`14 §4`).
+- **Production deploys only from `deploy.yml` on a signed tag** (`14 §5`), with
+  `CLOUDFLARE_API_TOKEN` (token scope: Account.Workers Scripts Edit +
+  Zone.Workers Routes Edit only) + `CLOUDFLARE_ACCOUNT_ID` secrets (`14 §4`).
+- **Workers Builds** (Settings → **Build**) stays connected for previews but must
+  never deploy: production branch `main`, build command `pnpm build`, and **both**
+  the deploy command and the non-production command set to
+  `npx wrangler versions upload`. Each push then yields a version and a
+  **Version URL** (`preview_urls: true` in `wrangler.jsonc`) where the live
+  checklist runs before a merge. Until v1.1 both commands deployed: every pushed
+  branch went live at 100% (`14 §5`). Check after any change to this screen:
+  `pnpm exec wrangler deployments list` must not grow on a branch push.
+- `workers_dev: false` — no public `*.workers.dev` hostname for the site itself;
+  Version URLs live on workers.dev and are enabled explicitly.
 - `not_found_handling: "404-page"` serves `dist/404.html` for unknown paths —
   this is the 404 story; no zone feature needed.
-- Free Workers tier: 100k req/day — far above expected traffic; the paid Workers
-  sub already on the account removes even that ceiling.
+- The account is on **Workers Paid**: no daily request ceiling (10 M requests/month
+  included), and **Workers Logs retention is 7 days** (3 on Free). The retention
+  is a privacy-policy fact — see `§10`.
 
 ## 4. Security toggles (zone)
 
@@ -128,7 +139,12 @@ keep working once loaded. (Full offline PWA is post-1.0, `16 §post`.)
 
 ## 10. Observability
 
-- Workers → ticktune → Logs (workers.dev tail / dashboard) for `/api` errors.
+- Workers → ticktune → **Observability → Logs** for `/api` errors.
+  `observability.enabled` writes one entry per Worker invocation (request,
+  response, country) — **retained 7 days on Workers Paid**. Static pages never
+  invoke the Worker, so only `/api/yt/oembed` calls are logged. This is disclosed
+  in `legal/PRIVACY-POLICY.md`; changing the setting or the plan changes the
+  policy (`wrangler.jsonc` says the same next to the setting).
 - Optional, privacy-consistent: **Cloudflare Web Analytics** (cookieless, no
   fingerprinting). If enabled, its beacon origin must be added to CSP
   `script-src`/`connect-src` and disclosed in the Privacy Policy — default is

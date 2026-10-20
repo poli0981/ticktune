@@ -50,6 +50,13 @@ the real driver for 30–90 minutes across hidden, minimised and suspended state
 Measured 2026-07-21 on the timer engine: **98.9% lines, 95.5% statements**
 (`tt-format.ts` 100%, `tt-timer.ts` 98.4%).
 
+**Build-dependent suites.** `tt-csp-assets.test.ts` (no font inlined as `data:`,
+no off-policy origin in built CSS) and `tt-notices.test.ts` (the generated
+attribution, including Dexie's Apache `NOTICE`) read `dist/`. They skip locally
+when there is no build, and **fail under `CI`** if `dist/` is missing — which is
+why `ci.yml` builds before it tests (`14 §1`). Until v1.1 the order was reversed
+and both suites skipped on every CI run while claiming CI was their gate.
+
 ## 2. Component (Vitest + @testing-library/svelte + happy-dom, `tests/component/`)
 
 TtFinished (**both variants** — normal below the threshold, and the late variant
@@ -191,8 +198,17 @@ produce the failure — otherwise it is a test that can only pass.
 | Legal pages (`03 §3`, `08 §1.1`) | `legal.spec.ts`, P6 slice B. Every case is driven off `TT_LEGAL_DOCS`, so a fifth document extends the suite instead of quietly going uncovered: all 8 routes 200 with their heading and `TT_LEGAL_VERSION`; the canonical banner picks `canonicalEn` vs `canonicalVi` — **asserted against the dictionaries, not against English prose**, because the failure worth catching is the two being swapped, whereas a hardcoded substring just fails on the VI page for being in Vietnamese; no rendered legal href ends in `.md`; the EULA's cross-links stay in their own language. 🔴 **The load-bearing case is the landing footer**, checked on `/en/` as well as `/`: `TtFooter.astro` is the one legal-link call site with no runtime `i18n.lang`, so dropping its `lang` prop yields four valid links that all 200 in the wrong language. **Mutation-verified** — that revert turns exactly this test red and no other |
 | Landing (`03 §3`, `08 §1`) | `landing.spec.ts`, P6 slice A. **hreflang asserted as RECIPROCITY, not presence** — both pages must advertise the same pair, because a page that merely has alternates can still point them somewhere wrong, and that is the failure Search Console reports weeks later. Plus: each page canonicalises to itself; the FAQ carries the `04 §2` item 6 countdown promise **in both languages**; the CTA reaches `/app/`; the GPL source-offer link is present with `rel=noopener`; the hero placeholder is same-origin and labelled; `/app/` is `noindex` while the landing is not. The `docs/07 §5` crawler-content assertion in `mobile-gate.spec.ts` now covers `/en/` too |
 
-Browsers: CI on Chromium + Firefox every PR; WebKit added on the release branch
-(Safari audio quirks are covered mainly by Spike S3/S4 + manual pass).
+Browsers: CI runs Chromium, Firefox and desktop WebKit on every PR, plus the two
+mobile projects (`mobile-chromium`, `mobile-webkit`) that assert hard invariant 6.
+(This line said "WebKit on the release branch" until v1.1; it was never true.)
+Real Safari audio quirks are still a manual pass.
+
+**CSP.** `astro preview` sends no headers, so every spec runs without a policy.
+`e2e.yml`'s last step serves `dist/` through `wrangler dev` and runs
+`scripts/verify-csp.mjs`, which fails on any CSP violation — the only automated
+check of the policy the site actually ships (`14 §1`). `tests/unit/tt-headers.test.ts`
+covers the file itself: every directive, the security headers, the cache rules,
+and that `09 §4` — the policy's authoritative copy — matches what ships.
 
 ⚠️ **Audio in automation — measured 2026-07-21, and the conclusion is not the
 obvious one.** On the Linux CI runner, headless Firefox's
