@@ -51,15 +51,19 @@ describe.skipIf(!built)('generated third-party notices', () => {
     }
   });
 
-  it('carries the OFL text for both webfont families', () => {
+  it('carries the OFL text for all three webfont families', () => {
     // P6 made these dependencies, which activated a dormant obligation: OFL §2
     // requires the licence to accompany the font. They arrive via CSS `@import`,
     // so the module graph cannot see them — make-notices adds them by name, and
     // this is what catches that list being dropped.
-    for (const pkg of ['@fontsource/be-vietnam-pro', '@fontsource/jetbrains-mono']) {
+    for (const pkg of [
+      '@fontsource/be-vietnam-pro',
+      '@fontsource/chakra-petch',
+      '@fontsource/jetbrains-mono',
+    ]) {
       expect(text).toContain(pkg);
     }
-    expect(text.match(/SIL OPEN FONT LICENSE/g)?.length ?? 0).toBeGreaterThanOrEqual(2);
+    expect(text.match(/SIL OPEN FONT LICENSE/g)?.length ?? 0).toBeGreaterThanOrEqual(3);
   });
 
   it("carries Dexie's NOTICE, as Apache-2.0 §4(d) requires", () => {

@@ -93,7 +93,7 @@
 </script>
 
 <aside class="tt-rail" class:tt-focus={focusMode} data-testid="tt-yt-rail">
-  <div class="tt-badge">{i18n.t('player.badge.youtube')}</div>
+  <h2 class="tt-label tt-badge">{i18n.t('player.badge.youtube')}</h2>
 
   <!--
     The player slot. Fixed pixel size on purpose: docs/06 §1.2 is a ToS
@@ -130,7 +130,9 @@
             {i18n.t('yt.err.skipIn', { seconds: skipInSeconds })}
           </p>
         {/if}
-        <button data-testid="tt-yt-skip" onclick={onskip}>{i18n.t('yt.err.skip')}</button>
+        <button class="tt-key tt-key-sm" data-testid="tt-yt-skip" onclick={onskip}
+          >{i18n.t('yt.err.skip')}</button
+        >
         <!--
           `ambiguous` was declared with a paragraph of rationale, written on all
           four branches, and read by nothing — the coverArtUrl shape in
@@ -175,9 +177,12 @@
   .tt-rail {
     display: flex;
     flex-direction: column;
-    gap: 0.6rem;
+    gap: var(--tt-space-3);
     /* Wide enough for the mandatory 384 px player plus the rail's own padding.
        Never a percentage — see the markup note.
+
+       ⚠️ Geometry-bearing: TtApp's `ytReserve` is this width plus `.tt-main`'s
+       padding. Change the width or the padding here and that sum is wrong.
 
        `flex: none` is part of the same requirement, not tidiness: as a plain
        flex item this aside could be asked to shrink, and only its min-content
@@ -187,9 +192,10 @@
     width: calc(384px + 1.8rem);
     max-height: 78vh;
     padding: 0.9rem;
-    background: color-mix(in srgb, var(--color-tt-surface) 80%, transparent);
+    background-color: var(--color-tt-surface);
     border: 1px solid var(--color-tt-line);
-    border-radius: 0.5rem;
+    border-radius: var(--tt-radius-md);
+    box-shadow: var(--tt-shadow-panel);
   }
   /*
    * Focus mode dims the rail's CHROME and never the player. The naive rule —
@@ -199,17 +205,34 @@
   .tt-focus .tt-badge {
     opacity: 0.25;
   }
+  /* The module legend, with the engraved rule every rack module carries. */
   .tt-badge {
+    display: flex;
     flex: none;
-    font-size: 0.66rem;
-    letter-spacing: 0.14em;
-    color: var(--color-tt-muted);
+    gap: var(--tt-space-2);
+    align-items: center;
+    margin: 0;
   }
+  .tt-badge::after {
+    flex: 1;
+    height: 1px;
+    content: '';
+    background: var(--color-tt-line);
+  }
+  /*
+   * The monitor. Its bezel is a box-SHADOW, never a border or padding: with
+   * border-box sizing either would be taken out of the inline 384×216 and shrink
+   * the iframe below the docs/06 §1.2 slot. A shadow paints outside the box and
+   * changes no geometry — and it paints around the player, never over it.
+   */
   .tt-player {
     position: relative;
     flex: none;
     background: #000;
-    border-radius: 0.25rem;
+    border-radius: var(--tt-radius-xs);
+    box-shadow:
+      0 0 0 1px var(--color-tt-outline),
+      0 0 0 4px var(--color-tt-void);
     overflow: hidden;
   }
   .tt-player :global(iframe) {
@@ -224,47 +247,45 @@
     display: grid;
     align-content: center;
     justify-items: center;
-    gap: 0.35rem;
-    padding: 1rem;
+    gap: var(--tt-space-2);
+    padding: var(--tt-space-4);
     text-align: center;
-    background: color-mix(in srgb, var(--color-tt-void) 92%, transparent);
+    background: color-mix(in srgb, var(--color-tt-void) 94%, transparent);
   }
   .tt-overlay strong {
+    font-family: var(--font-display);
+    font-size: var(--tt-text-base);
+    font-weight: 600;
+    letter-spacing: 0.04em;
     color: var(--color-tt-warn);
-    font-size: 0.9rem;
   }
   .tt-overlay p {
     max-width: 22rem;
-    font-size: 0.74rem;
+    margin: 0;
+    font-size: var(--tt-text-xs);
+    line-height: 1.45;
     color: var(--color-tt-muted);
-  }
-  .tt-overlay button {
-    padding: 0.25rem 0.8rem;
-    font-size: 0.74rem;
-    color: var(--color-tt-signal);
-    background: transparent;
-    border: 1px solid var(--color-tt-signal);
-    border-radius: 0.25rem;
   }
   .tt-overlay code {
     font-family: var(--font-mono);
-    font-size: 0.62rem;
+    font-size: var(--tt-text-xs);
     color: var(--color-tt-muted);
   }
   .tt-skip-in {
     font-family: var(--font-mono);
-    font-size: 0.68rem;
-    color: var(--color-tt-muted);
+    font-variant-numeric: tabular-nums;
   }
   .tt-queue {
     display: flex;
     min-height: 0;
   }
+  /* The queue nests inside this rail's bezel, so it drops its own. */
   .tt-queue :global(.tt-rail) {
     width: 100%;
     max-height: none;
+    padding: 0;
     background: transparent;
     border: none;
-    padding: 0;
+    box-shadow: none;
   }
 </style>

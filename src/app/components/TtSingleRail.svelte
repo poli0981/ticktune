@@ -44,7 +44,7 @@
 </script>
 
 <aside class="tt-rail" data-testid="tt-rail">
-  <div class="tt-badge">{i18n.t('player.badge.single')}</div>
+  <h2 class="tt-label tt-badge">{i18n.t('player.badge.single')}</h2>
 
   <div class="tt-loop" data-testid="tt-loop-count">
     {i18n.t('player.loop.count', { count: loops })}
@@ -52,21 +52,21 @@
 
   <div class="tt-loop-style" role="group" aria-label={i18n.t('player.loop.label')}>
     <button
-      class="tt-style"
-      class:tt-style-on={effective === 'hard'}
+      class="tt-key tt-key-sm tt-style"
       aria-pressed={effective === 'hard'}
       data-testid="tt-hard-toggle"
-      onclick={() => onloopstyle('hard')}>{i18n.t('player.loop.hard')}</button
+      onclick={() => onloopstyle('hard')}
+      ><span class="tt-led" aria-hidden="true"></span>{i18n.t('player.loop.hard')}</button
     >
     <button
-      class="tt-style"
-      class:tt-style-on={effective === 'crossfade'}
+      class="tt-key tt-key-sm tt-style"
       aria-pressed={effective === 'crossfade'}
       disabled={!crossfadeAvailable}
       aria-disabled={!crossfadeAvailable}
       title={crossfadeAvailable ? '' : i18n.t('player.loop.locked')}
       data-testid="tt-crossfade-toggle"
-      onclick={() => onloopstyle('crossfade')}>{i18n.t('player.loop.crossfade')}</button
+      onclick={() => onloopstyle('crossfade')}
+      ><span class="tt-led" aria-hidden="true"></span>{i18n.t('player.loop.crossfade')}</button
     >
   </div>
 
@@ -113,85 +113,96 @@
 <style>
   .tt-rail {
     display: grid;
-    gap: 0.6rem;
+    gap: var(--tt-space-3);
     align-content: start;
     /* Fixed column, like the other two rails — docs/03 §4. The countdown's cap
        is computed from what is left after this, so a rail that could shrink
        would make that figure a guess. */
     flex: none;
     width: 15rem;
-    padding: 0.9rem;
-    background: color-mix(in srgb, var(--color-tt-surface) 80%, transparent);
+    padding: var(--tt-space-4);
+    background-color: var(--color-tt-surface);
     border: 1px solid var(--color-tt-line);
-    border-radius: 0.5rem;
+    border-radius: var(--tt-radius-md);
+    box-shadow: var(--tt-shadow-panel);
   }
+  /* The module legend, with the engraved rule every rack module carries. */
   .tt-badge {
-    font-size: 0.66rem;
-    letter-spacing: 0.14em;
-    color: var(--color-tt-muted);
+    display: flex;
+    gap: var(--tt-space-2);
+    align-items: center;
+    margin: 0;
   }
+  .tt-badge::after {
+    flex: 1;
+    height: 1px;
+    content: '';
+    background: var(--color-tt-line);
+  }
+  /* The loop counter reads like a tape counter: amber digits in a recessed
+     window. */
   .tt-loop {
+    padding: var(--tt-space-2) var(--tt-space-3);
     font-family: var(--font-mono);
-    font-size: 1.1rem;
+    font-size: var(--tt-text-lg);
     color: var(--color-tt-signal);
     font-variant-numeric: tabular-nums;
+    background: var(--color-tt-void);
+    border: 1px solid var(--color-tt-line);
+    border-radius: var(--tt-radius-sm);
+    box-shadow: var(--tt-shadow-pressed);
   }
+  /* Stacked, not side by side: in a 15rem rail two keycaps get ~100 px each,
+     and "CẮT THẲNG" wrapped onto two lines inside its key. */
   .tt-loop-style {
-    display: flex;
-    gap: 0.3rem;
+    display: grid;
+    gap: var(--tt-space-2);
   }
   .tt-style {
-    flex: 1;
-    padding: 0.2rem 0.4rem;
-    font-size: 0.7rem;
-    color: var(--color-tt-muted);
-    background: transparent;
-    border: 1px solid var(--color-tt-line);
-    border-radius: 0.25rem;
-  }
-  .tt-style-on {
-    color: var(--color-tt-signal);
-    border-color: var(--color-tt-signal);
-  }
-  .tt-style:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
+    justify-content: flex-start;
+    width: 100%;
   }
   .tt-card {
     display: grid;
-    gap: 0.15rem;
-    padding: 0.5rem;
+    gap: 2px;
+    padding: var(--tt-space-3);
     text-align: left;
-    background: transparent;
-    border: 1px solid var(--color-tt-line);
-    border-radius: 0.375rem;
+    color: inherit;
+    cursor: pointer;
+    background: var(--color-tt-void);
+    border: 1px solid var(--color-tt-outline);
+    border-radius: var(--tt-radius-sm);
+    transition: border-color var(--duration-tt-fast) var(--ease-tt);
   }
   .tt-card:hover {
     border-color: var(--color-tt-signal);
   }
   .tt-card strong {
-    font-size: 0.82rem;
     overflow: hidden;
+    font-size: var(--tt-text-sm);
+    font-weight: 600;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .tt-card span {
-    font-size: 0.72rem;
-    color: var(--color-tt-muted);
     overflow: hidden;
+    font-size: var(--tt-text-xs);
+    color: var(--color-tt-muted);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .tt-dur {
     font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
   }
-  .tt-hint {
-    font-size: 0.66rem;
+  .tt-hint,
+  .tt-fallback {
+    margin: 0;
+    font-size: var(--tt-text-xs);
+    line-height: 1.45;
     color: var(--color-tt-muted);
   }
   .tt-fallback {
-    font-size: 0.64rem;
-    line-height: 1.4;
     color: var(--color-tt-warn);
   }
 </style>

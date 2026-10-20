@@ -3,25 +3,23 @@
 /* ─────────────────────────────────────────────────────────────────────────────
    UI fonts — self-hosted, docs/03 §1 and the privacy posture in docs/09.
 
-   Installed in P6. Until then `--font-ui` and `--font-mono` NAMED these families
-   while nothing shipped them, so every surface silently fell back to
-   `system-ui`. That was never a privacy problem — `font-src 'self'` forbids a
-   third-party font fetch outright, and a missing family just falls through —
-   but it did mean the Vietnamese diacritics rendered in the OS font rather than
-   the one the design was drawn for, on the very release that publishes the
-   Privacy Policy claiming the fonts are self-hosted.
+   FULL weight files, not `latin-*` subsets: each carries `unicode-range` per
+   subset, so `/en/` downloads latin only and `/` adds the vietnamese subset only
+   because the page contains those code points. `font-src 'self'` forbids any
+   third-party font fetch outright.
 
-   These are the FULL weight files, not the `latin-*` subsets, and that is the
-   efficient choice rather than the lazy one: each carries `unicode-range` per
-   subset, so a browser on `/en/` downloads only latin, and one on `/` adds the
-   vietnamese subset — roughly 8 KB — only because the page actually contains
-   those code points. Importing `latin-400.css` + `vietnamese-400.css` instead
-   would drop the ranges and fetch both everywhere.
+   - Chakra Petch — the display face (labels, headings, keycaps). Squared,
+     engraved-panel letterforms for the "Rack Unit" identity, with a full
+     Vietnamese subset (checked against fontsource before choosing it).
+   - Be Vietnam Pro — body text, drawn for Vietnamese.
+   - JetBrains Mono — numbers, codes, metadata.
 
-   Only the three weights the interface uses. `font-display: swap` comes from
-   fontsource and is right for prose; DSEG7 below stays `block` because swapping
-   a proportional fallback into the countdown mid-run would reflow the digits.
+   ⚠️ CSS imports are invisible to knip and to the bundle graph, so every family
+   here is also in knip.json `ignoreDependencies` and in scripts/make-notices.ts
+   `CSS_ONLY` — the OFL requires its text to travel with the font.
    ──────────────────────────────────────────────────────────────────────────── */
+@import '@fontsource/chakra-petch/500.css';
+@import '@fontsource/chakra-petch/600.css';
 @import '@fontsource/be-vietnam-pro/400.css';
 @import '@fontsource/be-vietnam-pro/500.css';
 @import '@fontsource/be-vietnam-pro/600.css';
@@ -30,14 +28,9 @@
 /* DSEG7 Classic — vendored, self-hosted, OFL 1.1. Provenance, hashes and the
    Reserved Font Name constraint: public/fonts/dseg7/PROVENANCE.md.
 
-   `font-display: block` rather than `swap`: the countdown is the product, and
-   swapping a proportional fallback for a seven-segment face mid-run would
-   visibly reflow the digits. The file is 5 KB and same-origin, so the block
-   period is imperceptible — and `unicode-range` keeps it from ever being
-   fetched for prose.
-
-   DSEG7 covers digits, `:`, `.` and `-` only (docs/03 §1), which is exactly the
-   countdown's alphabet. Everything else falls through to --font-ui. */
+   `font-display: block`: swapping a proportional fallback into the countdown
+   mid-run would reflow the digits. 5 KB, same-origin, and `unicode-range` keeps
+   it from ever being fetched for prose. Digits, `:`, `.` and `-` only. */
 @font-face {
   font-family: 'DSEG7 Classic';
   src: url('/fonts/dseg7/DSEG7Classic-Regular.woff2') format('woff2');
@@ -48,46 +41,190 @@
 }
 
 /* ─────────────────────────────────────────────────────────────────────────────
-   TickTune "On Air" design tokens — docs/03 §1 is authoritative.
-   Identity: a late-night broadcast studio. Glowing seven-segment clock on a dark
-   stage, pulsing tally light, faint scanlines.
+   "Rack Unit" design tokens — docs/03 §1 is authoritative.
+
+   TickTune as a piece of broadcast studio hardware: a rack-mounted countdown
+   clock behind smoked glass, an ON AIR lamp that pulses to the music, engraved
+   labels, keycaps and LED switches. Warm graphite, amber indicators, warm-white
+   digits — deliberately NOT a monochrome phosphor terminal (docs/03 keeps
+   TickTune distinct from the portfolio's other identities).
+
+   Every text colour clears 4.5:1 on every surface (chassis/panel/panel-2):
+   ink ≥ 13.7, engrave ≥ 6.2, signal ≥ 9.4, digit ≥ 14.7, warn ≥ 6.5,
+   danger ≥ 4.78. `outline` is the 3:1 boundary colour for interactive controls
+   (WCAG 1.4.11); `line` is decorative only.
+
+   ⚠️ Two JS copies must move with these: TtBackdrop.svelte's contrast maths
+   (text + void) and src/app/engine/visuals/tt-gradient.ts's presets — both
+   asserted against 4.5:1 by tests/unit/tt-visuals.test.ts.
    ──────────────────────────────────────────────────────────────────────────── */
 @theme {
-  --color-tt-void: #08090c; /* page background */
-  --color-tt-surface: #10131a; /* panels, rails */
-  --color-tt-line: #1d2330; /* borders, dividers */
-  --color-tt-signal: #4fd1ff; /* primary accent — signal cyan */
-  --color-tt-warn: #ffb454; /* secondary accent, warnings */
-  --color-tt-danger: #ff5d5d; /* countdown < 60 s, destructive */
-  --color-tt-text: #e7ebf2;
-  --color-tt-muted: #8a93a3;
+  --color-tt-void: #0e0d0b; /* chassis — page background */
+  --color-tt-surface: #171512; /* panels, rails, sheets */
+  --color-tt-surface-2: #1f1c18; /* raised: keycaps, hover */
+  --color-tt-line: #2e2a24; /* decorative seams and dividers */
+  --color-tt-outline: #746a5c; /* interactive boundaries — 3:1 on every surface */
+  --color-tt-signal: #ffb23f; /* amber: LEDs, active state, focus, primary action */
+  --color-tt-on-signal: #1a1206; /* text on an amber fill */
+  --color-tt-digit: #f5eedc; /* the countdown's lit segments — warm white */
+  --color-tt-warn: #ff7a1a; /* warnings, late finish */
+  --color-tt-danger: #ff3b30; /* tally lamp, < 60 s, destructive */
+  --color-tt-text: #ede6da; /* ink */
+  --color-tt-muted: #a39b8e; /* engraved labels, secondary text */
 
   --font-digit: 'DSEG7 Classic', 'JetBrains Mono', monospace;
+  --font-display: 'Chakra Petch', 'Be Vietnam Pro', system-ui, sans-serif;
   --font-ui: 'Be Vietnam Pro', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
 
-  /* Motion tokens — docs/03 §8 */
-  --ease-tt: cubic-bezier(0.2, 0.8, 0.2, 1);
+  /* Motion — docs/03 §8. Mechanical: a short press, a damped settle. */
+  --ease-tt: cubic-bezier(0.2, 0.7, 0.1, 1);
+  --duration-tt-press: 120ms;
   --duration-tt-fast: 150ms;
   --duration-tt-base: 250ms;
   --duration-tt-slow: 400ms;
 }
 
+/* Scales that are not Tailwind utilities — read only through var() in scoped
+   component CSS, so they live on :root where nothing can tree-shake them. */
 :root {
   color-scheme: dark;
+
+  /* Spacing, 4 px base. */
+  --tt-space-1: 0.25rem;
+  --tt-space-2: 0.5rem;
+  --tt-space-3: 0.75rem;
+  --tt-space-4: 1rem;
+  --tt-space-5: 1.5rem;
+  --tt-space-6: 2rem;
+  --tt-space-7: 3rem;
+  --tt-space-8: 4rem;
+  --tt-space-9: 6rem;
+
+  /* Radius — hardware is mostly square. */
+  --tt-radius-xs: 2px;
+  --tt-radius-sm: 4px;
+  --tt-radius-md: 8px;
+  --tt-radius-lg: 14px;
+  --tt-radius-pill: 999px;
+
+  /* Type scale. UI text never goes below 12 px. */
+  --tt-text-xs: 0.75rem;
+  --tt-text-sm: 0.875rem;
+  --tt-text-base: 1rem;
+  --tt-text-lg: 1.125rem;
+  --tt-text-xl: 1.375rem;
+  --tt-text-2xl: 1.75rem;
+  --tt-text-3xl: 2.25rem;
+  --tt-text-4xl: 3rem;
+  --tt-text-5xl: 4.5rem;
+
+  /* Stacking order — one named scale instead of a dozen ad-hoc numbers. The
+     legal gate sits above everything the app renders; the mobile gate above
+     everything at all. */
+  --tt-z-backdrop: 0;
+  --tt-z-main: 1;
+  --tt-z-chrome: 10;
+  --tt-z-bar: 20;
+  --tt-z-hint: 30;
+  --tt-z-flash: 40;
+  --tt-z-sheet: 50;
+  --tt-z-popover: 60;
+  --tt-z-modal: 70;
+  --tt-z-debug: 80;
+  --tt-z-gate: 90;
+  --tt-z-mobile-gate: 100;
+
+  /* Depth. Panels are inset into the chassis; keycaps stand proud of it. */
+  --tt-shadow-key:
+    inset 0 1px 0 rgb(255 255 255 / 6%), inset 0 -1px 0 rgb(0 0 0 / 35%), 0 1px 0 rgb(0 0 0 / 55%);
+  --tt-shadow-pressed: inset 0 2px 5px rgb(0 0 0 / 55%);
+  --tt-shadow-panel: inset 0 1px 0 rgb(255 255 255 / 4%), 0 12px 32px rgb(0 0 0 / 45%);
+  --tt-glow-signal: 0 0 10px color-mix(in srgb, var(--color-tt-signal) 55%, transparent);
+
+  /* Machined-metal grain: an SVG noise tile, inlined (`img-src` allows data:). */
+  --tt-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 0.05 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+
+  /* The custom scrollbar (docs/03 §1). Standard properties first: Chromium ≥ 121
+     and Firefox use these and ignore ::-webkit-scrollbar wherever they apply;
+     Safari uses the ::-webkit rules below. `scrollbar-color` inherits, so it is
+     set once here; `scrollbar-width` does not, so the rule below covers all. */
+  scrollbar-color: var(--color-tt-outline) transparent;
 }
 
 html,
 body {
-  background: var(--color-tt-void);
+  background-color: var(--color-tt-void);
   color: var(--color-tt-text);
   font-family: var(--font-ui);
 }
 
-/* Visible focus ring — docs/03 §8 requires 2 px offset in signal cyan. */
+/*
+ * A faint vignette and grain: the chassis is metal, not flat black.
+ *
+ * On a fixed pseudo-element, NOT as `background-image` on <body>. axe cannot
+ * compute contrast over a background image — every text node on the page came
+ * back "needs review" instead of pass/fail, and the a11y spec only fails on
+ * violations, so the static pages' contrast check went silently blind. A
+ * pseudo-element is invisible to axe, which then measures against the solid
+ * chassis colour; at 4–5% alpha the texture moves no ratio measurably.
+ */
+body::before {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  content: '';
+  background-image:
+    var(--tt-grain), radial-gradient(120% 90% at 50% 0%, rgb(255 178 63 / 4%), transparent 60%);
+}
+
+::selection {
+  color: var(--color-tt-on-signal);
+  background: var(--color-tt-signal);
+}
+
+/* Visible focus ring — docs/03 §8: 2 px, offset, in the signal colour. */
 :focus-visible {
   outline: 2px solid var(--color-tt-signal);
   outline-offset: 2px;
+}
+
+/* ── Scrollbars — custom by default, hideable in /app/ (docs/03 §6) ──────────── */
+* {
+  scrollbar-width: thin;
+}
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: var(--color-tt-outline);
+  background-clip: padding-box;
+  border: 3px solid transparent;
+  border-radius: var(--tt-radius-pill);
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-tt-signal);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
+
+/* Settings → Display → "Hide scrollbars" (`hideScrollbars`). TtApp mirrors the
+   setting onto <html data-tt-scrollbars>. Scrolling still works by wheel,
+   keyboard and touchpad; scroll regions keep a focusable container and an edge
+   fade (`.tt-scroll-fade`) so the cue is not lost with the bar. Only /app/ can
+   read the setting — the static pages run no script that opens IndexedDB. */
+html[data-tt-scrollbars='hidden'],
+html[data-tt-scrollbars='hidden'] * {
+  scrollbar-width: none;
+}
+html[data-tt-scrollbars='hidden'] ::-webkit-scrollbar {
+  display: none;
 }
 
 /* ── Mobile gate (docs/07 §3.1) ──────────────────────────────────────────────
@@ -112,6 +249,326 @@ html[data-tt-blocked] body > *:not(.tt-mobile-gate) {
 html[data-tt-blocked],
 html[data-tt-blocked] body {
   overflow: hidden;
+}
+
+/* ─────────────────────────────────────────────────────────────────────────────
+   Primitives — one implementation of each control, shared by Astro and Svelte.
+
+   ⚠️ Svelte's scoped CSS is unlayered and therefore beats anything in
+   @layer components. A component that adopts a primitive must drop its own
+   competing rules for that element, or the primitive silently loses.
+
+   ⚠️ TEXT SITS ON SOLID COLOUR. axe cannot compute contrast over a background
+   image or gradient, nor under an absolutely positioned pseudo-element with a
+   background on any ancestor: it reports "needs review", and the a11y spec
+   only fails on violations, so the check goes blind without a sound. v1.0 had
+   zero such results on the static pages; the first cut of this redesign had 72.
+   Texture lives on `body::before` and on elements that carry no text.
+   ──────────────────────────────────────────────────────────────────────────── */
+@layer components {
+  /* Visually hidden, still announced. Never `display: none`. */
+  .tt-sr {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* An engraved label: small caps on the chassis. */
+  .tt-label {
+    font-family: var(--font-display);
+    font-size: var(--tt-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-tt-muted);
+  }
+
+  /* An inset module: the rack panels, sheets and cards. */
+  .tt-panel {
+    background-color: var(--color-tt-surface);
+    border: 1px solid var(--color-tt-line);
+    border-radius: var(--tt-radius-md);
+    box-shadow: var(--tt-shadow-panel);
+  }
+
+  /* The keycap. Variants: -primary (amber fill), -ghost, -danger, -icon, -sm. */
+  .tt-key {
+    display: inline-flex;
+    gap: var(--tt-space-2);
+    align-items: center;
+    justify-content: center;
+    min-height: 40px;
+    padding: 0 var(--tt-space-4);
+    font-family: var(--font-display);
+    font-size: var(--tt-text-sm);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-tt-text);
+    cursor: pointer;
+    /* Flat: the bevel is the inset highlight in --tt-shadow-key, not a
+       gradient (see the solid-colour rule above). */
+    background: var(--color-tt-surface-2);
+    border: 1px solid var(--color-tt-outline);
+    border-radius: var(--tt-radius-sm);
+    box-shadow: var(--tt-shadow-key);
+    transition:
+      transform var(--duration-tt-press) var(--ease-tt),
+      color var(--duration-tt-fast) var(--ease-tt),
+      border-color var(--duration-tt-fast) var(--ease-tt),
+      box-shadow var(--duration-tt-fast) var(--ease-tt);
+  }
+  .tt-key:hover:not(:disabled) {
+    color: var(--color-tt-signal);
+    border-color: var(--color-tt-signal);
+  }
+  .tt-key:active:not(:disabled) {
+    transform: translateY(1px);
+    box-shadow: var(--tt-shadow-pressed);
+  }
+  .tt-key:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+  .tt-key[aria-pressed='true'] {
+    color: var(--color-tt-signal);
+    border-color: var(--color-tt-signal);
+    box-shadow: var(--tt-shadow-pressed);
+  }
+  .tt-key-primary {
+    color: var(--color-tt-on-signal);
+    background: var(--color-tt-signal);
+    border-color: color-mix(in srgb, var(--color-tt-signal) 70%, black);
+  }
+  .tt-key-primary:hover:not(:disabled) {
+    color: var(--color-tt-on-signal);
+    border-color: color-mix(in srgb, var(--color-tt-signal) 70%, black);
+    box-shadow: var(--tt-shadow-key), var(--tt-glow-signal);
+  }
+  .tt-key-ghost {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+  .tt-key-danger {
+    color: var(--color-tt-danger);
+  }
+  .tt-key-danger:hover:not(:disabled) {
+    color: var(--color-tt-danger);
+    border-color: var(--color-tt-danger);
+  }
+  .tt-key-icon {
+    min-width: 40px;
+    padding: 0;
+    font-family: var(--font-mono);
+    letter-spacing: 0;
+  }
+  .tt-key-sm {
+    min-height: 32px;
+    padding: 0 var(--tt-space-3);
+    font-size: var(--tt-text-xs);
+  }
+
+  /* An LED: a dot that lights when its control is on. Place inside a .tt-key or
+     a .tt-seg button; it reads the nearest aria-pressed/checked state. */
+  .tt-led {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    background: var(--color-tt-line);
+    border-radius: 50%;
+    box-shadow: inset 0 0 0 1px rgb(0 0 0 / 45%);
+    transition:
+      background-color var(--duration-tt-fast) var(--ease-tt),
+      box-shadow var(--duration-tt-fast) var(--ease-tt);
+  }
+  [aria-pressed='true'] > .tt-led,
+  .tt-led[data-on='true'] {
+    background: var(--color-tt-signal);
+    box-shadow: var(--tt-glow-signal);
+  }
+
+  /* A strip of joined keycaps for one-of-many choices (aria-pressed on each). */
+  .tt-seg {
+    display: inline-flex;
+    flex-wrap: wrap;
+    gap: 1px;
+    padding: 1px;
+    background: var(--color-tt-line);
+    border: 1px solid var(--color-tt-outline);
+    border-radius: var(--tt-radius-sm);
+  }
+  .tt-seg > button {
+    display: inline-flex;
+    gap: var(--tt-space-2);
+    align-items: center;
+    min-height: 34px;
+    padding: 0 var(--tt-space-3);
+    font-family: var(--font-display);
+    font-size: var(--tt-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-tt-muted);
+    cursor: pointer;
+    background: var(--color-tt-surface-2);
+    border: 0;
+    border-radius: var(--tt-radius-xs);
+    transition: color var(--duration-tt-fast) var(--ease-tt);
+  }
+  .tt-seg > button:hover:not(:disabled) {
+    color: var(--color-tt-text);
+  }
+  .tt-seg > button[aria-pressed='true'],
+  .tt-seg > button[aria-selected='true'] {
+    color: var(--color-tt-signal);
+    background: var(--color-tt-surface);
+    box-shadow: var(--tt-shadow-pressed);
+  }
+  .tt-seg > button:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+
+  /* A hardware toggle for checkboxes: `<input type="checkbox" class="tt-switch">`. */
+  .tt-switch {
+    position: relative;
+    flex: none;
+    width: 38px;
+    height: 22px;
+    margin: 0;
+    cursor: pointer;
+    appearance: none;
+    background: var(--color-tt-void);
+    border: 1px solid var(--color-tt-outline);
+    border-radius: var(--tt-radius-pill);
+    box-shadow: var(--tt-shadow-pressed);
+    transition: border-color var(--duration-tt-fast) var(--ease-tt);
+  }
+  .tt-switch::before {
+    position: absolute;
+    top: 3px;
+    left: 3px;
+    width: 14px;
+    height: 14px;
+    content: '';
+    background: var(--color-tt-muted);
+    border-radius: 50%;
+    transition:
+      transform var(--duration-tt-fast) var(--ease-tt),
+      background-color var(--duration-tt-fast) var(--ease-tt),
+      box-shadow var(--duration-tt-fast) var(--ease-tt);
+  }
+  .tt-switch:checked {
+    border-color: var(--color-tt-signal);
+  }
+  .tt-switch:checked::before {
+    background: var(--color-tt-signal);
+    box-shadow: var(--tt-glow-signal);
+    transform: translateX(16px);
+  }
+  .tt-switch:disabled {
+    cursor: not-allowed;
+    opacity: 0.4;
+  }
+
+  /* A mixing-desk fader for `<input type="range" class="tt-fader">`. */
+  .tt-fader {
+    width: 100%;
+    height: 22px;
+    margin: 0;
+    cursor: pointer;
+    appearance: none;
+    background: transparent;
+  }
+  .tt-fader::-webkit-slider-runnable-track {
+    height: 4px;
+    background: linear-gradient(90deg, var(--color-tt-outline), var(--color-tt-line));
+    border-radius: var(--tt-radius-pill);
+  }
+  .tt-fader::-moz-range-track {
+    height: 4px;
+    background: linear-gradient(90deg, var(--color-tt-outline), var(--color-tt-line));
+    border-radius: var(--tt-radius-pill);
+  }
+  .tt-fader::-moz-range-progress {
+    height: 4px;
+    background: var(--color-tt-signal);
+    border-radius: var(--tt-radius-pill);
+  }
+  .tt-fader::-webkit-slider-thumb {
+    width: 12px;
+    height: 20px;
+    margin-top: -8px;
+    appearance: none;
+    background: linear-gradient(180deg, #4a4339, #2a2621);
+    border: 1px solid var(--color-tt-outline);
+    border-radius: var(--tt-radius-xs);
+    box-shadow:
+      inset 0 0 0 4px transparent,
+      0 2px 3px rgb(0 0 0 / 60%);
+  }
+  .tt-fader::-moz-range-thumb {
+    width: 12px;
+    height: 20px;
+    background: linear-gradient(180deg, #4a4339, #2a2621);
+    border: 1px solid var(--color-tt-outline);
+    border-radius: var(--tt-radius-xs);
+    box-shadow: 0 2px 3px rgb(0 0 0 / 60%);
+  }
+  .tt-fader:hover::-webkit-slider-thumb,
+  .tt-fader:focus-visible::-webkit-slider-thumb {
+    border-color: var(--color-tt-signal);
+  }
+  .tt-fader:hover::-moz-range-thumb,
+  .tt-fader:focus-visible::-moz-range-thumb {
+    border-color: var(--color-tt-signal);
+  }
+
+  /* A value read-out next to a fader — sliders always show their number. */
+  .tt-readout {
+    min-width: 3.5ch;
+    font-family: var(--font-mono);
+    font-size: var(--tt-text-xs);
+    font-variant-numeric: tabular-nums;
+    color: var(--color-tt-signal);
+    text-align: right;
+  }
+
+  /* An engraved numeric/text field. */
+  .tt-field {
+    min-height: 40px;
+    padding: 0 var(--tt-space-3);
+    font-family: var(--font-mono);
+    font-size: var(--tt-text-base);
+    color: var(--color-tt-text);
+    background: var(--color-tt-void);
+    border: 1px solid var(--color-tt-outline);
+    border-radius: var(--tt-radius-sm);
+    box-shadow: var(--tt-shadow-pressed);
+  }
+  .tt-field:focus-visible {
+    border-color: var(--color-tt-signal);
+  }
+
+  /* A scroll region's edge fade — the cue that remains when bars are hidden.
+     Only then: with a visible bar the fade would just dim the first and last
+     rows for nothing. */
+  html[data-tt-scrollbars='hidden'] .tt-scroll-fade {
+    mask-image: linear-gradient(
+      180deg,
+      transparent,
+      black var(--tt-space-3),
+      black calc(100% - var(--tt-space-3)),
+      transparent
+    );
+  }
 }
 
 /* Decoration is suppressed at render time; the stored preference survives

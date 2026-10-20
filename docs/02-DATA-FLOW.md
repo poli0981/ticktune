@@ -163,6 +163,7 @@ interface TtSettings {
                                             //   scrimStrength; it never lowers it
   scanlines: boolean;
   autoTheme: boolean;                       // 03 §5
+  hideScrollbars: boolean;                  // v1.1 — 03 §6 Display; /app/ only
 
   // ── Countdown (03 §6 Countdown) ───────────────────────────────────────────
   glowIntensity: number;                    // 0 – 1, scales the 3 shadow alphas
@@ -203,6 +204,7 @@ export const TT_DEFAULT_SETTINGS: TtSettings = {
   scrimAuto: true,
   scanlines: true,
   autoTheme: true,            // 03 §5
+  hideScrollbars: false,      // additive, no schema bump (§3.2)
   glowIntensity: 0.8,
   countdownSize: 'm',
   endFadeMs: 2_000,           // 03 §6

@@ -7,29 +7,32 @@
  * ## Why every preset is dark
  *
  * `03 §1` puts legibility first and `03 §8` requires ≥ 4.5:1 for all text. The
- * countdown is `--color-tt-text` (#E7EBF2) and sits directly on this layer when
- * no image is composited over it, so a light preset would either fail contrast
- * outright or force the scrim to its 0.60 ceiling and still fail. Keeping the
- * stops dark means `scrimAuto` (docs/02 §3.1) has room to work rather than being
- * the only thing standing between the user and an unreadable clock.
+ * countdown is `--color-tt-digit` (`TT_PALETTE.digit`, warm white) and sits
+ * directly on this layer when no image is composited over it, so a light preset
+ * would either fail contrast outright or force the scrim to its 0.60 ceiling and
+ * still fail. Keeping the stops dark means `scrimAuto` (docs/02 §3.1) has room
+ * to work rather than being the only thing standing between the user and an
+ * unreadable clock.
+ *
+ * v1.1 ("Rack Unit"): warm graphite first, then five studio-lit variants. Each
+ * pair is a colour pushed down to chassis brightness, never a bright hue.
  */
 
 /** `gradientPreset` is `0 | 1 | 2 | 3 | 4 | 5` in docs/02 §3.1. */
 export const TT_GRADIENT_PRESETS: readonly (readonly [string, string])[] = [
-  // 0 — the default. Void into surface: the studio wall, barely lit.
-  ['#08090c', '#10131a'],
-  // 1 — signal cyan, the primary accent pushed down into a near-black blue.
-  ['#04101a', '#0a2a3a'],
-  // 2 — ember, the warm counterpart (tt-warn's hue at studio brightness).
-  ['#140a05', '#2a1608'],
-  // 3 — crimson. Related to tt-danger, which the digits themselves turn below
-  //     60 s; the stops stay far enough down that the two never compete.
-  ['#140406', '#2a0a10'],
-  // 4 — violet, the one preset with no token behind it. Included because the
-  //     other five are all "a token, darkened", which is a narrow range.
-  ['#0b0714', '#1c1030'],
-  // 5 — forest.
-  ['#05100b', '#0c2418'],
+  // 0 — the default. Chassis into panel: anodised graphite, barely lit.
+  ['#0e0d0b', '#1d1a16'],
+  // 1 — amber, the signal colour as a warm wash behind the glass.
+  ['#120c04', '#2a1a06'],
+  // 2 — oxide. Related to the tally red, kept far enough down that the < 60 s
+  //     danger digits never compete with it.
+  ['#140605', '#2b0e0b'],
+  // 3 — control-room teal, the one cool preset: a counterweight to the warm set.
+  ['#04100f', '#0b2623'],
+  // 4 — midnight indigo.
+  ['#08081a', '#17163a'],
+  // 5 — moss.
+  ['#0a0f06', '#19240f'],
 ] as const;
 
 /** `#rrggbb`, the same shape `clampSettings` validates `gradientCustom` against. */

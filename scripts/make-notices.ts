@@ -47,7 +47,11 @@ const OUT = join(DIST, 'THIRD-PARTY-NOTICES.txt');
  * OFL.txt already ships from `public/fonts/dseg7/` (docs/03 §1). Listing it here
  * would attribute it twice.
  */
-const CSS_ONLY = ['@fontsource/be-vietnam-pro', '@fontsource/jetbrains-mono'];
+const CSS_ONLY = [
+  '@fontsource/be-vietnam-pro',
+  '@fontsource/chakra-petch',
+  '@fontsource/jetbrains-mono',
+];
 
 const LICENSE_FILE = /^(LICEN[CS]E|COPYING|OFL)(\.(txt|md))?$/i;
 
@@ -227,7 +231,7 @@ TickTune itself is licensed GPL-3.0-only, (c) 2026 poli0981.
 Source: https://github.com/poli0981/ticktune
 
 This file is GENERATED at build time from the packages whose code is actually
-present in the shipped client bundle, plus the two webfont families that arrive
+present in the shipped client bundle, plus the three webfont families that arrive
 through CSS and so cannot appear in a module graph. It is not hand-maintained;
 see scripts/make-notices.ts. The curated human-readable summary is at
 /legal/third-party.

@@ -65,6 +65,10 @@
       "range": "Đếm ngược phải từ 1 giây đến 24 giờ.",
       "singleOnly": "Chế độ Một bài chỉ nhận đúng một tệp — bỏ bớt hoặc quay lại Danh sách.",
       "unplayable": "Tệp đang chọn không phát được."
+    },
+    "panel": {
+      "source": "Nguồn phát",
+      "timer": "Hẹn giờ"
     }
   },
   "yt": {
@@ -227,6 +231,7 @@
   "settings": {
     "title": "Cài đặt",
     "close": "Đóng cài đặt",
+    "jump": "Đi tới nhóm",
     "group": {
       "general": "Chung",
       "display": "Hiển thị",
@@ -279,7 +284,9 @@
       "scrimAutoHint": "Tăng thêm độ tối khi nền quá sáng khiến chữ số khó đọc. Không bao giờ giảm bớt.",
       "scanlines": "Vạch quét",
       "autoTheme": "Lấy tông màu từ ảnh bìa",
-      "autoThemeHint": "Chỉ với tệp trên máy. Chế độ YouTube giữ nguyên nền chuyển sắc."
+      "autoThemeHint": "Chỉ với tệp trên máy. Chế độ YouTube giữ nguyên nền chuyển sắc.",
+      "hideScrollbars": "Ẩn thanh cuộn",
+      "hideScrollbarsHint": "Vẫn cuộn được bằng con lăn và bàn phím. Chỉ áp dụng trong ứng dụng; trang giới thiệu và trang pháp lý vẫn giữ thanh cuộn mảnh."
     },
     "countdown": {
       "glow": "Độ phát sáng",

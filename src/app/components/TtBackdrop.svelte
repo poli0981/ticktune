@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { TT_PALETTE } from '../../lib/tt-palette';
   import { backdrop } from '../state/backdrop.svelte';
   import { settings } from '../state/settings.svelte';
   import { gradientCss } from '../engine/visuals/tt-gradient';
@@ -119,11 +120,14 @@
    */
   let sampledLuminance = $state<number | null>(null);
 
-  const TEXT_LUMINANCE = relativeLuminance(0xe7, 0xeb, 0xf2); // --color-tt-text
+  // The digits are what the scrim protects (`--color-tt-digit`), read from the
+  // one palette module rather than a hex copy that could drift from the CSS.
+  const DIGIT_RGB = parseHex(TT_PALETTE.digit);
+  const TEXT_LUMINANCE = DIGIT_RGB ? relativeLuminance(...DIGIT_RGB) : 1;
 
   const baseLuminance = $derived.by(() => {
     if (s.background === 'solid') {
-      const rgb = parseHex('#08090c');
+      const rgb = parseHex(TT_PALETTE.void);
       return rgb ? relativeLuminance(...rgb) : 0;
     }
     // The brighter stop is the one the digits have to survive.
@@ -249,7 +253,7 @@
   .tt-z1 {
     position: fixed;
     inset: 0;
-    z-index: 0;
+    z-index: var(--tt-z-backdrop);
     overflow: hidden;
     pointer-events: none;
   }
@@ -309,11 +313,12 @@
     transition: opacity var(--duration-tt-slow) var(--ease-tt);
   }
 
+  /* Warm-white lines, matching the digits rather than a cold CRT blue. */
   .tt-scanlines {
     background: repeating-linear-gradient(
       to bottom,
-      rgb(255 255 255 / 3%) 0px,
-      rgb(255 255 255 / 3%) 1px,
+      rgb(255 244 222 / 3%) 0px,
+      rgb(255 244 222 / 3%) 1px,
       transparent 1px,
       transparent 3px
     );

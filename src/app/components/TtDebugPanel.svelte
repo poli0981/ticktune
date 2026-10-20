@@ -220,19 +220,26 @@
 </aside>
 
 <style>
+  /*
+   * Right-inset by the YouTube reserve like every fixed layer (docs/03 §2). It
+   * was `right: 1rem`, which put this panel squarely over the player whenever
+   * `?ttdebug=1` met YouTube mode — debug-only, but a ToS overlay all the same.
+   */
   .tt-debug {
     position: fixed;
     top: 1rem;
-    right: 1rem;
-    z-index: 40;
+    right: calc(var(--tt-yt-reserve, 0px) + 1rem);
+    z-index: var(--tt-z-debug);
     width: 21rem;
-    padding: 0.75rem 0.9rem;
-    font-size: 11px;
+    padding: var(--tt-space-3) var(--tt-space-4);
+    font-family: var(--font-mono);
+    font-size: var(--tt-text-xs);
     line-height: 1.5;
     color: var(--color-tt-text);
-    background: color-mix(in srgb, var(--color-tt-surface) 92%, transparent);
-    border: 1px solid var(--color-tt-line);
-    border-radius: 0.5rem;
+    background: color-mix(in srgb, var(--color-tt-surface) 94%, transparent);
+    border: 1px solid var(--color-tt-warn);
+    border-radius: var(--tt-radius-sm);
+    box-shadow: var(--tt-shadow-panel);
   }
   header {
     display: flex;
@@ -284,11 +291,13 @@
   }
   button {
     width: 100%;
-    padding: 0.35rem;
+    min-height: 32px;
+    font-family: var(--font-mono);
     color: var(--color-tt-signal);
+    cursor: pointer;
     background: transparent;
-    border: 1px solid var(--color-tt-line);
-    border-radius: 0.25rem;
+    border: 1px solid var(--color-tt-outline);
+    border-radius: var(--tt-radius-xs);
   }
   button:hover {
     border-color: var(--color-tt-signal);

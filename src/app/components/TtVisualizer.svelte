@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { TT_PALETTE } from '../../lib/tt-palette';
   import { playback } from '../state/playback.svelte';
   import { settings } from '../state/settings.svelte';
   import {
@@ -137,7 +138,7 @@
       ctx.clearRect(0, 0, w, h);
 
       const accent =
-        getComputedStyle(canvas).getPropertyValue('--tt-viz-color').trim() || '#4FD1FF';
+        getComputedStyle(canvas).getPropertyValue('--tt-viz-color').trim() || TT_PALETTE.signal;
 
       if (s.visualizer === 'bars') drawBars(ctx, w, h, freq, accent);
       else if (s.visualizer === 'wave') drawWave(ctx, w, h, time, accent);

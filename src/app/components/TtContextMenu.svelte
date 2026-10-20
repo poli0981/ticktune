@@ -117,8 +117,9 @@
    * by it on a small laptop.
    */
   const pos = $derived.by(() => {
+    // The rendered box: 11rem wide; 32 px items, 4 px padding, 1 px border.
     const w = 11 * 16;
-    const h = items.length * 30 + 12;
+    const h = items.length * 32 + 10;
     const vw = typeof window === 'undefined' ? 1280 : window.innerWidth;
     const vh = typeof window === 'undefined' ? 720 : window.innerHeight;
     return {
@@ -189,26 +190,28 @@
 <style>
   .tt-menu {
     position: fixed;
-    z-index: 31;
+    z-index: var(--tt-z-popover);
     display: grid;
     min-width: 11rem;
-    padding: 0.25rem;
-    background: var(--color-tt-surface);
-    border: 1px solid var(--color-tt-line);
-    border-radius: 0.375rem;
-    box-shadow: 0 8px 24px rgb(0 0 0 / 45%);
+    padding: var(--tt-space-1);
+    background-color: var(--color-tt-surface-2);
+    border: 1px solid var(--color-tt-outline);
+    border-radius: var(--tt-radius-sm);
+    box-shadow: 0 12px 32px rgb(0 0 0 / 55%);
   }
   .tt-menu:focus {
     outline: none;
   }
   .tt-item {
-    padding: 0.3rem 0.6rem;
-    font-size: 0.78rem;
+    min-height: 32px;
+    padding: 0 var(--tt-space-3);
+    font-size: var(--tt-text-sm);
     color: var(--color-tt-text);
     text-align: left;
+    cursor: pointer;
     background: transparent;
     border: none;
-    border-radius: 0.25rem;
+    border-radius: var(--tt-radius-xs);
   }
   .tt-active:not(:disabled) {
     color: var(--color-tt-signal);
@@ -217,8 +220,12 @@
   .tt-danger {
     color: var(--color-tt-danger);
   }
+  .tt-active.tt-danger:not(:disabled) {
+    color: var(--color-tt-danger);
+    background: color-mix(in srgb, var(--color-tt-danger) 12%, transparent);
+  }
   .tt-item:disabled {
-    opacity: 0.4;
     cursor: not-allowed;
+    opacity: 0.4;
   }
 </style>

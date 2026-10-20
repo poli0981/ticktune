@@ -25,6 +25,7 @@ phụ thuộc gián tiếp — được tạo lúc dựng và phục vụ tại
 | Dexie.js | Apache-2.0 | lớp bọc IndexedDB; tệp NOTICE của nó được sao lại trong phần ghi nhận đầy đủ |
 | i18next | MIT | dịch giao diện trong ứng dụng |
 | DSEG7 Classic (font) | SIL OFL 1.1 | © 2017 keshikan (http://www.keshikan.net), **Tên phông chữ được bảo lưu "DSEG"**. v0.46, nhúng kèm nguyên bản không sửa đổi; giấy phép phát hành kèm tại `/fonts/dseg7/OFL.txt` |
+| Chakra Petch (font) | SIL OFL 1.1 | qua @fontsource (phần đóng gói theo MIT) |
 | Be Vietnam Pro (font) | SIL OFL 1.1 | qua @fontsource (phần đóng gói theo MIT) |
 | JetBrains Mono (font) | SIL OFL 1.1 | qua @fontsource (phần đóng gói theo MIT) |
 

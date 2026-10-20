@@ -105,7 +105,7 @@
 
     <button
       bind:this={closeButton}
-      class="tt-close"
+      class="tt-key tt-close"
       data-testid="tt-trackinfo-close"
       onclick={onclose}>{i18n.t('player.trackinfo.close')}</button
     >
@@ -128,48 +128,87 @@
   .tt-backdrop {
     position: fixed;
     inset: 0 var(--tt-yt-reserve, 0px) 0 0;
-    z-index: 30;
+    z-index: var(--tt-z-modal);
     display: grid;
     place-items: center;
-    padding: 2rem;
-    background: color-mix(in srgb, var(--color-tt-void) 75%, transparent);
+    padding: var(--tt-space-6);
+    background: color-mix(in srgb, var(--color-tt-void) 78%, transparent);
   }
+  /*
+   * A spec sheet: title with the cover beside it, then the sixteen fields in
+   * two columns. One column was 700 px tall — taller than 80vh at 720 — so the
+   * modal opened scrolled to its close button with the title out of sight.
+   * Below 34rem (YouTube mode at 1024 px leaves about 515) it is one column.
+   */
   .tt-modal {
-    width: min(30rem, 100%);
+    display: grid;
+    grid-template-areas:
+      'title cover'
+      'list list'
+      'close close';
+    grid-template-columns: minmax(0, 1fr) auto;
+    column-gap: var(--tt-space-4);
+    width: min(42rem, 100%);
     max-height: 80vh;
+    container-type: inline-size;
     overflow-y: auto;
-    padding: 1.1rem 1.25rem;
-    background: var(--color-tt-surface);
-    border: 1px solid var(--color-tt-line);
-    border-radius: 0.5rem;
+    overscroll-behavior: contain;
+    padding: var(--tt-space-5);
+    background-color: var(--color-tt-surface);
+    border: 1px solid var(--color-tt-outline);
+    border-radius: var(--tt-radius-md);
+    box-shadow: var(--tt-shadow-panel);
   }
   h2 {
-    margin-bottom: 0.75rem;
-    font-size: 0.95rem;
-    letter-spacing: 0.04em;
-    color: var(--color-tt-signal);
+    display: flex;
+    grid-area: title;
+    gap: var(--tt-space-2);
+    align-items: center;
+    align-self: start;
+    margin: 0 0 var(--tt-space-4);
+    font-family: var(--font-display);
+    font-size: var(--tt-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--color-tt-muted);
+  }
+  h2::after {
+    flex: 1;
+    height: 1px;
+    content: '';
+    background: var(--color-tt-line);
   }
   .tt-cover {
     display: block;
-    width: 8rem;
-    height: 8rem;
-    margin: 0 auto 0.9rem;
+    grid-area: cover;
+    width: 6rem;
+    height: 6rem;
+    margin: 0 0 var(--tt-space-4);
     object-fit: cover;
-    border: 1px solid var(--color-tt-line);
-    border-radius: 0.375rem;
+    border: 1px solid var(--color-tt-outline);
+    border-radius: var(--tt-radius-sm);
+    box-shadow: 0 8px 20px rgb(0 0 0 / 45%);
   }
   dl {
     display: grid;
-    gap: 0.3rem;
-    margin: 0 0 1rem;
-    font-size: 0.78rem;
+    grid-area: list;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--tt-space-1) var(--tt-space-5);
+    margin: 0 0 var(--tt-space-5);
+    font-size: var(--tt-text-sm);
+  }
+  @container (width < 34rem) {
+    dl {
+      grid-template-columns: minmax(0, 1fr);
+    }
   }
   dl > div {
     display: flex;
-    gap: 1rem;
+    gap: var(--tt-space-4);
     justify-content: space-between;
-    border-bottom: 1px solid color-mix(in srgb, var(--color-tt-line) 60%, transparent);
-    padding-bottom: 0.2rem;
+    padding-bottom: var(--tt-space-1);
+    border-bottom: 1px solid var(--color-tt-line);
   }
   dt {
     color: var(--color-tt-muted);
@@ -177,17 +216,13 @@
   }
   dd {
     margin: 0;
+    font-family: var(--font-mono);
+    font-size: var(--tt-text-xs);
     overflow-wrap: anywhere;
     text-align: right;
   }
   .tt-close {
-    padding: 0.35rem 1rem;
-    color: var(--color-tt-signal);
-    background: transparent;
-    border: 1px solid var(--color-tt-line);
-    border-radius: 0.25rem;
-  }
-  .tt-close:hover {
-    border-color: var(--color-tt-signal);
+    grid-area: close;
+    width: 100%;
   }
 </style>

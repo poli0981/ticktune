@@ -331,3 +331,27 @@ test.describe('no overlay may cover the YouTube player — docs/03 §2', () => {
     expect(px(String(box!.width))).toBeLessThan(500);
   });
 });
+
+test.describe('Hide scrollbars — v1.1, docs/03 §6', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
+
+  test('the setting is genuinely READ: html loses its scrollbars, and it persists', async ({
+    page,
+  }) => {
+    await gotoApp(page);
+    const width = () =>
+      page.evaluate(() => getComputedStyle(document.documentElement).scrollbarWidth);
+    // Styled by default: the custom thin bar, not none.
+    await expect.poll(width).toBe('thin');
+
+    await page.keyboard.press('s');
+    await page.getByTestId('tt-set-hidescrollbars').check();
+    await expect(page.locator('html')).toHaveAttribute('data-tt-scrollbars', 'hidden');
+    await expect.poll(width).toBe('none');
+
+    await expect.poll(() => storedSettings(page)).toMatchObject({ hideScrollbars: true });
+    await page.reload();
+    await page.waitForFunction(() => !!document.documentElement.dataset['ttBooted']);
+    await expect(page.locator('html')).toHaveAttribute('data-tt-scrollbars', 'hidden');
+  });
+});

@@ -230,29 +230,31 @@
   data-testid="tt-queue-panel"
   data-tt-variant={variant}
 >
-  <div class="tt-badge">{badge}</div>
+  <div class="tt-head">
+    <h2 class="tt-label tt-badge">{badge}</h2>
 
-  <div class="tt-toggles" role="group" aria-label={i18n.t('player.queue.label')}>
-    <button
-      class="tt-toggle"
-      class:tt-on={shuffle}
-      aria-pressed={shuffle}
-      data-testid="tt-shuffle"
-      onclick={() => onshuffle(!shuffle)}>{i18n.t('player.queue.shuffle')}</button
-    >
-    <button
-      class="tt-toggle"
-      class:tt-on={repeat}
-      aria-pressed={repeat}
-      data-testid="tt-repeat"
-      onclick={() => onrepeat(!repeat)}>{i18n.t('player.queue.repeat')}</button
-    >
+    <div class="tt-toggles" role="group" aria-label={i18n.t('player.queue.label')}>
+      <button
+        class="tt-key tt-key-sm tt-toggle"
+        aria-pressed={shuffle}
+        data-testid="tt-shuffle"
+        onclick={() => onshuffle(!shuffle)}
+        ><span class="tt-led" aria-hidden="true"></span>{i18n.t('player.queue.shuffle')}</button
+      >
+      <button
+        class="tt-key tt-key-sm tt-toggle"
+        aria-pressed={repeat}
+        data-testid="tt-repeat"
+        onclick={() => onrepeat(!repeat)}
+        ><span class="tt-led" aria-hidden="true"></span>{i18n.t('player.queue.repeat')}</button
+      >
+    </div>
   </div>
 
   {#if tracks.length === 0}
     <p class="tt-empty">{i18n.t('player.queue.empty')}</p>
   {:else}
-    <ul class="tt-rows" bind:this={list}>
+    <ul class="tt-rows tt-scroll-fade" bind:this={list}>
       {#each tracks as track, i (track.id)}
         <li
           class="tt-row"
@@ -366,27 +368,63 @@
   .tt-rail {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: var(--tt-space-3);
     /* A fixed column on the stage, so the countdown's cap can be computed from
        what is left over (docs/03 §4). Harmless in `setup`, where `.tt-in-setup`
        overrides the width and the parent is not a flex row. */
     flex: none;
     width: 17rem;
     max-height: 60vh;
-    padding: 0.9rem;
-    background: color-mix(in srgb, var(--color-tt-surface) 80%, transparent);
+    padding: var(--tt-space-4);
+    background-color: var(--color-tt-surface);
     border: 1px solid var(--color-tt-line);
-    border-radius: 0.5rem;
+    border-radius: var(--tt-radius-md);
+    box-shadow: var(--tt-shadow-panel);
     /* Backstop. The list scrolls itself; a future child that forgets to should
        be clipped by the border rather than escaping it the way this one did. */
     overflow: hidden;
   }
-  /* Setup stacks this above the countdown inputs and Start, so it gets a much
-     smaller budget — and a fixed one, because what has to stay on screen is the
-     Start button, not a proportion of the viewport. */
+  /* Setup nests this inside the Source module, which is already a panel — so it
+     drops its own bezel and becomes a recessed tray. The budget is fixed rather
+     than a proportion of the viewport: what has to stay on screen is Start. */
   .tt-in-setup {
     width: 100%;
-    max-height: 15rem;
+    max-height: 14rem;
+    padding: var(--tt-space-3);
+    background: var(--color-tt-void);
+    border-radius: var(--tt-radius-sm);
+    box-shadow: var(--tt-shadow-pressed);
+  }
+  /* The legend over the toggles in the rail; side by side in Setup, where the
+     vertical budget is the whole point. A wrapper rather than a grid panel, so
+     the panel stays the flex column the note above depends on. */
+  .tt-head {
+    display: grid;
+    flex: none;
+    gap: var(--tt-space-3);
+  }
+  .tt-in-setup .tt-head {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+  }
+  .tt-in-setup .tt-toggle {
+    flex: none;
+  }
+  /* One line per row in Setup — title, then artist — so the staging list shows
+     twice as many tracks in the same height. Two-line rows let a third track
+     fall below the fold of a 14rem list. */
+  .tt-in-setup .tt-row-main {
+    display: flex;
+    gap: var(--tt-space-2);
+    align-items: baseline;
+  }
+  .tt-in-setup .tt-row-main strong {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .tt-in-setup .tt-row-main span {
+    flex: 1 1 0;
+    min-width: 0;
   }
   /* Only the row list gives way. Without this the toggles and the totals footer
      are shrinkable too, and a long queue squashes them instead of scrolling. */
@@ -397,40 +435,45 @@
   .tt-ended {
     flex: none;
   }
+  /* The module legend, with the engraved rule Setup's modules use. */
   .tt-badge {
-    font-size: 0.66rem;
-    letter-spacing: 0.14em;
-    color: var(--color-tt-muted);
+    display: flex;
+    gap: var(--tt-space-2);
+    align-items: center;
+    margin: 0;
+  }
+  .tt-badge::after {
+    flex: 1;
+    height: 1px;
+    content: '';
+    background: var(--color-tt-line);
   }
   .tt-toggles {
     display: flex;
-    gap: 0.3rem;
+    gap: var(--tt-space-2);
   }
   .tt-toggle {
     flex: 1;
-    padding: 0.2rem 0.4rem;
-    font-size: 0.7rem;
-    color: var(--color-tt-muted);
-    background: transparent;
-    border: 1px solid var(--color-tt-line);
-    border-radius: 0.25rem;
-  }
-  .tt-on {
-    color: var(--color-tt-signal);
-    border-color: var(--color-tt-signal);
   }
   .tt-empty,
   .tt-totals,
   .tt-ended {
-    font-size: 0.7rem;
+    margin: 0;
+    font-size: var(--tt-text-xs);
     color: var(--color-tt-muted);
+  }
+  .tt-totals {
+    padding-top: var(--tt-space-2);
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    border-top: 1px solid var(--color-tt-line);
   }
   .tt-ended {
     color: var(--color-tt-warn);
   }
   .tt-rows {
     display: grid;
-    gap: 0.1rem;
+    gap: 2px;
     margin: 0;
     padding: 0;
     /*
@@ -443,17 +486,35 @@
     flex: 1 1 auto;
     min-height: 0;
     overflow-y: auto;
+    overscroll-behavior: contain;
     list-style: none;
   }
   .tt-row {
+    position: relative;
     display: flex;
-    gap: 0.4rem;
+    gap: var(--tt-space-1);
     align-items: center;
-    padding: 0.15rem 0.25rem;
-    border-radius: 0.25rem;
+    padding: 2px var(--tt-space-1);
+    border-radius: var(--tt-radius-xs);
+    transition: background-color var(--duration-tt-fast) var(--ease-tt);
   }
+  .tt-row:hover {
+    background: color-mix(in srgb, var(--color-tt-surface-2) 80%, transparent);
+  }
+  /* Now playing: an amber cue bar on the left edge, like a lit channel strip. */
   .tt-current {
-    background: color-mix(in srgb, var(--color-tt-signal) 12%, transparent);
+    background: color-mix(in srgb, var(--color-tt-signal) 10%, transparent);
+  }
+  .tt-current::before {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    left: 0;
+    width: 2px;
+    content: '';
+    background: var(--color-tt-signal);
+    border-radius: var(--tt-radius-pill);
+    box-shadow: var(--tt-glow-signal);
   }
   /* docs/02 §1: an errored track is SHOWN struck-through so the user can see
      why Start is disabled — never silently hidden. */
@@ -461,25 +522,18 @@
     text-decoration: line-through;
     opacity: 0.55;
   }
-  /* Visually hidden, still announced. Not `display: none`, which removes it
-     from the accessibility tree and would silence the live region entirely. */
-  .tt-sr {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    margin: -1px;
-    padding: 0;
-    overflow: hidden;
-    clip-path: inset(50%);
-    white-space: nowrap;
-  }
   .tt-grip {
-    padding: 0 0.15rem;
-    font-size: 0.8rem;
+    display: grid;
+    place-items: center;
+    width: 20px;
+    height: 28px;
+    padding: 0;
+    font-size: var(--tt-text-sm);
     line-height: 1;
     color: var(--color-tt-muted);
     background: transparent;
     border: none;
+    border-radius: var(--tt-radius-xs);
     cursor: grab;
     touch-action: none;
   }
@@ -493,7 +547,7 @@
   .tt-no {
     width: 1.5rem;
     font-family: var(--font-mono);
-    font-size: 0.66rem;
+    font-size: var(--tt-text-xs);
     color: var(--color-tt-muted);
     text-align: right;
     font-variant-numeric: tabular-nums;
@@ -502,25 +556,28 @@
     display: grid;
     flex: 1;
     min-width: 0;
-    padding: 0.1rem 0.2rem;
+    padding: 2px var(--tt-space-1);
     text-align: left;
+    color: inherit;
     background: transparent;
     border: 1px solid transparent;
-    border-radius: 0.2rem;
+    border-radius: var(--tt-radius-xs);
+    cursor: pointer;
   }
   .tt-row-main:hover {
     border-color: var(--color-tt-line);
   }
   .tt-row-main strong {
-    font-size: 0.76rem;
     overflow: hidden;
+    font-size: var(--tt-text-sm);
+    font-weight: 500;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
   .tt-row-main span {
-    font-size: 0.66rem;
-    color: var(--color-tt-muted);
     overflow: hidden;
+    font-size: var(--tt-text-xs);
+    color: var(--color-tt-muted);
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -529,18 +586,26 @@
   }
   .tt-dur {
     font-family: var(--font-mono);
-    font-size: 0.68rem;
+    font-size: var(--tt-text-xs);
     color: var(--color-tt-muted);
     font-variant-numeric: tabular-nums;
   }
   .tt-remove {
-    padding: 0 0.3rem;
+    display: grid;
+    place-items: center;
+    width: 24px;
+    height: 24px;
+    padding: 0;
+    font-size: var(--tt-text-base);
+    line-height: 1;
     color: var(--color-tt-muted);
     background: transparent;
-    border: none;
-    border-radius: 0.2rem;
+    border: 1px solid transparent;
+    border-radius: var(--tt-radius-xs);
+    cursor: pointer;
   }
   .tt-remove:hover {
     color: var(--color-tt-danger);
+    border-color: color-mix(in srgb, var(--color-tt-danger) 50%, transparent);
   }
 </style>

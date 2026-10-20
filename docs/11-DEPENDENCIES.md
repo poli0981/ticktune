@@ -25,6 +25,7 @@ latest-or-LTS everywhere, no components with known critical CVEs.
 | i18next | 26.3.6 | MIT | App runtime i18n. **Not installed until P5** — `04 §2` item 5 authorises hardcoded VI + filed keys for P2 (`08 §3.1`) |
 | @fontsource/be-vietnam-pro | 5.3.0 | OFL-1.1 (pkg MIT) | UI font, VI diacritics. **Installed in P6 slice A** — see the note below |
 | @fontsource/jetbrains-mono | 5.3.0 | OFL-1.1 (pkg MIT) | Mono/meta font. **Installed in P6 slice A** |
+| @fontsource/chakra-petch | 5.3.0 | OFL-1.1 (pkg MIT) | Display font for the v1.1 "Rack Unit" redesign (labels, headings, keycaps); full Vietnamese subset checked before adoption. CSS-imported, so it is in `knip.json` `ignoreDependencies` and `make-notices.ts` `CSS_ONLY` like the other two |
 | DSEG7 Classic (vendored) | **v0.46** ✅ *verified 2026-07-21 via GitHub Releases API — latest **stable** release, published 2020-03-15. A `v0.50beta1` tag exists but is not a release; do not vendor a beta into a distributed font.* | OFL-1.1 | Seven-segment digits; `public/fonts/dseg7/` + OFL.txt |
 
 ## 3. Dev dependencies
@@ -160,7 +161,7 @@ widens its peer range — both must land, since either alone still breaks
   packages including the Astro compiler. Attribution attaches to what is
   distributed; that is the whole distinction this section is about.
 
-  ⚠️ **The two `@fontsource` families are added by name in that script**, because
+  ⚠️ **The three `@fontsource` families are added by name in that script**, because
   woff2 arrives through a CSS `@import` and never appears as a JS module. It is
   the same blind spot that makes `knip` need them in `ignoreDependencies`. Two
   workarounds for one cause: move them together, or the OFL text silently stops

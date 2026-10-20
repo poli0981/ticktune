@@ -5,14 +5,19 @@
   "tabWidth": 2,
   "trailingComma": "all",
   "plugins": ["prettier-plugin-astro", "prettier-plugin-svelte", "prettier-plugin-tailwindcss"],
+  "tailwindStylesheet": "./src/styles/global.css",
   "overrides": [
     {
       "files": "*.svelte",
-      "options": { "parser": "svelte" }
+      "options": {
+        "parser": "svelte"
+      }
     },
     {
       "files": "*.astro",
-      "options": { "parser": "astro" }
+      "options": {
+        "parser": "astro"
+      }
     }
   ]
 }

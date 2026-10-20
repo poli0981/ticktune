@@ -156,7 +156,7 @@
 
 <section class="mx-auto max-w-4xl p-8 font-mono text-sm">
   <h1 class="mb-1 text-xl font-semibold">S4 — crossfade &amp; AudioContext unlock</h1>
-  <p class="text-tt-muted mb-6 text-xs">
+  <p class="mb-6 text-xs text-tt-muted">
     docs/15 §S4 → docs/05 §1–2. Pick <strong>two</strong> files; use real VBR MP3s from
     <code>test/test_playlist/</code>, not only the generated tones — <code>element.duration</code>
     is least reliable on exactly those.
@@ -174,7 +174,7 @@
     />
     <label
       >fade
-      <select bind:value={fadeS} class="bg-tt-surface border-tt-line ml-1 border px-2 py-1">
+      <select bind:value={fadeS} class="ml-1 border border-tt-line bg-tt-surface px-2 py-1">
         {#each [0, 1, 2, 5] as s (s)}<option value={s}>{s}s</option>{/each}
       </select>
     </label>
@@ -183,7 +183,7 @@
     <button class="tt-b" onclick={stop}>stop</button>
   </div>
 
-  <div class="border-tt-line mt-5 flex flex-wrap gap-6 border-y py-3">
+  <div class="mt-5 flex flex-wrap gap-6 border-y border-tt-line py-3">
     <span>ctx <strong>{ctxState}</strong></span>
     <span>gainA <strong>{(gain[0]?.gain.value ?? 0).toFixed(3)}</strong></span>
     <span>gainB <strong>{(gain[1]?.gain.value ?? 0).toFixed(3)}</strong></span>
@@ -205,12 +205,12 @@
         points={rms.map((v, i) => `${i},${60 - Math.min(1, v * 3) * 60}`).join(' ')}
       />
     </svg>
-    <p class="text-tt-muted text-xs">
+    <p class="text-xs text-tt-muted">
       Analyser RMS over the fade — a dip in the middle means the curves are not equal-power.
     </p>
   {/if}
 
-  <ul class="text-tt-muted mt-5 space-y-0.5 text-xs">
+  <ul class="mt-5 space-y-0.5 text-xs text-tt-muted">
     {#each log.slice(-14) as line (line)}<li>{line}</li>{/each}
   </ul>
 </section>
