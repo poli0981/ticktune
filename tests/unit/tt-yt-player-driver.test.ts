@@ -29,6 +29,8 @@ import type * as DriverMod from '../../src/app/engine/youtube/tt-yt-player-drive
 interface Built {
   mount: HTMLElement;
   opts: Record<string, unknown>;
+  /** The constructed object — bare until ready, as the real API's is. */
+  self: Record<string, unknown>;
 }
 
 let built: Built[];
@@ -50,7 +52,7 @@ beforeEach(async () => {
   (globalThis as Record<string, unknown>)['YT'] = {
     Player: class {
       constructor(mount: HTMLElement, opts: Record<string, unknown>) {
-        built.push({ mount, opts });
+        built.push({ mount, opts, self: this as unknown as Record<string, unknown> });
       }
       destroy(): void {}
     },
@@ -137,5 +139,44 @@ describe('the façade that stands in until the real player arrives', () => {
       api.unMute();
       api.destroy();
     }).not.toThrow();
+  });
+
+  it('reads nothing from a player that exists but has not reported ready (v2.0)', async () => {
+    /*
+     * The real `new YT.Player()` returns at once and attaches its methods only
+     * when the frame reports ready. In between, the façade used to call
+     * `real.getCurrentTime()` — undefined — and the 10 Hz tick threw on every
+     * YouTube start (the owner's console, v2.0 preview). This player is bare
+     * until `onReady`, exactly like the real one.
+     */
+    const onReady = vi.fn();
+    const api = browserPlayerPorts(document.createElement('div')).create({
+      ...noopEvents,
+      onReady,
+    });
+    await Promise.resolve();
+    await Promise.resolve();
+    const player = built[0];
+    if (player === undefined) throw new Error('the driver never constructed a player');
+
+    expect(() => api.getCurrentTime()).not.toThrow();
+    expect(api.getCurrentTime()).toBe(0);
+    expect(api.getDuration()).toBe(0);
+    expect(api.getVideoData()).toEqual({});
+    expect(() => api.playVideo()).not.toThrow();
+
+    // Ready: the methods arrive with it, and from then on they are used.
+    const setVolume = vi.fn();
+    Object.assign(player.self, {
+      getCurrentTime: () => 42.5,
+      getDuration: () => 212,
+      setVolume,
+    });
+    (player.opts['events'] as { onReady: () => void }).onReady();
+    expect(onReady).toHaveBeenCalledTimes(1);
+    expect(api.getCurrentTime()).toBe(42.5);
+    expect(api.getDuration()).toBe(212);
+    api.setVolume(30);
+    expect(setVolume).toHaveBeenCalledWith(30);
   });
 });
