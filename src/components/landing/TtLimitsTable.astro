@@ -11,6 +11,10 @@ import type { StaticDict } from '../../i18n/static/en';
  * "up to 10:02" in two languages, and deriving one from the other would put
  * formatting logic on a static page to save copying six rows. The live
  * checklist re-reads them against the app.
+ *
+ * Rack module 03, an engineering spec sheet. The figures inside each limit are
+ * picked out by pattern, not by hand — the cell's text is exactly the
+ * dictionary's, only wrapped.
  */
 
 interface Props {
@@ -18,71 +22,85 @@ interface Props {
 }
 
 const { t } = Astro.props;
+
+/** "up to 95 files" → ["up to ", "95", " files"]: odd indexes are the figures. */
+const parts = (limit: string) => limit.split(/(\d+(?::\d+)?)/);
 ---
 
-<section class="tt-section" aria-labelledby="tt-limits">
-  <h2 id="tt-limits">{t.limitsTitle}</h2>
-  <table>
-    <thead>
-      <tr>
-        <th scope="col">{t.limitsHead.what}</th>
-        <th scope="col">{t.limitsHead.limit}</th>
-      </tr>
-    </thead>
-    <tbody>
-      {
-        t.limits.map((row) => (
-          <tr>
-            <th scope="row">{row.what}</th>
-            <td>{row.limit}</td>
-          </tr>
-        ))
-      }
-    </tbody>
-  </table>
-  <p class="tt-note">{t.limitsNote}</p>
+<section class="tt-unit" aria-labelledby="tt-limits">
+  <div class="tt-unit-head">
+    <h2 id="tt-limits">{t.limitsTitle}</h2>
+  </div>
+  <div class="tt-panel tt-sheet">
+    <table>
+      <thead>
+        <tr>
+          <th scope="col">{t.limitsHead.what}</th>
+          <th scope="col">{t.limitsHead.limit}</th>
+        </tr>
+      </thead>
+      <tbody>
+        {
+          t.limits.map((row) => (
+            <tr>
+              <th scope="row">{row.what}</th>
+              <td>
+                {parts(row.limit).map((part, i) =>
+                  i % 2 === 1 ? <span class="tt-fig">{part}</span> : part,
+                )}
+              </td>
+            </tr>
+          ))
+        }
+      </tbody>
+    </table>
+  </div>
+  <p class="tt-unit-note">{t.limitsNote}</p>
 </section>
 
 <style>
-  .tt-section {
-    padding: 2.5rem 0;
-  }
-  h2 {
-    margin-bottom: 1.25rem;
-    font-size: 0.72rem;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--color-tt-muted);
+  .tt-sheet {
+    max-width: 46rem;
+    padding: var(--tt-space-2) var(--tt-space-4) var(--tt-space-3);
   }
   table {
     width: 100%;
-    max-width: 40rem;
+    font-size: var(--tt-text-sm);
+    font-variant-numeric: tabular-nums;
     border-collapse: collapse;
-    font-size: 0.85rem;
   }
   th,
   td {
-    padding: 0.5rem 0.6rem;
+    padding: var(--tt-space-3) var(--tt-space-2);
     text-align: left;
-    border-bottom: 1px solid var(--color-tt-line);
+    vertical-align: baseline;
   }
+
+  /* The engraved header row. */
   thead th {
-    font-size: 0.7rem;
-    letter-spacing: 0.08em;
+    padding-block: var(--tt-space-3);
+    font-family: var(--font-display);
+    font-size: var(--tt-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.16em;
     text-transform: uppercase;
     color: var(--color-tt-muted);
+    border-bottom: 1px solid rgb(0 0 0 / 70%);
+    box-shadow: 0 1px 0 rgb(255 255 255 / 5%);
+  }
+
+  tbody tr + tr > * {
+    border-top: 1px solid var(--color-tt-line);
   }
   tbody th {
-    font-weight: 400;
+    font-weight: 500;
     color: var(--color-tt-text);
   }
   td {
     font-family: var(--font-mono);
-    color: var(--color-tt-signal);
-  }
-  .tt-note {
-    margin-top: 0.9rem;
-    font-size: 0.78rem;
     color: var(--color-tt-muted);
+  }
+  .tt-fig {
+    color: var(--color-tt-signal);
   }
 </style>

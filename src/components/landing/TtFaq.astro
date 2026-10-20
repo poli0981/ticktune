@@ -19,6 +19,10 @@ import type { StaticDict } from '../../i18n/static/en';
  * `<details>` is used rather than a JS accordion: the site ships exactly one
  * inline script and this needs none. Every answer is in the DOM for crawlers
  * (docs/07 §5) whether or not it is open.
+ *
+ * Rack module 04. Each entry is a module whose LED is lit while it is open;
+ * the native disclosure marker is replaced by a chevron, and the LED and the
+ * chevron are both decoration — `<summary>` already announces its state.
  */
 
 interface Props {
@@ -29,13 +33,18 @@ interface Props {
 const { t, faq } = Astro.props;
 ---
 
-<section class="tt-section" aria-labelledby="tt-faq">
-  <h2 id="tt-faq">{t.faqTitle}</h2>
+<section class="tt-unit" aria-labelledby="tt-faq">
+  <div class="tt-unit-head">
+    <h2 id="tt-faq">{t.faqTitle}</h2>
+  </div>
   <div class="tt-faq">
     {
       faq.map((item, i) => (
         <details open={i === 0}>
-          <summary>{item.q}</summary>
+          <summary>
+            <span class="tt-led" aria-hidden="true" />
+            <span class="tt-q">{item.q}</span>
+          </summary>
           <p>{item.a}</p>
         </details>
       ))
@@ -44,39 +53,79 @@ const { t, faq } = Astro.props;
 </section>
 
 <style>
-  .tt-section {
-    padding: 2.5rem 0;
-  }
-  h2 {
-    margin-bottom: 1.25rem;
-    font-size: 0.72rem;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--color-tt-muted);
-  }
   .tt-faq {
     display: grid;
-    gap: 0.5rem;
-    max-width: 48rem;
+    gap: var(--tt-space-2);
   }
+
   details {
-    padding: 0.9rem 1.1rem;
-    background: color-mix(in srgb, var(--color-tt-surface) 70%, transparent);
+    background: var(--color-tt-surface);
     border: 1px solid var(--color-tt-line);
-    border-radius: 0.5rem;
+    border-radius: var(--tt-radius-md);
+    box-shadow:
+      inset 0 1px 0 rgb(255 255 255 / 3.5%),
+      0 1px 0 rgb(0 0 0 / 40%);
+    transition: border-color var(--duration-tt-fast) var(--ease-tt);
   }
+  details[open] {
+    border-color: color-mix(in srgb, var(--color-tt-outline) 55%, var(--color-tt-line));
+  }
+
   summary {
-    font-size: 0.9rem;
+    display: flex;
+    gap: var(--tt-space-3);
+    align-items: center;
+    padding: var(--tt-space-4) var(--tt-space-4) var(--tt-space-4) var(--tt-space-4);
+    font-size: var(--tt-text-base);
     font-weight: 500;
+    line-height: 1.45;
+    color: var(--color-tt-text);
     cursor: pointer;
+    list-style: none;
+    border-radius: var(--tt-radius-md);
   }
-  summary::marker {
+  summary::-webkit-details-marker {
+    display: none;
+  }
+  summary:hover .tt-q {
     color: var(--color-tt-signal);
   }
+  .tt-q {
+    flex: 1;
+    text-wrap: pretty;
+    transition: color var(--duration-tt-fast) var(--ease-tt);
+  }
+
+  /* The chevron — a flex item, never positioned, so it stays out of axe's
+     pseudo-element heuristics. It points down when closed, up when open. */
+  summary::after {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    margin: 0 var(--tt-space-1) 4px var(--tt-space-2);
+    content: '';
+    border-right: 2px solid var(--color-tt-muted);
+    border-bottom: 2px solid var(--color-tt-muted);
+    transform: rotate(45deg);
+    transition: transform var(--duration-tt-base) var(--ease-tt);
+  }
+  details[open] > summary::after {
+    margin-bottom: -4px;
+    transform: rotate(225deg);
+  }
+
+  /* The open entry's LED. Overrides the primitive's unlit colours on purpose:
+     the primitive lights from aria-pressed or data-on, and `open` is neither. */
+  details[open] > summary .tt-led {
+    background: var(--color-tt-signal);
+    box-shadow: var(--tt-glow-signal);
+  }
+
   details p {
-    margin-top: 0.7rem;
-    font-size: 0.85rem;
-    line-height: 1.65;
+    max-width: 68ch;
+    padding: 0 var(--tt-space-5) var(--tt-space-5) calc(var(--tt-space-4) + 6px + var(--tt-space-3));
+    font-size: var(--tt-text-base);
+    line-height: 1.7;
     color: var(--color-tt-muted);
     text-wrap: pretty;
   }

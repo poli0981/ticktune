@@ -1,7 +1,13 @@
 ---
 import type { StaticDict } from '../../i18n/static/en';
 
-/** Landing feature grid — docs/03 §3 item 1. Static, zero JS. */
+/**
+ * Landing feature grid — docs/03 §3 item 1. Static, zero JS.
+ *
+ * Rack module 01. The module chrome (`.tt-unit`, `.tt-unit-head` and its
+ * engraved number) is styled once in TtLanding.astro; each card is a
+ * `.tt-panel` with a status LED that comes up as the card scrolls into view.
+ */
 
 interface Props {
   t: StaticDict['landing'];
@@ -10,13 +16,18 @@ interface Props {
 const { t } = Astro.props;
 ---
 
-<section class="tt-section" aria-labelledby="tt-features">
-  <h2 id="tt-features">{t.featuresTitle}</h2>
+<section class="tt-unit" aria-labelledby="tt-features">
+  <div class="tt-unit-head">
+    <h2 id="tt-features">{t.featuresTitle}</h2>
+  </div>
   <ul class="tt-grid">
     {
       t.features.map((f) => (
-        <li>
-          <h3>{f.title}</h3>
+        <li class="tt-panel tt-card">
+          <div class="tt-card-head">
+            <span class="tt-led" data-on="true" aria-hidden="true" />
+            <h3>{f.title}</h3>
+          </div>
           <p>{f.body}</p>
         </li>
       ))
@@ -25,42 +36,77 @@ const { t } = Astro.props;
 </section>
 
 <style>
-  .tt-section {
-    padding: 2.5rem 0;
-  }
-  h2 {
-    margin-bottom: 1.25rem;
-    font-size: 0.72rem;
-    letter-spacing: 0.16em;
-    text-transform: uppercase;
-    color: var(--color-tt-muted);
-  }
   .tt-grid {
     display: grid;
-    gap: 1rem;
-    list-style: none;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 0 var(--tt-space-4);
     padding: 0;
+    list-style: none;
   }
-  @media (min-width: 48rem) {
-    .tt-grid {
-      grid-template-columns: repeat(3, 1fr);
-    }
+
+  /* Each card spans two rows of the list's grid and adopts them (subgrid), so
+     the heads and the bodies line up across the row whatever wraps. */
+  .tt-card {
+    display: grid;
+    grid-row: span 2;
+    grid-template-rows: subgrid;
+    padding: var(--tt-space-5) var(--tt-space-5) var(--tt-space-6);
   }
-  li {
-    padding: 1.1rem;
-    background: color-mix(in srgb, var(--color-tt-surface) 70%, transparent);
-    border: 1px solid var(--color-tt-line);
-    border-radius: 0.5rem;
+  .tt-card-head {
+    display: flex;
+    gap: var(--tt-space-3);
+    align-items: center;
+    align-self: stretch;
+    padding-bottom: var(--tt-space-4);
+    margin-bottom: var(--tt-space-4);
+    border-bottom: 1px solid rgb(0 0 0 / 55%);
+    box-shadow: 0 1px 0 rgb(255 255 255 / 4%);
   }
   h3 {
-    margin-bottom: 0.45rem;
-    font-size: 0.95rem;
+    font-family: var(--font-display);
+    font-size: var(--tt-text-lg);
+    font-weight: 600;
+    line-height: 1.3;
     color: var(--color-tt-text);
+    text-wrap: balance;
   }
   p {
-    font-size: 0.85rem;
-    line-height: 1.6;
+    font-size: var(--tt-text-base);
+    line-height: 1.65;
     color: var(--color-tt-muted);
     text-wrap: pretty;
+  }
+
+  /* The status LED wakes as its card enters the viewport — decoration only,
+     so engines without scroll-driven animations simply show it lit. */
+  @supports (animation-timeline: view()) {
+    @media (prefers-reduced-motion: no-preference) {
+      .tt-card {
+        view-timeline: --tt-card block;
+      }
+      .tt-card .tt-led {
+        animation: tt-led-wake linear both;
+      }
+      /* ⚠️ Its own rule, on purpose. Beside the shorthand, the CSS minifier
+         folds `animation-timeline` INTO it — `animation: … tt-led-wake
+         --tt-card` — which Chromium rejects as a whole, so the LED never
+         animated at all. A separate selector cannot be merged. */
+      .tt-grid .tt-card .tt-led {
+        animation-timeline: --tt-card;
+        animation-range: entry 35% entry 100%;
+      }
+    }
+  }
+
+  @keyframes tt-led-wake {
+    0%,
+    70% {
+      background: var(--color-tt-line);
+      box-shadow: inset 0 0 0 1px rgb(0 0 0 / 45%);
+    }
+    100% {
+      background: var(--color-tt-signal);
+      box-shadow: var(--tt-glow-signal);
+    }
   }
 </style>

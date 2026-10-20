@@ -18,6 +18,9 @@ import { TT_LEGAL_LINKS, ttLegalHref } from '../../lib/tt-legal-const';
  * the EN footer links every document to its Vietnamese version: four valid URLs,
  * four 200s, all four wrong. `tests/e2e/legal.spec.ts` asserts the EN footer for
  * exactly this reason.
+ *
+ * v1.1 "Rack Unit": the rack's rear panel — engraved labels over the legal
+ * links, the contacts and the source offer, then a serial plate.
  */
 
 interface Props {
@@ -49,85 +52,161 @@ const docs = [
 ---
 
 <footer class="tt-footer" aria-labelledby="tt-legal">
-  <h2 id="tt-legal">{t.legalTitle}</h2>
+  <div class="tt-panel tt-rear">
+    <div>
+      <h2 id="tt-legal" class="tt-label">{t.legalTitle}</h2>
+      <ul class="tt-docs">
+        {
+          docs.map((d) => (
+            <li>
+              <a href={d.href} rel="noopener noreferrer">
+                {d.label}
+              </a>
+            </li>
+          ))
+        }
+      </ul>
+      <p class="tt-note">{t.legalNote}</p>
+    </div>
 
-  <ul>
-    {
-      docs.map((d) => (
-        <li>
-          <a href={d.href} rel="noopener noreferrer">
-            {d.label}
-          </a>
-        </li>
-      ))
-    }
-  </ul>
+    <div>
+      <h2 class="tt-label">{t.contactTitle}</h2>
+      <ul class="tt-contacts">
+        {
+          contacts.map((c) => (
+            <li>
+              <span class="tt-contact-label">{`${c.label}:`}</span>{' '}
+              <a href={`mailto:${c.address}`}>{c.address}</a>
+            </li>
+          ))
+        }
+      </ul>
+    </div>
 
-  <p class="tt-note">{t.legalNote}</p>
+    <p class="tt-source">
+      <a class="tt-key tt-key-sm" href={TT_LEGAL_LINKS.repo} rel="noopener noreferrer">
+        {common.sourceOffer}
+      </a>
+    </p>
+  </div>
 
-  <h2 class="tt-contact-title">{t.contactTitle}</h2>
-  <ul class="tt-contacts">
-    {
-      contacts.map((c) => (
-        <li>
-          {c.label}: <a href={`mailto:${c.address}`}>{c.address}</a>
-        </li>
-      ))
-    }
-  </ul>
-
-  <p class="tt-source">
-    <a href={TT_LEGAL_LINKS.repo} rel="noopener noreferrer">{common.sourceOffer}</a>
-  </p>
+  {/* The serial plate: product name and vents, nothing to read. */}
+  <div class="tt-serial" aria-hidden="true">
+    <span class="tt-led" data-on="true"></span>
+    <span class="tt-serial-name">TickTune</span>
+    <span class="tt-vents"></span>
+  </div>
 </footer>
 
 <style>
   .tt-footer {
-    padding: 2.5rem 0 4rem;
-    border-top: 1px solid var(--color-tt-line);
+    padding-block: var(--tt-space-7) var(--tt-space-8);
+    border-top: 1px solid rgb(0 0 0 / 70%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%);
   }
+
+  .tt-rear {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr) auto;
+    gap: var(--tt-space-7);
+    padding: var(--tt-space-6);
+  }
+
   h2 {
-    margin-bottom: 1rem;
-    font-size: 0.72rem;
-    letter-spacing: 0.16em;
+    margin-bottom: var(--tt-space-4);
+  }
+
+  .tt-docs {
+    display: grid;
+    gap: var(--tt-space-2);
+    padding: 0;
+    list-style: none;
+  }
+  .tt-docs a,
+  .tt-contacts a {
+    text-decoration: underline;
+    text-decoration-color: var(--color-tt-outline);
+    text-underline-offset: 4px;
+    transition:
+      color var(--duration-tt-fast) var(--ease-tt),
+      text-decoration-color var(--duration-tt-fast) var(--ease-tt);
+  }
+  .tt-docs a {
+    font-size: var(--tt-text-base);
+    color: var(--color-tt-text);
+  }
+  .tt-docs a:hover,
+  .tt-contacts a:hover {
+    color: var(--color-tt-signal);
+    text-decoration-color: currentcolor;
+  }
+
+  .tt-note {
+    margin-top: var(--tt-space-4);
+    font-size: var(--tt-text-sm);
+    line-height: 1.6;
+    color: var(--color-tt-muted);
+    text-wrap: pretty;
+  }
+
+  /* Label | address, aligned down the list: each row adopts the list's two
+     columns (subgrid), so the widest label sets the column for all three. */
+  .tt-contacts {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr);
+    gap: var(--tt-space-3) var(--tt-space-4);
+    padding: 0;
+    list-style: none;
+  }
+  .tt-contacts li {
+    display: grid;
+    grid-column: 1 / -1;
+    grid-template-columns: subgrid;
+    align-items: baseline;
+  }
+  .tt-contact-label {
+    font-family: var(--font-display);
+    font-size: var(--tt-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.14em;
     text-transform: uppercase;
     color: var(--color-tt-muted);
   }
-  ul {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1.1rem;
-    list-style: none;
-    padding: 0;
-    font-size: 0.85rem;
-  }
-  a {
+  .tt-contacts a {
+    font-family: var(--font-mono);
+    font-size: var(--tt-text-sm);
     color: var(--color-tt-signal);
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    overflow-wrap: anywhere;
   }
-  .tt-contact-title {
-    margin-top: 2rem;
-  }
-  .tt-contacts {
-    font-family: var(--font-mono);
-    font-size: 0.78rem;
-    color: var(--color-tt-muted);
-  }
-  .tt-note {
-    margin-top: 0.9rem;
-    font-size: 0.75rem;
-    color: var(--color-tt-muted);
-  }
+
   .tt-source {
-    margin-top: 1.5rem;
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
+    align-self: start;
   }
-  .tt-source a {
+
+  /* ── The serial plate ───────────────────────────────────────────────── */
+  .tt-serial {
+    display: flex;
+    gap: var(--tt-space-3);
+    align-items: center;
+    margin-top: var(--tt-space-5);
+    padding-inline: var(--tt-space-2);
+  }
+  .tt-serial-name {
+    font-family: var(--font-display);
+    font-size: var(--tt-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
     color: var(--color-tt-muted);
   }
-  .tt-source a:hover {
-    color: var(--color-tt-text);
+  /* Vent slots, machined into the chassis. */
+  .tt-vents {
+    flex: 1;
+    height: 8px;
+    margin-left: var(--tt-space-4);
+    background: repeating-linear-gradient(90deg, #060504 0 22px, transparent 22px 30px);
+    border-radius: 2px;
+    box-shadow: 0 1px 0 rgb(255 255 255 / 4%);
+    mask-image: linear-gradient(90deg, black 70%, transparent);
   }
 </style>

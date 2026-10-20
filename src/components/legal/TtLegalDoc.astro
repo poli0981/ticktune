@@ -19,6 +19,10 @@ import { TT_LEGAL_VERSION, ttLegalHref, type TtLegalKey } from '../../lib/tt-leg
  * a banner — the EN one states it *is* canonical, the VI one states it is not —
  * because a banner only on the translation reads as a disclaimer rather than as
  * a statement of which text governs.
+ *
+ * v1.1 "Rack Unit": a spec sheet. The banner and the version sit in a title
+ * block beside the reading column (sticky, so they stay in view), and the body
+ * is set for reading — ~68 characters a line, 1.7 leading.
  */
 
 interface Props {
@@ -48,105 +52,208 @@ const alternates = [
 const otherHref = lang === 'vi' ? enHref : viHref;
 const otherLang = lang === 'vi' ? 'en' : 'vi';
 const home = lang === 'vi' ? '/' : '/en/';
+
+/** The unlit segments behind the version readout: every digit as an 8. */
+const versionGhost = TT_LEGAL_VERSION.replace(/\d/g, '8');
 ---
 
 <TtBase title={`${title} — TickTune`} description={t.landing.description} {lang} {alternates}>
   <main class="tt-page">
     <nav class="tt-legal-nav" aria-label={t.common.switchToLabel}>
-      <a href={home}>{t.common.backHome}</a>
-      <a href={otherHref} hreflang={otherLang} lang={otherLang}>{t.common.switchTo}</a>
+      <a class="tt-key tt-key-sm" href={home}>{t.common.backHome}</a>
+      <a class="tt-key tt-key-sm" href={otherHref} hreflang={otherLang} lang={otherLang}>
+        {t.common.switchTo}
+      </a>
     </nav>
 
-    <p class="tt-canonical" data-testid="tt-legal-canonical">
-      {isCanonical ? t.legal.canonicalEn : t.legal.canonicalVi}
-    </p>
-
-    <article class="tt-prose">
-      <slot />
-    </article>
-
-    {
-      /*
-        P7 slice A — the generated attribution artifact.
-        The prose above is a curated overview; a hand-kept table cannot carry a
-        notice obligation for transitive code (music-metadata alone pulls in six
-        packages). scripts/make-notices.ts emits the full text of every licence
-        in the shipped bundle at build time, and this is where a reader finds it.
-        Linked rather than inlined because it is generated AFTER astro build.
-      */
-      docKey === 'thirdParty' && (
-        <p class="tt-generated">
-          <a href="/THIRD-PARTY-NOTICES.txt" data-testid="tt-legal-generated">
-            {t.legal.generatedNotices}
-          </a>
+    <div class="tt-sheet">
+      {/* The title block. Inside <main>, so a <header> is not a banner landmark. */}
+      <header class="tt-block">
+        <p class="tt-block-strip" aria-hidden="true">
+          <span class="tt-led" data-on="true"></span>
+          <span>TickTune</span>
         </p>
-      )
-    }
+        <p class="tt-block-title" aria-hidden="true">{title}</p>
 
-    {
-      /* One expression, not two: Astro collapses the whitespace between adjacent
-        expressions, so `{label}\n{version}` rendered as "Version1.0". Shipped
-        that way from P6 slice B until P7 — `toContainText` passes on it, which
-        is why only reading the built HTML caught it. */
-    }
-    <p class="tt-version" data-testid="tt-legal-version">
-      {`${t.legal.versionLabel} ${TT_LEGAL_VERSION}`}
-    </p>
+        {
+          /* One expression, not two: Astro collapses the whitespace between adjacent
+            expressions, so `{label}\n{version}` rendered as "Version1.0". Shipped
+            that way from P6 slice B until P7 — `toContainText` passes on it, which
+            is why only reading the built HTML caught it. The explicit `{' '}`
+            below is that same rule, kept now that label and value are styled
+            apart. */
+        }
+        <p class="tt-version" data-testid="tt-legal-version">
+          <span class="tt-version-label">{t.legal.versionLabel}</span>
+          {' '}
+          <span class="tt-version-value" data-ghost={versionGhost}>{TT_LEGAL_VERSION}</span>
+        </p>
+
+        {/* Not a warning colour: this states which text governs, it does not warn. */}
+        <p class="tt-canonical" data-testid="tt-legal-canonical">
+          {isCanonical ? t.legal.canonicalEn : t.legal.canonicalVi}
+        </p>
+      </header>
+
+      <div class="tt-body">
+        <article class="tt-prose">
+          <slot />
+        </article>
+
+        {
+          /*
+            P7 slice A — the generated attribution artifact.
+            The prose above is a curated overview; a hand-kept table cannot carry a
+            notice obligation for transitive code (music-metadata alone pulls in six
+            packages). scripts/make-notices.ts emits the full text of every licence
+            in the shipped bundle at build time, and this is where a reader finds it.
+            Linked rather than inlined because it is generated AFTER astro build.
+          */
+          docKey === 'thirdParty' && (
+            <p class="tt-generated">
+              <span class="tt-led" data-on="true" aria-hidden="true" />
+              <a href="/THIRD-PARTY-NOTICES.txt" data-testid="tt-legal-generated">
+                {t.legal.generatedNotices}
+              </a>
+            </p>
+          )
+        }
+      </div>
+    </div>
   </main>
 </TtBase>
 
 <style>
   .tt-page {
-    width: min(48rem, 100% - 3rem);
+    width: min(68rem, 100% - 4rem);
     margin-inline: auto;
-    padding-bottom: 4rem;
+    padding-bottom: var(--tt-space-9);
   }
+
   .tt-legal-nav {
     display: flex;
+    gap: var(--tt-space-4);
     justify-content: space-between;
-    gap: 1rem;
-    padding-block: 1.25rem;
-    font-size: 0.78rem;
+    padding-block: var(--tt-space-5) var(--tt-space-7);
   }
-  .tt-legal-nav a {
+
+  /* Title block | reading column. 68ch is measured in the body face. */
+  .tt-sheet {
+    display: grid;
+    grid-template-columns: 15rem minmax(0, 68ch);
+    gap: clamp(var(--tt-space-6), 4vw, var(--tt-space-8));
+    justify-content: center;
+    align-items: start;
+  }
+
+  /* ── Title block ─────────────────────────────────────────────────────── */
+  .tt-block {
+    position: sticky;
+    top: var(--tt-space-6);
+    display: grid;
+    gap: var(--tt-space-4);
+    padding: var(--tt-space-4) var(--tt-space-4) var(--tt-space-5);
+    background-color: var(--color-tt-surface);
+    border: 1px solid var(--color-tt-line);
+    border-radius: var(--tt-radius-md);
+    box-shadow: var(--tt-shadow-panel);
+  }
+  .tt-block-strip {
+    display: flex;
+    gap: var(--tt-space-2);
+    align-items: center;
+    padding-bottom: var(--tt-space-3);
+    font-family: var(--font-display);
+    font-size: var(--tt-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
     color: var(--color-tt-muted);
-    text-decoration: underline;
-    text-underline-offset: 3px;
+    border-bottom: 1px solid rgb(0 0 0 / 65%);
+    box-shadow: 0 1px 0 rgb(255 255 255 / 4%);
   }
-  .tt-legal-nav a:hover {
+  .tt-block-title {
+    font-family: var(--font-display);
+    font-size: var(--tt-text-lg);
+    font-weight: 600;
+    line-height: 1.25;
     color: var(--color-tt-text);
+    text-wrap: balance;
   }
 
-  /* Not a warning colour: this states which text governs, it does not warn. */
-  .tt-canonical {
-    margin-bottom: 2rem;
-    border-left: 2px solid var(--color-tt-signal);
-    padding: 0.65rem 0.9rem;
-    background: var(--color-tt-surface);
+  /* The version as a readout: an engraved label over a lit value. */
+  .tt-version {
+    display: flex;
+    gap: var(--tt-space-3);
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--tt-space-2) var(--tt-space-3);
+    background: #0b0a08;
+    border: 1px solid #000;
+    border-radius: var(--tt-radius-xs);
+    box-shadow:
+      inset 0 2px 6px rgb(0 0 0 / 70%),
+      0 1px 0 rgb(255 255 255 / 5%);
+  }
+  .tt-version-label {
+    font-family: var(--font-display);
+    font-size: var(--tt-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
     color: var(--color-tt-muted);
-    font-size: 0.8rem;
+  }
+  .tt-version-value {
+    position: relative;
+    font-family: var(--font-digit);
+    font-size: var(--tt-text-xl);
+    line-height: 1;
+    color: var(--color-tt-digit);
+    text-shadow: 0 0 10px rgb(245 238 220 / 30%);
+    isolation: isolate;
+  }
+  /* Unlit segments. Generated content is announced unless given an
+     alternative, and this readout is NOT aria-hidden — it is the version — so
+     the 8s carry an empty one (`/ ''`). An engine without the alt syntax
+     drops the declaration and simply shows no ghost. */
+  .tt-version-value::before {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    color: rgb(245 238 220 / 8%);
+    text-shadow: none;
+    content: attr(data-ghost) / '';
   }
 
-  .tt-generated {
-    margin-top: 2rem;
+  .tt-canonical {
+    padding-left: var(--tt-space-3);
+    font-size: var(--tt-text-sm);
+    line-height: 1.6;
+    color: var(--color-tt-muted);
+    text-wrap: pretty;
     border-left: 2px solid var(--color-tt-signal);
-    padding: 0.65rem 0.9rem;
+  }
+
+  /* ── Reading column ──────────────────────────────────────────────────── */
+  .tt-generated {
+    display: flex;
+    gap: var(--tt-space-3);
+    align-items: center;
+    margin-top: var(--tt-space-7);
+    padding: var(--tt-space-4) var(--tt-space-5);
+    font-size: var(--tt-text-sm);
     background: var(--color-tt-surface);
-    font-size: 0.82rem;
+    border: 1px solid var(--color-tt-line);
+    border-radius: var(--tt-radius-md);
   }
   .tt-generated a {
     color: var(--color-tt-signal);
     text-decoration: underline;
-    text-underline-offset: 3px;
+    text-decoration-color: color-mix(in srgb, var(--color-tt-signal) 50%, transparent);
+    text-underline-offset: 4px;
   }
-
-  .tt-version {
-    margin-top: 2.5rem;
-    border-top: 1px solid var(--color-tt-line);
-    padding-top: 1rem;
-    color: var(--color-tt-muted);
-    font-family: var(--font-mono);
-    font-size: 0.72rem;
+  .tt-generated a:hover {
+    text-decoration-color: currentcolor;
   }
 
   /*
@@ -158,72 +265,179 @@ const home = lang === 'vi' ? '/' : '/en/';
     `:global` is required — the body is generated by the markdown compiler, so
     Astro's scoping attribute never reaches it.
   */
+  .tt-prose {
+    font-size: var(--tt-text-base);
+    line-height: 1.7;
+    color: var(--color-tt-text);
+  }
   .tt-prose :global(h1) {
-    margin-bottom: 1.5rem;
-    font-size: 1.7rem;
-    line-height: 1.25;
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 1.2rem + 1.6vw, 2.75rem);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.005em;
     text-wrap: balance;
   }
+  /* Every document opens with its "Version · date · canonical" line: set it
+     as engraved metadata between two machined rules. */
+  .tt-prose :global(h1 + p) {
+    margin-block: var(--tt-space-5) var(--tt-space-6);
+    padding-block: var(--tt-space-3);
+    font-family: var(--font-mono);
+    font-size: var(--tt-text-sm);
+    line-height: 1.6;
+    color: var(--color-tt-muted);
+    border-block: 1px solid var(--color-tt-line);
+  }
+  .tt-prose :global(h1 + p code) {
+    padding: 0;
+    font-size: 1em;
+    background: none;
+    border: 0;
+  }
   .tt-prose :global(h2) {
-    margin-top: 2.25rem;
-    margin-bottom: 0.75rem;
-    font-size: 1.1rem;
-    color: var(--color-tt-signal);
+    display: flex;
+    gap: var(--tt-space-3);
+    align-items: baseline;
+    margin-top: var(--tt-space-7);
+    margin-bottom: var(--tt-space-4);
+    padding-top: var(--tt-space-5);
+    font-family: var(--font-display);
+    font-size: var(--tt-text-xl);
+    font-weight: 600;
+    line-height: 1.3;
+    color: var(--color-tt-text);
+    border-top: 1px solid rgb(0 0 0 / 70%);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 5%);
+  }
+  /* A section that opens straight under the metadata line already has a rule
+     above it — the line's own — so it does not draw a second one. */
+  .tt-prose :global(h1 + p + h2) {
+    margin-top: 0;
+    border-top: 0;
+    box-shadow: none;
+  }
+  /* A status LED before each section heading — a flex item, not positioned. */
+  .tt-prose :global(h2::before) {
+    flex: none;
+    width: 6px;
+    height: 6px;
+    content: '';
+    background: var(--color-tt-signal);
+    border-radius: 50%;
+    box-shadow: var(--tt-glow-signal);
+    transform: translateY(-0.2em);
   }
   .tt-prose :global(p),
-  .tt-prose :global(li) {
-    margin-bottom: 0.9rem;
-    line-height: 1.7;
+  .tt-prose :global(ul),
+  .tt-prose :global(ol) {
+    margin-bottom: var(--tt-space-4);
   }
   .tt-prose :global(ul),
   .tt-prose :global(ol) {
-    margin-bottom: 1rem;
-    padding-left: 1.4rem;
+    padding-left: var(--tt-space-5);
   }
-  .tt-prose :global(ol) {
-    list-style: decimal;
+  .tt-prose :global(li) {
+    margin-bottom: var(--tt-space-2);
+    padding-left: var(--tt-space-1);
   }
   .tt-prose :global(ul) {
-    list-style: disc;
+    list-style: square;
+  }
+  .tt-prose :global(ol) {
+    list-style: decimal-leading-zero;
+  }
+  .tt-prose :global(li::marker) {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    color: var(--color-tt-signal);
   }
   .tt-prose :global(a) {
     color: var(--color-tt-signal);
     text-decoration: underline;
+    text-decoration-color: color-mix(in srgb, var(--color-tt-signal) 50%, transparent);
     text-underline-offset: 3px;
+    overflow-wrap: anywhere;
+  }
+  .tt-prose :global(a:hover) {
+    text-decoration-color: currentcolor;
   }
   .tt-prose :global(code) {
     padding: 0.1em 0.35em;
-    border-radius: 3px;
-    background: var(--color-tt-surface);
     font-family: var(--font-mono);
     font-size: 0.85em;
+    color: var(--color-tt-text);
+    overflow-wrap: anywhere;
+    background: var(--color-tt-surface-2);
+    border: 1px solid var(--color-tt-line);
+    border-radius: var(--tt-radius-xs);
   }
   .tt-prose :global(strong) {
-    color: var(--color-tt-text);
     font-weight: 600;
+    color: var(--color-tt-text);
   }
 
   /*
-    THIRD-PARTY-NOTICES is a wide table of licences. It scrolls in its own box
-    rather than widening the page — the same rule the countdown rails follow.
+    Spec tables — THIRD-PARTY-NOTICES and the privacy flows.
+
+    They stay `display: table`. The markdown arrives as a compiled slot, so this
+    component cannot wrap a table in a focusable scroll region without string
+    surgery on HTML (the `{@html}` ban's sibling); a `display: block` table
+    scrolls, but WebKit then drops its table semantics, and a scroll region
+    nobody can focus is exactly what axe's `scrollable-region-focusable` flags.
+    So the table is made unable to overflow instead: long tokens (URLs, paths)
+    break anywhere, and there is never a region to scroll.
   */
   .tt-prose :global(table) {
-    display: block;
     width: 100%;
-    margin-bottom: 1.25rem;
-    overflow-x: auto;
-    border-collapse: collapse;
-    font-size: 0.82rem;
+    margin-block: var(--tt-space-5) var(--tt-space-6);
+    font-size: var(--tt-text-sm);
+    line-height: 1.55;
+    font-variant-numeric: tabular-nums;
+    border-spacing: 0;
+    border-collapse: separate;
+    background: var(--color-tt-surface);
+    border: 1px solid var(--color-tt-line);
+    border-radius: var(--tt-radius-md);
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 3%);
   }
+  /* The floor keeps short values whole ("2026-10-20", "Apache-2.0") instead of
+     breaking them at a hyphen when a prose column takes the width. */
   .tt-prose :global(th),
   .tt-prose :global(td) {
-    border: 1px solid var(--color-tt-line);
-    padding: 0.4rem 0.6rem;
+    min-width: 7.5rem;
+    padding: var(--tt-space-3);
     text-align: left;
     vertical-align: top;
   }
   .tt-prose :global(th) {
-    background: var(--color-tt-surface);
+    font-family: var(--font-display);
+    font-size: var(--tt-text-xs);
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    color: var(--color-tt-muted);
+    background: var(--color-tt-surface-2);
+    border-bottom: 1px solid rgb(0 0 0 / 70%);
+  }
+  .tt-prose :global(thead th:first-child) {
+    border-top-left-radius: var(--tt-radius-md);
+  }
+  .tt-prose :global(thead th:last-child) {
+    border-top-right-radius: var(--tt-radius-md);
+  }
+  .tt-prose :global(td) {
+    border-top: 1px solid var(--color-tt-line);
+  }
+  .tt-prose :global(tbody tr:first-child td) {
+    border-top: 0;
+  }
+  .tt-prose :global(td:first-child) {
+    font-weight: 500;
     color: var(--color-tt-text);
+  }
+  .tt-prose :global(td + td) {
+    color: color-mix(in srgb, var(--color-tt-text) 88%, var(--color-tt-muted));
   }
 </style>
