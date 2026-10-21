@@ -125,7 +125,7 @@ measuring again.
 
 ## Current status
 
-**v2.0.0** (2026-10-21) is the current release, live on `https://ticktune.net`.
+**v2.0.1** (2026-10-21) is the current release, live on `https://ticktune.net`.
 P1–P7 are complete — v1.0.0 closed P7 — and every phase's exit review is in
 `docs/16`. v1.1 was a full review rather than a phase; v1.1.1 fixed two live
 defects. **v2.0 shipped every post-1.1 direction**: link lengths from the
@@ -133,7 +133,10 @@ YouTube Data API, an installable `/app/` that starts offline, settings as a
 file, a light "LCD" theme and a DSEG14 face, Japanese, the finish notification
 (S5 GO), the crossfade (S4b PASS) and Legal 2.0 — behind Lighthouse CI, visual
 regression and the render-cost probe. Loudness normalization is not in it:
-S6 failed. `docs/16`'s v2.0 section has the review.
+S6 failed. **v2.0.1 fixed three live defects** from the owner's console: ⚙
+threw on a duplicate log key, the picture samplers fetched blob: URLs the CSP
+refuses (dead in production since v0.7.0), and files and links shared one
+queue. `docs/16`'s v2.0 and v2.0.1 sections have the reviews.
 
 **Releases are tag-only (decided 2026-10-20).** Workers Builds runs
 `npx wrangler versions upload` for every push, so a branch gets a preview URL
@@ -183,7 +186,10 @@ Four habits that found the rest:
   fake attached its methods at once where the real player waits for `onReady`,
   so every spec was green while the owner's console filled with
   `getCurrentTime is not a function`; and a 50 ms sampler missed a queue row
-  that was current for less than its tick.
+  that was current for less than its tick. v2.0.1 found a fourth: `astro
+  preview` sends no CSP and `verify-csp` only LOADED pages, so a fetch the app
+  makes only when the user picks a picture was refused in production for ten
+  releases and allowed in every test. `verify-csp` now acts.
 
 ### Decisions not to re-derive
 
@@ -272,7 +278,13 @@ Four habits that found the rest:
   `start()` is synchronous because the gesture chain is.
 - **Paused means silent.** ⏭/⏮/jump while paused **cue** rather than load
   (`cueVideoById`), and the autoplay intent survives the player becoming ready.
-- **Sources do not mix** — a queue is all-local or all-links (`docs/06 §5`).
+- **Sources do not mix — two shelves** (v2.0.1, `docs/02 §3.5`): Single and
+  Playlist share the local shelf, YouTube has its own, and `session.queue` is
+  the mode's shelf. An import lands on its own source's shelf whatever tab is
+  showing when it finishes; by-id writes search both; crossing sources drops
+  the cursor; `isQueueValid` refuses a foreign track as a second lock. v2.0.0
+  had one queue: a paste joined the files and Start played a file on the
+  YouTube player, silently, forever.
 - **The ToS carve-out is real** (`docs/03 §2`): S1 measured a collapsed rail
   leaving the player `0×0` and Focus leaving it at opacity 0.06, audio running.
   `TtYouTubeRail` renders **no collapse control**. ⚠️
@@ -309,6 +321,16 @@ Four habits that found the rest:
   full-bleed backdrop is exactly what `03 §2` forbids over the player.
 - **`scrimAuto` is solved arithmetic** that reports its 0.60 cap rather than
   exceeding it; **auto-theme is a `hue-rotate`**, never a rebuilt gradient.
+- **Pictures are sampled through `<img>`, never `fetch`** (v2.0.1, `docs/09 §4`).
+  `connect-src` has no `blob:` on purpose; both samplers fetched blob: URLs and
+  were refused in production from v0.7.0 to v2.0.0, behind silent catches.
+  `tt-image-sample-driver.ts` decodes via `img-src`; a failed sample logs
+  TT-IMG-003. Do not "fix" a blob: fetch by widening `connect-src`.
+- **A keyed `{#each}` needs a key unique by construction** — an id, never a
+  timestamp, a code or a string. The Diagnostics list keyed on
+  `ts + code + message`, and two skips logged in one millisecond made ⚙ throw
+  `each_key_duplicate` in production (v2.0.1). A display-only list keys by
+  position, `(i)`.
 - **Slideshow pictures are session-only**, and the panel says so; backgrounds
   use a second `TtUrlLedger` so `09 §5`'s leak canary stays meaningful.
 - **Reorder is pointer events, never HTML5 `draggable`** — Playwright cannot
