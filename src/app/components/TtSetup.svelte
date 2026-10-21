@@ -66,8 +66,10 @@
       than hidden, so the shape of the finished app is visible and the absence
       reads as "not yet" instead of "not a feature". P3 unlocked Playlist.
 
-      Switching mode never touches the queue — docs/03 §3: readiness is a
-      predicate, so an invalid queue just re-disables Start with its reason shown.
+      Switching mode never touches a shelf — docs/03 §3: readiness is a
+      predicate, so an invalid queue just re-disables Start with its reason
+      shown. Single and Playlist share the files; YouTube shows only its links
+      (docs/02 §3.5).
     -->
     <div class="tt-seg tt-tabs" role="tablist" aria-label={i18n.t('setup.mode.label')}>
       <button
@@ -125,7 +127,8 @@
     {#if youtube}
       <!--
         docs/06 §5. Sources do not mix, so YouTube mode shows a paste box and no
-        drop zone at all — a queue is all-local or all-links, decided by the mode.
+        drop zone at all — links and files live on separate shelves, and this
+        tab shows the links' (docs/02 §3.5).
       -->
       <div class="tt-links">
         <label>
@@ -303,7 +306,16 @@
     {#if !session.canStart}
       <p class="tt-why" data-testid="tt-start-hint">
         {#if !track}
-          {single ? i18n.t('setup.hint.single') : i18n.t('setup.hint.playlist')}
+          <!-- Three literal calls, not a lookup by mode: the key guard needs a
+               greppable caller (docs/08 §3). An empty YouTube tab is common
+               since v2.0.1 — its shelf is its own (docs/02 §3.5). -->
+          {#if single}
+            {i18n.t('setup.hint.single')}
+          {:else if youtube}
+            {i18n.t('setup.hint.youtube')}
+          {:else}
+            {i18n.t('setup.hint.playlist')}
+          {/if}
         {:else if !session.countdownInRange}
           {i18n.t('setup.hint.range')}
         {:else if youtube && !session.online}

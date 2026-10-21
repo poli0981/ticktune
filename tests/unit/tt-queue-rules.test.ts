@@ -5,13 +5,15 @@ import {
   isQueueValid,
   isReady,
   matchQueueLengthMs,
+  modeSource,
 } from '../../src/app/engine/importer/tt-queue-rules';
 import type { TtTrack } from '../../src/app/engine/importer/types';
 
 /** docs/02 §1 — the Start predicate — and docs/03 §3's Match queue length. */
 
 const track = (over: Partial<TtTrack> = {}): TtTrack =>
-  ({ status: 'ok', durationMs: 60_000, ...over }) as TtTrack;
+  ({ source: 'local', status: 'ok', durationMs: 60_000, ...over }) as TtTrack;
+const link = (over: Partial<TtTrack> = {}): TtTrack => track({ source: 'youtube', ...over });
 
 describe('isPlayable', () => {
   it('counts pending, excludes error', () => {
@@ -41,14 +43,37 @@ describe('isQueueValid', () => {
     const many = (n: number) => Array.from({ length: n }, () => track());
     expect(isQueueValid('playlist', many(95))).toBe(true);
     expect(isQueueValid('playlist', many(96))).toBe(false);
-    expect(isQueueValid('youtube', many(50))).toBe(true);
-    expect(isQueueValid('youtube', many(51))).toBe(false);
+    const links = (n: number) => Array.from({ length: n }, () => link());
+    expect(isQueueValid('youtube', links(50))).toBe(true);
+    expect(isQueueValid('youtube', links(51))).toBe(false);
   });
 
   it('ignores error tracks when counting', () => {
     // Shown struck-through so the user can see why Start is disabled, but not
     // counted — and equally, not blocking an otherwise-valid queue.
     expect(isQueueValid('single', [track(), track({ status: 'error' })])).toBe(true);
+  });
+});
+
+describe('sources do not mix — docs/02 §3.5, v2.0.1', () => {
+  it('maps Single and Playlist to the local shelf, YouTube to the links', () => {
+    expect(modeSource('single')).toBe('local');
+    expect(modeSource('playlist')).toBe('local');
+    expect(modeSource('youtube')).toBe('youtube');
+  });
+
+  it('never starts a queue holding the other source', () => {
+    /*
+     * v2.0.0 counted tracks and never looked at what they were: three files
+     * passed the YouTube cap of 50, Start ran one on the YouTube player, and
+     * nothing ever played. The session's shelves make that queue unreachable;
+     * this is the second lock on the same door.
+     */
+    expect(isQueueValid('youtube', [track(), track(), track()])).toBe(false);
+    expect(isQueueValid('playlist', [link()])).toBe(false);
+    expect(isQueueValid('single', [link()])).toBe(false);
+    expect(isQueueValid('playlist', [track(), link()])).toBe(false);
+    expect(isQueueValid('youtube', [link(), track({ status: 'error' })])).toBe(false);
   });
 });
 

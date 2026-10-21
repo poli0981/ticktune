@@ -368,6 +368,11 @@ the computed opacity and the box, not ask the platform whether it is visible.
    predicate: a queue that stops being valid re-disables the button and nothing
    else. Truncating to the first track would silently discard user work, and
    blocking the tab would strand someone mid-decision.
+
+   **YouTube has its own shelf** (`02 §3.5`, v2.0.1). Single and Playlist share
+   the files; the YouTube tab shows only the links, so an empty YouTube tab over
+   a staged playlist is normal — its Start hint asks for a link, and switching
+   back finds the files untouched. The two never share a list.
 4. **Player** — layout above.
 5. **Finished** — "TIME'S UP" as a framed, lit stamp in DSEG14-style caps,
    rendered in the display face (DSEG7 covers digits only), then Restart / Back

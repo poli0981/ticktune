@@ -61,6 +61,7 @@
     "hint": {
       "single": "Chọn một tệp nhạc để bắt đầu.",
       "playlist": "Chọn ít nhất một tệp nhạc để bắt đầu.",
+      "youtube": "Dán ít nhất một link YouTube để bắt đầu.",
       "youtubeOffline": "Cần kết nối mạng để phát video YouTube.",
       "range": "Đếm ngược phải từ 1 giây đến 24 giờ.",
       "singleOnly": "Chế độ Một bài chỉ nhận đúng một tệp — bỏ bớt hoặc quay lại Danh sách.",

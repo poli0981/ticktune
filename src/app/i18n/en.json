@@ -61,6 +61,7 @@
     "hint": {
       "single": "Choose one audio file to begin.",
       "playlist": "Choose at least one audio file to begin.",
+      "youtube": "Paste at least one YouTube link to begin.",
       "youtubeOffline": "A network connection is required to play YouTube videos.",
       "range": "The countdown must be between 1 second and 24 hours.",
       "singleOnly": "Single mode takes exactly one file — remove some, or go back to Playlist.",

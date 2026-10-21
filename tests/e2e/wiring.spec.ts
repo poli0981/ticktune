@@ -11,7 +11,15 @@ import {
   storedSettings,
 } from './_helpers';
 import { installWallClockShift, shiftWallClock } from './_helpers-clock';
-import { fireYt, gotoYouTubeApp, stageLinks, ytCalls, ytReady } from './_helpers-yt';
+import {
+  fireYt,
+  gotoYouTubeApp,
+  installFakeYt,
+  mockOembed,
+  stageLinks,
+  ytCalls,
+  ytReady,
+} from './_helpers-yt';
 
 /**
  * v1.1's runtime wiring fixes — one spec per defect, each written to fail on
@@ -433,5 +441,45 @@ test.describe('live defects — v2.0.1', () => {
       page.getByTestId('tt-set-log').locator('li', { hasText: 'TT-IMP-001' }),
     ).toHaveCount(2);
     expect(errors).toEqual([]);
+  });
+
+  test('files and links never share a queue — each tab shows its own shelf', async ({ page }) => {
+    /*
+     * One queue beside a mode flag, and nothing compared the two: Playlist →
+     * YouTube left the files listed with Start enabled, the next paste joined
+     * them, and Start ran a FILE on the YouTube player. Since v2.0.1 each
+     * source has its own shelf (docs/02 §3.5), and switching back finds the
+     * other one exactly as it was left.
+     */
+    const ONE = 'jNQXAC9IVRw';
+    const TWO = '9bZkp7q19f0';
+    const rows = page.getByTestId('tt-queue-row');
+    const start = page.getByRole('button', { name: 'Bắt đầu' });
+    dismissUnloadDialogs(page);
+    await installFakeYt(page);
+    await mockOembed(page);
+    await gotoApp(page);
+    await stagePlaylist(page, ['tone-5s.mp3', 'tone-5s.wav']);
+    await expect(start).toBeEnabled();
+
+    await page.getByTestId('tt-tab-youtube').click();
+    await expect(rows).toHaveCount(0);
+    await expect(start).toBeDisabled();
+    await expect(page.getByTestId('tt-start-hint')).toHaveText(
+      'Dán ít nhất một link YouTube để bắt đầu.',
+    );
+
+    await stageLinks(page, [ONE, TWO]);
+    await expect(rows.filter({ hasText: 'tone-5s' })).toHaveCount(0);
+
+    await page.getByTestId('tt-tab-playlist').click();
+    await expect(rows).toHaveCount(2);
+    await expect(rows.filter({ hasText: 'Video' })).toHaveCount(0);
+    await expect(start).toBeEnabled();
+
+    await page.getByTestId('tt-tab-youtube').click();
+    await expect(rows).toHaveCount(2);
+    await start.click();
+    await expect.poll(() => ytCalls(page)).toContain(`loadVideoById:${ONE}`);
   });
 });
