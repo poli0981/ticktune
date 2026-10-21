@@ -94,6 +94,15 @@ Notes:
   and appends `'sha256-…'` to `script-src` (small `_headers` templating step in
   the build; documented in `10 §7`).
 - `blob:` in `img/media-src` covers cover art + local playback object URLs.
+- **`connect-src` has no `blob:`, on purpose** (v2.0.1). The scrim's luminance
+  sampler and auto-theme's hue reader `fetch`ed their pictures' blob: URLs; a
+  fetch is checked against `connect-src`, so from v0.7.0 to v2.0.0 every sample
+  was refused in production and both features silently did nothing — the E2E
+  suite runs under `astro preview`, which sends no CSP. The fix decodes through
+  an `<img>` (`tt-image-sample-driver.ts`), which `img-src` already allows;
+  widening `connect-src` instead would let any script read any blob as data.
+  `tt-headers.test.ts` pins the choice, and `verify-csp.mjs` now picks a
+  picture and stages a cover under the real policy.
 - ~~Rollout: ship first as `Content-Security-Policy-Report-Only` during P7
   hardening week, watch console on the live site, then enforce.~~
   🔴 **This never happened, and P7 slice B deleted the plan rather than

@@ -18,9 +18,67 @@
  *   pnpm build && pnpm exec wrangler dev --port 8788 --ip 127.0.0.1 &
  *   node scripts/verify-csp.mjs
  */
+import { fileURLToPath } from 'node:url';
 import { chromium, devices } from '@playwright/test';
 
 const BASE = process.env.TT_CSP_BASE ?? 'http://127.0.0.1:8788';
+
+const fixture = (name) => fileURLToPath(new URL(`../tests/e2e/fixtures/${name}`, import.meta.url));
+
+/** Past the Legal Gate the way a user gets past it — the real dialog, no seeded storage. */
+async function acceptGate(page) {
+  await page.waitForFunction(() => !!document.documentElement.dataset.ttBooted);
+  await page.getByTestId('tt-gate-agree').check();
+  await page.getByTestId('tt-gate-accept').click();
+  await page.locator('[role=dialog]').waitFor({ state: 'hidden' });
+}
+
+/*
+ * The cases that ACT (v2.0.1). Loading pages proved the policy lets the app
+ * boot; it could not see a request the app makes only when the user does
+ * something. Both samplers fetched a blob: URL, `connect-src` refused it from
+ * v0.7.0 to v2.0.0, and every page here loaded clean the whole time. Each case
+ * asserts the violation count AND the effect, because a sampler that fails for
+ * another reason is just as dead.
+ */
+async function brightPicture(page) {
+  await acceptGate(page);
+  await page.keyboard.press('s');
+  await page.getByTestId('tt-set-bg-image').click();
+  await page.getByTestId('tt-set-bg-files').setInputFiles(fixture('bg-b.png'));
+  const lifted = await page
+    .waitForFunction(
+      () =>
+        Number(
+          document.querySelector('[data-testid=tt-backdrop-scrim]')?.getAttribute('data-tt-scrim'),
+        ) > 0.45,
+      null,
+      { timeout: 5_000 },
+    )
+    .then(() => true)
+    .catch(() => false);
+  if (lifted) return [];
+  const scrim = await page.getByTestId('tt-backdrop-scrim').getAttribute('data-tt-scrim');
+  return [`scrim=${scrim} over a white picture, expected > 0.45 (sampler blocked?)`];
+}
+
+async function coverArt(page) {
+  await acceptGate(page);
+  await page.getByTestId('tt-file-input').setInputFiles(fixture('with-cover.mp3'));
+  await page.getByTestId('tt-queue-row').first().waitFor();
+  const tinted = await page
+    .waitForFunction(
+      () =>
+        (
+          document.querySelector('[data-testid=tt-backdrop-base]')?.getAttribute('style') ?? ''
+        ).includes('hue-rotate('),
+      null,
+      { timeout: 5_000 },
+    )
+    .then(() => true)
+    .catch(() => false);
+  return tinted ? [] : ['no hue-rotate on the base layer (auto-theme sampler blocked?)'];
+}
 
 const CASES = [
   {
@@ -47,6 +105,20 @@ const CASES = [
     ctx: { viewport: { width: 1440, height: 900 } },
     expect: { gate: false, countdown: false },
   },
+  {
+    label: 'desktop /app/ bright picture',
+    path: '/app/',
+    ctx: { viewport: { width: 1440, height: 900 } },
+    expect: { gate: false, countdown: true },
+    act: brightPicture,
+  },
+  {
+    label: 'desktop /app/ cover art',
+    path: '/app/',
+    ctx: { viewport: { width: 1440, height: 900 } },
+    expect: { gate: false, countdown: true },
+    act: coverArt,
+  },
 ];
 
 const browser = await chromium.launch();
@@ -63,6 +135,17 @@ for (const c of CASES) {
   await ctx.route(/^https:\/\/(static\.)?cloudflareinsights\.com\//, (route) =>
     route.fulfill({ status: 200, contentType: 'text/javascript', body: '' }),
   );
+  /*
+   * The browser's own report, as well as the console line. The console text
+   * is a browser's wording and a regex over it; this event is the spec's, and
+   * it names the directive and the URL that was refused.
+   */
+  await ctx.addInitScript(() => {
+    window.__ttCsp = [];
+    document.addEventListener('securitypolicyviolation', (e) => {
+      window.__ttCsp.push(`${e.effectiveDirective} refused ${e.blockedURI}`);
+    });
+  });
   const page = await ctx.newPage();
   const csp = [];
   const errors = [];
@@ -75,6 +158,8 @@ for (const c of CASES) {
 
   await page.goto(BASE + c.path, { waitUntil: 'networkidle' });
   await page.waitForTimeout(800);
+  const acted = c.act ? await c.act(page) : [];
+  const reported = await page.evaluate(() => window.__ttCsp ?? []);
 
   const gate = await page.evaluate(() => !!document.documentElement.dataset.ttBlocked);
   const countdown = (await page.locator('.tt-countdown').count()) > 0;
@@ -84,7 +169,8 @@ for (const c of CASES) {
   });
 
   const problems = [];
-  if (csp.length) problems.push(`${csp.length} CSP violation(s)`);
+  if (csp.length) problems.push(`${csp.length} CSP console error(s)`);
+  if (reported.length) problems.push(`${reported.length} securitypolicyviolation event(s)`);
   if (errors.length) problems.push(`${errors.length} page error(s)`);
   // A CSP that blocked the gate script would show up here as gate=false on
   // mobile — the failure mode this whole script exists to catch.
@@ -92,11 +178,13 @@ for (const c of CASES) {
   if (countdown !== c.expect.countdown)
     problems.push(`countdown=${countdown}, expected ${c.expect.countdown}`);
   if (!dseg7) problems.push('DSEG7 did not load (font-src?)');
+  problems.push(...acted);
 
   if (problems.length) {
     failures++;
     console.error(`✖ ${c.label}: ${problems.join('; ')}`);
     csp.forEach((v) => console.error(`    ${v.slice(0, 160)}`));
+    reported.forEach((v) => console.error(`    ${v.slice(0, 160)}`));
     errors.forEach((v) => console.error(`    ${v.slice(0, 160)}`));
   } else {
     console.log(`✓ ${c.label}  gate=${gate} countdown=${countdown} dseg7=${dseg7} csp=clean`);

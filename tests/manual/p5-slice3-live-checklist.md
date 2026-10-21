@@ -34,6 +34,14 @@ because both assert something a screenshot cannot show:
   them harder.** Both directions, which is the only way to tell a working
   automatic scrim from a background that happened to be dark enough anyway.
 
+  ⚠️ **v2.0.1: this was a false pass.** The sampler `fetch`ed the picture's
+  blob: URL and the preview's CSP refused it (`connect-src` has no `blob:`,
+  `09 §4`), so `scrimAuto` could not have raised anything here — on and off
+  both gave the user's own number. A judgement by eye of "harder to read" could
+  not tell that from a working scrim. The v2.0.1 checklist checks it **by
+  number** (`data-tt-scrim`), and `verify-csp.mjs` now does too. The box is left
+  as ticked: a box records what was run, not what was true.
+
 Also confirmed on **real Firefox**, which neither CI nor this dev box can do
 (`13 §3`).
 

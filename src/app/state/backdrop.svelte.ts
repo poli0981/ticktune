@@ -1,5 +1,7 @@
 import { TtUrlLedger } from '../engine/audio/tt-object-urls';
 import { dominantHue, type TtHue } from '../engine/visuals/tt-dominant-hue';
+import { sampleImage } from '../engine/visuals/tt-image-sample';
+import { browserSamplePorts } from '../engine/visuals/tt-image-sample-driver';
 import { ttLog } from '../engine/log/tt-log';
 
 /**
@@ -45,6 +47,8 @@ class BackdropStore {
   #images = $state<TtBackgroundImage[]>([]);
   #index = $state(0);
   #hue = $state<TtHue>(null);
+  /** `readHue`'s last-call-wins ticket — see there. */
+  #hueTicket = 0;
 
   readonly #ledger = new TtUrlLedger(
     (blob) => URL.createObjectURL(blob),
@@ -127,10 +131,16 @@ class BackdropStore {
   /**
    * docs/03 §5 — read a hue off the current cover art.
    *
-   * The canvas work lives here rather than in the component because it is the
-   * one impure step and it has a failure mode worth swallowing in exactly one
-   * place: a cover that will not decode, or a 2D context the browser refuses,
-   * must leave the theme alone rather than throw into a render.
+   * The sampling is `sampleImage`'s, decoded through an `<img>`: until v2.0.1
+   * this `fetch`ed the blob: URL, CSP's `connect-src` refused it every time,
+   * and auto-theme never tinted anything in production. A cover that will not
+   * decode, or a 2D context the browser refuses, still leaves the theme alone
+   * rather than throwing into a render — and now logs TT-IMG-003 saying so.
+   *
+   * Last call wins. Each call takes a ticket and an answer only lands if no
+   * later call has started: a track advance can race two decodes, and
+   * `readHue(null)` (auto-theme off, no art) must cancel one in flight. Nothing
+   * raced while the fetch failed instantly; a working sampler made it real.
    *
    * ⚠️ **Local cover art only.** `03 §5` used to say the YouTube thumbnail's hue
    * is used instead; that is a modified use of YouTube's image and it sits under
@@ -141,37 +151,27 @@ class BackdropStore {
    * gradient, which is what the audit itself recommends.
    */
   async readHue(coverArtUrl: string | null): Promise<void> {
+    const ticket = ++this.#hueTicket;
     if (!coverArtUrl) {
       this.#hue = null;
       return;
     }
-    try {
-      const bitmap = await createImageBitmap(await (await fetch(coverArtUrl)).blob(), {
-        resizeWidth: 16,
-        resizeHeight: 16,
-        resizeQuality: 'pixelated',
-      });
-      const canvas = document.createElement('canvas');
-      canvas.width = 16;
-      canvas.height = 16;
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      if (!ctx) {
-        this.#hue = null;
-        return;
-      }
-      ctx.drawImage(bitmap, 0, 0);
-      bitmap.close();
-      this.#hue = dominantHue(ctx.getImageData(0, 0, 16, 16).data);
-    } catch {
-      // Decoration. A cover that cannot be read must never break playback —
-      // the same rule `makeCoverUrl` follows in the playback store.
-      this.#hue = null;
+    const sample = await sampleImage(coverArtUrl, 16, browserSamplePorts);
+    if (ticket !== this.#hueTicket) return;
+    if (sample.ok) {
+      this.#hue = dominantHue(sample.rgba);
+      return;
     }
+    // Decoration. A cover that cannot be read must never break playback —
+    // the same rule `makeCoverUrl` follows in the playback store.
+    this.#hue = null;
+    ttLog.warn('TT-IMG-003', `hue ${sample.reason}`);
   }
 
   /** `pagehide` and unmount — docs/05 §3 revokes every URL it created. */
   dispose(): void {
     this.clearImages();
+    this.#hueTicket++;
     this.#hue = null;
   }
 }
