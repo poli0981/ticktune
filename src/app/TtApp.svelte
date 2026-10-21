@@ -1082,8 +1082,9 @@
    * `pagehide` regardless, which is the audio driver's job.
    */
   function onBeforeUnload(e: BeforeUnloadEvent) {
-    const busy =
-      session.queue.length > 0 || session.state === 'playing' || session.state === 'paused';
+    // Either shelf (docs/02 §3.5): an empty YouTube tab can sit over a staged
+    // playlist, and `session.queue` is only the tab's own.
+    const busy = session.hasStaged || session.state === 'playing' || session.state === 'paused';
     if (!busy) return;
     e.preventDefault();
   }

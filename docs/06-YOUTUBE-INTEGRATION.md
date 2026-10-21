@@ -312,7 +312,7 @@ Input: textarea paste (one URL per line) and/or repeated single adds.
    watch?v= · youtu.be/ · shorts/ · live/ · embed/ · music.youtube.com/watch?v=
    (11-char id regex; extra params ignored)          fail → TT-YT-002
 2. Dedupe by videoId (default skip + toast)          dup  → TT-IMP-005
-3. Cap: queue would exceed 50 links                  fail → TT-YT-003
+3. Cap: the links shelf would exceed 50 (02 §3.5)    fail → TT-YT-003
 4. oEmbed pre-check via /api/yt/oembed
    ok       → TtTrack{status:'ok', title, artist=channel, thumbnailUrl}
    400      → rejected, malformed id                  log  → TT-YT-002
@@ -353,8 +353,12 @@ the caps differ (95 vs 50), the 91:00 aggregate is meaningless against durations
 the player has not backfilled yet, and playback would have to hand the cursor
 between an `HTMLAudioElement` and a cross-origin iframe while `§1.2` requires
 the player visible throughout — including while a local file is the one making
-sound. Switching mode keeps the queue and disables Start with its reason, which
-is the `docs/03 §3` predicate Playlist → Single already uses.
+sound. Links and files live on **separate shelves** (`02 §3.5`, v2.0.1): the
+YouTube tab shows only the links, Single and Playlist only the files, and
+switching back finds the other shelf as it was left. Until v2.0.1 this said
+"switching mode keeps the queue and disables Start" — but the predicate it
+named had no source clause, so Start stayed enabled, a paste joined the files,
+and Start played a file on the YouTube player: silence that never advanced.
 
 ## 6. Degraded visuals (platform limit)
 

@@ -147,6 +147,8 @@ removal, queue clear, `pagehide`, and when a track leaves the A/B pair. Cover-ar
 blob URLs are created at import (needed by the queue UI) and revoked on removal.
 
 Invariant: at most `queueLength + 2` live object URLs; a debug assert counts them.
+`queueLength` is the **local shelf's** (`02 §3.5`): covers belong to files, and
+the files stay staged while the YouTube tab shows its links.
 The arithmetic, made explicit because the implementation has to reproduce it:
 **≤ 2 media URLs** — the A/B pair, and the crossfade-loop style shares *one* URL
 across both decks because it is the same file — **plus ≤ `queueLength` cover

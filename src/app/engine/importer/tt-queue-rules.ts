@@ -30,7 +30,25 @@ export function isPlayable(t: TtTrack): boolean {
   return t.status !== 'error';
 }
 
+/**
+ * docs/02 §3.5 — the shelf a mode plays from. Single and Playlist share the
+ * local one, which is why Playlist → Single keeps its tracks and YouTube does
+ * not see them.
+ */
+export function modeSource(mode: TtMode): TtTrack['source'] {
+  return mode === 'youtube' ? 'youtube' : 'local';
+}
+
 export function isQueueValid(mode: TtMode, queue: readonly TtTrack[]): boolean {
+  /*
+   * docs/02 §3.5 — defence in depth. The session's shelves make a mixed queue
+   * unreachable; this keeps one a future change reintroduces from ever
+   * starting. v2.0.0 had no such clause, and Start ran a link on the audio
+   * engine (TT-PLY-101, marked errored for good) or a file on the YouTube
+   * player (silence, never advancing).
+   */
+  const source = modeSource(mode);
+  if (queue.some((t) => t.source !== source)) return false;
   const playable = queue.filter(isPlayable);
   if (playable.length < 1) return false;
   // Single is exactly one, not "at most one" — two staged tracks would leave

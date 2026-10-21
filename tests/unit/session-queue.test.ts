@@ -42,7 +42,10 @@ const importLinks = vi.fn<() => Promise<TtImportResult>>();
 // a verdict nothing actually computes.
 vi.mock('../../src/app/engine/youtube/tt-yt-import', async (importOriginal) => ({
   ...(await importOriginal<typeof YtImportMod>()),
-  importLinks: () => importLinks(),
+  importLinks: (input: unknown) => {
+    lastLinksInput = input as LinksInput;
+    return importLinks();
+  },
 }));
 /**
  * The re-check calls `lookup` directly, so it needs a real port rather than the
@@ -88,7 +91,14 @@ interface ImportInput {
   allowDuplicates: boolean;
 }
 
+interface LinksInput {
+  text: string;
+  queue: TtTrack[];
+  allowDuplicates: boolean;
+}
+
 let lastInput: ImportInput | null = null;
+let lastLinksInput: LinksInput | null = null;
 let lastPorts: TtImportPorts | null = null;
 
 let session: typeof SessionMod.session;
@@ -120,6 +130,7 @@ beforeEach(async () => {
   // hand its result to the next one. That happened.
   vi.resetAllMocks();
   lastInput = null;
+  lastLinksInput = null;
   lastPorts = null;
   lookedUp.length = 0;
   // resetAllMocks wiped the implementation; "not now" is the honest default.
@@ -138,6 +149,13 @@ async function stage(mode: 'single' | 'playlist', tracks: TtTrack[]): Promise<vo
   session.setMode(mode);
   importFiles.mockResolvedValueOnce(result(tracks));
   await session.importPicked(files(tracks.length) as unknown as FileList);
+}
+
+/** Put links on the YouTube shelf through the real paste path. */
+async function stageLinks(tracks: TtTrack[]): Promise<void> {
+  session.setMode('youtube');
+  importLinks.mockResolvedValueOnce(result(tracks));
+  await session.importLinks('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
 }
 
 describe('allowDuplicates reaches the importer', () => {
@@ -213,6 +231,197 @@ describe('mode switching — docs/03 §3', () => {
     const fresh = (await import('../../src/app/state/session.svelte')).session;
     fresh.adoptMode('youtube');
     expect(fresh.mode).toBe('youtube');
+  });
+});
+
+describe('two shelves, one per source — docs/02 §3.5 (v2.0.1)', () => {
+  /**
+   * v2.0.0 had one queue beside a mode flag. Playlist → YouTube left the files
+   * staged with Start enabled, the next paste joined them, the 50-link cap
+   * counted the files, and Start ran a file on the YouTube player — silence,
+   * never advancing. The other way round, a link "played" on the audio engine
+   * and was marked errored for good.
+   */
+  const yt = (id: string, over: Partial<TtTrack> = {}): TtTrack =>
+    track(id, { source: 'youtube', videoId: 'dQw4w9WgXcQ', ...over });
+
+  /** An import held open until the test lets it land. */
+  function held(): { land: (r: TtImportResult) => void; promise: Promise<TtImportResult> } {
+    let land!: (r: TtImportResult) => void;
+    const promise = new Promise<TtImportResult>((r) => (land = r));
+    return { land, promise };
+  }
+
+  it('a round trip keeps both shelves, each on its own tab', async () => {
+    await stage('playlist', [track('f1'), track('f2')]);
+    session.setMode('youtube');
+    expect(session.queue).toEqual([]);
+    expect(session.canStart).toBe(false);
+
+    await stageLinks([yt('l1')]);
+    expect(session.queue.map((t) => t.id)).toEqual(['l1']);
+    expect(session.canStart).toBe(true);
+
+    session.setMode('playlist');
+    expect(session.queue.map((t) => t.id)).toEqual(['f1', 'f2']);
+    expect(session.canStart).toBe(true);
+    session.setMode('youtube');
+    expect(session.queue.map((t) => t.id)).toEqual(['l1']);
+  });
+
+  it('hands each importer only its own shelf — no cap counts the other source', async () => {
+    await stage('playlist', [track('f1'), track('f2')]);
+    await stageLinks([yt('l1')]);
+    // The 50-link cap and the duplicate check saw no files…
+    expect(lastLinksInput?.queue).toEqual([]);
+
+    await stage('playlist', [track('f3')]);
+    // …and the 91:00 total never summed a link.
+    expect(lastInput?.queue.map((t) => t.id)).toEqual(['f1', 'f2']);
+  });
+
+  it('files picked in Playlist land on the files shelf after a switch to YouTube', async () => {
+    session.setMode('playlist');
+    const parse = held();
+    importFiles.mockReturnValueOnce(parse.promise);
+    const pick = session.importPicked(files(1) as unknown as FileList);
+    session.setMode('youtube');
+    parse.land(result([track('f1')]));
+    await pick;
+
+    expect(session.queue).toEqual([]);
+    session.setMode('playlist');
+    expect(session.queue.map((t) => t.id)).toEqual(['f1']);
+  });
+
+  it('a drop still walking its folders at the switch lands on the files shelf too', async () => {
+    session.setMode('playlist');
+    let release!: (v: { files: File[]; dropped: number }) => void;
+    scan.pending = new Promise((r) => (release = r));
+    const drop = session.importDropped({} as DataTransfer);
+    session.setMode('youtube');
+    importFiles.mockResolvedValueOnce(result([track('f1')]));
+    release({ files: files(1), dropped: 0 });
+    await drop;
+
+    // Judged by the mode it STARTED in. v2.0.0 re-read the mode after the
+    // walk and silently dropped the whole import.
+    expect(lastInput?.mode).toBe('playlist');
+    expect(session.queue).toEqual([]);
+    session.setMode('playlist');
+    expect(session.queue.map((t) => t.id)).toEqual(['f1']);
+  });
+
+  it('links pasted in YouTube land on the links shelf after a switch to Playlist', async () => {
+    session.setMode('youtube');
+    const lookup = held();
+    importLinks.mockReturnValueOnce(lookup.promise);
+    const paste = session.importLinks('a link');
+    session.setMode('playlist');
+    lookup.land(result([yt('l1')]));
+    await paste;
+
+    expect(session.queue).toEqual([]);
+    session.setMode('youtube');
+    expect(session.queue.map((t) => t.id)).toEqual(['l1']);
+  });
+
+  it('a link length that arrives while Playlist is showing still lands', async () => {
+    let answer!: (m: Map<string, number>) => void;
+    lookupDurations.mockReturnValueOnce(new Promise((r) => (answer = r)));
+    await stageLinks([yt('l1', { durationMs: null })]);
+    session.setMode('playlist');
+    answer(new Map([['dQw4w9WgXcQ', 213_000]]));
+    await new Promise((r) => setTimeout(r, 0));
+
+    session.setMode('youtube');
+    expect(session.queue[0]?.durationMs).toBe(213_000);
+  });
+
+  it('crossing sources drops the run state and the summary; Start re-seats', async () => {
+    await settings.patch({ shuffle: true });
+    await stage('playlist', [track('f1'), track('f2'), track('f3')]);
+    expect(session.lastImport).not.toBeNull();
+    expect(session.start()).toBe(true);
+    session.advance();
+    session.stop();
+    expect(session.currentId).not.toBeNull();
+
+    session.setMode('youtube');
+    // Every piece of it named a FILE.
+    expect(session.currentId).toBeNull();
+    expect(session.order).toEqual([]);
+    expect(session.lastImport).toBeNull();
+
+    await stageLinks([yt('l1'), yt('l2')]);
+    expect(session.start()).toBe(true);
+    expect(['l1', 'l2']).toContain(session.currentId);
+  });
+
+  it('Single ↔ Playlist keeps the cursor, as it always has', async () => {
+    await settings.patch({ shuffle: false });
+    await stage('playlist', [track('f1'), track('f2')]);
+    session.start();
+    session.advance();
+    session.stop();
+
+    session.setMode('single');
+    expect(session.currentId).toBe('f2');
+    session.setMode('playlist');
+    expect(session.currentId).toBe('f2');
+  });
+
+  it('refuses a mode switch while a run is playing', async () => {
+    await stage('playlist', [track('f1')]);
+    session.start();
+    session.setMode('youtube');
+    expect(session.mode).toBe('playlist');
+  });
+
+  it('hasStaged sees the shelf the tab is not showing — the reload guard', async () => {
+    await stage('playlist', [track('f1')]);
+    session.setMode('youtube');
+    expect(session.queue).toHaveLength(0);
+    expect(session.hasStaged).toBe(true);
+  });
+
+  it('a Single replace landing after a switch to YouTube and Start leaves that run alone', async () => {
+    await stageLinks([yt('l1')]);
+    await stage('single', [track('f1')]);
+    const parse = held();
+    importFiles.mockReturnValueOnce(parse.promise);
+    const pick = session.importPicked(files(1) as unknown as FileList);
+
+    session.setMode('youtube');
+    expect(session.start()).toBe(true);
+    expect(session.currentId).toBe('l1');
+
+    parse.land(result([track('f2')]));
+    await pick;
+    // The replace still happened — on its own shelf — and the run kept its cursor.
+    expect(session.currentId).toBe('l1');
+    session.stop();
+    session.setMode('single');
+    expect(session.queue.map((t) => t.id)).toEqual(['f2']);
+  });
+
+  it('a row removed during an import stays removed', async () => {
+    // The import used to land `[...snapshotAtItsStart, ...added]`.
+    await stage('playlist', [track('f1'), track('f2')]);
+    const parse = held();
+    importFiles.mockReturnValueOnce(parse.promise);
+    const pick = session.importPicked(files(1) as unknown as FileList);
+    session.removeTrack('f1');
+    parse.land(result([track('f3')]));
+    await pick;
+    expect(session.queue.map((t) => t.id)).toEqual(['f2', 'f3']);
+  });
+
+  it('never starts a shelf holding the other source, however it got there', async () => {
+    // The mocked importer can put a link on the files shelf; the real one
+    // cannot. `isQueueValid`'s source clause is the second lock on that door.
+    await stage('playlist', [yt('l1')]);
+    expect(session.canStart).toBe(false);
   });
 });
 
@@ -629,7 +838,7 @@ describe('patchTrack — the backfill writer docs/06 §2 always assumed', () => 
     track(id, { source: 'youtube', durationMs: null, videoId: 'dQw4w9WgXcQ', ...over });
 
   it('writes a duration the track did not have', async () => {
-    await stage('playlist', [yt('a')]);
+    await stageLinks([yt('a')]);
     session.patchTrack('a', { durationMs: 212_500 });
     expect(session.queue[0]?.durationMs).toBe(212_500);
   });
@@ -637,7 +846,7 @@ describe('patchTrack — the backfill writer docs/06 §2 always assumed', () => 
   it('fills the blank title and channel a pending import leaves behind', async () => {
     // `tt-yt-import` writes '' for both when oEmbed could not be reached, and
     // the fallback rule then renders N/A on a video that plays perfectly.
-    await stage('playlist', [yt('a', { title: '', artist: '' })]);
+    await stageLinks([yt('a', { title: '', artist: '' })]);
     session.patchTrack('a', { title: 'Me at the zoo', artist: 'jawed' });
 
     expect(session.queue[0]?.title).toBe('Me at the zoo');
@@ -647,7 +856,7 @@ describe('patchTrack — the backfill writer docs/06 §2 always assumed', () => 
   it('never overwrites what oEmbed already answered', async () => {
     // oEmbed is the better source — the channel's own title, before the
     // player's normalisation. Blanks only is the whole rule.
-    await stage('playlist', [yt('a', { title: 'From oEmbed', artist: 'Channel' })]);
+    await stageLinks([yt('a', { title: 'From oEmbed', artist: 'Channel' })]);
     session.patchTrack('a', { title: 'From the player', artist: 'Someone else' });
 
     expect(session.queue[0]?.title).toBe('From oEmbed');
@@ -655,7 +864,7 @@ describe('patchTrack — the backfill writer docs/06 §2 always assumed', () => 
   });
 
   it('never overwrites a duration that is already known', async () => {
-    await stage('playlist', [yt('a', { durationMs: 1_000 })]);
+    await stageLinks([yt('a', { durationMs: 1_000 })]);
     session.patchTrack('a', { durationMs: 999_000 });
     expect(session.queue[0]?.durationMs).toBe(1_000);
   });
@@ -663,7 +872,7 @@ describe('patchTrack — the backfill writer docs/06 §2 always assumed', () => 
   it('ignores a track that has since been removed', async () => {
     // Every caller is asynchronous by nature: the player learns a duration
     // seconds after the row was drawn, and the user may have removed it.
-    await stage('playlist', [yt('a'), yt('b')]);
+    await stageLinks([yt('a'), yt('b')]);
     session.removeTrack('a');
     expect(() => session.patchTrack('a', { durationMs: 1 })).not.toThrow();
     expect(session.queue).toHaveLength(1);
@@ -671,7 +880,7 @@ describe('patchTrack — the backfill writer docs/06 §2 always assumed', () => 
 
   it('leaves the cursor where it was', async () => {
     await settings.patch({ shuffle: false });
-    await stage('playlist', [yt('a'), yt('b')]);
+    await stageLinks([yt('a'), yt('b')]);
     session.start();
     session.advance();
     session.patchTrack('a', { durationMs: 5_000 });
@@ -700,12 +909,6 @@ describe("recheckPending — docs/02 §1's promise, and the toast's", () => {
   const ok = (title: string, author: string) =>
     Promise.resolve({ ok: true, meta: { title, author_name: author, thumbnail_url: null } });
   const failed = (cause: string) => Promise.resolve({ ok: false, cause });
-
-  async function stageLinks(tracks: TtTrack[]): Promise<void> {
-    session.setMode('youtube');
-    importLinks.mockResolvedValueOnce(result(tracks));
-    await session.importLinks('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
-  }
 
   it('promotes a track that now resolves, and fills its blank metadata', async () => {
     await stageLinks([pending('a', 'jNQXAC9IVRw')]);

@@ -6,6 +6,9 @@
  *
  *   ≤ 2 MEDIA urls — the A/B pair — plus ≤ queueLength COVER urls, one each.
  *
+ * `queueLength` is the LOCAL shelf's (docs/02 §3.5, v2.0.1): covers belong to
+ * files, and the files stay staged while the YouTube tab shows its links.
+ *
  * The media URL is therefore keyed per **track**, not per deck. Keying it per
  * deck looks equivalent and breaks the bound the moment the crossfade loop style
  * loads the same file on both decks: that is one file, one URL, two decks.

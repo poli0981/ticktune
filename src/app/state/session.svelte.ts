@@ -1,7 +1,12 @@
 import type { TtMode } from '../../lib/tt-domain-types';
 import { browserImportPorts, filesFromDataTransfer } from '../engine/importer/tt-import-driver';
 import { importFiles } from '../engine/importer/tt-import';
-import { isPlayable, isReady, matchQueueLengthMs } from '../engine/importer/tt-queue-rules';
+import {
+  isPlayable,
+  isReady,
+  matchQueueLengthMs,
+  modeSource,
+} from '../engine/importer/tt-queue-rules';
 import type { TtImportResult, TtTrack } from '../engine/importer/types';
 import { ttLog } from '../engine/log/tt-log';
 import {
@@ -58,6 +63,9 @@ import { settings } from './settings.svelte';
  */
 type TtAppState = 'boot' | 'gate' | 'setup' | 'playing' | 'paused' | 'finished';
 
+/** Which shelf a track lives on — docs/02 §3.5. */
+type TtSource = TtTrack['source'];
+
 /** What `advance()` did, so the caller can load, wrap or fall silent. */
 type TtAdvance = 'advanced' | 'wrapped' | 'exhausted';
 
@@ -78,7 +86,19 @@ class SessionStore {
   #state = $state<TtAppState>('boot');
   #countdownMs = $state(90_000);
   #finish = $state<TtFinishReport | null>(null);
-  #queue = $state<TtTrack[]>([]);
+  /**
+   * The staged tracks, one shelf per SOURCE — docs/02 §3.5 (v2.0.1).
+   *
+   * Single and Playlist share `local`; YouTube has `youtube`. Until v2.0.1 this
+   * was one `#queue` beside a mode flag, and nothing compared the two:
+   * Playlist → YouTube left the files in the queue with Start still enabled,
+   * links pasted next joined them, and Start then ran a link on the audio
+   * engine (TT-PLY-101, marked errored for good) or a file on the YouTube
+   * player (silence, never advancing). With a shelf per source a mode only ever
+   * sees tracks it can play, and switching back finds the other shelf exactly
+   * as it was left — nothing is discarded, nothing is mixed.
+   */
+  #shelves = $state<Record<TtSource, TtTrack[]>>({ local: [], youtube: [] });
   #importing = $state(false);
   #lastImport = $state<TtImportResult | null>(null);
 
@@ -138,8 +158,31 @@ class SessionStore {
     return this.#state;
   }
 
+  /** The current mode's shelf — the only tracks this mode can play (docs/02 §3.5). */
   get queue(): TtTrack[] {
-    return this.#queue;
+    return this.#shelves[this.#source];
+  }
+
+  /**
+   * Anything staged on EITHER shelf — docs/02 §3's unload guard.
+   *
+   * Not `queue.length`: on an empty YouTube tab that read 0 while a playlist of
+   * files sat on the other shelf, and a reload would have discarded them
+   * without asking.
+   */
+  get hasStaged(): boolean {
+    return this.#shelves.local.length > 0 || this.#shelves.youtube.length > 0;
+  }
+
+  get #source(): TtSource {
+    return modeSource(this.#mode);
+  }
+
+  /** The shelf holding `id`, or null. Ids are UUIDs, so at most one does. */
+  #shelfOf(id: string): TtSource | null {
+    if (this.#shelves.local.some((t) => t.id === id)) return 'local';
+    if (this.#shelves.youtube.some((t) => t.id === id)) return 'youtube';
+    return null;
   }
 
   get importing(): boolean {
@@ -177,7 +220,7 @@ class SessionStore {
    * by an import whose transient failures each ADDED a pending track.
    */
   get hasPending(): boolean {
-    return this.#queue.some((t) => t.status === 'pending');
+    return this.#shelves.youtube.some((t) => t.status === 'pending');
   }
 
   /**
@@ -185,14 +228,15 @@ class SessionStore {
    *
    * Before Start there is no cursor yet, so this falls back to the first
    * playable track — which is what the Single-mode staged row has always shown.
-   * The final `#queue[0]` keeps an errored single track visible rather than
+   * The final `queue[0]` keeps an errored single track visible rather than
    * making it vanish from Setup the moment it fails (docs/02 §1: an errored
    * track is *shown* struck-through, not hidden).
    */
   get current(): TtTrack | null {
+    const queue = this.queue;
     const seated =
-      this.#currentId === null ? null : (this.#queue.find((t) => t.id === this.#currentId) ?? null);
-    return seated ?? this.#queue.find(isPlayable) ?? this.#queue[0] ?? null;
+      this.#currentId === null ? null : (queue.find((t) => t.id === this.#currentId) ?? null);
+    return seated ?? queue.find(isPlayable) ?? queue[0] ?? null;
   }
 
   /**
@@ -241,7 +285,7 @@ class SessionStore {
     // Start succeed and then reporting onError 150 on every track, five seconds
     // apart, while the countdown runs.
     if (this.#mode === 'youtube' && !this.#online) return false;
-    return isReady(this.#mode, this.#queue, this.#countdownMs);
+    return isReady(this.#mode, this.queue, this.#countdownMs);
   }
 
   /**
@@ -269,7 +313,7 @@ class SessionStore {
 
   /** docs/03 §3 — null when the button must be disabled. */
   get matchableMs(): number | null {
-    return matchQueueLengthMs(this.#queue);
+    return matchQueueLengthMs(this.queue);
   }
 
   // ── mode (docs/02 §1, docs/03 §3) ─────────────────────────────────────────
@@ -289,22 +333,40 @@ class SessionStore {
   /**
    * A user picked an enabled tab. Only this path writes `lastMode` (docs/03 §3).
    *
-   * The queue is **not** touched, including Playlist → Single with 95 tracks
-   * staged: docs/02 §1 makes readiness a predicate, so an invalid queue simply
+   * No shelf is touched, including Playlist → Single with 95 tracks staged:
+   * docs/02 §1 makes readiness a predicate, so an invalid queue simply
    * re-disables Start with its reason on screen. Truncating would discard the
    * user's work silently; refusing the tab would strand them mid-decision.
+   *
+   * Crossing SOURCES (to or from YouTube) shows the other shelf (docs/02 §3.5),
+   * so the run state — cursor, permutation, exhaustion — goes: every piece of
+   * it names a track on the shelf being left. Start re-seats it regardless, so
+   * nothing is lost. Single ↔ Playlist keeps it, as it always has.
    */
   setMode(mode: TtMode): void {
     if (mode === this.#mode) return;
+    // The shelf an engine is playing from must not change under it. The tabs
+    // render on Setup alone, so this is a guard, not a path.
+    if (this.#state === 'playing' || this.#state === 'paused') return;
+    const crossesSource = modeSource(mode) !== this.#source;
     this.#mode = mode;
-    this.#syncOrder();
+    if (crossesSource) {
+      this.#currentId = null;
+      this.#shuffled = null;
+      this.#nextShuffle = null;
+      this.#exhausted = false;
+      // The summary counted rows that are now on the hidden shelf.
+      this.#lastImport = null;
+    } else {
+      this.#syncOrder();
+    }
     void settings.patch({ lastMode: mode });
   }
 
   // ── playback order (docs/02 §5.1) ─────────────────────────────────────────
 
   #playableIds(): string[] {
-    return this.#queue.filter(isPlayable).map((t) => t.id);
+    return this.queue.filter(isPlayable).map((t) => t.id);
   }
 
   /**
@@ -372,7 +434,7 @@ class SessionStore {
       (this.order.length > 0 && settings.current.repeatPlaylist
         ? (this.#wrapOrder()[0] ?? null)
         : null);
-    return id === null ? null : (this.#queue.find((t) => t.id === id) ?? null);
+    return id === null ? null : (this.queue.find((t) => t.id === id) ?? null);
   }
 
   /**
@@ -445,20 +507,23 @@ class SessionStore {
    * queue. `#begin`/`#end` bracket every entry point instead.
    */
   async importDropped(dt: DataTransfer): Promise<void> {
-    if (!this.#begin(0)) return;
+    // The mode is judged HERE, before the folder walk — see `#runImport`.
+    const mode = this.#mode;
+    if (mode === 'youtube' || !this.#begin(0)) return;
     try {
       const { files, dropped } = await filesFromDataTransfer(dt);
       this.#progress = { done: 0, total: files.length };
-      await this.#runImport(files, dropped);
+      await this.#runImport(files, dropped, mode);
     } finally {
       this.#end();
     }
   }
 
   async importPicked(list: FileList | null): Promise<void> {
-    if (!list || !this.#begin(list.length)) return;
+    const mode = this.#mode;
+    if (!list || mode === 'youtube' || !this.#begin(list.length)) return;
     try {
-      await this.#runImport(Array.from(list), 0);
+      await this.#runImport(Array.from(list), 0, mode);
     } finally {
       this.#end();
     }
@@ -493,15 +558,16 @@ class SessionStore {
   /**
    * docs/06 §5 — paste one or more YouTube links.
    *
-   * **Sources do not mix.** A queue is all-local or all-YouTube, decided by the
-   * mode, and this guard is where that holds: the caps differ (95 vs 50), the
-   * 91:00 aggregate is meaningless for videos whose duration is unknown until
-   * the player backfills it, and playback would have to hand the cursor back
-   * and forth between an `HTMLAudioElement` and a cross-origin iframe — with
-   * the ToS requiring the player visible throughout, including while a local
-   * file is the one making sound. Switching mode keeps the queue and disables
-   * Start instead (docs/03 §3), which is the same predicate Playlist → Single
-   * already uses.
+   * **Sources do not mix**: the caps differ (95 vs 50), the 91:00 aggregate is
+   * meaningless for videos whose duration may be unknown, and playback would
+   * have to hand the cursor back and forth between an `HTMLAudioElement` and a
+   * cross-origin iframe — with the ToS requiring the player visible
+   * throughout, including while a local file is the one making sound.
+   *
+   * Links live on their own shelf (docs/02 §3.5). The importer is handed only
+   * that shelf, so the 50-link cap and the duplicate check never count a file,
+   * and the answer lands there whatever tab is showing when it arrives — a
+   * switch to Playlist mid-lookup used to drop these links into the files.
    */
   async importLinks(text: string): Promise<void> {
     if (this.#mode !== 'youtube' || text.trim() === '') return;
@@ -509,7 +575,11 @@ class SessionStore {
 
     try {
       const result = await importLinks(
-        { text, queue: this.#queue, allowDuplicates: settings.current.allowDuplicates },
+        {
+          text,
+          queue: this.#shelves.youtube,
+          allowDuplicates: settings.current.allowDuplicates,
+        },
         browserYtPorts((done, total) => {
           this.#progress = { done, total };
         }),
@@ -532,7 +602,9 @@ class SessionStore {
         ttLog.warn(s.code, '', added?.id);
       }
 
-      if (result.added.length > 0) this.#queue = [...this.#queue, ...result.added];
+      if (result.added.length > 0) {
+        this.#shelves.youtube = [...this.#shelves.youtube, ...result.added];
+      }
       this.#syncOrder();
       this.#lastImport = result;
       if (result.added.length > 0) void this.#fillDurations();
@@ -547,34 +619,41 @@ class SessionStore {
     }
   }
 
-  /** The body of a local import. Callers hold the slot (`#begin`/`#end`). */
-  async #runImport(files: File[], droppedByCap: number): Promise<void> {
-    // Sources do not mix (see importLinks). The drop zone is not even rendered
-    // in YouTube mode, but a stray drop on the window would otherwise reach
-    // here and quietly build a queue the mode cannot play.
-    if (this.#mode === 'youtube') return;
-
+  /**
+   * The body of a local import. Callers hold the slot (`#begin`/`#end`).
+   *
+   * `mode` is the one the import STARTED in, and the callers refuse YouTube
+   * before claiming the slot (sources do not mix — see `importLinks`). Files
+   * always land on the local shelf (docs/02 §3.5), even when the user has
+   * switched to YouTube by the time they are parsed: they are still theirs,
+   * and that tab simply does not show them.
+   */
+  async #runImport(
+    files: File[],
+    droppedByCap: number,
+    mode: Exclude<TtMode, 'youtube'>,
+  ): Promise<void> {
     if (droppedByCap > 0) ttLog.warn('TT-IMP-008', `${droppedByCap} entries over the scan cap`);
 
     // docs/02 §4: a second import in Single mode REPLACES the held track,
     // because isQueueValid('single') requires exactly one — rejecting it
     // would strand a user who simply wants a different track.
     //
-    // ⚠️ This branch WIPES the queue and revokes every URL in it. It is
-    // guarded on `#mode === 'single'` and must stay that way: reaching it
-    // with a playlist staged would silently destroy up to 95 imported tracks.
+    // ⚠️ This branch WIPES the local shelf and revokes every URL in it. It is
+    // guarded on `mode === 'single'` and must stay that way: reaching it with
+    // a playlist staged would silently destroy up to 95 imported tracks.
     // Both branches are pinned by store tests for exactly that reason.
-    const replacing = this.#mode === 'single' && files.length > 0;
-    const queue = replacing ? [] : this.#queue;
+    const replacing = mode === 'single' && files.length > 0;
+    const queue = replacing ? [] : this.#shelves.local;
 
     // Replacing in Single mode: release the outgoing track's URLs, or the
     // ledger accumulates one cover per import (docs/05 §3).
-    if (replacing) for (const t of this.#queue) playback.releaseTrack(t.id);
+    if (replacing) for (const t of this.#shelves.local) playback.releaseTrack(t.id);
 
     const result = await importFiles(
       {
         files,
-        mode: this.#mode,
+        mode,
         queue,
         // Read from settings, not a literal. This call site passed `false`
         // through all of P2 while the setting was declared, defaulted,
@@ -595,12 +674,19 @@ class SessionStore {
     // payload safe to paste publicly by construction, not by remembering.
     for (const s of [...result.skipped, ...result.notes]) ttLog.warn(s.code, '');
 
-    if (replacing) {
+    // Only while the local shelf is the one showing. Otherwise the cursor names
+    // a LINK — the user switched to YouTube during the parse, and may have
+    // pressed Start — and wiping it would cut a run this import has no part in.
+    if (replacing && this.#source === 'local') {
       // The cursor named a track that no longer exists. Nothing to reconcile.
       this.#currentId = null;
       this.#shuffled = null;
     }
-    if (result.added.length > 0) this.#queue = [...queue, ...result.added];
+    if (result.added.length > 0) {
+      // Re-read the shelf rather than reuse the snapshot the importer was
+      // given: a row removed during the parse must stay removed.
+      this.#shelves.local = replacing ? result.added : [...this.#shelves.local, ...result.added];
+    }
     // docs/02 §5.1 rule 5 — new ids join the END of a stored permutation, so
     // importing during a shuffled run cannot reshuffle the unplayed remainder.
     this.#syncOrder();
@@ -614,7 +700,8 @@ class SessionStore {
     // restart from the top, which is a different track than the one after it.
     if (this.#currentId === id) this.advance();
 
-    this.#queue = this.#queue.filter((t) => t.id !== id);
+    const source = this.#shelfOf(id);
+    if (source !== null) this.#shelves[source] = this.#shelves[source].filter((t) => t.id !== id);
     // Advancing had nowhere to go — a one-track queue, or the last one left.
     if (this.#currentId === id) this.#currentId = null;
     this.#syncOrder();
@@ -626,7 +713,7 @@ class SessionStore {
   /**
    * Move a row within the DISPLAY order — docs/02 §5.1 rule 1.
    *
-   * This touches `#queue` and nothing else, which is the whole design showing
+   * This touches the row's shelf and nothing else, which is the whole design showing
    * its work:
    *
    * - Shuffle **off**: playback order is derived from this array, so the next
@@ -644,17 +731,19 @@ class SessionStore {
    * @returns the index it ended at, or null when nothing moved.
    */
   moveTrack(id: string, delta: number): number | null {
-    const from = this.#queue.findIndex((t) => t.id === id);
-    if (from < 0) return null;
+    const source = this.#shelfOf(id);
+    if (source === null) return null;
+    const shelf = this.#shelves[source];
+    const from = shelf.findIndex((t) => t.id === id);
 
     const to = from + delta;
-    if (to < 0 || to >= this.#queue.length) return null;
+    if (to < 0 || to >= shelf.length) return null;
 
-    const next = [...this.#queue];
+    const next = [...shelf];
     const [moved] = next.splice(from, 1);
     if (moved === undefined) return null;
     next.splice(to, 0, moved);
-    this.#queue = next;
+    this.#shelves[source] = next;
     return to;
   }
 
@@ -680,10 +769,13 @@ class SessionStore {
    *
    * Silently ignores a track that has since been removed: every caller is
    * asynchronous by nature, learning a duration seconds after the row was drawn.
+   * Found by id on either shelf (docs/02 §3.5), so a length that arrives after
+   * the user switched to Playlist still lands on its link.
    */
   patchTrack(id: string, fields: { durationMs?: number; title?: string; artist?: string }): void {
-    const target = this.#queue.find((t) => t.id === id);
-    if (target === undefined) return;
+    const source = this.#shelfOf(id);
+    const target = source === null ? undefined : this.#shelves[source].find((t) => t.id === id);
+    if (source === null || target === undefined) return;
 
     const patch: Partial<TtTrack> = {};
     if (fields.durationMs !== undefined && target.durationMs === null) {
@@ -693,7 +785,9 @@ class SessionStore {
     if (fields.artist !== undefined && target.artist.trim() === '') patch.artist = fields.artist;
     if (Object.keys(patch).length === 0) return;
 
-    this.#queue = this.#queue.map((t) => (t.id === id ? { ...t, ...patch } : t));
+    this.#shelves[source] = this.#shelves[source].map((t) =>
+      t.id === id ? { ...t, ...patch } : t,
+    );
     // Nothing here changes `isPlayable`, but the queue array is new and
     // docs/02 §5.1 rule 5 says reconcile after every mutation rather than
     // deciding case by case which ones could matter.
@@ -722,7 +816,9 @@ class SessionStore {
    * with it is the one thing this must not do.
    */
   async recheckPending(): Promise<void> {
-    const targets = this.#queue.filter((t) => t.status === 'pending' && t.id !== this.#currentId);
+    const targets = this.#shelves.youtube.filter(
+      (t) => t.status === 'pending' && t.id !== this.#currentId,
+    );
     if (targets.length === 0) return;
 
     const ports = browserYtPorts();
@@ -745,12 +841,12 @@ class SessionStore {
 
       // The queue is live: the user can remove a track, or the cursor can reach
       // it, while its answer is in flight. Both mean this answer is stale.
-      const still = this.#queue.find((t) => t.id === target.id);
+      const still = this.#shelves.youtube.find((t) => t.id === target.id);
       if (still === undefined || still.status !== 'pending') continue;
       if (this.#currentId === target.id) continue;
 
       if (result.ok) {
-        this.#queue = this.#queue.map((t) =>
+        this.#shelves.youtube = this.#shelves.youtube.map((t) =>
           t.id === target.id ? { ...t, status: 'ok' as const } : t,
         );
         this.patchTrack(target.id, {
@@ -788,14 +884,14 @@ class SessionStore {
    * user removed meanwhile, and a length the player backfilled first.
    */
   async #fillDurations(): Promise<void> {
-    const ids = ytDurationTargets(this.#queue);
+    const ids = ytDurationTargets(this.#shelves.youtube);
     if (ids.length === 0) return;
     const lengths = await lookupDurations(ids);
     if (lengths === null) {
       ttLog.info('TT-YT-008', '');
       return;
     }
-    for (const t of this.#queue) {
+    for (const t of this.#shelves.youtube) {
       const ms = t.videoId === undefined ? undefined : lengths.get(t.videoId);
       if (ms !== undefined) this.patchTrack(t.id, { durationMs: ms });
     }
@@ -808,7 +904,12 @@ class SessionStore {
     // and can only restart from the top.
     if (this.#currentId === id) this.advance();
 
-    this.#queue = this.#queue.map((t) => (t.id === id ? { ...t, status: 'error' as const } : t));
+    const source = this.#shelfOf(id);
+    if (source !== null) {
+      this.#shelves[source] = this.#shelves[source].map((t) =>
+        t.id === id ? { ...t, status: 'error' as const } : t,
+      );
+    }
     if (this.#currentId === id) this.#currentId = null;
     this.#syncOrder();
   }

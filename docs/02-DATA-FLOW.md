@@ -45,6 +45,9 @@ function isPlayable(t: TtTrack): boolean {
 }
 
 function isQueueValid(mode: TtMode, queue: TtTrack[]): boolean {
+  // §3.5 — never a track of the other source. Unreachable through the
+  // session's shelves; this is the second lock on the same door.
+  if (queue.some((t) => t.source !== modeSource(mode))) return false;
   const playable = queue.filter(isPlayable);
   if (playable.length < MIN_QUEUE[mode]) return false;
   if (mode === 'single')   return playable.length === 1;
@@ -119,8 +122,9 @@ so unit tests get deterministic ids.
 
 ## 3. Session model (D3: session-only)
 
-- `session.svelte.ts` holds `mode`, `queue: TtTrack[]`, `countdownMs`, playback
-  order state. It lives in memory only.
+- `session.svelte.ts` holds `mode`, **two shelves** of `TtTrack[]` — local files
+  and YouTube links (`§3.5`) — `countdownMs`, playback order state. `queue` is
+  the current mode's shelf. It lives in memory only.
 - **Persisted** (Dexie `ticktune` DB, table `settings`): language, theme/background
   choice, visualizer style, end behavior, volume, crossfade, shuffle/repeat flags,
   legal-gate acceptance `{version, acceptedAt}`, last-used mode.
@@ -129,8 +133,9 @@ so unit tests get deterministic ids.
   offline start — HTML, scripts, styles, fonts, icons — and nothing the user
   chose or made: the service worker never sees a `blob:` URL and never answers
   `/api/*` or another origin.
-- `beforeunload` guard: if `queue.length > 0` or state ∈ {playing, paused}, show the
-  native confirm dialog. Object URLs are revoked on `pagehide`.
+- `beforeunload` guard: if **either shelf** holds a track (`hasStaged`) or state ∈
+  {playing, paused}, show the native confirm dialog — an empty YouTube tab can
+  sit over a staged playlist. Object URLs are revoked on `pagehide`.
 
 ### 3.1 `TtSettings` — the persisted shape (authoritative)
 
@@ -351,6 +356,47 @@ ticktune-settings-YYYYMMDD.json   (the user's local date)
 - The export is a Blob URL revoked a second after the click (Firefox reads the
   Blob after `click()` returns); nothing is uploaded anywhere.
 
+### 3.5 Two shelves — one per source (v2.0.1)
+
+**Sources do not mix** (`06 §5`): a run plays files on the audio engine or links
+on the YouTube player, never both. The session keeps them on separate shelves:
+
+| Shelf | Shown by | Fed by |
+|-------|----------|--------|
+| `local` | Single, Playlist | the picker and drops (`§4`) |
+| `youtube` | YouTube | the paste box (`06 §5`) |
+
+`modeSource(mode)` maps a mode to its shelf, and `session.queue` is that shelf —
+the only tracks the mode can play. The rules:
+
+- **Switching never touches a shelf.** Playlist → Single keeps its 95 tracks and
+  disables Start with its reason (`03 §3`); Playlist → YouTube shows the links'
+  shelf, and switching back finds the files exactly as they were left.
+- **An import lands on its own source's shelf**, whatever tab is showing when it
+  finishes. Its mode is judged when it **starts** — a drop is judged before its
+  folder walk — and each importer is handed only its own shelf, so the 50-link
+  cap and the 91:00 total never count the other source.
+- **By-id writes find the track on either shelf** — a removal, a reorder, a
+  length from the Data API, a backfill, an error mark — so an answer that
+  arrives after a switch still lands on its track.
+- **Crossing sources drops the run state** — the cursor, the stored permutation,
+  exhaustion and the import summary — because every piece of it names a track
+  on the shelf being left. Start re-seats it (`§5.1`). Single ↔ Playlist keeps
+  it. A switch while playing or paused is refused: the tabs render on Setup
+  only, so this is a guard, not a path.
+- **`isQueueValid` refuses a queue with a track of the other source** (`§1`).
+  The shelves make that queue unreachable; the clause keeps a future change
+  that reintroduces one from ever starting.
+
+**Why, measured on v2.0.0.** There was one `queue` beside the mode flag, and
+nothing compared the two. Playlist → YouTube left the files listed with Start
+enabled; links pasted next joined them, and the 50-link cap counted the files.
+Start then ran a file on the YouTube player — no `videoId`, no player, silence
+that never advanced — or, the other way round, a link on the audio engine,
+which failed TT-PLY-101 and `markTrackError` struck it out for good. The old
+rule here was "switching keeps the queue and disables Start", but the
+predicate it named had no source clause, so Start never disabled.
+
 ## 4. Import pipeline (local files)
 
 Entry points: drag-drop anywhere on Setup, or file picker (`accept` list below).
@@ -362,7 +408,7 @@ Batch processed sequentially; ends with a summary toast ("Added 12 · Skipped 3"
    flatten via webkitGetAsEntry, recursing directories depth-first in
    Intl.Collator order
    entries > TT_DROP_MAX_ENTRIES (500) ....... fail → TT-IMP-008
-   remaining capacity = cap(mode) - playable(queue).length
+   remaining capacity = cap(mode) - playable(local shelf).length   (§3.5)
                                                   (Single 1 / Playlist 95)
    files beyond capacity ..................... fail → TT-IMP-004
 
@@ -376,7 +422,7 @@ for each File (within capacity):
      durationMs > 602_000 (10:02) ............. fail → TT-IMP-002
   4. Aggregate check (Playlist mode only):
      total + durationMs > 5_460_000 (91:00) ... fail → TT-IMP-003
-     `total` is seeded from playable(queue) — the SAME filter step 0 uses.
+     `total` is seeded from playable(local shelf) — the SAME filter step 0 uses.
      Until P3 the two disagreed: an errored track freed a count slot but
      still spent its duration, which Single mode could never reach.
   5. Dedupe key `${name}::${size}::${durationMs}`
