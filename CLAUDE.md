@@ -390,8 +390,9 @@ Resolved and pinned: TypeScript `~5.9` (TS 7 crashes svelte-check, `docs/11 §4`
 1. **Node 26 becomes LTS on 2026-10-28.** Switch `.nvmrc`, `engines`,
    `@types/node` and CI to 26 and drop the `dependabot.yml` ignore — `ci-node26`
    has been green on every v2.0 PR, so it is a switch, not a migration.
-2. **The owner's checks** — S5's everyday-browser run with a click and Safari
-   (`docs/15 §S5`), and listening to real crossfades (`tests/manual/v2.0-live-checklist.md`).
+2. **The owner's S5 run** — an everyday browser with a click on the
+   notification, and Safari (`docs/15 §S5`). The crossfade was confirmed by ear
+   on the released build (2026-10-21, `tests/manual/v2.0-live-checklist.md`).
 3. **Post-2.0 directions** are in `docs/16`'s backlog section: loudness
    normalization needs a new spike (S6 failed), and a seek control would leave
    S4b's PASS.

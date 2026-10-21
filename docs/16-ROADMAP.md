@@ -1217,7 +1217,8 @@ refused — which is the scope rule doing its job in both directions.
 - **S4b — PASS, as shipped.** 347 runs on the real graph; every one passed
   except real music after a **seek**, where Chrome places a VBR MP3 by its Xing
   table and `currentTime` stays up to a second off the audio. Re-run from the
-  start, as the app always plays, 25/25. The app has no seek control.
+  start, as the app always plays, 25/25. The app has no seek control. The
+  owner then listened on the released build: crossfade OK.
 - **S5 — GO.** 40 of 40 hidden, silent 25-minute runs on time across Edge,
   Chrome, Brave and Firefox, measured in browsers Playwright did not drive —
   Playwright's own emulation reports every page `visible`, which is exactly the
