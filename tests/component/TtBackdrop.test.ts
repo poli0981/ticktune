@@ -6,6 +6,25 @@ import { backdrop } from '../../src/app/state/backdrop.svelte';
 import { TT_DEFAULT_SETTINGS, type TtSettings } from '../../src/app/state/tt-settings-schema';
 import { TT_GRADIENT_PRESETS } from '../../src/app/engine/visuals/tt-gradient';
 
+/*
+ * The sampler's browser half, replaced — happy-dom neither decodes nor
+ * rasterises. Rejecting by default keeps every picture test below from
+ * depending on pixels it never chose; the scrim test sets its own.
+ */
+const sampler = vi.hoisted(() => ({
+  decode: (): Promise<unknown> => Promise.reject(new Error('unset')),
+  pixels: new Uint8ClampedArray(0),
+}));
+vi.mock('../../src/app/engine/visuals/tt-image-sample-driver', () => ({
+  browserSamplePorts: {
+    decode: () => sampler.decode(),
+    context: () => ({
+      drawImage: () => undefined,
+      getImageData: () => ({ data: sampler.pixels }),
+    }),
+  },
+}));
+
 /**
  * Z1 — docs/03 §2, P5 slice 3.
  *
@@ -17,6 +36,10 @@ import { TT_GRADIENT_PRESETS } from '../../src/app/engine/visuals/tt-gradient';
 
 afterEach(cleanup);
 afterEach(() => vi.restoreAllMocks());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  sampler.decode = () => Promise.reject(new Error('unset'));
+});
 
 function withSettings(over: Partial<TtSettings>) {
   vi.spyOn(settings, 'current', 'get').mockReturnValue({ ...TT_DEFAULT_SETTINGS, ...over });
@@ -151,6 +174,30 @@ describe('the scrim — scrimStrength and scrimAuto', () => {
     withSettings({ scrimAuto: true, scrimStrength: 0.6, background: 'gradient' });
     render(TtBackdrop, {});
     expect(Number(screen.getByTestId('tt-backdrop-scrim').getAttribute('data-tt-scrim'))).toBe(0.6);
+  });
+
+  it('raises the scrim over a bright PICTURE — sampled, never fetched (v2.0.1)', async () => {
+    /*
+     * docs/03 §2's whole promise, and it never ran in production: the sampler
+     * fetched the blob: URL, `connect-src` refused it, and the scrim stayed at
+     * the user's floor over a white photo. A white picture needs the 0.60 cap.
+     */
+    vi.stubGlobal('URL', {
+      ...URL,
+      createObjectURL: vi.fn(() => 'blob:white'),
+      revokeObjectURL: vi.fn(),
+    });
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    sampler.decode = () => Promise.resolve({});
+    sampler.pixels = new Uint8ClampedArray(8 * 8 * 4).fill(255);
+    backdrop.setImages([new File([new Uint8Array([1])], 'white.png', { type: 'image/png' })]);
+
+    withSettings({ scrimAuto: true, scrimStrength: 0.45, background: 'image' });
+    render(TtBackdrop, {});
+    const scrim = screen.getByTestId('tt-backdrop-scrim');
+    await vi.waitFor(() => expect(scrim.getAttribute('data-tt-scrim')).toBe('0.600'));
+    expect(fetchSpy).not.toHaveBeenCalled();
   });
 });
 

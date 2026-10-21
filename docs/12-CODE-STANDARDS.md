@@ -70,6 +70,7 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-IMP-008 | Rejected: dropped entry count exceeded the pre-scan cap (`02 §4` step 0) |
 | TT-IMG-001 | Background picker: entry rejected, not an image |
 | TT-IMG-002 | Background picker: entries dropped, over the `TT_MAX_BACKGROUND_IMAGES` cap (`03 §6`) |
+| TT-IMG-003 | A picture or cover could not be sampled — the scrim falls back to the base layer, auto-theme borrows no hue (`03 §2`, `03 §5`) |
 | TT-PLY-100 | Playback blocked by the autoplay policy — awaiting a user gesture |
 | TT-PLY-101 | Playback error on local track — skipped/removed |
 | TT-PLY-102 | Playlist exhausted before countdown (repeat off) |
@@ -124,6 +125,14 @@ convincing disguise: `TT-IMP-*` means the `02 §4` audio pipeline, whose codes
 appear in the import summary toast keyed by code (`08 §3.1`), so a background
 rejection would have surfaced as "Format not supported" in a toast about music.
 Different pipeline, different family.
+
+**TT-IMG-003 exists because its absence hid a dead feature** (v2.0.1). The
+scrim's luminance sampler and auto-theme's hue reader both `fetch`ed a `blob:`
+URL, CSP's `connect-src` refused every one (`09 §4`), and both `catch` blocks
+swallowed it silently — from v0.7.0 to v2.0.0 neither feature ran in
+production and the Diagnostics buffer never said so. The fallback is still
+right (decoration must not break the render); the silence was not. The message
+is `scrim` or `hue` plus the error's name, never its text.
 
 **Message content rule.** A log `message` carries its code plus non-identifying
 context only — never a raw file name, tag value, track title, or any other user

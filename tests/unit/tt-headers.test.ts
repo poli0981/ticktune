@@ -104,6 +104,17 @@ describe('public/_headers — docs/09 §2 and §4', () => {
     }
   });
 
+  it('reads blob: pictures as IMAGES, never as connections — docs/09 §4, v2.0.1', () => {
+    /*
+     * The samplers fetched blob: URLs and `connect-src` refused every one from
+     * v0.7.0 to v2.0.0. The fix decodes through `<img>`; widening
+     * `connect-src` instead would have let any script read any blob as data.
+     * This pins that it was not the fix taken.
+     */
+    expect(csp.get('img-src')).toContain('blob:');
+    expect(csp.get('connect-src')).not.toContain('blob:');
+  });
+
   it('matches docs/09 §4, which calls itself the authoritative policy', () => {
     const block = /## 4\. Content-Security-Policy[\s\S]*?```\n([\s\S]*?)```/.exec(
       SECURITY_DOC,

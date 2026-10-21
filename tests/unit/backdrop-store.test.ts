@@ -2,6 +2,30 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { TT_MAX_BACKGROUND_IMAGES, backdrop } from '../../src/app/state/backdrop.svelte';
 import { ttLog } from '../../src/app/engine/log/tt-log';
 
+/*
+ * The sampler's browser half, replaced: happy-dom neither decodes nor
+ * rasterises. `decode` answers per URL so a test can hold one answer back.
+ */
+const sampler = vi.hoisted(() => ({
+  decode: ((): Promise<unknown> => Promise.reject(new Error('unset'))) as (
+    url: string,
+  ) => Promise<unknown>,
+  pixels: new Uint8ClampedArray(0),
+}));
+vi.mock('../../src/app/engine/visuals/tt-image-sample-driver', () => ({
+  browserSamplePorts: {
+    decode: (url: string) => sampler.decode(url),
+    context: (size: number) => ({
+      drawImage: () => undefined,
+      getImageData: () => ({ data: sampler.pixels.slice(0, size * size * 4) }),
+    }),
+  },
+}));
+
+/** A solid `size`×`size` RGBA block. */
+const solid = (r: number, g: number, b: number, size = 16): Uint8ClampedArray<ArrayBuffer> =>
+  new Uint8ClampedArray(Array.from({ length: size * size }, () => [r, g, b, 255]).flat());
+
 /**
  * The backdrop store — docs/03 §2 Z1, P5 slice 3.
  *
@@ -31,7 +55,10 @@ beforeEach(() => {
   revoked = [];
 });
 
-afterEach(() => vi.unstubAllGlobals());
+afterEach(() => {
+  vi.unstubAllGlobals();
+  sampler.decode = () => Promise.reject(new Error('unset'));
+});
 
 const png = (name: string): File => new File([new Uint8Array([1])], name, { type: 'image/png' });
 
@@ -150,14 +177,64 @@ describe('auto-theme hue', () => {
     expect(backdrop.hue).toBeNull();
   });
 
-  it('swallows an unreadable cover rather than breaking the render', async () => {
-    // Decoration, and the same rule `makeCoverUrl` follows: a cover that will
-    // not decode must never take playback with it.
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => Promise.reject(new Error('gone'))),
-    );
+  it('logs nothing for "no cover" — that is not a failure', async () => {
+    await backdrop.readHue(null);
+    expect(ttLog.entries()).toEqual([]);
+  });
+
+  it('survives an unreadable cover, and SAYS so with TT-IMG-003', async () => {
+    /*
+     * Decoration, and the same rule `makeCoverUrl` follows: a cover that will
+     * not decode must never take playback with it. Until v2.0.1 this was also
+     * silent — and every read failed in production on CSP, unseen.
+     */
+    sampler.decode = () => Promise.reject(new DOMException('bad', 'EncodingError'));
     await backdrop.readHue('blob:broken');
+    expect(backdrop.hue).toBeNull();
+    const entry = ttLog.entries().find((e) => e.code === 'TT-IMG-003');
+    expect(entry?.message).toBe('hue EncodingError');
+  });
+
+  it('reads a hue off the cover, and never fetches it (connect-src, docs/09 §4)', async () => {
+    const fetchSpy = vi.fn();
+    vi.stubGlobal('fetch', fetchSpy);
+    sampler.decode = () => Promise.resolve({});
+    sampler.pixels = solid(220, 30, 30);
+    await backdrop.readHue('blob:red');
+    expect(backdrop.hue).not.toBeNull();
+    expect(Math.min(backdrop.hue!, 360 - backdrop.hue!)).toBeLessThan(10);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it('lets the last call win — a slow old cover never overwrites a newer one', async () => {
+    /*
+     * Nothing raced while the fetch failed instantly. A working sampler makes
+     * a track advance two decodes in flight, and the older can land second.
+     */
+    let releaseOld!: () => void;
+    sampler.decode = (url) =>
+      url === 'blob:old' ? new Promise((res) => (releaseOld = () => res({}))) : Promise.resolve({});
+
+    sampler.pixels = solid(30, 30, 220); // blue, for whichever reads now
+    const old = backdrop.readHue('blob:old');
+    await backdrop.readHue('blob:new');
+    const blue = backdrop.hue;
+    expect(blue).not.toBeNull();
+
+    sampler.pixels = solid(220, 30, 30); // the old answer would read red
+    releaseOld();
+    await old;
+    expect(backdrop.hue).toBe(blue);
+  });
+
+  it('readHue(null) cancels a read still in flight', async () => {
+    let release!: () => void;
+    sampler.decode = () => new Promise((res) => (release = () => res({})));
+    sampler.pixels = solid(220, 30, 30);
+    const pending = backdrop.readHue('blob:slow');
+    await backdrop.readHue(null);
+    release();
+    await pending;
     expect(backdrop.hue).toBeNull();
   });
 });

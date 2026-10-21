@@ -224,7 +224,15 @@ Real Safari audio quirks are still a manual pass.
 **CSP.** `astro preview` sends no headers, so every spec runs without a policy.
 `e2e.yml`'s last step serves `dist/` through `wrangler dev` and runs
 `scripts/verify-csp.mjs`, which fails on any CSP violation — the only automated
-check of the policy the site actually ships (`14 §1`). `tests/unit/tt-headers.test.ts`
+check of the policy the site actually ships (`14 §1`). 🔴 **Until v2.0.1 it only
+LOADED pages**, so a request the app makes when the user does something was
+never under the policy: both picture samplers `fetch`ed a blob: URL that
+`connect-src` refuses, and the feature was dead in production for ten
+releases, v0.7.0 to v2.0.0 (`09 §4`). It now also acts — picks a white picture and asserts the
+scrim rose, stages a cover and asserts the tint — counting the browser's
+`securitypolicyviolation` events as well as console lines. The specs under
+`astro preview` cover the same path from the other side: `backgrounds.spec.ts`
+records every `fetch` of a blob: URL, and expects none. `tests/unit/tt-headers.test.ts`
 covers the file itself: every directive, the security headers, the cache rules,
 and that `09 §4` — the policy's authoritative copy — matches what ships.
 

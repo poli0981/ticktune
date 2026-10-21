@@ -1,5 +1,5 @@
 import { test, expect, type Page } from './_fixtures';
-import { gotoApp, storedSettings } from './_helpers';
+import { gotoApp, stagePlaylist, storedSettings } from './_helpers';
 
 /**
  * docs/03 §2 Z1 — P5 slice 3.
@@ -27,6 +27,30 @@ async function scrim(page: Page): Promise<number> {
         -1,
     ),
   );
+}
+
+/**
+ * Record every `fetch` of a blob: URL, from before the app boots.
+ *
+ * Production's `connect-src` has no `blob:` (docs/09 §4), so any such fetch is
+ * refused there — and under `astro preview`, which sends no CSP, it succeeds
+ * and hides the defect. Counting the attempts is how this suite sees it.
+ */
+async function recordBlobFetches(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const w = window as unknown as { __ttBlobFetches: string[] };
+    w.__ttBlobFetches = [];
+    const real = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url;
+      if (url.startsWith('blob:')) w.__ttBlobFetches.push(url);
+      return real(input, init);
+    };
+  });
+}
+
+async function blobFetches(page: Page): Promise<string[]> {
+  return page.evaluate(() => (window as unknown as { __ttBlobFetches: string[] }).__ttBlobFetches);
 }
 
 async function openDisplay(page: Page): Promise<void> {
@@ -185,6 +209,37 @@ test.describe('the Z1 background stack', () => {
     await page.getByTestId('tt-set-bg-clear').click();
     await expect(page.getByTestId('tt-backdrop-photo')).toHaveCount(0);
     await expect(page.getByTestId('tt-set-bg-empty')).toBeVisible();
+  });
+
+  test('a bright picture raises the scrim — sampled, never fetched (v2.0.1)', async ({ page }) => {
+    /*
+     * docs/03 §2's promise, which never ran in production: the sampler fetched
+     * the picture's blob: URL and `connect-src` refused it, so the scrim sat at
+     * the user's floor over a white photo. `astro preview` sends no CSP, so
+     * this suite cannot see the refusal — it CAN see the fetch, which is the
+     * defect itself. White under lit digits needs the 0.60 cap; the default
+     * gradient leaves the default 0.45.
+     */
+    await recordBlobFetches(page);
+    await openDisplay(page);
+    expect(await scrim(page)).toBe(0.45);
+    await page.getByTestId('tt-set-bg-image').click();
+    await page.getByTestId('tt-set-bg-files').setInputFiles('tests/e2e/fixtures/bg-b.png');
+    await expect(page.getByTestId('tt-backdrop-photo')).toHaveCount(1);
+
+    await expect.poll(() => scrim(page)).toBe(0.6);
+    expect(await blobFetches(page)).toEqual([]);
+  });
+
+  test('cover art tints the base layer — auto-theme, sampled, never fetched (v2.0.1)', async ({
+    page,
+  }) => {
+    // The other half of the same defect: `readHue` fetched the cover's blob: URL.
+    await recordBlobFetches(page);
+    await gotoApp(page);
+    await stagePlaylist(page, ['with-cover.mp3']);
+    await expect.poll(() => baseStyle(page)).toContain('hue-rotate(');
+    expect(await blobFetches(page)).toEqual([]);
   });
 
   test('a non-image is refused rather than rendered', async ({ page }) => {

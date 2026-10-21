@@ -67,7 +67,7 @@ cached per id, same-origin only, behind a per-IP limiter (`06 §3`).
 | YouTube engine | `src/app/engine/youtube/` | IFrame API (runtime script) | Player lifecycle, link import; two drivers (oEmbed fetch, player) |
 | Importer | `src/app/engine/importer/` | music-metadata (dynamically imported) | Validation pipeline (`02 §4`); ids from `crypto.randomUUID` (`02 §2`) |
 | Queue | `src/app/engine/queue/` | none | The play order and its cursor rules (`02 §5.1`) |
-| Visuals | `src/app/engine/visuals/` | none | Gradient presets, contrast/scrim maths, dominant hue, visualizer geometry |
+| Visuals | `src/app/engine/visuals/` | none (pure TS + one driver) | Gradient presets, contrast/scrim maths, dominant hue, visualizer geometry; picture sampling decodes through `<img>` in `tt-image-sample-driver.ts` (v2.0.1, `09 §4`) |
 | Log | `src/app/engine/log/` | none | Ring buffer 500, code registry |
 | State | `src/app/state/*.svelte.ts` | Svelte runes | `session`, `settings`, `playback`, `yt`, `backdrop`, `i18n` |
 | i18n | `src/app/i18n/` + `src/app/state/i18n.svelte.ts` | i18next | Runtime EN/VI dictionaries for the island; the static pages use `src/i18n/static/` |
@@ -205,7 +205,9 @@ ticktune/
 │   │   │   │                      # every browser API (13 §1 coverage carve-out)
 │   │   │   ├── youtube/           # pure modules + TWO drivers: oEmbed fetch
 │   │   │   │                      # (tt-yt-driver) and player (tt-yt-player-driver)
-│   │   │   ├── log/ · queue/ · visuals/   # pure, no driver
+│   │   │   ├── visuals/           # pure modules + ONE driver since v2.0.1:
+│   │   │   │                      # tt-image-sample-driver (<img>, never fetch)
+│   │   │   ├── log/ · queue/      # pure, no driver
 │   │   ├── state/                 # {session,settings,playback,yt,backdrop,
 │   │   │                          #  i18n}.svelte.ts + tt-settings-schema.ts
 │   │   └── i18n/{en,vi}.json      # RUNTIME dictionary (08 §2)

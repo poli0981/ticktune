@@ -3,6 +3,9 @@
   import { backdrop } from '../state/backdrop.svelte';
   import { settings } from '../state/settings.svelte';
   import { gradientCss } from '../engine/visuals/tt-gradient';
+  import { sampleImage } from '../engine/visuals/tt-image-sample';
+  import { browserSamplePorts } from '../engine/visuals/tt-image-sample-driver';
+  import { ttLog } from '../engine/log/tt-log';
   import {
     TT_SCRIM_MAX,
     meanLuminance,
@@ -165,7 +168,11 @@
    */
   const effectiveScrim = $derived(s.scrimAuto ? scrim : s.scrimStrength);
 
-  /** Sample the visible picture, 8×8, once per picture. */
+  /**
+   * Sample the visible picture, 8×8, once per picture — decoded through an
+   * `<img>` (`tt-image-sample.ts`), never fetched: CSP's `connect-src` refused
+   * the fetch this used to make, for every picture, from v0.7.0 to v2.0.0.
+   */
   $effect(() => {
     const url = wantsCover ? coverArtUrl : wantsImage ? (backdrop.current?.url ?? null) : null;
     if (!url) {
@@ -173,27 +180,18 @@
       return;
     }
     let cancelled = false;
-    void (async () => {
-      try {
-        const bitmap = await createImageBitmap(await (await fetch(url)).blob(), {
-          resizeWidth: 8,
-          resizeHeight: 8,
-          resizeQuality: 'pixelated',
-        });
-        const canvas = document.createElement('canvas');
-        canvas.width = 8;
-        canvas.height = 8;
-        const ctx = canvas.getContext('2d', { willReadFrequently: true });
-        if (!ctx) return;
-        ctx.drawImage(bitmap, 0, 0);
-        bitmap.close();
-        if (!cancelled) sampledLuminance = meanLuminance(ctx.getImageData(0, 0, 8, 8).data);
-      } catch {
-        // An unreadable picture must not take the scrim with it: falling back
-        // to the base layer's known luminance keeps the digits legible.
-        if (!cancelled) sampledLuminance = null;
+    void sampleImage(url, 8, browserSamplePorts).then((sample) => {
+      if (cancelled) return;
+      if (sample.ok) {
+        sampledLuminance = meanLuminance(sample.rgba);
+        return;
       }
-    })();
+      // An unreadable picture must not take the scrim with it: falling back to
+      // the base layer's known luminance keeps the digits legible. It says so,
+      // though — the silent version of this branch hid a dead feature.
+      sampledLuminance = null;
+      ttLog.warn('TT-IMG-003', `scrim ${sample.reason}`);
+    });
     return () => {
       cancelled = true;
     };
