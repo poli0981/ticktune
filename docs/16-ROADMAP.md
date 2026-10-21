@@ -1261,6 +1261,32 @@ refused — which is the scope rule doing its job in both directions.
 - Japanese legal pages point at the English texts (the binding version).
 - Crossfade on at 2 s for everyone; the Single loop stays hard by default.
 
+## v2.0.1 — three live defects · **v2.0.1**, 2026-10-21
+
+Reported from the owner's console on v2.0.0, the day it shipped. Each was the
+project's usual shape — correct engines, wrong wiring — and each had a reason no
+test could see it.
+
+| PR | Branch | What it carried |
+|----|--------|-----------------|
+| #95 | `fix/v2.0.1-live-defects` | **⚙ threw `each_key_duplicate`** — the Diagnostics list keyed on `ts + code + message`, and an import logs one entry per skipped file in the same millisecond. **The picture samplers fetched blob: URLs** — `connect-src` refused every one, so the adaptive scrim over a picture and auto-theme's tint never ran in production, v0.7.0 to v2.0.0; they now decode through `<img>` (`09 §4`) and a failure logs TT-IMG-003. **Files and links shared one queue** — Playlist → YouTube left the files listed and Start enabled, a paste joined them, Start played a file on the YouTube player; each source now has its own shelf (`02 §3.5`) |
+
+### What no test had
+
+- **A policy nothing acted under.** `astro preview` sends no CSP, and
+  `verify-csp` only loaded pages, so a request the app makes only when the user
+  picks a picture was never under the served policy. P5's live run signed the
+  bright-picture scrim off by eye on a preview whose CSP was refusing it — a
+  false pass, now annotated. `verify-csp` picks a white picture and stages a
+  cover, and asserts the effect as well as the absence of violations;
+  `backgrounds.spec.ts` counts blob: fetches and expects none.
+- **A key unique by luck.** A millisecond timestamp in a key looks unique in
+  every test that logs one entry. The new specs pin the clock.
+- **A predicate the spec named and the code did not have.** `06 §5` said
+  switching mode "disables Start with its reason, which is the `03 §3`
+  predicate" — and that predicate counted tracks without asking what they were.
+  Every engine was right; no spec switched source with a queue staged.
+
 ## Post-2.0 backlog (unordered)
 
 - **Node 26 LTS — 2026-10-28.** Move `.nvmrc`, `engines` (`>=26 <27`),
