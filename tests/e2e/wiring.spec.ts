@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { expect, test, type Page } from './_fixtures';
 import {
   dismissUnloadDialogs,
@@ -402,5 +403,35 @@ test.describe('live defects — v1.1.1', () => {
 
     await page.getByTestId('tt-remove-track').click();
     await expect.poll(live).toBe(0);
+  });
+});
+
+test.describe('live defects — v2.0.1', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
+
+  test('⚙ opens over two identical log entries from one millisecond', async ({ page }) => {
+    /*
+     * ⚙ threw `each_key_duplicate` and never opened. The Diagnostics list was
+     * keyed on `ts + code + message`, and an import logs one entry per skipped
+     * file — same code, empty message, the same millisecond. The page clock is
+     * pinned so that is a fact here, not a likelihood.
+     */
+    const errors: string[] = [];
+    page.on('pageerror', (e) => errors.push(String(e)));
+    await page.clock.setFixedTime(new Date('2026-10-21T09:00:00Z'));
+    await gotoApp(page);
+    await page.getByTestId('tt-tab-playlist').click();
+    const buffer = readFileSync('tests/e2e/fixtures/rejected.aiff');
+    await page.getByTestId('tt-file-input').setInputFiles([
+      { name: 'a.aiff', mimeType: 'audio/aiff', buffer },
+      { name: 'b.aiff', mimeType: 'audio/aiff', buffer },
+    ]);
+    await expect(page.locator('[data-tt-code="TT-IMP-001"]')).toBeVisible();
+
+    await openSettings(page);
+    await expect(
+      page.getByTestId('tt-set-log').locator('li', { hasText: 'TT-IMP-001' }),
+    ).toHaveCount(2);
+    expect(errors).toEqual([]);
   });
 });

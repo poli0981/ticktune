@@ -1154,7 +1154,14 @@
         tabindex="0"
         aria-label={i18n.t('settings.group.diagnostics')}
       >
-        {#each entries as entry (entry.ts + entry.code + entry.message)}
+        <!--
+          Keyed by position: an entry has no identity. The old key was
+          `ts + code + message`, and an import logs one entry per skipped file —
+          same code, empty message, same millisecond — so two untagged MP3s made
+          ⚙ throw `each_key_duplicate` (production builds throw too, v2.0.1).
+          Nothing in a row holds state, so a position key loses nothing.
+        -->
+        {#each entries as entry, i (i)}
           <li data-tt-level={entry.level}>
             <span class="tt-ts">{stamp.format(entry.ts)}</span>
             <code>{entry.code}</code>

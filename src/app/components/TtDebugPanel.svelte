@@ -228,7 +228,8 @@
 
   {#if logs.length}
     <ul class="logs">
-      {#each logs.slice(-6) as line (line)}<li>{line}</li>{/each}
+      <!-- By position: a driver code repeated with the same detail is the same string (v2.0.1). -->
+      {#each logs.slice(-6) as line, i (i)}<li>{line}</li>{/each}
     </ul>
   {/if}
 
