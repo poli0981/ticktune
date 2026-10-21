@@ -235,6 +235,15 @@ test.describe('the Z1 background stack', () => {
     page,
   }) => {
     // The other half of the same defect: `readHue` fetched the cover's blob: URL.
+    //
+    // The cover's URL is minted by the audio engine (`playback.makeCoverUrl`),
+    // so a build with no AudioContext has no cover to sample — Playwright's
+    // WebKit on Windows, not CI's Linux build (docs/13 §3). Skip on the
+    // capability, never the browser's name.
+    const hasAudioContext = await page.evaluate(
+      () => typeof (globalThis as { AudioContext?: unknown }).AudioContext !== 'undefined',
+    );
+    test.skip(!hasAudioContext, 'no AudioContext in this build — nothing mints a cover URL');
     await recordBlobFetches(page);
     await gotoApp(page);
     await stagePlaylist(page, ['with-cover.mp3']);
