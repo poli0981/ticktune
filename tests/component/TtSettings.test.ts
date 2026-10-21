@@ -373,6 +373,31 @@ describe('Diagnostics — the docs/02 §7 API that had no caller', () => {
     );
   });
 
+  /*
+   * v2.0.1, a live defect: ⚙ threw `each_key_duplicate` and never opened. The
+   * list was keyed on `ts + code + message`, and an import logs one entry per
+   * skipped file — same code, empty message, the same millisecond. Two untagged
+   * MP3s were enough. The clock is pinned so "the same millisecond" is a fact
+   * here rather than a likelihood.
+   */
+  it('renders two identical entries from one millisecond — the v2.0.0 ⚙ crash', () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    ttLog.warn('TT-IMP-006', '');
+    ttLog.warn('TT-IMP-006', '');
+    mount();
+    expect(screen.getByTestId('tt-set-log').querySelectorAll('li')).toHaveLength(2);
+  });
+
+  it('takes the second identical entry while open, too — the subscribe path', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(1_700_000_000_000);
+    mount();
+    ttLog.warn('TT-IMP-001', '');
+    ttLog.warn('TT-IMP-001', '');
+    await vi.waitFor(() =>
+      expect(screen.getByTestId('tt-set-log').querySelectorAll('li')).toHaveLength(2),
+    );
+  });
+
   it('clears the buffer', async () => {
     ttLog.info('TT-USR-100', 'accepted');
     mount();
