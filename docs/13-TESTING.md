@@ -47,9 +47,9 @@ elsewhere. Since 2026-10-23 the same report also feeds **SonarQube Cloud**
 the report spans all of `src/` and `worker/`: Sonar counts a file missing from
 it as 0% covered, not as unknown. At the switch Vitest measured that scope at
 **97.2% lines / 88.7% branches** — up from 88.7% / 84.3% the same morning,
-because four modules had no suite at all: the playback store (15.6% of lines),
-the service worker's event wiring (25.5%), the i18n store (41.2%) and the
-settings store (50%). Each row the table above gained for them was
+because four modules had no suite of their own: the playback store (15.6% of
+lines), the service worker's event wiring (the file stood at 25.5%), the i18n
+store (41.2%) and the settings store (50%). Each row the table above gained for them was
 mutation-checked like the store tests before them.
 
 **Scope carve-out.** Two file patterns inside `engine/**` are excluded:

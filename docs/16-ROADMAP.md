@@ -1306,8 +1306,9 @@ so it carries no version.
   extended to the island entry, the spikes and the build tooling — one list in
   two files, held together by a test (`13 §1`).
 - **Four modules with no suite, all of them wiring.** The playback store (15.6%
-  of lines), the service worker's event handlers (25.5%), the i18n store
-  (41.2%) and the settings store (50%). Each now has one, and each was checked
+  of lines), the service worker's event handlers (the file stood at 25.5%,
+  its pure routing tested and its wiring not), the i18n store (41.2%) and the
+  settings store (50%). Each now has one, and each was checked
   the way `13 §1` asks — the bug a test names put back, the test seen red.
 - **A test that passed under the bug it names.** The first settings-store test
   patched a flat field and stayed green with `$state.snapshot` deleted:
@@ -1332,11 +1333,11 @@ so it carries no version.
 - **A new-code period stuck at the first analysis.** "Previous version" needs a
   version; Automatic Analysis sent none, so every analysis was "not provided".
   The job now passes `package.json`'s.
-- **Forty warnings in every log.** The scanner indexes every file in scope and
-  reads each as UTF-8, so the demo media and the tests' audio, pictures and
-  visual baselines each logged an encoding warning — and so did three source
-  files holding a literal U+FFFD, a valid character the scanner's decoder
-  cannot tell from a broken byte. The binaries are excluded; the literals are
+- **Thirty-four warnings in every log.** The scanner indexes every file in
+  scope and reads each as UTF-8, so 31 binaries — the demo media and the
+  tests' audio, pictures and visual baselines — each logged an encoding
+  warning, and so did three source files holding a literal U+FFFD, a valid
+  character the scanner's decoder cannot tell from a broken byte. The binaries are excluded; the literals are
   escapes now, which is also the only form a reviewer can see.
 
 ## Post-2.0 backlog (unordered)
