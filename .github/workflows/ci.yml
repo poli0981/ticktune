@@ -71,6 +71,79 @@ jobs:
       - name: Unit + component tests
         run: pnpm test
 
+      # The `sonar` job below reads it. Only the LCOV file: the HTML report is
+      # for a person at a terminal, not for the scanner.
+      - name: Keep the coverage report
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: coverage
+          path: coverage/lcov.info
+          if-no-files-found: error
+          retention-days: 1
+
+  # SonarQube Cloud, CI-based since 2026-10-23 (docs/14 §1). Automatic Analysis
+  # is off: it could import no coverage, so the gate's coverage condition never
+  # ran, and with no node_modules its TypeScript analysis guessed every imported
+  # type. A job of its own rather than a step of `ci`, because `ci` is a
+  # required check and an outage on SonarSource's side must not block a merge;
+  # SonarQube Cloud reports the quality gate on the PR as its own check.
+  sonar:
+    needs: ci
+    # Secrets never reach a fork's pull request, and Dependabot's runs read
+    # Dependabot's own secret store, which holds no SONAR_TOKEN. Those skip;
+    # the push to main analyses whatever they changed.
+    if: >-
+      github.event_name == 'push' ||
+      (github.event.pull_request.head.repo.full_name == github.repository &&
+      github.actor != 'dependabot[bot]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          # Full history: blame is what tells new code from old. On a shallow
+          # clone every line is new, and every old issue lands on this commit.
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # For type information, not tooling: tsconfig.json extends
+      # `astro/tsconfigs/strict`, and the analysis resolves Svelte's runes,
+      # Dexie's tables and the Workers types through node_modules.
+      - run: pnpm install --frozen-lockfile
+
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: coverage
+          path: coverage
+
+      # The "previous version" new-code period needs a version to change.
+      - name: Project version
+        id: version
+        run: |
+          version="$(node -p "require('./package.json').version")"
+          if ! [[ "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::package.json version '$version' is not X.Y.Z"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: SonarQube Cloud scan
+        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        with:
+          # The newest scanner. v8.3.0's own default is 8.1.0.6389; the
+          # action's main branch already defaults to this one (SQSCANGHA-177).
+          # Delete this input with the Dependabot bump that brings it, or the
+          # pin turns into a downgrade on the release after.
+          scannerVersion: 8.2.0.6438
+          args: -Dsonar.projectVersion=${{ steps.version.outputs.version }}
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
   # Node 26 becomes LTS on 2026-10-28 (docs/14 §1). Until the pin moves, this
   # job keeps the next runtime honest: build and tests only — lint, types and
   # knip do not depend on the Node version. Not a required check.

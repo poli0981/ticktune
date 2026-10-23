@@ -54,7 +54,19 @@ export default defineConfig({
     exclude: ['tests/e2e/**', 'node_modules/**', 'dist/**'],
     coverage: {
       provider: 'v8',
-      include: ['src/app/engine/**'],
+      /*
+       * Two readers since 2026-10-23 (docs/13 §1, docs/14 §1): the threshold
+       * below, which gates the pure engine core, and SonarQube Cloud, which
+       * reads `lcov.info` for its quality gate's coverage-on-new-code condition
+       * across everything it analyses. Sonar counts a source file MISSING from
+       * the report as 0% covered, not as unknown — so the report spans all of
+       * src/ and worker/, and every carve-out below is repeated in
+       * sonar-project.properties' `sonar.coverage.exclusions`
+       * (tests/unit/tt-coverage-scope.test.ts holds the two lists together).
+       * `.svelte` files stay out: Sonar does not analyse them, so their lines
+       * would be paths it cannot resolve.
+       */
+      include: ['src/**/*.ts', 'worker/**/*.ts'],
       exclude: [
         // Browser wiring, not logic. These own Worker, requestAnimationFrame,
         // visibilitychange and Wake Lock — the impure boundary the pure core
@@ -70,17 +82,29 @@ export default defineConfig({
         // is what docs/13 §1's "the engines are pure by design" reasoning meant.
         'src/app/engine/**/*.worker.ts',
         'src/app/engine/**/*-driver.ts',
+        // The island entry: one `mount()` behind the gate. Every E2E spec runs it.
+        'src/app/mount.ts',
+        // Spike harnesses: run by hand in real browsers, never shipped (docs/15).
+        'src/spike/**',
+        // Astro's content-collection config: every build executes it.
+        'src/content.config.ts',
+        // Declarations only — nothing in them executes.
+        '**/*.d.ts',
       ],
-      // docs/13 §1: ">= 85% lines on src/app/engine/** (enforced)".
-      // Enforced HERE, in config, so it fails the run rather than relying on
-      // someone reading a report.
       thresholds: {
-        lines: 85,
-        functions: 85,
-        statements: 85,
-        branches: 75,
+        // docs/13 §1: ">= 85% lines on src/app/engine/** (enforced)". Scoped to
+        // that glob rather than global, because the report now spans the whole
+        // app and the bar is the pure core's. Enforced HERE, in config, so it
+        // fails the run rather than relying on someone reading a report.
+        'src/app/engine/**': {
+          lines: 85,
+          functions: 85,
+          statements: 85,
+          branches: 75,
+        },
       },
-      reporter: ['text', 'html'],
+      // `lcovonly` writes coverage/lcov.info for Sonar; `html` is the copy to browse.
+      reporter: ['text', 'html', 'lcovonly'],
       reportsDirectory: 'coverage',
     },
   },
