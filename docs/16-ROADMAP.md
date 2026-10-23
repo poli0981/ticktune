@@ -1324,7 +1324,11 @@ so it carries no version.
   included. Each job states its own now, under `permissions: {}` (`14 §2`). A
   PR analysis reports only the lines a PR changes, and these were not changed,
   so the PR was green over them; they were found before the merge by reading
-  the rule's issues on other public projects.
+  the rule's issues on other public projects. Touching `deploy.yml` for them
+  surfaced one more, the only red gate of the PR: the release gate fetched the
+  owner's public keys with `curl -fsSL` — `-L` with no protocol limit, so a
+  redirect could have downgraded the one download the signature check trusts
+  (`githubactions:S6506`). It is `--proto '=https'` now (`14 §3`).
 - **A new-code period stuck at the first analysis.** "Previous version" needs a
   version; Automatic Analysis sent none, so every analysis was "not provided".
   The job now passes `package.json`'s.
