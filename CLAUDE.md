@@ -424,6 +424,14 @@ Resolved and pinned: TypeScript `~5.9` (TS 7 crashes svelte-check, `docs/11 §4`
 disable it applied only while the advanced `codeql.yml` existed; that file is
 gone (`docs/14 §1`).
 
+**SonarQube Cloud is CI-based since 2026-10-23 — keep Automatic Analysis off**
+(it refuses a CI analysis while on). `ci.yml`'s `sonar` job scans after `ci`,
+reading `ci`'s own `coverage/lcov.info`, so the gate's coverage-on-new-code
+condition (≥ 80%) is live; forks and Dependabot skip it, having no token
+(`docs/14 §1`). Sonar counts a file missing from the report as **0%**, so a
+coverage carve-out goes in BOTH `vitest.config.ts` and
+`sonar-project.properties` — `tt-coverage-scope.test.ts` fails otherwise.
+
 `test/` is a **local-only, git-ignored** ~651 MB audio corpus for spikes S3/S4.
 Never commit it, never reference it from shipped code, never assume it exists in
 CI. `scripts/guard-no-corpus.mjs` enforces this beyond `.gitignore`.

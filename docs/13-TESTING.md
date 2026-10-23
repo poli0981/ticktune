@@ -24,6 +24,11 @@ that depend on YouTube's servers.
 | End behavior | plan immutability once `done` has fired; `endFadeMs: 0` emits a single `setValueAtTime` and **never** a zero-duration curve (which throws `RangeError`); a volume write mid-fade leaves the fade automation untouched; all three `endAction` values |
 | Late finish | `overshootMs` at 1 999 / 2 000 / 2 001 (strict `>`); a latch-fired `done` with a 300 ms overshoot renders the **normal** screen; the `now − overshootMs` reconstruction (`04 §2`) |
 | i18n guard | `en.json` vs `vi.json` key-set diff = ∅ (build-failing) — from P5, when the dictionaries exist (`08 §3.1`) |
+| Playback store | The end-of-run pause cancelled by every action that starts or stops a run — v1.1's defect, where the previous run's timer paused the next one at `endFadeMs`; a decode failure reported for a track already replaced is dropped; a crossfade adopts only the track the shell armed; a playlist track loads with no loop, so `ended` fires; the driver is built on first use, never at import |
+| Settings store | Dexie faked by a table whose `put` structured-clones the row as IndexedDB does: a **nested** value (`legalAccepted`) must arrive as a plain object — the proxy defect only the legal-gate E2E had caught, which a flat patch cannot reproduce; the stored row over the defaults; TT-SYS-204 and defaults on an unreadable store; reset's first-visit language |
+| i18n store | A real `$effect` re-runs when the language changes — `t()`'s read of the language **is** the subscription; `start()` sets `<html lang>` even unchanged, `setLang()` does not; `en-GB` formats 24-hour; interpolation is not escaped twice |
+| Service-worker wiring | The real module in a faked scope and CacheStorage: the offline start reads **this** version's shell, every lookup ignores `Vary`, a pre-deploy tab's chunk comes from the previous cache and activate keeps that cache, nothing is stored for a 404 or an opaque answer |
+| Coverage scope | `vitest.config.ts` and `sonar-project.properties` name the same carve-outs, and Sonar reads the LCOV file Vitest writes (`14 §1`) |
 
 **A store test is only worth writing if it fails under the bug it names.** The
 two above were checked by mutation, not by inspection: restoring
@@ -34,8 +39,18 @@ decoration — which matters here more than usual, because both bugs that reache
 the live site were invisible to every tier that existed.
 
 Coverage target: **≥ 85% lines on `src/app/engine/**`** — enforced in
-`vitest.config.ts` and wired into `pnpm test`, so it fails the run rather than
-printing a report nobody reads. No global vanity target elsewhere.
+`vitest.config.ts`, scoped to that glob, and wired into `pnpm test`, so it fails
+the run rather than printing a report nobody reads. No global vanity target
+elsewhere. Since 2026-10-23 the same report also feeds **SonarQube Cloud**
+(`14 §1`), whose quality gate fails a change whose **new code** is less than
+**80%** covered — a bar on what a change adds, not on the codebase. It is why
+the report spans all of `src/` and `worker/`: Sonar counts a file missing from
+it as 0% covered, not as unknown. At the switch Vitest measured that scope at
+**97.2% lines / 88.7% branches** — up from 88.7% / 84.3% the same morning,
+because four modules had no suite at all: the playback store (15.6% of lines),
+the service worker's event wiring (25.5%), the i18n store (41.2%) and the
+settings store (50%). Each row the table above gained for them was
+mutation-checked like the store tests before them.
 
 **Scope carve-out.** Two file patterns inside `engine/**` are excluded:
 `*.worker.ts` and `*-driver.ts`. They are the impure boundary the pure core
@@ -46,6 +61,15 @@ covered where they actually run: Playwright (`§3`) and spike S2, which drives
 the real driver for 30–90 minutes across hidden, minimised and suspended states
 (`15 §S2`). The threshold therefore applies to the pure core, which is what
 `01 §3`'s "engines are pure by design" reasoning meant.
+
+Outside the engine the report leaves out three more, each verified where it
+runs: `src/app/mount.ts` (the island entry — every E2E spec mounts it),
+`src/spike/**` (measurement harnesses, run by hand in real browsers, `15`) and
+`src/content.config.ts`. Sonar also excludes `scripts/**` and
+`astro.config.mjs`, which no unit test imports and every build executes. The
+two lists are one list: `tt-coverage-scope.test.ts` fails when
+`vitest.config.ts` and `sonar-project.properties` disagree, because a carve-out
+made in only one of them fails nothing until a PR touches the file.
 
 Measured 2026-07-21 on the timer engine: **98.9% lines, 95.5% statements**
 (`tt-format.ts` 100%, `tt-timer.ts` 98.4%).

@@ -1287,6 +1287,40 @@ test could see it.
   predicate" — and that predicate counted tracks without asking what they were.
   Every engine was right; no spec switched source with a queue staged.
 
+## SonarQube Cloud, CI-based · 2026-10-23 · no release
+
+The owner switched SonarQube Cloud from Automatic Analysis to CI-based analysis
+(`14 §1`): the official scan action in a `sonar` job of `ci.yml`, after `ci`,
+reading `ci`'s own coverage report. Nothing ships — no code under `src/`
+changed — so it carries no version.
+
+### What the switch exposed
+
+- **A quality gate with a condition that had never run.** "Sonar way" fails new
+  code under 80% coverage, and Automatic Analysis imports no coverage, so for
+  the life of the project the condition was skipped rather than met. Turning it
+  on meant deciding what the report covers: Sonar counts a file missing from
+  the LCOV report as **0%**, and Vitest's report had covered `src/app/engine/**`
+  alone. It spans `src/` and `worker/` now, with the existing carve-outs
+  extended to the island entry, the spikes and the build tooling — one list in
+  two files, held together by a test (`13 §1`).
+- **Four modules with no suite, all of them wiring.** The playback store (15.6%
+  of lines), the service worker's event handlers (25.5%), the i18n store
+  (41.2%) and the settings store (50%). Each now has one, and each was checked
+  the way `13 §1` asks — the bug a test names put back, the test seen red.
+- **A test that passed under the bug it names.** The first settings-store test
+  patched a flat field and stayed green with `$state.snapshot` deleted:
+  spreading the proxy copies its top level into a plain object, and only a
+  nested value — `legalAccepted` — is still a proxy when IndexedDB clones the
+  row. That is why the legal-gate E2E was the one that caught the original
+  defect, and why the test now writes an acceptance.
+- **The workflows had fallen out of scope.** Scoping Automatic Analysis to
+  `src,worker,scripts,astro.config.mjs` had quietly dropped `.github/`, where
+  `githubactions:S7637` once found the unpinned actions. It is back in.
+- **A new-code period stuck at the first analysis.** "Previous version" needs a
+  version; Automatic Analysis sent none, so every analysis was "not provided".
+  The job now passes `package.json`'s.
+
 ## Post-2.0 backlog (unordered)
 
 - **Node 26 LTS — 2026-10-28.** Move `.nvmrc`, `engines` (`>=26 <27`),

@@ -229,7 +229,7 @@ ticktune/
 ├── eslint.config.js               # incl. the engine-purity zone rule (12 §3.1)
 ├── svelte.config.js · knip.json · vitest.config.ts · playwright.config.ts
 ├── .prettierrc · .prettierignore · .editorconfig · .nvmrc · .gitattributes
-├── .sonarcloud.properties
+├── sonar-project.properties       # SonarQube Cloud, CI-based (14 §1)
 ├── .gitignore                     # /test/ corpus never committed — see the file
 ├── CLAUDE.md · README.md · CONTRIBUTING.md · LICENSE
 └── test/                          # LOCAL ONLY, git-ignored: ~651 MB spike corpus
