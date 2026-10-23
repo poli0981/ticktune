@@ -44,7 +44,9 @@ jobs:
       - name: Tag is signed by the owner
         run: |
           git fetch --force origin "refs/tags/${GITHUB_REF_NAME}:refs/tags/${GITHUB_REF_NAME}"
-          curl -fsSL https://github.com/poli0981.gpg | gpg --batch --import
+          # HTTPS only, redirects included: these keys decide who may release,
+          # and `-L` alone would follow a redirect to plain HTTP (S6506).
+          curl --proto '=https' -fsSL https://github.com/poli0981.gpg | gpg --batch --import
           git verify-tag "${GITHUB_REF_NAME}"
 
       # A tag on anything but main's history would deploy code that never

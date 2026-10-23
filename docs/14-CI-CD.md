@@ -145,7 +145,9 @@ pack it. Reclaim with
 **rebase-merge** writes new, unsigned commits onto `main`. The **tag** is therefore
 the only signed artifact of a release, and `deploy.yml` verifies it against the
 keys GitHub publishes for the owner (`https://github.com/poli0981.gpg`) before
-anything else runs. `gh release create --verify-tag` only checks that a tag
+anything else runs. Those keys are fetched HTTPS-only, redirects included
+(`curl --proto '=https'`): with `-L` alone a redirect could have downgraded the
+download the whole gate trusts (`githubactions:S6506`, 2026-10-23). `gh release create --verify-tag` only checks that a tag
 exists; it was never a signature check. Locally, `git tag -v vX.Y.Z` must print
 `Good signature` — git uses `gpg.program`, which on the dev box is the Windows
 GnuPG, a different keyring from the `gpg` on Git Bash's `PATH`.
