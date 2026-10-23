@@ -115,8 +115,14 @@ pack it. Reclaim with
 
 ## 2. Permissions and pinning
 
-- **Explicit `permissions:` in every workflow**, `contents: read` by default. Only
-  `deploy.yml`'s `release` job widens it (`§3`).
+- **Explicit `permissions:` in every workflow, granted per job.** The workflow
+  level is `permissions: {}` and each job states `contents: read`; only
+  `deploy.yml`'s `release` job widens it (`§3`). Moved down from the workflow
+  level on 2026-10-23, with `.github/` back in SonarQube's scope: its
+  `githubactions:S8264` flags a read grant at the workflow level, and all five
+  workflows had one. A grant made there reaches every job, one added later
+  included, and `{}` there means a job that forgets its block gets no token
+  rights at all rather than the repository default.
 - **Actions pinned to full commit SHAs** with a `# vX.Y.Z` comment (SonarCloud
   `githubactions:S7637`). A tag can be moved; a SHA cannot. Dependabot updates
   both together, so the pin costs no maintenance.
@@ -131,7 +137,7 @@ pack it. Reclaim with
 
 | Workflow / job | permissions |
 |----------------|-------------|
-| ci · e2e · audit · quality | `contents: read` |
+| ci (`ci`, `sonar`, `ci-node26`) · e2e · audit · quality | `contents: read`, on each job; `{}` at the workflow level |
 | deploy → `verify`, `deploy` | `contents: read` (+ Cloudflare secrets in `deploy` only) |
 | deploy → `release` | `contents: **write**` — for `gh release create`, and it runs no build tooling |
 

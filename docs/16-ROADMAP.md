@@ -1318,6 +1318,13 @@ so it carries no version.
 - **The workflows had fallen out of scope.** Scoping Automatic Analysis to
   `src,worker,scripts,astro.config.mjs` had quietly dropped `.github/`, where
   `githubactions:S7637` once found the unpinned actions. It is back in.
+- **…and five vulnerabilities were waiting there.** `githubactions:S8264` flags
+  a read grant at the workflow level, and all five workflows had
+  `permissions: contents: read` up there, reaching every job — one added later
+  included. Each job states its own now, under `permissions: {}` (`14 §2`). A
+  PR analysis reports only the lines a PR changes, and these were not changed,
+  so the PR was green over them; they were found before the merge by reading
+  the rule's issues on other public projects.
 - **A new-code period stuck at the first analysis.** "Previous version" needs a
   version; Automatic Analysis sent none, so every analysis was "not provided".
   The job now passes `package.json`'s.
