@@ -16,7 +16,11 @@ jobs:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-    timeout-minutes: 30
+    # Measured, not guessed (docs/14 §1): the last six green runs took 20.4 to
+    # 26.8 min — Playwright alone 19 to 25 — and climb as specs land. At 30 the
+    # slowest left 3 min, and on #97 one browser install stalled for 8.5 min
+    # (normally under a minute), which would have timed the job out mid-suite.
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
