@@ -753,4 +753,130 @@ describe('crossfade — docs/05 §2, spike S4b', () => {
     expect(h.decks[1]!.src).toBe('');
     expect(h.revoked).toContain(bUrl);
   });
+
+  it('a pause before the incoming deck has started abandons the fade — the outgoing track is what pauses', async () => {
+    const h = harness({ manualDelay: true });
+    await playing(h);
+    h.engine.setNext(long('b'));
+    at(h, 0, 27.8); // the fade starts; b's play() has not resolved yet
+    h.engine.pause();
+
+    expect(h.engine.status).toBe('paused');
+    expect(h.engine.crossfading).toBe(false);
+    expect(h.deckGains[0]!.calls.at(-1)).toBe('set:1@10');
+    expect(h.deckGains[1]!.calls.at(-1)).toBe('set:0@10');
+    expect(h.decks[0]!.playing).toBe(false);
+    expect(h.decks[1]!.playing).toBe(false);
+    // b's play() resolving afterwards must not make the abandoned fade real.
+    await Promise.resolve();
+    expect(h.crossfades).toEqual([]);
+  });
+
+  it('a resume the browser refuses mid-fade leaves the run paused, and says so (TT-PLY-100)', async () => {
+    const h = harness({ manualDelay: true });
+    await playing(h);
+    h.engine.setNext(long('b'));
+    at(h, 0, 27.8);
+    await Promise.resolve();
+    h.setNow(11);
+    h.engine.pause();
+    await h.flush();
+
+    const refuse = () => Promise.reject(new DOMException('no gesture', 'NotAllowedError'));
+    h.decks[0]!.play = refuse;
+    h.decks[1]!.play = refuse;
+    await h.engine.play();
+
+    expect(h.engine.status).toBe('paused');
+    expect(h.logs).toEqual(['TT-PLY-100']);
+  });
+
+  it('a resume after the last sample of a fade finishes it — a zero-length curve throws RangeError', async () => {
+    const h = harness({ manualDelay: true });
+    await playing(h);
+    h.engine.setNext(long('b'));
+    at(h, 0, 27.8); // curves from 10 s, 2 s long
+    await Promise.resolve();
+    h.setNow(12); // the end of the curve, before its finish timer has fired
+    h.engine.pause();
+    await h.flush();
+    const before = h.deckGains.map((g) => g.calls.length);
+
+    h.setNow(20);
+    await h.engine.play();
+
+    expect(h.engine.status).toBe('playing');
+    expect(h.engine.crossfading).toBe(false);
+    expect(h.decks[0]!.src).toBe(''); // the outgoing deck gave its file back
+    for (const [i, g] of h.deckGains.entries()) {
+      expect(g.calls.slice(before[i]).filter((c) => c.startsWith('curve@'))).toEqual([]);
+    }
+  });
+
+  it('a Single loop crossfade that could not fade loops by hand at `ended`', async () => {
+    const h = harness({ manualDelay: true });
+    h.engine.setCrossfade(2_000);
+    h.engine.load({ ...track('a'), durationMs: null }, 'crossfade');
+    await h.engine.play();
+    // No length anywhere, so no fade: the element plays to its end instead.
+    (h.decks[0] as { durationS: number }).durationS = Number.NaN;
+    at(h, 0, 1);
+    h.engine.onEnded(0);
+
+    expect(h.loops).toEqual([2]);
+    expect(h.ended).toEqual([]); // the same track again — not the queue's advance
+    expect(h.decks[0]!.plays).toBe(2);
+    expect(h.engine.status).toBe('playing');
+  });
+});
+
+describe('what the playback store reads back — docs/05 §2', () => {
+  it('reads position and length from the deck that is current — the incoming one after a fade', async () => {
+    const h = harness({ manualDelay: true });
+    h.engine.setCrossfade(2_000);
+    h.engine.load({ ...track('a'), durationMs: 30_000 }, 'none');
+    await h.engine.play();
+    (h.decks[0] as { durationS: number }).durationS = 30;
+    h.engine.setNext({ ...track('b'), durationMs: 30_000 });
+    (h.decks[0] as { currentTimeS: number }).currentTimeS = 27.8;
+    h.engine.onTimeUpdate(0);
+    await Promise.resolve();
+
+    Object.assign(h.decks[1]!, { currentTimeS: 1.5, durationS: 30 });
+    expect(h.engine.positionMs).toBe(1_500);
+    expect(h.engine.durationMs).toBe(30_000);
+  });
+
+  it('reports no length — never NaN — until the element knows one', () => {
+    // The store falls back to the importer's length with `??`, which NaN defeats.
+    const h = harness();
+    h.engine.load(track('a'), 'none');
+    for (const unsettled of [Number.NaN, 0, Number.POSITIVE_INFINITY]) {
+      (h.decks[0] as { durationS: number }).durationS = unsettled;
+      expect(h.engine.durationMs).toBeNull();
+    }
+    (h.decks[0] as { durationS: number }).durationS = 212.3456;
+    expect(h.engine.durationMs).toBe(212_346);
+  });
+
+  it('holds the configured fade to 0–5 s, and anything unreadable to 0', () => {
+    const h = harness();
+    h.engine.setCrossfade(9_999);
+    expect(h.engine.crossfadeMs).toBe(5_000);
+    h.engine.setCrossfade(-1);
+    expect(h.engine.crossfadeMs).toBe(0);
+    h.engine.setCrossfade(Number.NaN);
+    expect(h.engine.crossfadeMs).toBe(0);
+  });
+
+  it('switches the loop of the track already playing — and a 0 s crossfade loop is a hard one (Z2)', () => {
+    const h = harness();
+    h.engine.setCrossfade(2_000);
+    h.engine.load(track('a'), 'hard');
+    expect(h.decks[0]!.looped).toBe(true);
+    h.engine.setLoopMode('crossfade');
+    expect(h.decks[0]!.looped).toBe(false); // the element must reach its end to fade
+    h.engine.setCrossfade(0);
+    expect(h.decks[0]!.looped).toBe(true);
+  });
 });
