@@ -26,6 +26,15 @@ and `tt-notices.test.ts` read `dist/`. Until v1.1 `ci.yml` ran the tests first,
 so both suites skipped on every CI run while their headers claimed CI was the
 gate; under `CI` a missing `dist/` is now a failure, not a skip.
 
+**E2E runs long, and its timeout is measured.** `e2e` is the slowest required
+check: the last six green runs (2026-10-20 to 10-23) took 20.4–26.8 min,
+Playwright alone 19–25 of them, and the figure climbs with every spec.
+`timeout-minutes` was 30, which left the slowest run 3 min — then on #97 a
+browser install stalled for 8.5 min (normally 40–55 s) and the run had to be
+cancelled and re-run. It is 45 now. Every push to a PR also cancels that PR's
+running checks (`cancel-in-progress`): #97 was pushed seven times in half an
+hour, and no `e2e` run finished until the pushes stopped. Batch the fixes.
+
 **CSP in a real browser.** `astro preview` sends no headers, so the whole E2E
 suite runs without a policy. The last step of `e2e.yml` serves `dist/` through
 `wrangler dev` — the same Workers Static Assets layer that applies `_headers`,
