@@ -74,7 +74,8 @@ the reasoning and the numbers are in `docs/01 §3`.
   Log codes `TT-AAA-nnn`, registered in `docs/12 §6` before use.
 - Conventional Commits; branches `feat/* fix/* docs/* chore/* spike/*`.
 - CI caller stubs must keep **explicit `permissions:` blocks** (known GitHub
-  inheritance bug — see `docs/14`).
+  inheritance bug — see `docs/14`) — on each job, with `permissions: {}` at the
+  workflow level (SonarQube `githubactions:S8264`, `docs/14 §2`).
 
 ## Commands
 
