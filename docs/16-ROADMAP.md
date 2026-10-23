@@ -1345,8 +1345,45 @@ so it carries no version.
   scope and reads each as UTF-8, so 31 binaries — the demo media and the
   tests' audio, pictures and visual baselines — each logged an encoding
   warning, and so did three source files holding a literal U+FFFD, a valid
-  character the scanner's decoder cannot tell from a broken byte. The binaries are excluded; the literals are
-  escapes now, which is also the only form a reviewer can see.
+  character the scanner's decoder cannot tell from a broken byte. The binaries
+  are excluded; the literals are escapes now, which is also the only form a
+  reviewer can see.
+
+### The first full analysis of `main`
+
+#97 merged at 13:08 UTC (auto-merge, rebase — the only method the ruleset
+allows), and `main`'s first CI-based analysis ran on `52df97d` with the
+dependencies installed and `.github/` in scope:
+
+| | |
+|---|---|
+| Quality gate | **passed** — all six conditions evaluated, coverage on new code among them for the first time |
+| Bugs · vulnerabilities · code smells | 0 · 0 · 0 |
+| Security hotspots | 0 |
+| Coverage | **95.1%** — lines 99.0%, branches 89.6%; 20 of 1,911 lines uncovered |
+| Coverage on new code | **95.3%** of 756 lines |
+| Duplication | 0.0% |
+
+Full type information, the thing Automatic Analysis never had, found nothing
+new in code that had only ever been analysed without it. The six workflow
+vulnerabilities were already fixed on the PR, so `main` never reported them.
+
+The new-code period still started at 2026-09-27, and the 756 lines are
+everything since. SonarSource starts a "previous version" period at the first
+analysis of the current version, and the analysis that introduced 2.0.1 was
+still measured as part of the version before it — "not provided", which began
+with the project's first analysis. From the next analysis of `main` the period
+starts at 2.0.1's.
+
+### …and the `e2e` it waited for
+
+`e2e`'s first run to finish on #97 came an hour after the PR opened. The PR was
+pushed seven times in half an hour, each push after the first cancelling the
+run before it (`cancel-in-progress`), and the last run was still installing
+browsers after 8.5 min — normally 40–55 s. The five green runs before it had
+taken 20.4–26.8 min against a 30-min timeout, so it was cancelled and re-run
+(26.6 min) rather than left to time out mid-suite. The timeout is 45 min now
+(`14 §1`).
 
 ## Post-2.0 backlog (unordered)
 
