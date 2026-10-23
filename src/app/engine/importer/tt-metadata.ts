@@ -19,7 +19,9 @@ import type { TtImportCode, TtRawTags } from './types';
  */
 
 export function hasReplacementChar(v: string | null | undefined): boolean {
-  return !!v && v.includes('�');
+  // An escape, not the literal: U+FFFD looks like nothing in review, and a
+  // scanner decoding this file cannot tell it from a broken byte.
+  return !!v && v.includes('\uFFFD');
 }
 
 const nonAscii = (v: string | null | undefined): boolean =>

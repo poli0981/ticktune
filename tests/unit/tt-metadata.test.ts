@@ -22,7 +22,7 @@ const tags = (over: Partial<TtRawTags> = {}): TtRawTags => ({ tagTypes: ['ID3v2.
 describe('isTagUnreliable — the S3 replacement rule', () => {
   it('flags ID3v1-only with non-ASCII', () => {
     // The measured case. No U+FFFD anywhere in it.
-    expect(VI_MOJIBAKE.includes('�')).toBe(false);
+    expect(VI_MOJIBAKE.includes('\uFFFD')).toBe(false);
     expect(isTagUnreliable(['ID3v1'], VI_MOJIBAKE, 'Nguy?n')).toBe(true);
   });
 
@@ -49,7 +49,7 @@ describe('isTagUnreliable — the S3 replacement rule', () => {
 
 describe('hasReplacementChar — kept, for a different failure', () => {
   it('still catches broken UTF-8 in a v2 frame', () => {
-    expect(hasReplacementChar('Nắng � dần')).toBe(true);
+    expect(hasReplacementChar('Nắng \uFFFD dần')).toBe(true);
     expect(hasReplacementChar(VI_TITLE)).toBe(false);
     expect(hasReplacementChar(null)).toBe(false);
   });
@@ -128,7 +128,7 @@ describe('mapTags', () => {
   });
 
   it('falls back on a v2 frame containing U+FFFD', () => {
-    const m = mapTags(tags({ title: 'Broken � title' }), 'Real Name.mp3');
+    const m = mapTags(tags({ title: 'Broken \uFFFD title' }), 'Real Name.mp3');
     expect(m.title).toBe('Real Name');
     expect(m.note).toBe('TT-IMP-007');
   });

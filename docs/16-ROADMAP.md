@@ -1291,8 +1291,9 @@ test could see it.
 
 The owner switched SonarQube Cloud from Automatic Analysis to CI-based analysis
 (`14 §1`): the official scan action in a `sonar` job of `ci.yml`, after `ci`,
-reading `ci`'s own coverage report. Nothing ships — no code under `src/`
-changed — so it carries no version.
+reading `ci`'s own coverage report. Nothing ships — the one change under
+`src/` writes three U+FFFD literals as `\uFFFD` escapes, behaviour unchanged —
+so it carries no version.
 
 ### What the switch exposed
 
@@ -1320,6 +1321,12 @@ changed — so it carries no version.
 - **A new-code period stuck at the first analysis.** "Previous version" needs a
   version; Automatic Analysis sent none, so every analysis was "not provided".
   The job now passes `package.json`'s.
+- **Forty warnings in every log.** The scanner indexes every file in scope and
+  reads each as UTF-8, so the demo media and the tests' audio, pictures and
+  visual baselines each logged an encoding warning — and so did three source
+  files holding a literal U+FFFD, a valid character the scanner's decoder
+  cannot tell from a broken byte. The binaries are excluded; the literals are
+  escapes now, which is also the only form a reviewer can see.
 
 ## Post-2.0 backlog (unordered)
 
