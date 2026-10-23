@@ -1310,6 +1310,14 @@ so it carries no version.
   its pure routing tested and its wiring not), the i18n store (41.2%) and the
   settings store (50%). Each now has one, and each was checked
   the way `13 §1` asks — the bug a test names put back, the test seen red.
+- **The crossfade's edges, and a row that said they could not be tested.** The
+  engine stood at 90.4% of lines, and the 31 it missed were all edges of the
+  v2.0 crossfade: a pause before the incoming deck starts, a refused resume, a
+  resume after the curve's last sample (a zero-length curve throws
+  `RangeError`), a crossfade loop that could not fade. `13 §1`'s table still
+  said the trigger was "**not** tested — it is what spike S4b has to measure
+  first"; S4b passed and the trigger has been tested since v2.0. The row lists
+  what is tested now, and the engine is at 100%.
 - **A test that passed under the bug it names.** The first settings-store test
   patched a flat field and stayed green with `$state.snapshot` deleted:
   spreading the proxy copies its top level into a plain object, and only a
