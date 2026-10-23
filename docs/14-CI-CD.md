@@ -15,7 +15,7 @@ inheritance bug, and the habit costs nothing.
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yml` | PR + push main | corpus guard → install → lint → check → knip → doc refs → **build → tests**; plus `ci-node26` (install → build → tests on Node 26, not required) |
+| `ci.yml` | PR + push main | corpus guard → install → lint → check → knip → doc refs → **build → tests**; then `sonar` (the SonarQube Cloud scan of the same commit, reading `ci`'s coverage report, not required); plus `ci-node26` (install → build → tests on Node 26, not required) |
 | `e2e.yml` | PR to main | Playwright chromium + firefox + webkit + 2 mobile projects, then **`verify-csp` under `wrangler dev`** |
 | `audit.yml` | weekly cron + PR touching lockfile/manifests | `pnpm audit --prod --audit-level high`, then the whole tree at `critical` |
 | `deploy.yml` | push tag `v*` **only** | verify (signature, ancestry, gates) → deploy → GitHub Release (`§5`) |
@@ -47,12 +47,48 @@ first.
 1.0; keep default setup **enabled** — the old instruction to disable it applied
 only while that file existed.
 
-**SonarCloud** runs as Automatic Analysis; `.sonarcloud.properties` sets the
-source/test split so test helpers are judged as test code, and keeps the
-parallel static dictionaries (`src/i18n/static/`) out of copy/paste detection —
-same keys, translated values, so CPD read them as one long copy and failed a
-PR's duplication gate for three new keys. **Snyk** reports a PR
-status check from its GitHub integration.
+**SonarQube Cloud** has been **CI-based** since 2026-10-23: the `sonar` job in
+`ci.yml`, on the official `SonarSource/sonarqube-scan-action` (v8.3.0, running
+SonarScanner CLI 8.2.0.6438 — pinned ahead of v8.3.0's own default until the
+action's next release catches up; delete the `scannerVersion` input with that
+Dependabot bump). Automatic Analysis is **off and must stay off** — SonarQube
+Cloud refuses a CI analysis while it is on. Switching was what made the gate
+whole: Automatic Analysis could import no coverage, so "Sonar way"'s
+*coverage on new code ≥ 80%* condition was never evaluated, and with no
+`node_modules` its TypeScript analysis guessed at every imported type.
+
+- **One report, two readers.** `ci` runs `pnpm test` and keeps
+  `coverage/lcov.info` as an artifact; `sonar` downloads it and runs no tests of
+  its own. The report spans all of `src/` and `worker/`, because Sonar counts a
+  file missing from it as 0% covered, not as unknown — and the carve-outs are
+  one list kept in two files, `vitest.config.ts` and `sonar-project.properties`,
+  which `tt-coverage-scope.test.ts` holds together (`13 §1`).
+- **Scope** (`sonar-project.properties`): `src`, `worker`, `scripts`,
+  `astro.config.mjs` and `.github`. The workflows are back in scope for the
+  GitHub Actions rules — `githubactions:S7637` asked for the SHA pins below —
+  which scoping Automatic Analysis had quietly dropped. `tests/` is test code,
+  judged by test rules. The parallel static dictionaries (`src/i18n/static/`)
+  stay out of copy/paste detection: same keys, translated values, so CPD read
+  them as one long copy and failed a PR's duplication gate for three new keys.
+  `sonar.typescript.tsconfigPaths` names both programs, so `worker/` is analysed
+  with the Workers types rather than as an orphan file.
+- **New code** is "previous version", and the job passes `package.json`'s
+  version as `sonar.projectVersion`, so the period resets at each release. Every
+  Automatic Analysis was version "not provided", which left the period running
+  from the first analysis (2026-09-27) for good.
+- **What is analysed:** pushes to `main` and pull requests from this
+  repository. A fork's PR receives no secrets, and Dependabot's runs read
+  Dependabot's own secret store, which holds no `SONAR_TOKEN`; both skip, and
+  `main`'s analysis covers what they change. To analyse Dependabot's PRs as
+  well, add the token to Dependabot's secrets and drop the actor clause from
+  the job's `if`.
+- **Not a required check.** `ci` is, and an outage on SonarSource's side must
+  not block a merge; the quality gate reports on the PR as SonarQube Cloud's own
+  check, which a merge waits for (`§5`). The job checks out with
+  `fetch-depth: 0`: blame is what tells new code from old, and on a shallow
+  clone every line would be new.
+
+**Snyk** reports a PR status check from its GitHub integration.
 
 **Dependabot**: `.github/dependabot.yml`, npm + github-actions, weekly, grouped
 minor/patch with a 3-day **cooldown** (pnpm 11's `minimumReleaseAge` otherwise
@@ -114,8 +150,12 @@ GnuPG, a different keyring from the `gpg` on Git Bash's `PATH`.
 |--------|-------|
 | `CLOUDFLARE_API_TOKEN` | Custom token: Account → Workers Scripts: Edit; Zone → Workers Routes: Edit (only) |
 | `CLOUDFLARE_ACCOUNT_ID` | Account id (not sensitive but kept as secret for uniformity) |
+| `SONAR_TOKEN` | SonarQube Cloud analysis token for `poli0981_ticktune` (since 2026-10-23) |
 
-Used by `deploy.yml`'s `deploy` job only. The `production` environment holds them.
+The Cloudflare pair is used by `deploy.yml`'s `deploy` job only, and the
+`production` environment holds them. `SONAR_TOKEN` is a repository secret read
+by one step — `ci.yml`'s scan — never by a step that installs or runs the
+project's dependencies; Dependabot's store does not have it (`§1`).
 
 **The Worker's own secrets are not GitHub secrets.** `YT_DATA_API_KEY` (v2.0,
 `10`, `06 §3`) lives on the Worker, so every version — previews included —
@@ -145,7 +185,7 @@ after a push, `wrangler versions list` must show a new version and
 `wrangler deployments list` must **not** show a new 100% deployment.
 
 1. Merge PRs with **rebase-merge** once `ci`, `e2e`, `audit` (when triggered),
-   SonarCloud and Snyk are green. Run the slice's live checklist on the PR's
+   the SonarQube Cloud quality gate and Snyk are green. Run the slice's live checklist on the PR's
    **Version URL** before merging (`13 §7`).
 2. Bump `version` in `package.json` in the release PR; the app's About panel and
    the diagnostics payload read it at build time.

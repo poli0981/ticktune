@@ -42,6 +42,10 @@ Enable the corpus guard once per clone: `git config core.hooksPath .githooks`.
 
 - [ ] `pnpm lint` · `pnpm check` · `pnpm test` pass
 - [ ] `pnpm knip` clean (no unused files/exports/deps)
+- [ ] The SonarQube Cloud quality gate passes on the PR — no new issues, and
+      new code at least 80% covered by the unit tier. A file kept out of
+      coverage is kept out in both `vitest.config.ts` and
+      `sonar-project.properties`, with where it is tested instead (`docs/13 §1`)
 - [ ] New user-facing strings exist in **all three** languages: the app's
       `src/app/i18n/{en,vi,ja}.json`, or the static pages'
       `src/i18n/static/{en,vi,ja}.ts` — and every app key has a literal
