@@ -282,3 +282,142 @@ describe('dispose', () => {
     expect(yt.durationMs).toBeNull();
   });
 });
+
+describe('a cue stays a cue — paused means silent (docs/06 §2)', () => {
+  it('replays a cue issued before the rail mounted as a cue, never as a load', () => {
+    // ⏭ while paused, before the rail exists. Replaying it as `load` would
+    // autoplay on ready — the music starting under a frozen countdown.
+    yt.cue(track());
+    yt.attach(el());
+    made[0]?.events.onReady();
+
+    expect(made[0]?.api.cueVideoById).toHaveBeenCalledWith('dQw4w9WgXcQ');
+    expect(made[0]?.api.loadVideoById).not.toHaveBeenCalled();
+    expect(made[0]?.api.playVideo).not.toHaveBeenCalled();
+  });
+
+  it('cues on a ready player without starting it, at the stored volume', () => {
+    yt.load(track());
+    yt.attach(el());
+    made[0]?.events.onReady();
+    made[0]?.api.setVolume.mockClear();
+    made[0]?.api.playVideo.mockClear();
+    made[0]?.api.getCurrentTime.mockReturnValue(42);
+    yt.tick();
+    yt.cue(track({ id: 'track-2', videoId: '9bZkp7q19f0' }));
+
+    expect(made[0]?.api.cueVideoById).toHaveBeenCalledWith('9bZkp7q19f0');
+    expect(made[0]?.api.playVideo).not.toHaveBeenCalled();
+    expect(made[0]?.api.setVolume).toHaveBeenCalled();
+    // The readouts belonged to the previous video.
+    expect(yt.positionMs).toBeNull();
+    expect(yt.durationMs).toBeNull();
+  });
+
+  it('plays the cued track when the run resumes', () => {
+    yt.load(track());
+    yt.attach(el());
+    made[0]?.events.onReady();
+    yt.cue(track({ id: 'track-2', videoId: '9bZkp7q19f0' }));
+    yt.play();
+
+    expect(made[0]?.api.playVideo).toHaveBeenCalled();
+  });
+});
+
+describe('what the player reports reaches the runes', () => {
+  /** One track loaded on a ready player. */
+  function ready(): Made {
+    yt.load(track());
+    yt.attach(el());
+    const m = made[0];
+    if (m === undefined) throw new Error('no player');
+    m.events.onReady();
+    return m;
+  }
+
+  it('mirrors playing and paused', () => {
+    const m = ready();
+    m.events.onStateChange(1);
+    expect(yt.playing).toBe(true);
+    m.events.onStateChange(2);
+    expect(yt.playing).toBe(false);
+  });
+
+  it('advances the queue when a video ends', () => {
+    const onAdvance = vi.fn();
+    yt.onAdvance = onAdvance;
+    ready().events.onStateChange(0);
+
+    expect(onAdvance).toHaveBeenCalledOnce();
+    expect(yt.playing).toBe(false);
+  });
+
+  it('shows the card, counts down in whole seconds, then skips by itself (docs/06 §4)', () => {
+    vi.useFakeTimers();
+    try {
+      const onAdvance = vi.fn();
+      yt.onAdvance = onAdvance;
+      ready().events.onError(150);
+
+      expect(yt.overlay).toMatchObject({ code: 'TT-YT-150', ambiguous: true });
+      expect(yt.skipInSeconds).toBe(5);
+      vi.advanceTimersByTime(1_000);
+      expect(yt.skipInSeconds).toBe(4);
+      vi.advanceTimersByTime(3_500);
+      expect(yt.skipInSeconds).toBe(1);
+      expect(onAdvance).not.toHaveBeenCalled();
+
+      vi.advanceTimersByTime(500);
+      expect(onAdvance).toHaveBeenCalledOnce();
+      expect(yt.overlay).toBeNull();
+      expect(yt.skipInSeconds).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('skips at once on "Bỏ qua ngay"', () => {
+    const onAdvance = vi.fn();
+    yt.onAdvance = onAdvance;
+    ready().events.onError(150);
+    yt.skipNow();
+
+    expect(onAdvance).toHaveBeenCalledOnce();
+    expect(yt.overlay).toBeNull();
+    expect(yt.skipInSeconds).toBeNull();
+  });
+
+  it('logs the code and the opaque track id — never a title or a URL (docs/12 §6)', async () => {
+    const { ttLog } = await import('../../src/app/engine/log/tt-log');
+    ready().events.onError(150);
+
+    const entry = ttLog.entries().at(-1);
+    expect(entry).toMatchObject({
+      level: 'warn',
+      code: 'TT-YT-150',
+      message: '',
+      trackId: 'track-1',
+    });
+    expect(JSON.stringify(entry)).not.toContain('dQw4w9WgXcQ');
+  });
+
+  it('passes pause and play through to the player', () => {
+    const m = ready();
+    yt.pause();
+    expect(m.api.pauseVideo).toHaveBeenCalledOnce();
+    yt.play();
+    expect(m.api.playVideo).toHaveBeenCalled();
+  });
+
+  it('forgets the card and the playing flag on dispose', () => {
+    const m = ready();
+    m.events.onStateChange(1);
+    m.events.onError(150);
+    yt.dispose();
+
+    expect(yt.overlay).toBeNull();
+    expect(yt.skipInSeconds).toBeNull();
+    expect(yt.playing).toBe(false);
+  });
+});
