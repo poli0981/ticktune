@@ -45,7 +45,7 @@
   let totalMs = $state(0);
   let progress = $state('');
 
-  const hasReplacementChar = (s: string | null | undefined) => !!s && s.includes('�');
+  const hasReplacementChar = (s: string | null | undefined) => !!s && s.includes('\uFFFD');
 
   async function handle(files: FileList | null) {
     if (!files?.length) return;
