@@ -1411,6 +1411,37 @@ deployment (`c11f5b43`); the preview and production runs of
 `tests/manual/v2.0.2-live-checklist.md` both passed 9/9 with `verify:csp`
 6/6, and `audit.yml` re-run on `main` is green. Dependabot closed alerts 68 and 69.
 
+## v2.0.3 — the rate limit that was never there · **v2.0.3**, 2026-10-27
+
+The owner asked for rate limits on the whole site and API, in `wrangler.jsonc`
+where possible. The first thing measured was what was already there.
+`/api/yt/durations` had its v2.0 binding (20 / 60 s per IP). `/api/yt/oembed`
+had nothing: **seventy-five rapid calls to production all answered 200.** The
+"api-oembed-guard" zone rule — 60 / min per IP on `/api/*` — had been cited by
+`06 §3`, `09 §1` and `.github/SECURITY.md` since P4, carried an unticked box
+in `10 §11` the whole time, and was listed under "Still owed after P4" above;
+nobody had ever created it. It could not have been created as written either:
+on the Free zone plan the one rate-limiting rule counts over 10 s and blocks
+for 10 s, with only the path to match on.
+
+| PR | Branch | What it carried |
+|----|--------|-----------------|
+| #101 | `fix/api-rate-limit` | `API_LIMIT` in `wrangler.jsonc` — every `/api/*` request, 60 / 60 s per IP, checked first, our own JSON 429, fail-open — with the durations limiter moved onto the same helper; `tests/worker/api-limit.test.ts` (20 cases, 11 red on the old Worker); `10 §6` rewritten around the measurement; the Privacy Policy's rate-limit line extended to oEmbed in both languages, without a bump (`tt-legal-const.ts` says why) |
+
+**Measured, not assumed:** under `wrangler dev`, 70 rapid calls → 60 answered
+and 10 `429 {"error":"rate_limited"}`, with `/` still 200 and an unknown path
+still the 404 page. The preview and production halves are in
+`tests/manual/v2.0.3-live-checklist.md`.
+
+**Not taken — a limit on the static pages.** The asset layer serves them
+before the Worker runs. `run_worker_first` would put the limiter in front of
+them at the price of a billed invocation and a Workers Logs entry for every
+page view — false against the Privacy Policy and a `TT_LEGAL_VERSION` bump —
+to guard files Cloudflare serves free and unmetered behind its DDoS layer. The
+zone's one Free rule is the other place it could live; that is a dashboard
+decision, and `10 §6` sets out why a 10-s whole-site rule would catch the
+service worker's precache and shared CGNAT addresses first.
+
 ## Post-2.0 backlog (unordered)
 
 - **Node 26 LTS — 2026-10-28.** Move `.nvmrc`, `engines` (`>=26 <27`),
@@ -1431,6 +1462,9 @@ deployment (`c11f5b43`); the preview and production runs of
 - **`visual` and `lighthouse` as required checks**, once they have run green on
   a few weeks of PRs; until then a red one is read, not obeyed (`docs/14`).
 - Zone-plan upgrade decision → branded Cloudflare error pages (`10 §8`).
+- **A zone rate-limiting rule** — the Free plan's one rule is unused. Only worth
+  it as a burst guard in front of the Worker's own limit (`10 §6`); an owner
+  decision, in the dashboard.
 
 ## Standing rules
 

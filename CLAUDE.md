@@ -126,7 +126,7 @@ measuring again.
 
 ## Current status
 
-**v2.0.2** (2026-10-26) is the current release, live on `https://ticktune.net`.
+**v2.0.3** (2026-10-27) is the current release, live on `https://ticktune.net`.
 P1–P7 are complete — v1.0.0 closed P7 — and every phase's exit review is in
 `docs/16`. v1.1 was a full review rather than a phase; v1.1.1 fixed two live
 defects. **v2.0 shipped every post-1.1 direction**: link lengths from the
@@ -139,8 +139,9 @@ threw on a duplicate log key, the picture samplers fetched blob: URLs the CSP
 refuses (dead in production since v0.7.0), and files and links shared one
 queue. **v2.0.2 is dependencies only** — the scheduled audit went red on
 Astro's build-time undici; it also took Vitest 5 and TypeScript 6, and added
-two dev-tree overrides (`docs/11 §5`). `docs/16`'s v2.0, v2.0.1 and v2.0.2
-sections have the reviews.
+two dev-tree overrides (`docs/11 §5`). **v2.0.3 rate-limits `/api/*` in the
+Worker** — the zone rule `docs/10 §6` had promised since P4 never existed.
+`docs/16`'s v2.0 through v2.0.3 sections have the reviews.
 
 **Releases are tag-only (decided 2026-10-20).** Workers Builds runs
 `npx wrangler versions upload` for every push, so a branch gets a preview URL
@@ -275,6 +276,14 @@ Four habits that found the rest:
   per-id cache (24 h for a length, 15 min for "none"); a per-IP rate limit
   (20 / 60 s) in edge memory; no CORS. 🔴 Set the secret with
   `wrangler versions secret put` — `secret put` and the dashboard **deploy**.
+- **Rate limits are Worker bindings, not zone rules** (v2.0.3, `10 §6`):
+  `API_LIMIT` counts every `/api/*` request, 60 / 60 s per IP, before the cache
+  or any upstream, and answers our own JSON `rate_limited` (→ TT-YT-001,
+  `pending`). Both limiters **fail open**. The "60 req/min zone rule" was cited
+  from P4 to v2.0.2 and never existed — 75 rapid production calls all got 200 —
+  and the Free plan cannot express a minute (10 s window, path-only). Static
+  pages stay unlimited on purpose: `run_worker_first` would log and bill every
+  page view and break the Privacy Policy's "loading a page never creates one".
 - **`img-src` allows no YouTube origin since v2.0** — measured: the app's
   document never loads `i.ytimg.com`; the player's images are its frame's own.
   A playing session is a v2.0 live-checklist line (YouTube refuses automation).
