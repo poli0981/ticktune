@@ -16,10 +16,11 @@
     "noEmit": true,
     "skipLibCheck": true,
 
-    "baseUrl": ".",
+    // No `baseUrl`: TypeScript 6 deprecates it and 7 drops it, and `paths`
+    // has resolved against this file's directory without it since TS 4.1.
     "paths": {
-      "@app/*": ["src/app/*"],
-      "@lib/*": ["src/lib/*"]
+      "@app/*": ["./src/app/*"],
+      "@lib/*": ["./src/lib/*"]
     }
   },
   "include": ["src/**/*", "tests/**/*", "scripts/**/*", ".astro/types.d.ts"],

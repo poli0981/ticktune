@@ -34,10 +34,28 @@ allowBuilds:
 #            GHSA-c475-qrg2-pj4r (high; pnpm audit had it before Dependabot) —
 #            patched in 6.2.1. get-uri reaches FTP only for an `ftp:` PAC URL,
 #            which Lighthouse CI here never configures.
-# extract-zip (GHSA-7pqw-9j4j-h8q3, GHSA-jmr9-qjv8-65gv) has no patched
-# release and no override: docs/11 §5 records why it stays.
+#   chromium-bidi>zod
+#            GHSA-mrhx-c7xc-m3w5 (high) — patched in 4.6.6, with no 3.x
+#            release; chromium-bidi 14 asks for `^3.24.1` and puppeteer-core
+#            24.43.1 (the latest 24) pins chromium-bidi 14. puppeteer-core
+#            imports chromium-bidi only through a dynamic `import('bidi.js')`
+#            for `protocol: 'webDriverBiDi'`, and Lighthouse connects over CDP,
+#            so zod 3 leaves the tree the way sprintf-js did.
+# extract-zip (GHSA-7pqw-9j4j-h8q3, GHSA-jmr9-qjv8-65gv) has no override: the
+# advisories now name 2.0.2 as patched, but npm's newest is still 2.0.1, and
+# docs/11 §5 records why it stays.
+#
+# And one outside @lhci, in Wrangler's dev-only tree (docs/11 §5):
+#   miniflare>undici
+#            GHSA-xjj6-f33q-929c (high), GHSA-4qv8-2p9j-2685 and
+#            GHSA-f72v-6w45-q472 (moderate) — patched in 7.30.1. Wrangler
+#            4.152.0 (the latest) still pins miniflare to `undici: 7.29.1`
+#            exactly, so there is no bump to prefer; this is a patch within
+#            the 7.x line miniflare chose. Drop it once Wrangler ships one.
 overrides:
   tmp: ^0.2.6
   uuid: ^11.1.1
   'js-yaml@3>argparse': ^2.0.1
   'get-uri>basic-ftp': ^6.2.1
+  'chromium-bidi>zod': ^4.6.6
+  'miniflare>undici': ^7.30.1
