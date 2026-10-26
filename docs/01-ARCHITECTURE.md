@@ -276,10 +276,11 @@ Three notes where this tree previously disagreed with the chapters that use it:
 
   | `wrangler.jsonc` | Why |
   |------------------|-----|
-  | `main: worker/index.ts` | The Worker: `/api/yt/oembed`, everything else `env.ASSETS.fetch` |
+  | `main: worker/index.ts` | The Worker: `/api/yt/oembed` and `/api/yt/durations`, everything else `env.ASSETS.fetch` |
   | `assets.not_found_handling: '404-page'` | Serves `dist/404.html` |
   | `workers_dev: false` | No public `*.workers.dev` alias of production |
   | `preview_urls: true` | Each uploaded version gets a preview URL — where a release's live checklist runs (`14 §5`) |
+  | `ratelimits` | Per-IP budgets in edge memory: `API_LIMIT` on every `/api/*` request (60/min, v2.0.3) and `YT_DURATIONS_LIMIT` for the Data API quota (20/min) — `10 §6` |
   | `observability` | Worker logs, 7-day retention (Workers Paid) — disclosed in the Privacy Policy |
 - **Deploy**: production changes only when a signed `vX.Y.Z` tag is pushed;
   `deploy.yml` verifies it and runs `wrangler deploy` (`14 §5`). Every other push

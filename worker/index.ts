@@ -30,8 +30,26 @@ interface Env {
    * Absent → 503 `not_configured`, and the app keeps `–` as it did before v2.0.
    */
   YT_DATA_API_KEY?: string;
+  /** `ratelimits` in wrangler.jsonc — per-IP budget for every /api/* request. */
+  API_LIMIT?: TtRateLimit;
   /** `ratelimits` in wrangler.jsonc — per-IP budget for /api/yt/durations. */
   YT_DURATIONS_LIMIT?: TtRateLimit;
+}
+
+/**
+ * Has this client spent its budget? Keyed on the client IP, counted in edge
+ * memory only, never logged (docs/10 §6, the Privacy Policy §6).
+ *
+ * A limiter that cannot answer lets the request through: both budgets guard
+ * against floods, and failing closed would turn a Cloudflare hiccup into an
+ * outage for every user at once. No binding (unit tests, a bare `wrangler dev`
+ * without the config) means no limit.
+ */
+async function overBudget(limiter: TtRateLimit | undefined, request: Request): Promise<boolean> {
+  if (limiter === undefined) return false;
+  const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
+  const verdict = await limiter.limit({ key: ip }).catch(() => ({ success: true }));
+  return !verdict.success;
 }
 
 /** YouTube video ids: exactly 11 chars of URL-safe base64 (docs/06 §3). */
@@ -291,22 +309,33 @@ export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
+    /*
+     * Every /api/* request spends from one per-IP budget, before anything else
+     * — a malformed or wrong-method call too, since a flood is made of exactly
+     * those. docs/10 §6 promised this budget from a zone rule since P4; the
+     * rule never existed, so for ten releases oEmbed had no limit at all.
+     *
+     * Static pages are not counted, and cannot be from here: the asset layer
+     * answers them before this Worker runs (`run_worker_first` is unset, and
+     * setting it would log and bill every page view — wrangler.jsonc).
+     */
+    if (url.pathname.startsWith('/api/') && (await overBudget(env.API_LIMIT, request))) {
+      return json({ error: 'rate_limited' }, 429, 0);
+    }
+
     if (url.pathname === '/api/yt/durations') {
       if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405, 0);
       const ids = parseIds(url.searchParams.get('ids'));
       if (ids === null) return json({ error: 'invalid_id' }, 400, 0);
 
       /*
-       * The quota is the budget this guards: 10,000 units a day, one per call.
-       * Counted per IP, in edge memory only. A limiter that cannot answer lets
-       * the request through — the quota itself is the hard ceiling, and running
-       * out costs nothing but this convenience until midnight Pacific.
+       * The quota is the budget this one guards: 10,000 units a day, one per
+       * call — so a malformed request, which never reaches Google, spends none
+       * of it. Running out costs nothing but this convenience until midnight
+       * Pacific, which is why this limiter fails open too.
        */
-      const limiter = env.YT_DURATIONS_LIMIT;
-      if (limiter !== undefined) {
-        const ip = request.headers.get('cf-connecting-ip') ?? 'unknown';
-        const verdict = await limiter.limit({ key: ip }).catch(() => ({ success: true }));
-        if (!verdict.success) return json({ error: 'rate_limited' }, 429, 0);
+      if (await overBudget(env.YT_DURATIONS_LIMIT, request)) {
+        return json({ error: 'rate_limited' }, 429, 0);
       }
       return durations(ids, env, ctx);
     }

@@ -16,9 +16,10 @@ import type { TtYtLookup, TtYtMeta, TtYtPorts } from './types';
  *
  * Three different failures arrive here looking like three different things:
  *
- * 1. Our Worker's own JSON error — readable, status carries the cause.
- * 2. **A 429 from the Cloudflare rate-limit rule** (`docs/10 §6`). That block
- *    page is HTML and carries no CORS header, so `res.json()` throws a
+ * 1. Our Worker's own JSON error — readable, status carries the cause. Its
+ *    per-IP 429 is one of these since v2.0.3 (`docs/10 §6`).
+ * 2. **An edge block page** — a zone rate-limit rule or a challenge. It is
+ *    HTML and carries no CORS header, so `res.json()` throws a
  *    `SyntaxError` — and depending on how the edge terminates it, the browser
  *    may reject the `fetch` outright instead, with an opaque network error
  *    indistinguishable from being offline.

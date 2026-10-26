@@ -72,6 +72,7 @@ call it. The static-assets Worker exposes:
 
 ```
 GET /api/yt/oembed?id=<videoId>
+  → over the per-IP /api/* budget (60/min) → 429 {error:"rate_limited"}  (before anything below, 10 §6)
   → edge fetch https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=<id>&format=json
   → 200 {title, author_name, thumbnail_url}   (cached 6 h, caches.default)
   → upstream not-ok passthrough, cause named in the body (see the table below)
@@ -175,7 +176,8 @@ cause there would put a confident wrong sentence in front of the user.
 - Duration is **not** in oEmbed. Since v2.0 it comes from the Data API through
   the same Worker — `### Durations` below. Publish date is not fetched: nothing
   renders it.
-- Abuse controls: Cloudflare rate-limiting rule on `/api/*` (`10 §6`); the client
+- Abuse controls: the Worker's per-IP budget on `/api/*`, 60 a minute (`10 §6`,
+  v2.0.3 — the zone rule this line used to cite never existed); the client
   imports **strictly sequentially** — one oEmbed check at a time, awaited.
 
   ⚠️ **Corrected 2026-07-23.** This line claimed a throttle "to 4 concurrent
@@ -184,7 +186,8 @@ cause there would put a confident wrong sentence in front of the user.
   *stricter* than the doc promised, and it is what keeps a 50-link paste under
   the 60 req/min rule, so the code is right and the sentence was wrong. Do not
   "restore" the pool — a bounded-4 importer would put a 50-link paste much closer
-  to a limit nobody has yet confirmed is even switched on (`10 §11`).
+  to the limit. (That limit was unconfirmed when this was written, and in fact
+  absent until v2.0.3 — `10 §6`.)
 
 ### Durations — YouTube Data API v3 (v2.0)
 
@@ -199,6 +202,7 @@ GET /api/yt/durations?ids=<id>,<id>,…        (1–50 ids, each ^[A-Za-z0-9_-]{
         ms   ← contentDetails.duration (ISO 8601, src/lib/tt-iso-duration.ts)
         null ← P0D (live, unaired) or an id Google did not return (private, gone)
         each answer cached: a length 24 h, a null 15 min
+  → over the per-IP /api/* budget      → 429 {error:"rate_limited"}  (first, as for oEmbed)
   → no key on this deployment          → 503 {error:"not_configured"}  (Google never called)
   → over the per-IP budget (20/min)    → 429 {error:"rate_limited"}
   → upstream 4xx (quota, key refused)  → 503 {error:"upstream_refused"}
@@ -340,13 +344,14 @@ both honest and cheaper — the user learns before the countdown starts rather
 than watching a track fail. That split is `ytCauseIsTransient` in
 `src/lib/tt-yt-cause.ts`, shared with the Worker.
 
-⚠️ **The 429 is our own edge, not YouTube's** (`docs/10 §6`), and its block page
-carries no CORS header — so `res.json()` throws, and the browser may reject the
-`fetch` outright with an opaque error indistinguishable from being offline. The
-client therefore reads `res.status` **before** any body and treats a rejected
-fetch as transient too (`tt-yt-driver.ts`). ⬜ **Whether the 60 req/min rule
-exists in the zone at all is still unverified** — `docs/10 §11`'s checkbox is
-unticked, so this path is implemented and unit-tested but not observed.
+⚠️ **The 429 is our own edge, not YouTube's** (`docs/10 §6`). Since v2.0.3 it is
+the Worker's JSON `{"error":"rate_limited"}`, readable like every other cause.
+The client still reads `res.status` **before** any body and treats a rejected
+fetch as transient (`tt-yt-driver.ts`), because an edge block page — HTML, no
+CORS header, possibly an opaque rejection indistinguishable from being offline —
+is what a zone rule would send, and the code was written for one. ✅ **Observed
+2026-10-27** under `wrangler dev`: the 61st rapid call is a 429. Until v2.0.3
+there was no limit to observe — the zone rule was never created (`10 §6`).
 
 **Sources do not mix.** A queue is all-local or all-links, decided by the mode:
 the caps differ (95 vs 50), the 91:00 aggregate is meaningless against durations

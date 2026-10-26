@@ -14,7 +14,8 @@
 
   // No public *.workers.dev hostname: ticktune.net is the only production
   // origin, and a second copy of the site on another host would split SEO and
-  // dodge the zone's WAF and rate-limit rules (docs/10 §5–§6).
+  // dodge the zone's WAF rule (docs/10 §5). The rate limits below are the
+  // Worker's own, so they hold on every host, Version URLs included.
   "workers_dev": false,
 
   // …but Version URLs ARE on (docs/14 §5). Production deploys only from a
@@ -24,13 +25,25 @@
   // `workers_dev` false, Version URLs default to OFF, so this must be explicit.
   "preview_urls": true,
 
-  // docs/06 §3, docs/10 §6 — a per-IP budget in front of the YouTube Data API
-  // quota (10,000 units a day; one per /api/yt/durations call the cache cannot
-  // answer). Counted in each edge location's memory and never logged — the
-  // Privacy Policy says so. 20 a minute is far above a person pasting links
-  // (one call per paste) and far below what would drain the quota.
-  // `namespace_id` is any account-unique integer; the Worker reads `name`.
+  // docs/10 §6 — per-IP budgets, counted in each edge location's memory and
+  // never logged; the Privacy Policy says so. `namespace_id` is any
+  // account-unique integer (a shared one shares the counters); the Worker
+  // reads `name`. `period` can only be 10 or 60.
   "ratelimits": [
+    // Every /api/* request. 60 a minute is the budget docs/10 §6 had promised
+    // since P4 from a zone rule that was never there: 75 rapid calls to
+    // production all answered 200 (2026-10-27), and the Free zone plan cannot
+    // express a minute anyway. A 50-link paste is 51 calls, made one at a
+    // time, so it fits; a flood does not.
+    {
+      "name": "API_LIMIT",
+      "namespace_id": "1002",
+      "simple": { "limit": 60, "period": 60 },
+    },
+    // docs/06 §3 — in front of the YouTube Data API quota (10,000 units a day;
+    // one per /api/yt/durations call the cache cannot answer). 20 a minute is
+    // far above a person pasting links (one call per paste) and far below
+    // what would drain the quota. Counted on top of API_LIMIT.
     {
       "name": "YT_DURATIONS_LIMIT",
       "namespace_id": "1001",

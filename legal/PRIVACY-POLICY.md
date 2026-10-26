@@ -70,9 +70,10 @@ created on the privacy-enhanced `youtube-nocookie.com` host.
   `/api/yt/durations` call is logged (the request, the response and the country
   Cloudflare attaches) and deleted by Cloudflare after **7 days**. Loading a page
   never creates one.
-- **Rate limiting:** to protect a shared quota, `/api/yt/durations` counts calls
-  per IP address for one minute, in the memory of Cloudflare's servers. That
-  count is never logged or stored.
+- **Rate limiting:** to protect the service and a shared quota, each call to
+  `/api/yt/oembed` and `/api/yt/durations` is counted per IP address for one
+  minute, in the memory of Cloudflare's servers. That count is never logged or
+  stored.
 
 This is used to keep the site working, notice abuse, and learn why a YouTube link
 would not resolve — never to identify you, build a profile, advertise, or share
@@ -96,6 +97,7 @@ changes bring the Legal Gate back; every revision is in the Git repository.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 2.0 | 2026-10-27 | The per-IP rate limit also counts `/api/yt/oembed`, the other YouTube lookup — the same count, kept the same way (text only; the gate is not shown again) |
 | 2.0 | 2026-10-21 | YouTube lengths via the YouTube Data API; offline cache of the app's own files; optional finish notifications; settings file export/import; per-IP rate limit on lengths |
 | 1.1 | 2026-10-20 | Cloudflare Web Analytics; Worker logs kept 7 days (Workers Paid); privacy contact; YouTube and Google links; shortened |
 | 1.0 | 2026-07-24 | First non-draft version |
