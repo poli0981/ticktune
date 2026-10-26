@@ -176,7 +176,7 @@ widens its peer range — both must land, since either alone still breaks
     8.12.3, `@lhci/cli → express`'s body-parser to 1.20.9
     (GHSA-27r3-jxmh-p828, high) and `@astrojs/check`'s fast-uri to 3.1.9 (four
     advisories); happy-dom 21.0.4 (GHSA-834v-8h66-3h79, high) and vitest
-    5.0.5 (`@vitest/mocker`, Dependabot #68 and #69) are direct bumps.
+    5.0.5 (`@vitest/mocker`, Dependabot alerts 68 and 69) are direct bumps.
   - **Overrides, where upstream cannot move** (`pnpm-workspace.yaml`, reasons
     beside them): `miniflare>undici ^7.30.1` — Wrangler 4.152.0, the latest,
     still pins `7.29.1` exactly, so this is a patch inside the line miniflare

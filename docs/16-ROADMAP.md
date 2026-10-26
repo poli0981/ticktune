@@ -1389,7 +1389,7 @@ taken 20.4–26.8 min against a 30-min timeout, so it was cancelled and re-run
 
 The scheduled `audit` failed on `main` on Monday's run: `pnpm audit --prod`
 found `undici 8.11.2` (GHSA-xjj6-f33q-929c, high) under `astro → unifont`.
-Dependabot had two open alerts (`@vitest/mocker`, #68 and #69); the whole-tree
+Dependabot had two open alerts (`@vitest/mocker`, alerts 68 and 69); the whole-tree
 audit had seventeen findings; CodeQL and secret scanning had none, and every
 Action was already on its latest release, pinned by SHA.
 
@@ -1405,6 +1405,11 @@ and `@types/node` 26, which moves with Node 26 on 2026-10-28.
 It carries a version because the client bundle changed — music-metadata,
 dexie and i18next are in it, and the precache grew by one chunk (strtok3's
 `TokenizerView`) to 64 files. None of the advisories was in the bundle.
+
+Released from the signed tag on `f79cf99` at 06:01 UTC — exactly one new
+deployment (`c11f5b43`); the preview and production runs of
+`tests/manual/v2.0.2-live-checklist.md` both passed 9/9 with `verify:csp`
+6/6, and `audit.yml` re-run on `main` is green. Dependabot closed alerts 68 and 69.
 
 ## Post-2.0 backlog (unordered)
 
