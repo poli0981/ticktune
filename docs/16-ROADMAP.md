@@ -1385,6 +1385,27 @@ taken 20.4–26.8 min against a 30-min timeout, so it was cancelled and re-run
 (26.6 min) rather than left to time out mid-suite. The timeout is 45 min now
 (`14 §1`).
 
+## v2.0.2 — dependencies · **v2.0.2**, 2026-10-26
+
+The scheduled `audit` failed on `main` on Monday's run: `pnpm audit --prod`
+found `undici 8.11.2` (GHSA-xjj6-f33q-929c, high) under `astro → unifont`.
+Dependabot had two open alerts (`@vitest/mocker`, #68 and #69); the whole-tree
+audit had seventeen findings; CodeQL and secret scanning had none, and every
+Action was already on its latest release, pinned by SHA.
+
+| PR | Branch | What it carried |
+|----|--------|-----------------|
+| #99 | `chore/deps-audit-2026-10-26` | Every patch and minor that was out (Astro 7.4.2, @astrojs/svelte 9.1.1, music-metadata 12.3.0, dexie 4.4.7, i18next 26.5.10, Wrangler 4.152.0 and eight dev tools); **Vitest 4 → 5** and **TypeScript 5.9 → 6.0**, each with no code change (`11 §3`, `§4`); in-range re-resolutions of undici, body-parser and fast-uri; two overrides where upstream cannot move, `miniflare>undici` and `chromium-bidi>zod` (`11 §5`) |
+
+After it, `pnpm audit --prod` is clean and the whole tree has one advisory
+pair left, `extract-zip`, which still has no release to move to (`11 §5`).
+**Not taken:** TypeScript 7 (svelte-check and typescript-eslint still refuse it)
+and `@types/node` 26, which moves with Node 26 on 2026-10-28.
+
+It carries a version because the client bundle changed — music-metadata,
+dexie and i18next are in it, and the precache grew by one chunk (strtok3's
+`TokenizerView`) to 64 files. None of the advisories was in the bundle.
+
 ## Post-2.0 backlog (unordered)
 
 - **Node 26 LTS — 2026-10-28.** Move `.nvmrc`, `engines` (`>=26 <27`),
