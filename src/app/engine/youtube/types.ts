@@ -25,9 +25,10 @@ export interface TtYtPorts {
   /**
    * One oEmbed pre-check. **Never rejects** — every failure is a `cause`.
    *
-   * That contract is load-bearing rather than stylistic: the 429 our own edge
-   * returns is a Cloudflare block page with no CORS header, so the browser may
-   * surface it as a *rejected* fetch rather than a readable response. A port
+   * That contract is load-bearing rather than stylistic: a 429 from an edge
+   * block page carries no CORS header, so the browser may surface it as a
+   * *rejected* fetch rather than a readable response. (The Worker's own 429
+   * is readable JSON since v2.0.3, docs/10 §6; a zone rule's never is.) A port
    * that could throw would make "rate limited" indistinguishable from a bug,
    * so the driver swallows both into `rate_limited` and the pipeline never
    * needs a try/catch.

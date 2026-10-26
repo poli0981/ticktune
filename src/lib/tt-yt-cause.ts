@@ -56,9 +56,9 @@ export type TtYtCause =
    *
    * Transient like the one above, and deliberately NOT folded into it: a user
    * who pasted fifty links wants to hear "slow down", not "the network is
-   * broken". ⚠️ The block page Cloudflare returns carries no CORS header, so
-   * the client may see a rejected `fetch` rather than a readable 429 — the
-   * driver has to treat both as this.
+   * broken". The Worker's own limiter answers readable JSON (v2.0.3); ⚠️ an
+   * edge block page carries no CORS header, so the client may see a rejected
+   * `fetch` rather than a readable 429 — the driver has to treat both as this.
    */
   | 'rate_limited'
   /** Any other non-2xx. Honest fallback rather than a guess. */

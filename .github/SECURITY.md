@@ -36,9 +36,10 @@ The deployed site and this repository's code — in particular:
   are untrusted input; `{@html}` is banned repo-wide (`docs/09 §5`, lint-enforced).
 - CSP bypasses, or a build that ships a stale/incorrect `script-src` hash
   (`docs/09 §4`, `docs/10 §7`).
-- Abuse of the single edge endpoint `GET /api/yt/oembed` — it validates an
-  11-character video id, is same-origin only, and is deliberately not a general
-  URL proxy (`docs/09 §1`).
+- Abuse of the two edge endpoints, `GET /api/yt/oembed` and
+  `GET /api/yt/durations` — they accept only 11-character video ids, are
+  same-origin only, and are deliberately not general URL proxies (`docs/09 §1`).
+  Getting the Data API key out of the Worker is in scope.
 - Supply-chain issues in shipped dependencies (`docs/11 §5`), and in the CI path
   that deploys them (`docs/14 §2`).
 

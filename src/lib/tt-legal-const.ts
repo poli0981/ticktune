@@ -40,6 +40,14 @@
  * settings file exist, a per-IP rate limit counts in edge memory, and the EULA
  * gained a governing-law clause (Viet Nam). Every one of those is in the same
  * release, so every user is asked once.
+ *
+ * 📝 **v2.0.3 edited the Privacy Policy's `§6` and did NOT bump.** The per-IP
+ * rate limit 2.0 disclosed for `/api/yt/durations` now also counts
+ * `/api/yt/oembed` (docs/10 §6). Same action — adding YouTube links calls
+ * both — same kind of count, kept the same way: a minute of edge memory, never
+ * logged. The text was made true in the same PR and nobody's position changed,
+ * so this follows the translation precedent above, not the logs one; both
+ * documents' tables record the edit.
  */
 export const TT_LEGAL_VERSION = '2.0';
 

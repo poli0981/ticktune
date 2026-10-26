@@ -74,9 +74,10 @@ phát được tạo trên máy chủ bảo vệ quyền riêng tư `youtube-noc
   và `/api/yt/durations` được ghi lại (yêu cầu, phản hồi và quốc gia Cloudflare gắn
   vào) và được Cloudflare xoá sau **7 ngày**. Việc tải trang không bao giờ tạo ra
   mục nhật ký.
-- **Giới hạn tần suất:** để bảo vệ hạn mức dùng chung, `/api/yt/durations` đếm số
-  lần gọi theo địa chỉ IP trong một phút, trong bộ nhớ của máy chủ Cloudflare. Con
-  số đó không bao giờ được ghi lại hay lưu trữ.
+- **Giới hạn tần suất:** để bảo vệ dịch vụ và hạn mức dùng chung, mỗi lần gọi
+  `/api/yt/oembed` và `/api/yt/durations` được đếm theo địa chỉ IP trong một phút,
+  trong bộ nhớ của máy chủ Cloudflare. Con số đó không bao giờ được ghi lại hay
+  lưu trữ.
 
 Những thông tin này dùng để giữ trang hoạt động, phát hiện lạm dụng và biết vì sao
 một liên kết YouTube không phân giải được — không bao giờ để nhận diện bạn, lập hồ
@@ -101,6 +102,7 @@ kể sẽ khiến Cổng pháp lý hiện lại; mọi bản sửa đổi đều
 
 | Phiên bản | Ngày | Thay đổi |
 |-----------|------|----------|
+| 2.0 | 2026-10-27 | Giới hạn tần suất theo IP nay đếm cả `/api/yt/oembed`, lượt tra cứu YouTube còn lại — cùng cách đếm, cùng cách giữ (chỉ sửa văn bản; Cổng pháp lý không hiện lại) |
 | 2.0 | 2026-10-21 | Thời lượng YouTube qua YouTube Data API; bộ nhớ đệm ngoại tuyến cho các tệp của chính ứng dụng; thông báo hết giờ (tuỳ chọn); xuất/nhập tệp cài đặt; giới hạn tần suất theo IP cho tra cứu thời lượng |
 | 1.1 | 2026-10-20 | Cloudflare Web Analytics; nhật ký Worker lưu 7 ngày (Workers Paid); địa chỉ liên hệ quyền riêng tư; liên kết YouTube và Google; rút gọn |
 | 1.0 | 2026-07-24 | Phiên bản chính thức đầu tiên |

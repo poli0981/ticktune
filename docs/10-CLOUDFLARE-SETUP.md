@@ -78,7 +78,7 @@ pnpm wrangler deploy       # uses wrangler.jsonc from 01 §5
 | Setting | Value |
 |---------|-------|
 | Security → Settings → Security level | Medium |
-| **Bot Fight Mode** | **Off** — it injects an un-hashable inline script (`§2`); the WAF and rate-limit rules (`§5`–`§6`) carry bot mitigation |
+| **Bot Fight Mode** | **Off** — it injects an un-hashable inline script (`§2`); the WAF rule (`§5`) and the Worker's rate limits (`§6`) carry bot mitigation |
 | Browser Integrity Check | On |
 | Scrape Shield (email obfuscation) | **Off** — the site does publish role addresses (`@poli0981.dev`: privacy, security, legal, copyright, press, collab — footer, legal pages, `/.well-known/security.txt`), but obfuscation rewrites the HTML at the edge and injects a decoder script; the aliases sit behind Google Workspace spam filtering instead. Mail for `ticktune.net` itself still uses Cloudflare Email Routing |
 | DDoS | Managed rules are always-on by default; nothing to configure |
@@ -98,21 +98,53 @@ leave defaults. Custom rules (5 free) — add one:
   the result as an outage. `worker/index.ts` mirrors the rule in code so local
   `wrangler dev` behaves like production rather than diverging from it.
 
-## 6. Rate limiting (Free plan includes 1 rule)
+## 6. Rate limiting — in the Worker (v2.0.3)
 
-- Rule "api-oembed-guard": match `http.request.uri.path starts_with "/api/"`,
-  **60 requests / 1 min per IP** → Block for 1 min, response 429.
-- The app treats a 429 from `/api/*` as a soft failure: track kept as
-  `status:'pending'` with cause `rate_limited` → **TT-YT-001**, shown by the
-  import toast as `toast.import.TT-YT-001`, and retried on Start (`06 §8`).
-  This is the concrete realization of the spec's "429 custom page".
-- **`/api/yt/durations` has its own limiter in the Worker** (v2.0): the
-  `ratelimits` binding `YT_DURATIONS_LIMIT` in `wrangler.jsonc`, **20 requests /
-  60 s per client IP**, counted in each edge location's memory and never logged.
-  It exists for the Data API quota, not for load — the zone rule above guards
-  load, and is still unverified (`§11`) — so it applies to that route alone and
-  leaves oEmbed's tested behaviour as it was. A 429 there costs the paste its
-  lengths (TT-YT-008), never a track.
+Both budgets are Workers Rate Limiting bindings, declared under `ratelimits` in
+`wrangler.jsonc`, keyed on `cf-connecting-ip`, counted in each edge location's
+memory and never logged (the Privacy Policy `§6` says so):
+
+| Binding | Counts | Budget | Why |
+|---------|--------|--------|-----|
+| `API_LIMIT` | every `/api/*` request — malformed and wrong-method ones too | **60 / 60 s per IP** | floods: Worker invocations, and oEmbed egress from Cloudflare's shared IPs, which YouTube could throttle for everyone |
+| `YT_DURATIONS_LIMIT` (v2.0) | `/api/yt/durations` calls that pass validation | **20 / 60 s per IP**, on top of the above | the Data API quota, 10,000 units a day (`06 §3`) |
+
+- Over budget, the Worker answers `429 {"error":"rate_limited"}` — JSON,
+  `nosniff`, `max-age=0`, no CORS header — before the cache or any upstream.
+  Because it is our own JSON, the client names the cause: the track is kept as
+  `status:'pending'` → **TT-YT-001**, toast `toast.import.TT-YT-001`, re-checked
+  on Start (`06 §8`). For durations the paste keeps `–` (TT-YT-008), never loses
+  a track. A 50-link paste is 51 calls made one at a time (`06 §3`), so it fits.
+- **A limiter that cannot answer lets the request through** — both budgets are
+  flood guards, and failing closed would turn a Cloudflare hiccup into an
+  outage for every user at once.
+- The counts are **approximate and per location** (Cloudflare's own wording):
+  a burst can overshoot by a little before the counters sync. Measured on
+  `wrangler dev` (2026-10-27): 70 rapid calls → 60 answered, 10 `429`.
+- They hold on every host the Worker serves — Version URLs included — which a
+  zone rule never would.
+
+⚠️ **Corrected 2026-10-27 — the zone rule this section described never
+existed.** From P4 to v2.0.2 it read: rule "api-oembed-guard", `/api/*`,
+**60 requests / 1 min per IP** → block 1 min. `§11` never ticked it, and
+seventy-five rapid calls to production `/api/yt/oembed` all answered **200**:
+oEmbed had no limit at all for ten releases while `06 §3`, `09 §1` and
+`.github/SECURITY.md` cited this one. It also could not have been made as
+written: the **Free** zone plan allows one rate-limiting rule whose expression
+may use only the path, counting per IP over **10 s** and blocking for **10 s** —
+no minute window. The Worker binding is the fix, and is now the only limit.
+
+**Static pages are not rate-limited, deliberately.** The asset layer answers
+them before the Worker runs (`run_worker_first` is unset), so no binding can
+see them. Routing them through the Worker would make every page view a billed
+invocation and a Workers Logs entry — false against the Privacy Policy
+("loading a page never creates one") and a `TT_LEGAL_VERSION` bump — to protect
+requests that Workers Static Assets serves free and unmetered, behind
+Cloudflare's always-on DDoS mitigation (`§4`). The zone's one Free rule is the
+only other place a whole-site limit could live, and it is unused: a 10-s
+per-IP rule on every path would have to admit the service worker's precache
+burst (`§9`) and every user behind one CGNAT address. Adding it is an owner
+decision, made in the dashboard, not in this repository.
 
 ## 7. Headers
 
@@ -259,8 +291,9 @@ Zone-side, still to do:
       inline script, whose `sha256` equals the `script-src` hash. See `§2` for
       why this is not optional
 - [x] Custom domain attached, cert active, `https://ticktune.net` 200
-- [ ] 61 rapid calls to `/api/*` → 429
-- [ ] rate-limit rule active
+- [ ] 61 rapid calls to `/api/*` → 429 — now the Worker's `API_LIMIT` (`§6`)
+- [x] ~~rate-limit rule active~~ — there is no zone rule; it never existed,
+      and the Free plan could not express it (`§6`, corrected 2026-10-27)
 - [ ] `www` redirect (if configured) works
 
 Everything domain-independent was verified locally against `wrangler dev` on
