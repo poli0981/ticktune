@@ -17,6 +17,8 @@ updates:
       # TypeScript 7 is rejected on evidence, not preference: svelte-check 4.7.3
       # crashes against it and typescript-eslint declares peer `<6.1.0`, so
       # `pnpm check` and `pnpm lint` both break. Full measurements in docs/11 §4.
+      # TS 6 was taken by hand on 2026-10-26 (both accept it); 7 is the next
+      # major this rule holds back, and still neither accepts it.
       # CI already catches this (Dependabot proposed it once and the lint gate
       # failed), but re-proposing it every week is noise. Unpin deliberately when
       # svelte-check supports TS 7 AND typescript-eslint widens its range —
