@@ -1442,6 +1442,38 @@ zone's one Free rule is the other place it could live; that is a dashboard
 decision, and `10 §6` sets out why a 10-s whole-site rule would catch the
 service worker's precache and shared CGNAT addresses first.
 
+**Released — 2026-10-27, 23:42 UTC.** #101 merged by rebase once `e2e` passed
+on its second attempt: the first sat in "Install browsers" for 32 minutes and
+was cancelled before its 45-minute timeout. Tag `v2.0.3` sits on `8fa1653`,
+whose tree is identical to the branch tested on the preview, and its signature
+was verified against a keyring holding only `https://github.com/poli0981.gpg`
+before the push. `deploy.yml`'s verify, deploy and release jobs were green,
+with exactly one new deployment (`cf543bcd`). Production: About 2.0.3,
+`verify:csp` 6/6, both endpoints answering inside the budget.
+
+**What production showed that no earlier layer had — the binding does not
+hold there.** One IP, colo SIN, the deployed version, no exception in
+`wrangler tail`: 110 calls in 27 s, then 165 in 26 s, then 300 in 73 s, and
+the binding refused **none**. The same `limit()`, looped inside one isolate on
+the edge, refused from the 62nd call; a fresh preview's first burst lost its
+last 6; that preview, an hour later, lost none. A location's instances do not
+share counts in time for one client. `10 §6` now says the binding is
+best-effort, and why lowering its number would not help.
+
+**And the docs' other zone rule was never there either.** `10 §5`'s "Block
+non-GET on api" — a `POST` reached the Worker's own 405. The owner created both
+zone rules the same day, from instructions written here: the non-GET block,
+and "api-burst-guard", the Free plan's one rate-limiting rule — `/api/`, per
+IP, 60 / 10 s, Block 10 s. Measured at once: `POST`/`HEAD` → 403; a burst of 80
+→ 61 answered and 19 × `429` "error code: 1015"; `/` untouched; open again
+after 10 s. That rule is what enforces on production — about 6 calls a second
+per IP get through, sustained, and the client reads its plain-text 429 as
+`rate_limited` like the Worker's own.
+
+| PR | Branch | What it carried |
+|----|--------|-----------------|
+| #102 | `docs/v2.0.3-results` | The checklist's results; `10 §5`–`§6` and `§11` rewritten around the production measurements and the two zone rules; the 404-logging finding below, for the owner |
+
 ## Post-2.0 backlog (unordered)
 
 - **Node 26 LTS — 2026-10-28.** Move `.nvmrc`, `engines` (`>=26 <27`),
@@ -1462,9 +1494,19 @@ service worker's precache and shared CGNAT addresses first.
 - **`visual` and `lighthouse` as required checks**, once they have run green on
   a few weeks of PRs; until then a red one is read, not obeyed (`docs/14`).
 - Zone-plan upgrade decision → branded Cloudflare error pages (`10 §8`).
-- **A zone rate-limiting rule** — the Free plan's one rule is unused. Only worth
-  it as a burst guard in front of the Worker's own limit (`10 §6`); an owner
-  decision, in the dashboard.
+- **A strict per-IP API budget**, if the zone rule's ~6 calls a second ever
+  proves too loose: a Durable Object counter per IP (or sharded), which counts
+  exactly where the binding does not (`10 §6`). Billed per request, and a hop
+  on every `/api/*` call — not worth it at today's traffic.
+- **The Privacy Policy is wrong about 404s.** `§6` says Worker logs are
+  "YouTube lookups only" and that "loading a page never creates one". A
+  mistyped URL matches no asset, so it invokes the Worker, and Workers Logs
+  keeps it like any other invocation — `wrangler tail` on production showed the
+  request with its headers, `cf-connecting-ip` among them (2026-10-27). Real
+  pages never invoked it. Correcting an untrue description is the reason
+  `1.0-draft` became `1.1-draft` (`tt-legal-const.ts`), so this is a
+  `TT_LEGAL_VERSION` bump — batched with the next legal change, the owner's
+  call.
 
 ## Standing rules
 

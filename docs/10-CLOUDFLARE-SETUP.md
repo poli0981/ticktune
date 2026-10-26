@@ -98,11 +98,21 @@ leave defaults. Custom rules (5 free) — add one:
   the result as an outage. `worker/index.ts` mirrors the rule in code so local
   `wrangler dev` behaves like production rather than diverging from it.
 
-## 6. Rate limiting — in the Worker (v2.0.3)
+  ⚠️ **Created 2026-10-27 — until then this rule existed only here.** A `POST`
+  to production `/api/yt/oembed` was answered by the Worker's own `405` JSON,
+  which only happens when nothing at the edge stops it. The owner added it the
+  same day; measured at once: `POST` and `HEAD` on `/api/…` → **403**
+  `text/html` from the edge, `GET` unchanged, and `POST /` still the asset
+  layer's `405` — the rule touches nothing outside `/api/`. The Worker's 405
+  stays, for `wrangler dev` and for Version URLs, which no zone rule reaches.
 
-Both budgets are Workers Rate Limiting bindings, declared under `ratelimits` in
+## 6. Rate limiting — two layers (v2.0.3)
+
+The budgets are Workers Rate Limiting bindings, declared under `ratelimits` in
 `wrangler.jsonc`, keyed on `cf-connecting-ip`, counted in each edge location's
-memory and never logged (the Privacy Policy `§6` says so):
+memory and never logged (the Privacy Policy `§6` says so). A zone rule stands
+in front of them — below — and **on production it is the zone rule that
+enforces**: the bindings, measured there, refused nothing.
 
 | Binding | Counts | Budget | Why |
 |---------|--------|--------|-----|
@@ -118,11 +128,55 @@ memory and never logged (the Privacy Policy `§6` says so):
 - **A limiter that cannot answer lets the request through** — both budgets are
   flood guards, and failing closed would turn a Cloudflare hiccup into an
   outage for every user at once.
-- The counts are **approximate and per location** (Cloudflare's own wording):
-  a burst can overshoot by a little before the counters sync. Measured on
-  `wrangler dev` (2026-10-27): 70 rapid calls → 60 answered, 10 `429`.
-- They hold on every host the Worker serves — Version URLs included — which a
-  zone rule never would.
+- The counts are **approximate and per location** (Cloudflare's own wording),
+  and on production that is an understatement. Measured 2026-10-27:
+
+  | Where | Traffic from one IP | Refused by the binding |
+  |-------|---------------------|------------------------|
+  | `wrangler dev` | 70 rapid calls | the last 10 (exact) |
+  | one isolate on the edge (`wrangler dev --remote`, `limit()` called in a loop) | 70 calls | from the 62nd on (exact) |
+  | a fresh PR preview (`ced5fe7b`), first burst | 70 parallel calls | the last 6 |
+  | **production**, SIN, v2.0.3 deployed | 110 calls in 27 s · 165 in 26 s · **300 in 73 s** | **none** |
+  | the same preview, an hour later | 70 parallel calls | none |
+
+  `wrangler tail` put every one of those production calls in SIN, on the
+  deployed version, with one `cf-connecting-ip` and no exception — so `limit()`
+  answered, and answered "yes". A location's many machines do not share counts
+  fast enough for one client's traffic; a single warm isolate counts exactly.
+  **Do not lower the number to compensate** — it is the sync, not the limit.
+  A strict per-IP budget would need a Durable Object (`16`'s backlog).
+- So the bindings are **best-effort**: they still catch a burst that lands on
+  few instances, and they are the only limit a Version URL has — no zone rule
+  reaches `*.workers.dev`. The Data API quota stays the hard ceiling for
+  durations.
+
+**In front: the zone's one Free rule, "api-burst-guard"** (created by the owner
+2026-10-27). Security → Security rules → Rate limiting rules:
+
+| Field | Value |
+|-------|-------|
+| Match | `starts_with(http.request.uri.path, "/api/")` |
+| Characteristics | IP (the only one on Free) |
+| Rate | **60 requests / 10 s** |
+| Action | **Block** for **10 s**, Cloudflare's default response |
+
+- **60 / 10 s is never stricter than the Worker's budget.** A client over 60
+  in ten seconds is over `API_LIMIT`'s 60 in sixty already, so this rule
+  refuses nothing that budget would admit — and since the binding does not
+  hold on production, this rule is what actually refuses: about 6 calls a
+  second per IP, sustained, is what gets through. A lower number would catch a
+  real paste: 51 sequential calls of cached links can finish in three or four
+  seconds.
+- **Block, never a challenge** — the app's `fetch` cannot solve one.
+- Its answer is `429`, `text/plain`, body `error code: 1015`, with
+  `Retry-After`. Not our JSON, so the client cannot name a cause from it — and
+  does not need to: a non-JSON 429 is read as `rate_limited` all the same
+  (`src/lib/tt-yt-cause.ts`), and the track stays `pending`.
+- **Measured on production, 2026-10-27**: before v2.0.3 was deployed, 80
+  parallel calls → 61 answered, **19 × 429 1015**; after it, 62 and **18**.
+  40 calls to `/` during the block → all 200; the same `GET` 200 again after
+  10 s. Two 55-call bursts 13 s apart → the second lost 5, so the window
+  slides rather than resetting on the ten-second mark.
 
 ⚠️ **Corrected 2026-10-27 — the zone rule this section described never
 existed.** From P4 to v2.0.2 it read: rule "api-oembed-guard", `/api/*`,
@@ -132,7 +186,8 @@ oEmbed had no limit at all for ten releases while `06 §3`, `09 §1` and
 `.github/SECURITY.md` cited this one. It also could not have been made as
 written: the **Free** zone plan allows one rate-limiting rule whose expression
 may use only the path, counting per IP over **10 s** and blocking for **10 s** —
-no minute window. The Worker binding is the fix, and is now the only limit.
+no minute window. The Worker binding is the fix; the zone rule above is a
+different one, built for what Free allows.
 
 **Static pages are not rate-limited, deliberately.** The asset layer answers
 them before the Worker runs (`run_worker_first` is unset), so no binding can
@@ -140,11 +195,11 @@ see them. Routing them through the Worker would make every page view a billed
 invocation and a Workers Logs entry — false against the Privacy Policy
 ("loading a page never creates one") and a `TT_LEGAL_VERSION` bump — to protect
 requests that Workers Static Assets serves free and unmetered, behind
-Cloudflare's always-on DDoS mitigation (`§4`). The zone's one Free rule is the
-only other place a whole-site limit could live, and it is unused: a 10-s
-per-IP rule on every path would have to admit the service worker's precache
-burst (`§9`) and every user behind one CGNAT address. Adding it is an owner
-decision, made in the dashboard, not in this repository.
+Cloudflare's always-on DDoS mitigation (`§4`). The zone's one Free rule was
+the only other place a whole-site limit could live, and it went to `/api/`
+instead: a 10-s per-IP rule on every path would have to admit the service
+worker's precache burst (`§9`) and every user behind one CGNAT address, which
+would leave it too loose to guard the API.
 
 ## 7. Headers
 
@@ -291,9 +346,14 @@ Zone-side, still to do:
       inline script, whose `sha256` equals the `script-src` hash. See `§2` for
       why this is not optional
 - [x] Custom domain attached, cert active, `https://ticktune.net` 200
-- [ ] 61 rapid calls to `/api/*` → 429 — now the Worker's `API_LIMIT` (`§6`)
-- [x] ~~rate-limit rule active~~ — there is no zone rule; it never existed,
-      and the Free plan could not express it (`§6`, corrected 2026-10-27)
+- [x] **61 rapid calls to `/api/*` → 429** — measured on production
+      2026-10-27, from the zone rule; the Worker's binding refused nothing
+      there (`§6`)
+- [x] **rate-limit rule active** — "api-burst-guard", 60 / 10 s, created
+      2026-10-27. The P4 rule this box was written for never existed and could
+      not have on Free (`§6`)
+- [x] **WAF non-GET rule active** — created 2026-10-27; it too had existed
+      only in `§5`
 - [ ] `www` redirect (if configured) works
 
 Everything domain-independent was verified locally against `wrangler dev` on
