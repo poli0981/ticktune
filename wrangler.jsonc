@@ -34,7 +34,9 @@
     // since P4 from a zone rule that was never there: 75 rapid calls to
     // production all answered 200 (2026-10-27), and the Free zone plan cannot
     // express a minute anyway. A 50-link paste is 51 calls, made one at a
-    // time, so it fits; a flood does not.
+    // time, so it fits. ⚠️ Best-effort only: on production it refused none of
+    // 300 calls in 73 s from one IP — the zone's 60 / 10 s rule is what
+    // enforces there (docs/10 §6). It is the only limit a Version URL has.
     {
       "name": "API_LIMIT",
       "namespace_id": "1002",

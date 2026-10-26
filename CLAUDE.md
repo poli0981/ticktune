@@ -276,14 +276,19 @@ Four habits that found the rest:
   per-id cache (24 h for a length, 15 min for "none"); a per-IP rate limit
   (20 / 60 s) in edge memory; no CORS. 🔴 Set the secret with
   `wrangler versions secret put` — `secret put` and the dashboard **deploy**.
-- **Rate limits are Worker bindings, not zone rules** (v2.0.3, `10 §6`):
-  `API_LIMIT` counts every `/api/*` request, 60 / 60 s per IP, before the cache
-  or any upstream, and answers our own JSON `rate_limited` (→ TT-YT-001,
-  `pending`). Both limiters **fail open**. The "60 req/min zone rule" was cited
-  from P4 to v2.0.2 and never existed — 75 rapid production calls all got 200 —
-  and the Free plan cannot express a minute (10 s window, path-only). Static
-  pages stay unlimited on purpose: `run_worker_first` would log and bill every
-  page view and break the Privacy Policy's "loading a page never creates one".
+- **Rate limits: two layers on `/api/*`** (v2.0.3, `10 §6`). Inside, the
+  Worker binding `API_LIMIT` — 60 / 60 s per IP, before the cache or any
+  upstream, our own JSON `rate_limited` (→ TT-YT-001, `pending`); both Worker
+  limiters **fail open**. In front, the zone's one Free rule "api-burst-guard",
+  60 / 10 s → Block 10 s, `429 text/plain` 1015. ⚠️ **On production only the
+  zone rule enforces**: the binding refused none of 300 calls in 73 s from one
+  IP (instances in SIN do not share counts in time), while one isolate counts
+  exactly. Do not lower `API_LIMIT` to compensate; strict needs a Durable
+  Object. The "60 req/min zone rule"
+  and the WAF non-GET rule were cited from P4 and **neither existed** until the
+  owner created them on 2026-10-27 — 75 rapid calls all got 200, a `POST` got
+  the Worker's 405. Static pages stay unlimited on purpose: `run_worker_first`
+  would log and bill every page view.
 - **`img-src` allows no YouTube origin since v2.0** — measured: the app's
   document never loads `i.ytimg.com`; the player's images are its frame's own.
   A playing session is a v2.0 live-checklist line (YouTube refuses automation).
@@ -426,13 +431,20 @@ svelte-check and is outside typescript-eslint's peer range, `docs/11 §4`)
 1. **Node 26 becomes LTS on 2026-10-28.** Switch `.nvmrc`, `engines`,
    `@types/node` and CI to 26 and drop the `dependabot.yml` ignore — `ci-node26`
    has been green on every v2.0 PR, so it is a switch, not a migration.
-2. **The owner's S5 run** — an everyday browser with a click on the
+2. **The Privacy Policy is wrong about 404s** (found 2026-10-27, `docs/16`
+   v2.0.3). It says Worker logs are "YouTube lookups only" and "loading a page
+   never creates one"; a mistyped URL has no asset, so it DOES invoke the Worker
+   and Workers Logs records it — request headers included (`wrangler tail`).
+   Real pages never do. An untrue description is the 1.0-draft → 1.1-draft
+   class: correct the text and bump `TT_LEGAL_VERSION`, batched — the owner's
+   call.
+3. **The owner's S5 run** — an everyday browser with a click on the
    notification, and Safari (`docs/15 §S5`). The crossfade was confirmed by ear
    on the released build (2026-10-21, `tests/manual/v2.0-live-checklist.md`).
-3. **Post-2.0 directions** are in `docs/16`'s backlog section: loudness
+4. **Post-2.0 directions** are in `docs/16`'s backlog section: loudness
    normalization needs a new spike (S6 failed), and a seek control would leave
    S4b's PASS.
-4. `docs/AUDIT-BACKLOG.md` — **0 open**.
+5. `docs/AUDIT-BACKLOG.md` — **0 open**.
 
 **CodeQL runs as GitHub default setup — keep it enabled.** The old instruction to
 disable it applied only while the advanced `codeql.yml` existed; that file is

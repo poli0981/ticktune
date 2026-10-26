@@ -347,10 +347,14 @@ than watching a track fail. That split is `ytCauseIsTransient` in
 ⚠️ **The 429 is our own edge, not YouTube's** (`docs/10 §6`). Since v2.0.3 it is
 the Worker's JSON `{"error":"rate_limited"}`, readable like every other cause.
 The client still reads `res.status` **before** any body and treats a rejected
-fetch as transient (`tt-yt-driver.ts`), because an edge block page — HTML, no
-CORS header, possibly an opaque rejection indistinguishable from being offline —
-is what a zone rule would send, and the code was written for one. ✅ **Observed
-2026-10-27** under `wrangler dev`: the 61st rapid call is a 429. Until v2.0.3
+fetch as transient (`tt-yt-driver.ts`), because an edge block page is not JSON
+and may arrive as an opaque rejection indistinguishable from being offline —
+and since 2026-10-27 a zone rule does send one: "api-burst-guard" answers a
+burst with `429 text/plain` "error code: 1015", read as `rate_limited` all the
+same (`10 §6`). ✅ **Observed
+2026-10-27** under `wrangler dev`: the 61st rapid call is a 429. On production
+the zone rule is what answers — the Worker's binding did not hold there
+(`10 §6`). Until v2.0.3
 there was no limit to observe — the zone rule was never created (`10 §6`).
 
 **Sources do not mix.** A queue is all-local or all-links, decided by the mode:
