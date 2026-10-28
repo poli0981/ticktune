@@ -1474,6 +1474,43 @@ per IP get through, sustained, and the client reads its plain-text 429 as
 |----|--------|-----------------|
 | #102 | `docs/v2.0.3-results` | The checklist's results; `10 §5`–`§6` and `§11` rewritten around the production measurements and the two zone rules; the 404-logging finding below, for the owner |
 
+## v2.0.4 — YouTube's own ⏯ · **v2.0.4**, 2026-10-28
+
+The owner's report: ⏯ in the app worked; pausing or resuming **inside the
+YouTube player** did not stay in step. The player's PLAYING and PAUSED had one
+reader since P4 — the transport's icon. So ⏸ in the frame stopped the music and
+left the countdown running, ON AIR lit and the finish notice armed, under a ▶
+whose click still meant "pause"; ▶ in the frame during a paused run played the
+music under a frozen countdown. Every engine was right; the run never heard.
+
+| PR | Branch | What it carried |
+|----|--------|-----------------|
+| — | `fix/yt-native-controls` | `TtYtPlayer` compares every PLAYING/PAUSED with what the app last asked for; one that contradicts it and holds for 300 ms is the user's — adopted, reported as `onNativeToggle`, and routed through the transport's own pause/resume with nothing sent back to the player; TT-YT-009 (`06 §2`, `12 §6`). 20 unit cases and three E2E specs, each red on v2.0.3 or on the variant it names |
+
+**Measured before it was written.** `06 §2` had no record of what the real
+player sends, and the rule rests on it. In Claude desktop's built-in browser —
+which YouTube, unlike Playwright, lets play — the S1 harness logged every state:
+a seek while playing sends **PAUSED, then BUFFERING 1 ms later**, every time.
+Routing PAUSED straight to the run, the obvious fix, would have paused the
+countdown on every seek; the settle exists for that, and for an event still in
+flight when the app commands (the echo comes in 2–6 ms) and a PAUSED before
+ENDED that would drop the advance. The fixed build was then driven under
+`wrangler dev` with real YouTube: a click on the video stopped the countdown, a
+second started it, a seek left it running, a video's natural end advanced with
+ON AIR lit throughout, and Diagnostics held one TT-YT-009 per pause or play made
+in the player — none for the seek or the end (`tests/manual/yt-matrix.md`).
+
+**What no test had.** The E2E stub never changes state by itself, and no spec
+had ever fired a PAUSED the app had not asked for — P4's spec for the icon asked
+only what the icon drew. A value with a reader can still have the wrong one.
+
+**Not taken — the transport drawn from the session alone.** An independent
+review proposed dropping the player's clause from `transportPlaying`, so the
+icon could never disagree with what ⏯ does — during a video's first load, an
+error card, an exhausted queue, and the ~0.8 s of a seek's buffering. It would
+also hide a refused autoplay behind ⏸. The defect reported was the run, and the
+icon rule is P4's decision; the cases are recorded below.
+
 ## Post-2.0 backlog (unordered)
 
 - **Node 26 LTS — 2026-10-28.** Move `.nvmrc`, `engines` (`>=26 <27`),
@@ -1498,6 +1535,23 @@ per IP get through, sustained, and the client reads its plain-text 429 as
   proves too loose: a Durable Object counter per IP (or sharded), which counts
   exactly where the binding does not (`10 §6`). Billed per request, and a hop
   on every `/api/*` call — not worth it at today's traffic.
+- **Local modes and the OS media keys — a candidate, unmeasured.** The audio
+  driver listens for `timeupdate`, `error` and `ended` only
+  (`tt-audio-driver.ts`), so a hardware ⏸ that pauses the `<audio>` element
+  itself would leave the countdown running — v2.0.4's defect through another
+  door. Measure first what Chrome's default media-session action does to an
+  element routed through Web Audio.
+- **YouTube's state sequences in Firefox and Safari** (`06 §2`). v2.0.4's rule
+  was measured in Chromium only; a PAUSED long before ENDED, or a seek that holds
+  PAUSED past 300 ms, would show there first.
+- **The transport icon in YouTube mode** draws the player, ⏯ acts on the run:
+  they differ during a first load, an error card, an exhausted queue and a
+  seek's buffering (v2.0.4's "not taken"). One rule would be the session alone,
+  as the local modes do — at the price of a refused autoplay drawn as ⏸.
+- **⏸ during an error card drops its skip.** The card advances through
+  `onTrackEnded`, which moves only a playing run, so the failed video stays
+  current until a resume makes it fail again. Pre-existing; found in v2.0.4's
+  review.
 - **The Privacy Policy is wrong about 404s.** `§6` says Worker logs are
   "YouTube lookups only" and that "loading a page never creates one". A
   mistyped URL matches no asset, so it invokes the Worker, and Workers Logs

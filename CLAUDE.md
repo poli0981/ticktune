@@ -126,7 +126,7 @@ measuring again.
 
 ## Current status
 
-**v2.0.3** (2026-10-27) is the current release, live on `https://ticktune.net`.
+**v2.0.4** (2026-10-28) is the current release, live on `https://ticktune.net`.
 P1–P7 are complete — v1.0.0 closed P7 — and every phase's exit review is in
 `docs/16`. v1.1 was a full review rather than a phase; v1.1.1 fixed two live
 defects. **v2.0 shipped every post-1.1 direction**: link lengths from the
@@ -141,7 +141,9 @@ queue. **v2.0.2 is dependencies only** — the scheduled audit went red on
 Astro's build-time undici; it also took Vitest 5 and TypeScript 6, and added
 two dev-tree overrides (`docs/11 §5`). **v2.0.3 rate-limits `/api/*` in the
 Worker** — the zone rule `docs/10 §6` had promised since P4 never existed.
-`docs/16`'s v2.0 through v2.0.3 sections have the reviews.
+**v2.0.4 makes the YouTube player's own ⏯ the run's** — a pause in the frame
+used to stop the music and leave the countdown running (the owner's report).
+`docs/16`'s v2.0 through v2.0.4 sections have the reviews.
 
 **Releases are tag-only (decided 2026-10-20).** Workers Builds runs
 `npx wrangler versions upload` for every push, so a branch gets a preview URL
@@ -296,6 +298,14 @@ Four habits that found the rest:
   `start()` is synchronous because the gesture chain is.
 - **Paused means silent.** ⏭/⏮/jump while paused **cue** rather than load
   (`cueVideoById`), and the autoplay intent survives the player becoming ready.
+- **The player's own ⏯ is the run's ⏯** (v2.0.4, `06 §2`): a PLAYING/PAUSED
+  that contradicts what the app last asked for and holds 300 ms
+  (`NATIVE_SETTLE_MS`) is the user's — adopted, logged TT-YT-009, and routed
+  through `onPause`/`onResume('player')`, which send **nothing back** to the
+  player. Compared with the request, never the session: the exhausted queue's
+  pause is ours. The settle is not optional — measured, a seek sends PAUSED then
+  BUFFERING 1 ms later — and a PAUSED from a video that never played, or during
+  an error card, never counts.
 - **Sources do not mix — two shelves** (v2.0.1, `docs/02 §3.5`): Single and
   Playlist share the local shelf, YouTube has its own, and `session.queue` is
   the mode's shelf. An import lands on its own source's shelf whatever tab is
