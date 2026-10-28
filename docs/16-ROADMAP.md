@@ -1485,7 +1485,7 @@ music under a frozen countdown. Every engine was right; the run never heard.
 
 | PR | Branch | What it carried |
 |----|--------|-----------------|
-| — | `fix/yt-native-controls` | `TtYtPlayer` compares every PLAYING/PAUSED with what the app last asked for; one that contradicts it and holds for 300 ms is the user's — adopted, reported as `onNativeToggle`, and routed through the transport's own pause/resume with nothing sent back to the player; TT-YT-009 (`06 §2`, `12 §6`). 20 unit cases and three E2E specs, each red on v2.0.3 or on the variant it names |
+| #103 | `fix/yt-native-controls` | `TtYtPlayer` compares every PLAYING/PAUSED with what the app last asked for; one that contradicts it and holds for 300 ms is the user's — adopted, reported as `onNativeToggle`, and routed through the transport's own pause/resume with nothing sent back to the player; TT-YT-009 (`06 §2`, `12 §6`). 20 unit cases and three E2E specs, each red on v2.0.3 or on the variant it names |
 
 **Measured before it was written.** `06 §2` had no record of what the real
 player sends, and the rule rests on it. In Claude desktop's built-in browser —
@@ -1510,6 +1510,27 @@ icon could never disagree with what ⏯ does — during a video's first load, an
 error card, an exhausted queue, and the ~0.8 s of a seek's buffering. It would
 also hide a refused autoplay behind ⏸. The defect reported was the run, and the
 icon rule is P4's decision; the cases are recorded below.
+
+**The preview, with real YouTube — a first.** Every YouTube line of every
+earlier live checklist was the owner's, because YouTube refuses an automated
+browser. The built-in browser it lets play ran all of v2.0.4's on #103's
+preview (`8c064e50`): the frame's ⏸ and ▶ stopped and started the countdown, a
+seek and a video's natural end left it running, the app's ⏯ still did what it
+showed, four TT-YT-009 and none for the seek, the end or the app.
+
+**Released — 2026-10-28, 05:02 UTC.** #103 merged by rebase at 04:59, its
+`e2e` green on the first attempt. Tag `v2.0.4` sits on `ff9adc6`, whose tree is
+identical to the branch tested on the preview, and its signature was verified
+against a keyring holding only `https://github.com/poli0981.gpg` before the
+push. `deploy.yml`'s verify, deploy and release jobs were green, with exactly
+one new deployment (`7890b892`). Production: About 2.0.4, `verify:csp` 6/6, and
+`/app/`'s bundle byte-identical to the preview's — so the preview's player run
+holds for it. The player line on production itself is the owner's: it means
+accepting the Legal Gate on the live site in a lasting browser profile.
+
+| PR | Branch | What it carried |
+|----|--------|-----------------|
+| #104 | `docs/v2.0.4-results` | The checklist's preview and production results; this paragraph |
 
 ## Post-2.0 backlog (unordered)
 
