@@ -73,6 +73,13 @@ class YtStore {
   onMeta:
     | ((trackId: string, fields: { durationMs?: number; title?: string; artist?: string }) => void)
     | null = null;
+  /**
+   * docs/06 §2 (v2.0.4) — the player paused or played by itself: the user used
+   * YouTube's own controls (or the OS media keys), and that is their ⏯. The shell
+   * routes it through the transport's own handlers, so the countdown follows.
+   * `TtYtPlayer` decides what counts; this only carries it across.
+   */
+  onNativeToggle: ((playing: boolean) => void) | null = null;
 
   get overlay(): TtYtOverlayState | null {
     return this.#overlay;
@@ -113,6 +120,7 @@ class YtStore {
       onStatus: (p) => {
         this.#playing = p;
       },
+      onNativeToggle: (p) => this.onNativeToggle?.(p),
       onSkipIn: (ms) => {
         this.#skipInMs = ms;
       },

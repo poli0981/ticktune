@@ -29,6 +29,19 @@ export const YT_PAUSED = 2;
 export const OVERLAY_SKIP_MS = 5_000;
 
 /**
+ * docs/06 §2 — how long a pause or play the app did NOT ask for must hold before
+ * it counts as the user's own ⏯ on the player.
+ *
+ * Measured on the real player (2026-10-28, `tests/manual/yt-matrix.md`): a seek
+ * while playing reports PAUSED, then BUFFERING 1 ms later, then PLAYING ~0.8 s
+ * after that — taken at once, every seek would pause the run. The player echoes
+ * our own `pauseVideo`/`playVideo` within 2–6 ms, so an event it sent before one
+ * of our commands arrived is followed almost at once by the echo that cancels it.
+ * 300 ms clears both by a wide margin and is still under a glance.
+ */
+export const NATIVE_SETTLE_MS = 300;
+
+/**
  * What `getVideoData()` returns — docs/06 §2.
  *
  * ⚠️ **Not in YouTube's published IFrame Player API reference.** It is long
@@ -111,6 +124,18 @@ export interface TtYtPlayerHost {
    */
   onSkipIn?: (remainingMs: number | null) => void;
   onStatus: (playing: boolean) => void;
+  /**
+   * The player paused or played by ITSELF — its own controls, its keyboard
+   * shortcuts, the OS media keys — when the app had asked for the opposite
+   * (docs/06 §2). That is the user's ⏯, and the run has to follow it.
+   *
+   * `onStatus` alone used to carry it, and only the transport's icon read that:
+   * a pause in the frame left the countdown running, and a play during a paused
+   * run played the music under a frozen countdown. Reported only once the state
+   * has held for `NATIVE_SETTLE_MS` with nothing newer from the player or the
+   * app — see `#onStateChange` for what that filters out.
+   */
+  onNativeToggle?: (playing: boolean) => void;
   onLog: (code: TtYtOverlayState['code'] | 'TT-YT-005', trackId?: string) => void;
 }
 
@@ -146,7 +171,9 @@ export class TtYtPlayer {
    * while the API was still loading — or a track cued while the run was paused
    * — started playing the moment the player came up, with the session paused
    * and the countdown frozen. `play()`/`pause()` and `load()`/`cue()` record the
-   * intent; `#onReady` honours it.
+   * intent; `#onReady` honours it, and `#onStateChange` measures the player's
+   * own PLAYING/PAUSED against it — and adopts the one the user settles on
+   * (v2.0.4).
    */
   #autoplay = true;
   /**
@@ -162,6 +189,20 @@ export class TtYtPlayer {
    */
   #ready = false;
   #volume: { level: number; muted: boolean } | null = null;
+  /**
+   * A pause or play the app did not ask for, waiting out `NATIVE_SETTLE_MS`
+   * (docs/06 §2). Anything newer cancels it: a state, a command, an error.
+   */
+  #nativeTimer: number | null = null;
+  /**
+   * Whether the current video has reported PLAYING since it was opened.
+   *
+   * Nobody pauses a video that never played, so a PAUSED before this is not the
+   * user's: a refused autoplay must not freeze the countdown any more than a
+   * local track's `blocked` does, and a late PAUSED from the video being
+   * replaced belongs to that video.
+   */
+  #hasPlayed = false;
 
   constructor(ports: TtYtPlayerPorts, host: TtYtPlayerHost) {
     this.#ports = ports;
@@ -226,6 +267,8 @@ export class TtYtPlayer {
 
   #open(track: TtTrack, autoplay: boolean): void {
     this.#clearSkip();
+    this.#clearNative();
+    this.#hasPlayed = false;
     this.#host.onOverlay(null);
     this.#track = track;
     this.#autoplay = autoplay;
@@ -258,11 +301,13 @@ export class TtYtPlayer {
   }
 
   play(): void {
+    this.#clearNative();
     this.#autoplay = true;
     this.#api?.playVideo();
   }
 
   pause(): void {
+    this.#clearNative();
     this.#autoplay = false;
     this.#api?.pauseVideo();
   }
@@ -289,9 +334,11 @@ export class TtYtPlayer {
 
   dispose(): void {
     this.#clearSkip();
+    this.#clearNative();
     this.#api?.destroy();
     this.#api = null;
     this.#ready = false;
+    this.#hasPlayed = false;
     this.#track = null;
   }
 
@@ -308,16 +355,58 @@ export class TtYtPlayer {
     if (this.#autoplay) this.#api?.playVideo();
   }
 
+  /**
+   * docs/06 §2. PLAYING and PAUSED are compared with what the app last asked
+   * for (`#autoplay`), never with the session: the exhausted queue pauses the
+   * video while the run plays on in silence (docs/02 §5.1), and that pause is
+   * ours. A state that CONTRADICTS the request is the player acting by itself —
+   * the user's ⏯ — once it has held for `NATIVE_SETTLE_MS`. Every state cancels
+   * the one before, which is what keeps three things from counting:
+   *
+   * - a seek while playing, PAUSED → BUFFERING 1 ms later (measured);
+   * - an event the player sent before our command reached it — a PLAYING still
+   *   in flight when the user pressed ⏸ would otherwise UNDO that pause; our
+   *   own PAUSED echo follows within milliseconds and cancels it;
+   * - a PAUSED right before ENDED, which Chromium was not seen to send but the
+   *   media element's own `pause`-then-`ended` order invites. Taken at once,
+   *   the run would pause and `onTrackEnded` would drop the advance.
+   */
   #onStateChange(state: number): void {
-    if (state === YT_PLAYING) this.#host.onStatus(true);
-    else if (state === YT_PAUSED) this.#host.onStatus(false);
-    else if (state === YT_ENDED) {
+    this.#clearNative();
+    if (state === YT_PLAYING) {
+      this.#hasPlayed = true;
+      this.#host.onStatus(true);
+      if (!this.#autoplay) this.#armNative(true);
+    } else if (state === YT_PAUSED) {
+      this.#host.onStatus(false);
+      if (this.#autoplay && this.#hasPlayed) this.#armNative(false);
+    } else if (state === YT_ENDED) {
       this.#host.onStatus(false);
       this.#host.onAdvance();
     }
   }
 
+  #armNative(playing: boolean): void {
+    // A card counting down owns what happens next: its skip advances through
+    // the shell, which only advances a run that is still playing.
+    if (this.#skipTimer !== null) return;
+    this.#nativeTimer = this.#ports.setTimer(() => {
+      this.#nativeTimer = null;
+      // Adopted as the request, so the player's next state is judged against
+      // what the USER chose. Nothing is sent back: the player already obeyed,
+      // and a `pauseVideo` mid-scrub could keep the video paused on release.
+      this.#autoplay = playing;
+      this.#host.onNativeToggle?.(playing);
+    }, NATIVE_SETTLE_MS);
+  }
+
+  #clearNative(): void {
+    if (this.#nativeTimer !== null) this.#ports.clearTimer(this.#nativeTimer);
+    this.#nativeTimer = null;
+  }
+
   #onError(code: number): void {
+    this.#clearNative();
     const overlay = overlayForError(code);
     this.#host.onLog(overlay.code, this.#track?.id);
     this.#host.onOverlay(overlay);
@@ -363,6 +452,7 @@ export class TtYtPlayer {
   /** "Skip now" — the same path the timer takes, minus the wait. */
   skipNow(): void {
     this.#clearSkip();
+    this.#clearNative();
     this.#host.onOverlay(null);
     this.#host.onAdvance();
   }

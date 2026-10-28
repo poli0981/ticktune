@@ -61,7 +61,51 @@ Suite 2.0 · 2026-10-21 · Locked decision D1
   `onError` → §4.
 - App transport maps ⏯ to `playVideo`/`pauseVideo`; ⏭/⏮/jump select the
   next id with `loadVideoById`, or `cueVideoById` while paused so a paused run
-  stays silent (v1.1). The native controls remain usable too.
+  stays silent (v1.1).
+- **The player's own ⏯ is the run's ⏯ (v2.0.4).** The native controls stay
+  usable (`§1.2`), and so do the frame's keyboard shortcuts and the OS media
+  keys, which reach the frame rather than the page. Until v2.0.4 a pause there
+  reached only the transport's icon: the countdown ran on under ▶, the button's
+  click still meant "pause", and a play there during a paused run played the
+  music under a frozen countdown. `TtYtPlayer` now compares every PLAYING and
+  PAUSED with what the app last asked for. One that contradicts it and holds for
+  `NATIVE_SETTLE_MS` (300 ms) — no newer state, no command of ours in between —
+  is the user's: reported as `onNativeToggle`, adopted as the request, and
+  routed by the shell through the transport's own pause/resume (session,
+  countdown, finish notice), logged **TT-YT-009**. **Nothing is sent back to the
+  player**: it has already obeyed, and a `pauseVideo` sent mid-scrub could hold
+  the video paused when the user lets go. What never counts, and why:
+  - our own commands' echoes — they agree with the request;
+  - a PAUSED from a video that has not played since it was opened — a refused
+    autoplay, or a late event from the video being replaced. The local modes'
+    `blocked` does not pause the countdown either;
+  - the exhausted queue's pause (`02 §5.1` rule 6) — ours, so the run plays on
+    in silence. This is why the comparison is with the request and never with
+    the session;
+  - anything while an error card counts down (`§4`) — its skip advances through
+    the shell, which moves only a run that is still playing.
+
+  Measured on the real player on 2026-10-28 — Chromium, the S1 harness and the
+  app itself under `wrangler dev`, real `youtube-nocookie.com`
+  (`tests/manual/yt-matrix.md`):
+
+  | Action | States reported |
+  |--------|-----------------|
+  | ⏸ in the frame (a click, its `k`) | `2` |
+  | ▶ in the frame | `3`, then `1` 3–261 ms later |
+  | Seek while playing (`j`, `l`, `→`) | `2`, then `3` **1 ms** later, then `1` ~0.8 s later — every time |
+  | Seek while paused | nothing |
+  | A video playing to its end | `1` → `0`, with no `2` before it |
+  | Our `playVideo` / `pauseVideo` | first echo in 2–6 ms; `pauseVideo` on a paused player: nothing at all |
+
+  The seek is why the settle exists: taken at once, every seek would pause the
+  run. A PAUSED before ENDED was not seen, but the media element's own
+  `pause`-then-`ended` order invites it in other engines, and taken at once it
+  would pause the run and the shell would drop the advance. Firefox and Safari
+  are unmeasured. A mouse drag on the scrubber could not be synthesised; held
+  longer than the settle, it pauses the run until the release, which is what is
+  heard. In a hidden tab the settle is a throttled main-thread timer, so the
+  run follows a media key about a second late.
 - Countdown `done` in YouTube mode: `pauseVideo()` + UI dim (no audio-graph fade
   available); chime still plays locally.
 

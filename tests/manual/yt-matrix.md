@@ -83,6 +83,72 @@ TT-YT-150 — and getting past its bot check is not something to do. A playing
 session is therefore a v2.0 live-checklist line on the preview: one video
 playing for a minute, Console clean.
 
+## ✅ 2026-10-28 — the player's own state sequences (v2.0.4)
+
+Measured for `docs/06 §2`'s rule that a pause or play the player makes by
+itself is the user's ⏯. Claude desktop's built-in browser (Chromium), Windows
+11; real `youtube-nocookie.com`. YouTube **did** play in this browser — unlike
+the Playwright-driven runs above, which it refuses with `150`.
+
+**1 · The S1 harness** under `astro dev` (`/spike/s1-youtube`), its own
+millisecond log. `jNQXAC9IVRw` (19 s), then `dQw4w9WgXcQ`:
+
+```
++   604ms  -1 (unstarted)        ← onReady → playVideo()
++   604ms   3 (buffering)
++   964ms   1 (playing)
++ 18885ms   2 (paused)           ← a click on the video
++ 39329ms   3 (buffering)        ← a click on the video
++ 39590ms   1 (playing)
++ 40581ms   0 (ENDED)            ← the end: no 2 before it
+
++ 42966ms   2 (paused)           ← `l`, seek +10 s while playing
++ 42967ms   3 (buffering)           1 ms later
++ 43789ms   1 (playing)
++ 44991ms   2 (paused)           ← `j`, seek −10 s
++ 44992ms   3 (buffering)
++ 45814ms   1 (playing)
+           (nothing)             ← `l` while paused
++111122ms   3 (buffering)        ← `k`
++111125ms   1 (playing)
++113129ms   2 (paused)           ← `→`, seek +5 s
++113130ms   3 (buffering)
++113939ms   1 (playing)
++115151ms   2 (paused)           ← `k`
+```
+
+Our own commands, through `YT.get(id)` with a listener attached first, timed
+from the call: `playVideo()` → `3` at 2–3 ms, `1` at 257–274 ms;
+`pauseVideo()` → `2` at 2–6 ms; `pauseVideo()` on a paused player → **no event
+in 4 s**. A mouse drag on the scrubber could not be synthesised — it landed as a
+click and paused the video.
+
+**2 · The app itself**, v2.0.4's build under `wrangler dev` (the real Worker
+and CSP), two links, a 5-minute run, probing the transport label, ON AIR and
+the digits:
+
+| Action | Transport | ON AIR | Countdown |
+|--------|-----------|--------|-----------|
+| Click ⏸ on the video | ▶ | off | stopped (04:36, still 04:36 2 s later) |
+| Click ▶ on the video | ⏸ | on | running (04:35 → 04:33) |
+| `l` in the frame, playing | ▶ for the ~0.8 s of buffering, then ⏸ | **on throughout** | **running throughout** |
+| `k` in the frame | ▶ | off | stopped |
+| The app's own ▶ | ⏸ | on | running |
+| The app's own ⏸, then `playVideo()` from outside the app | ⏸ | on | running (04:08 → 04:06) |
+
+Diagnostics afterwards: four `TT-YT-009` — pause, play, pause, play — and none
+for the seek or for the app's own ⏯. Console: only the two localhost-only
+errors (the analytics beacon's CORS refusal, and `/api/yt/durations` 503 with no
+key configured locally).
+
+**3 · The final build** (About 2.0.4 — the run above predates "nothing sent
+back"), same setup, `jNQXAC9IVRw` first. Sampled every second for 30 s across
+its natural end: ON AIR lit in **all 30**, the countdown continuous (04:59 →
+04:30), the current row moving to the second link by itself. Then
+`pauseVideo()` / `playVideo()` from outside the app: the countdown stopped at
+04:18 and stayed there, then ran on (04:17 → 04:15). Diagnostics: one
+`TT-YT-009` per outside pause or play, none for the end.
+
 ## ✅ RUN 2026-07-22 — Chrome 151 / Windows, deployed site, 1 gesture
 
 10 ids, 6 distinct causes, **9 hands-free advances from 1 gesture**, no CSP

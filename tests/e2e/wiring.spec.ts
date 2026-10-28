@@ -13,6 +13,7 @@ import {
 import { installWallClockShift, shiftWallClock } from './_helpers-clock';
 import {
   fireYt,
+  fireYtSeq,
   gotoYouTubeApp,
   installFakeYt,
   mockOembed,
@@ -481,5 +482,114 @@ test.describe('live defects — v2.0.1', () => {
     await expect(rows).toHaveCount(2);
     await start.click();
     await expect.poll(() => ytCalls(page)).toContain(`loadVideoById:${ONE}`);
+  });
+});
+
+test.describe('live defects — v2.0.4', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
+
+  /*
+   * The YouTube player's own controls (docs/06 §1.2 keeps them usable) reached
+   * `yt.playing` and nothing else, so only the transport's ICON followed them.
+   * The run is theirs now too — through the transport's own handlers, once the
+   * player's state has settled (docs/06 §2). The stub never changes state by
+   * itself, so every state below is one the real player sends.
+   */
+  const ONE = 'jNQXAC9IVRw';
+  const TWO = '9bZkp7q19f0';
+  const digits = (page: Page) => page.locator('.tt-countdown .tt-live');
+  const tally = (page: Page) => page.getByTestId('tt-tally');
+
+  async function startPlaying(page: Page): Promise<void> {
+    dismissUnloadDialogs(page);
+    await gotoYouTubeApp(page);
+    await stageLinks(page, [ONE, TWO]);
+    await setDuration(page, 0, 1, 0);
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await ytReady(page);
+    await fireYt(page, 'playing');
+    await expect(transport(page)).toHaveAttribute('aria-label', 'Tạm dừng');
+    await expect(tally(page)).toHaveClass(/tt-live/);
+  }
+
+  test('⏸ and ▶ in the YouTube player itself pause and resume the run', async ({ page }) => {
+    /*
+     * The owner's report. ⏸ in the frame stopped the music and left the
+     * countdown running under a ▶ whose click still meant "pause".
+     */
+    await startPlaying(page);
+    const before = (await ytCalls(page)).length;
+
+    await fireYt(page, 'paused');
+    await expect(tally(page)).not.toHaveClass(/tt-live/);
+    await expect(transport(page)).toHaveAttribute('aria-label', 'Phát');
+    const frozen = await digits(page).textContent();
+    await page.waitForTimeout(1_200);
+    await expect(digits(page)).toHaveText(frozen ?? '');
+
+    await fireYt(page, 'playing');
+    await expect(tally(page)).toHaveClass(/tt-live/);
+    await expect(transport(page)).toHaveAttribute('aria-label', 'Tạm dừng');
+    await expect.poll(() => digits(page).textContent()).not.toBe(frozen);
+    // The run followed the player, and nothing was sent back to it: the player
+    // had already obeyed, and a command mid-scrub could keep it paused.
+    expect((await ytCalls(page)).slice(before)).toEqual([]);
+
+    // docs/12 §6: each one is in Diagnostics, so a misfire could be seen.
+    await openSettings(page);
+    await expect(
+      page.getByTestId('tt-set-log').locator('li', { hasText: 'TT-YT-009' }),
+    ).toHaveCount(2);
+  });
+
+  test('▶ in the YouTube player during a paused run resumes the run', async ({ page }) => {
+    /*
+     * The other half: the music played under a frozen countdown, the session
+     * still paused and ▶ still on the transport — "paused means silent", broken
+     * from outside the app.
+     */
+    await startPlaying(page);
+    await transport(page).click();
+    await expect(transport(page)).toHaveAttribute('aria-label', 'Phát');
+    await expect.poll(() => ytCalls(page)).toContain('pauseVideo');
+    await fireYt(page, 'paused'); // the echo of our own pauseVideo
+    const frozen = await digits(page).textContent();
+    const before = (await ytCalls(page)).length;
+
+    await fireYt(page, 'playing');
+    await expect(transport(page)).toHaveAttribute('aria-label', 'Tạm dừng');
+    await expect(tally(page)).toHaveClass(/tt-live/);
+    await expect.poll(() => digits(page).textContent()).not.toBe(frozen);
+    expect((await ytCalls(page)).slice(before)).toEqual([]);
+
+    // And the app's own ⏯ still means what it shows.
+    await transport(page).click();
+    await expect(tally(page)).not.toHaveClass(/tt-live/);
+    await expect.poll(async () => (await ytCalls(page)).slice(before)).toEqual(['pauseVideo']);
+  });
+
+  test("a seek's passing PAUSED and a PAUSED before ENDED leave the run playing", async ({
+    page,
+  }) => {
+    /*
+     * What the settle exists for. A seek while playing sends PAUSED and then
+     * BUFFERING 1 ms later (measured on the real player); taken at once it
+     * would pause the run on every seek. A PAUSED right before ENDED would
+     * pause it too, and the advance — which only moves a playing run — would
+     * be dropped. Red on a variant that reports at once.
+     */
+    await startPlaying(page);
+
+    await fireYtSeq(page, [2, 3]);
+    await page.waitForTimeout(800);
+    await expect(tally(page)).toHaveClass(/tt-live/);
+    await fireYt(page, 'playing');
+
+    await fireYtSeq(page, [2, 0]);
+    await expect.poll(() => ytCalls(page)).toContain(`loadVideoById:${TWO}`);
+    await page.waitForTimeout(800);
+    await expect(tally(page)).toHaveClass(/tt-live/);
+    const now = await digits(page).textContent();
+    await expect.poll(() => digits(page).textContent()).not.toBe(now);
   });
 });
