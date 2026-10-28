@@ -73,6 +73,9 @@
     // docs/06 §2's two backfills. The queue is the session's, so the patch is
     // the session's too — the store reports, the shell routes (docs/12 §3.3).
     yt.onMeta = (trackId, fields) => session.patchTrack(trackId, fields);
+    // docs/06 §2 (v2.0.4) — a pause or play made on the player itself is the
+    // user's ⏯, and the run follows it through the transport's own handlers.
+    yt.onNativeToggle = onNativeToggle;
 
     void settings.load(navigator.language).then((s) => {
       // docs/08 §2 — before anything renders a string. `settings.load` has
@@ -579,16 +582,16 @@
    * What the transport button reports — docs/06 §2.
    *
    * The session's state alone is not the answer in YouTube mode. `06 §1.2`
-   * requires the native controls to stay usable, so the user can pause the video
-   * without the app hearing about it — and the button then offered ⏸ for a video
-   * that was already paused, with the ⏯ hotkey pointing the wrong way.
-   * `yt.playing` has been written on every PLAYING/PAUSED/ENDED since P4 and read
-   * by nothing at all.
+   * requires the native controls to stay usable, and before v0.5.0 the button
+   * offered ⏸ for a video already paused there. Since v2.0.4 the run itself
+   * follows those controls (`onNativeToggle`, below) — but only once a state has
+   * settled, so the player's own report still decides the icon in between.
    *
    * Both clauses are load-bearing: the session's is what makes an app-level
-   * pause take effect instantly, and the player's is what stops a native pause —
-   * or an error overlay, which also reports `false` — being drawn as playback.
-   * The cost is a moment of ▶ while the first video loads, which is honest.
+   * pause take effect instantly, and the player's is what stops a native pause
+   * that has not settled yet — or an error overlay, which also reports `false` —
+   * being drawn as playback. The cost is a moment of ▶ while the first video
+   * loads, which is honest.
    */
   const transportPlaying = $derived(
     session.mode === 'youtube' ? session.state === 'playing' && yt.playing : playbackPlaying(),
@@ -669,21 +672,51 @@
     if (session.state === 'playing' || session.state === 'paused') loadCurrent();
   }
 
-  function onPause() {
+  /**
+   * @param origin `'player'` when the YouTube player paused itself
+   *   (`onNativeToggle`): the run follows, and no command goes back to a player
+   *   that has already obeyed. Compared by value, so an event object passed by
+   *   a future `onclick={onPause}` can never skip the command.
+   */
+  function onPause(origin: 'app' | 'player' = 'app') {
     session.pause();
     driver.pause();
     // A paused countdown never reaches zero; a stale notice must not either.
     driver.setNotice(null);
+    if (origin === 'player') return;
     if (session.mode === 'youtube') yt.pause();
     else playback.pause();
   }
 
-  function onResume() {
+  /** @param origin as `onPause`'s. */
+  function onResume(origin: 'app' | 'player' = 'app') {
     session.resume();
     driver.resume();
     armNotice();
+    if (origin === 'player') return;
     if (session.mode === 'youtube') yt.play();
     else void playback.play();
+  }
+
+  /**
+   * The YouTube player paused or played by itself — docs/06 §2, v2.0.4.
+   *
+   * 🔴 Only the transport's icon used to hear it (`transportPlaying`, above). A
+   * pause in the frame left the countdown running under a ▶ whose click still
+   * meant "pause"; a play in the frame during a paused run played the music
+   * under a frozen countdown. It is the user's ⏯ now, through the same two
+   * handlers as the button and Space, so the session, the countdown and the
+   * finish notice cannot disagree with the player. What counts as "by itself"
+   * is `TtYtPlayer`'s call: our own echoes, a seek's passing PAUSED and the
+   * exhausted queue's pause never arrive here.
+   */
+  function onNativeToggle(playing: boolean) {
+    if (session.mode !== 'youtube') return;
+    if (!playing && session.state === 'playing') onPause('player');
+    else if (playing && session.state === 'paused') onResume('player');
+    else return;
+    // docs/12 §6 — a detection that misfired has to be visible in Diagnostics.
+    ttLog.info('TT-YT-009', playing ? 'play' : 'pause');
   }
 
   /** docs/02 §1's Stop edge: playing/paused → setup, run discarded. */

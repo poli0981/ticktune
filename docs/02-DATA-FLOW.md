@@ -22,6 +22,12 @@ Suite 2.0 · 2026-10-21
 | `paused` | Countdown frozen (remaining stored), media paused. | ⇄ `playing`, → `setup` (Stop) |
 | `finished` | Countdown hit 0; End Behavior executed. | → `setup` (Back), → `playing` (Restart, same queue) |
 
+`playing ⇄ paused` is the user's ⏯: the transport, Space, and — in YouTube
+mode, since v2.0.4 — the player's own controls and the OS media keys, which
+reach the frame rather than the page (`06 §2`). Media stopping for any other
+reason is not that transition: an exhausted queue, a track error or a refused
+autoplay leaves the countdown running (`§5.1` rule 6, `04 §5`).
+
 `blocked` is not an app state — the mobile gate (`07`) is a pre-boot DOM overlay
 and the island never mounts behind it. It is drawn above only to show it is
 terminal.

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
+  NATIVE_SETTLE_MS,
   OVERLAY_SKIP_MS,
   TtYtPlayer,
   YT_ENDED,
@@ -61,6 +62,7 @@ beforeEach(() => {
     onAdvance: vi.fn(),
     onOverlay: vi.fn(),
     onStatus: vi.fn(),
+    onNativeToggle: vi.fn(),
     onLog: vi.fn(),
     onSkipIn: vi.fn(),
   };
@@ -162,7 +164,7 @@ describe('state changes drive the queue', () => {
     expect(host.onStatus).toHaveBeenLastCalledWith(false);
   });
 
-  it('PLAYING and PAUSED only report status', () => {
+  it('PLAYING and PAUSED report status at once, and neither advances', () => {
     started();
     events?.onStateChange(YT_PLAYING);
     expect(host.onStatus).toHaveBeenLastCalledWith(true);
@@ -175,6 +177,202 @@ describe('state changes drive the queue', () => {
     started();
     events?.onStateChange(3); // buffering
     expect(host.onAdvance).not.toHaveBeenCalled();
+  });
+});
+
+describe("the player's own ⏯ is the user's — docs/06 §2 (v2.0.4)", () => {
+  /*
+   * A pause in the frame used to reach `onStatus` and nothing else: the
+   * countdown ran on under a ▶, and a play there during a paused run played the
+   * music under a frozen countdown. The sequences below are the real player's,
+   * measured 2026-10-28 (`tests/manual/yt-matrix.md`).
+   */
+  const BUFFERING = 3;
+  const CUED = 5;
+  const UNSTARTED = -1;
+
+  /** A ready player whose video has started, as the app asked. */
+  function playing(): TtYtPlayer {
+    const p = started();
+    events?.onStateChange(BUFFERING);
+    events?.onStateChange(YT_PLAYING);
+    return p;
+  }
+
+  it('a pause the app did not ask for is reported, once it has settled', () => {
+    playing();
+    events?.onStateChange(YT_PAUSED);
+
+    vi.advanceTimersByTime(NATIVE_SETTLE_MS - 1);
+    expect(host.onNativeToggle).not.toHaveBeenCalled();
+    vi.advanceTimersByTime(1);
+    expect(host.onNativeToggle).toHaveBeenCalledOnce();
+    expect(host.onNativeToggle).toHaveBeenCalledWith(false);
+  });
+
+  it('a play the app did not ask for is reported — during a pause, and on a cued video', () => {
+    const p = playing();
+    p.pause();
+    events?.onStateChange(YT_PAUSED); // our own echo
+    events?.onStateChange(BUFFERING); // the frame's ▶: buffering, then playing
+    events?.onStateChange(YT_PLAYING);
+    vi.advanceTimersByTime(NATIVE_SETTLE_MS);
+    expect(host.onNativeToggle).toHaveBeenCalledOnce();
+    expect(host.onNativeToggle).toHaveBeenLastCalledWith(true);
+
+    // ⏭ while paused cues the next video; ▶ on it in the frame is still the user's.
+    p.pause();
+    p.cue(track({ id: 'track-2', videoId: 'ddddddddddd' }));
+    events?.onStateChange(UNSTARTED);
+    events?.onStateChange(CUED);
+    events?.onStateChange(BUFFERING);
+    events?.onStateChange(YT_PLAYING);
+    vi.advanceTimersByTime(NATIVE_SETTLE_MS);
+    expect(host.onNativeToggle).toHaveBeenCalledTimes(2);
+    expect(host.onNativeToggle).toHaveBeenLastCalledWith(true);
+  });
+
+  it("adopts the user's choice — sends nothing back, and judges the next state against it", () => {
+    // The player already obeyed the user. A command sent back is at best a
+    // no-op, and mid-scrub a `pauseVideo` could keep the video paused on release.
+    playing();
+    api.playVideo.mockClear();
+    api.pauseVideo.mockClear();
+
+    events?.onStateChange(YT_PAUSED);
+    vi.advanceTimersByTime(NATIVE_SETTLE_MS);
+    expect(host.onNativeToggle).toHaveBeenLastCalledWith(false);
+
+    // No `pause()` from anyone in between: the frame's ▶ is still a contradiction.
+    events?.onStateChange(BUFFERING);
+    events?.onStateChange(YT_PLAYING);
+    vi.advanceTimersByTime(NATIVE_SETTLE_MS);
+    expect(host.onNativeToggle).toHaveBeenLastCalledWith(true);
+    expect(host.onNativeToggle).toHaveBeenCalledTimes(2);
+
+    expect(api.pauseVideo).not.toHaveBeenCalled();
+    expect(api.playVideo).not.toHaveBeenCalled();
+  });
+
+  it("never reports the app's own pause or play — the exhausted queue's pause included", () => {
+    // docs/02 §5.1: an exhausted queue pauses the video while the run plays on
+    // in silence. Compared with the session, that pause would freeze the
+    // countdown; compared with what the app asked for, it is simply ours.
+    const p = playing();
+    p.pause();
+    events?.onStateChange(YT_PAUSED);
+    vi.advanceTimersByTime(NATIVE_SETTLE_MS * 2);
+    p.play();
+    events?.onStateChange(BUFFERING);
+    events?.onStateChange(YT_PLAYING);
+    vi.advanceTimersByTime(NATIVE_SETTLE_MS * 2);
+
+    expect(host.onNativeToggle).not.toHaveBeenCalled();
+  });
+
+  it('a PLAYING still in flight when the app paused does not undo the pause', () => {
+    // postMessage is asynchronous both ways: the frame can send PLAYING before
+    // our pauseVideo reaches it. Taken at once, the user's ⏸ would bounce back.
+    const p = playing();
+    p.pause();
+    events?.onStateChange(YT_PLAYING);
+    vi.advanceTimersByTime(6); // the measured echo: 2–6 ms
+    events?.onStateChange(YT_PAUSED);
+    vi.advanceTimersByTime(NATIVE_SETTLE_MS * 2);
+
+    expect(host.onNativeToggle).not.toHaveBeenCalled();
+  });
+
+  it("a seek's passing PAUSED is not a pause — PAUSED, BUFFERING 1 ms later, PLAYING", () => {
+    playing();
+    events?.onStateChange(YT_PAUSED);
+    vi.advanceTimersByTime(1);
+    events?.onStateChange(BUFFERING);
+    vi.advanceTimersByTime(820);
+    events?.onStateChange(YT_PLAYING);
+    vi.advanceTimersByTime(NATIVE_SETTLE_MS * 2);
+
+    expect(host.onNativeToggle).not.toHaveBeenCalled();
+  });
+
+  it('a PAUSED right before ENDED advances once and pauses nothing', () => {
+    // Taken at once, the run would pause and the shell's advance — which only
+    // moves a playing run — would be dropped: a stuck queue, a frozen clock.
+    playing();
+    events?.onStateChange(YT_PAUSED);
+    events?.onStateChange(YT_ENDED);
+    vi.advanceTimersByTime(NATIVE_SETTLE_MS * 2);
+
+    expect(host.onAdvance).toHaveBeenCalledOnce();
+    expect(host.onNativeToggle).not.toHaveBeenCalled();
+  });
+
+  it("a PAUSED from a video that never played is not the user's", () => {
+    // A refused autoplay must not freeze the countdown — a local track's
+    // `blocked` does not — and a late PAUSED from a video being replaced
+    // belongs to that video, not to the one now opening.
+    const p = started();
+    events?.onStateChange(UNSTARTED);
+    events?.onStateChange(YT_PAUSED);
+    vi.advanceTimersByTime(NATIVE_SETTLE_MS * 2);
+
+    events?.onStateChange(BUFFERING);
+    events?.onStateChange(YT_PLAYING);
+    p.load(track({ id: 'track-2', videoId: 'ddddddddddd' }));
+    events?.onStateChange(YT_PAUSED);
+    vi.advanceTimersByTime(NATIVE_SETTLE_MS * 2);
+
+    expect(host.onNativeToggle).not.toHaveBeenCalled();
+  });
+
+  it('a repeated state is one report, not two', () => {
+    playing();
+    events?.onStateChange(YT_PAUSED);
+    events?.onStateChange(YT_PAUSED);
+    vi.advanceTimersByTime(NATIVE_SETTLE_MS * 2);
+
+    expect(host.onNativeToggle).toHaveBeenCalledOnce();
+  });
+
+  it('nothing counts while an error card is counting down', () => {
+    // The card's skip advances through the shell, which advances only a run
+    // that is still playing.
+    playing();
+    events?.onError(150);
+    events?.onStateChange(YT_PAUSED);
+    vi.advanceTimersByTime(NATIVE_SETTLE_MS * 2);
+
+    expect(host.onNativeToggle).not.toHaveBeenCalled();
+  });
+
+  const commands: [string, (p: TtYtPlayer) => void][] = [
+    ['play()', (p) => p.play()],
+    ['pause()', (p) => p.pause()],
+    ['load()', (p) => p.load(track({ id: 'track-2', videoId: 'ddddddddddd' }))],
+    ['cue()', (p) => p.cue(track({ id: 'track-2', videoId: 'ddddddddddd' }))],
+    ['skipNow()', (p) => p.skipNow()],
+    ['dispose()', (p) => p.dispose()],
+    ['an error', () => events?.onError(150)],
+  ];
+  it.each(commands)('%s cancels a report that has not settled', (_name, act) => {
+    const p = playing();
+    events?.onStateChange(YT_PAUSED);
+    act(p);
+    vi.advanceTimersByTime(NATIVE_SETTLE_MS * 2);
+
+    expect(host.onNativeToggle).not.toHaveBeenCalled();
+  });
+
+  it('is optional on the host', () => {
+    const bare: Partial<typeof host> = { ...host };
+    delete bare.onNativeToggle;
+    const p = new TtYtPlayer(ports, bare as unknown as TtYtPlayerHost);
+    p.load(track());
+    events?.onReady();
+    events?.onStateChange(YT_PLAYING);
+    events?.onStateChange(YT_PAUSED);
+
+    expect(() => vi.advanceTimersByTime(NATIVE_SETTLE_MS)).not.toThrow();
   });
 });
 

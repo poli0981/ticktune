@@ -338,10 +338,16 @@ These four values are the unit-test truth table in `§7`.
 
 ## 5. Interaction with media
 
-The timer never drives media position and media never drives the timer. They meet
-at exactly two points: `start()` is issued to both on Play, and the Worker's `done`
-triggers the media fade. This isolation is what makes both engines independently
-unit-testable (Vitest fake timers for the timer; no audio needed).
+The timer never drives media position, and the media's own state never drives
+the timer — an `ended`, an error, a stall or an exhausted queue leaves the
+countdown running. They meet only where the user or the clock acts: `start()` is
+issued to both on Play, ⏯ pauses and resumes both, and the Worker's `done`
+triggers the media fade. Since v2.0.4 ⏯ includes the YouTube player's own
+controls (`06 §2`) — the user's transport, wherever they press it; the player
+decides only that they did. (This read "exactly two points", Play and `done`,
+until then, and ⏯ had been a third since P2.) This isolation is what makes both
+engines independently unit-testable (Vitest fake timers for the timer; no audio
+needed).
 
 ## 6. Edge cases
 

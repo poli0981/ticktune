@@ -233,6 +233,7 @@ produce the failure — otherwise it is a test that can only pass.
 | Settings panel (`03 §6`) | `countdownSize` is **genuinely read** — the computed `font-size` is strictly ordered S < M < L and survives a reload; `glowIntensity` changes the rendered `text-shadow` (compared, never pattern-matched: Chromium serialises `color-mix` as `color(srgb …)` and Firefox as `rgba(…)`); `endAction: 'restart'` re-runs the countdown exactly once and `endFlash` fires; Diagnostics shows the real TT-USR-100 the gate logged; reset needs two presses and lands back on the gate |
 | Visualizer + a11y (`05 §6`, `03 §8`) | Its own file. Each style **paints real pixels** — sampled from the canvas rather than asserted as "the element mounted", because a canvas that draws nothing looks identical to one working on a quiet passage. The tally pulse is asserted **at `Visualizer: off`**, which is where a beat published from inside the draw path would silently die. Reduced motion removes canvas *and* pulse while leaving the stored style untouched. The five milestones are driven by a **real** 12-second countdown — `page.clock` does not reach the timer worker, so a fast-forward would prove only that the component has an `if` — and the spec asserts exactly two announcements fire, which is what catches a spurious one from a stale baseline. Audio-dependent assertions skip on Firefox **per assertion, with the real reason** |
 | **YouTube visibility** (`06 §1.2`, `03 §2`) | Its own file, `yt-visibility.spec.ts`, because the P4 suite could not express it: the countdown is swept across 1920→1024 px **in the ≥ 1 h regime**, which is 4.48 em wide against `MM:SS`'s 3.46 and is the regime every other YouTube spec skips. Asserts the player box ≥ 200×200, computed opacity exactly `1`, fully inside the viewport, no horizontal scroll, and **nothing painted over it** — sampled on a 5×5 grid, because a centre-only probe stayed green while the digits overlapped the player's left edge by 79 px. Covers Focus, `]`, the settings sheet and the info modal. ⚠️ Never `checkVisibility({checkOpacity:true})`: S1 measured it `true` at opacity 0.06 |
+| **YouTube's own ⏯** (`06 §2`, v2.0.4) | `wiring.spec.ts`, "live defects — v2.0.4". A PAUSED fired as the frame sends it freezes the countdown (read twice, 1.2 s apart), darkens ON AIR and draws ▶; a PLAYING brings all three back; app ⏸ then a frame ▶ resumes the run — and **nothing is sent back to the player** either way. A seek's PAUSED + BUFFERING, and a PAUSED + ENDED, fired in one task leave the run playing and advance once. Red: the first two on v2.0.3, the third on a variant that reports at once, the "nothing sent back" assertions on one that routes through the commanding handlers. ⚠️ The stub never changes state by itself, so the settle rule is unit-tested against the sequences measured on the real player (`tt-yt-player.test.ts`), and the real player is a live-checklist line |
 | i18n | toggle EN↔VI swaps visible strings without reload |
 | Mobile gate (`07 §6`) | mobile project: overlay visible, **zero component/framework chunks** in the network log (the ≈200 B guard chunk is expected and is not the app bundle — `01 §3`); desktop project: island mounts |
 | Offline | context.setOffline → banner; YT mode blocked panel |
@@ -379,6 +380,12 @@ the same way (`mockDurations`, v2.0) — but only in the specs about lengths:
 under `astro preview` that route is a 404, which is exactly "no key on this
 deployment", and every spec written before v2.0 asserts what that looks like.
 The real key is checked once per release on the PR's Version URL (`06 §3`).
+
+The same file holds the **player's own state sequences** — a pause, a play, a
+seek, a video's end, and the echoes of our commands — measured on 2026-10-28
+for v2.0.4 (`06 §2`). The settle rule and its unit tests are built on them;
+re-measure them when the player's behaviour is in doubt, and in Firefox and
+Safari, which were not measured.
 
 ## 5. Performance budget (checked in P7)
 

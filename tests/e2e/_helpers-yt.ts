@@ -395,6 +395,22 @@ export async function fireYt(
   }, event);
 }
 
+/**
+ * Fire several states in ONE task — the tightest a real sequence can arrive.
+ *
+ * The player posts each state as its own message, so in the page they land as
+ * consecutive tasks; firing them together is the harshest case for anything
+ * that waits between them (docs/06 §2's settle). `YT.PlayerState` values:
+ * -1 unstarted, 0 ended, 1 playing, 2 paused, 3 buffering, 5 cued.
+ */
+export async function fireYtSeq(page: Page, states: number[]): Promise<void> {
+  await page.evaluate((list) => {
+    const fire = window.__ttYtFire;
+    if (!fire) throw new Error('the fake player was never constructed');
+    for (const s of list) fire.state(s);
+  }, states);
+}
+
 /** Report a player error — S1 measured 150 for every real cause. */
 export async function fireYtError(page: Page, code = 150): Promise<void> {
   await page.evaluate((c) => {

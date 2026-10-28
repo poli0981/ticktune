@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { TtTrack } from '../../src/app/engine/importer/types';
-import type {
-  TtYtPlayerApi,
-  TtYtPlayerEvents,
-  TtYtPlayerPorts,
+import {
+  NATIVE_SETTLE_MS,
+  type TtYtPlayerApi,
+  type TtYtPlayerEvents,
+  type TtYtPlayerPorts,
 } from '../../src/app/engine/youtube/tt-yt-player';
 // Type-only, so this does NOT pin a module instance: each test re-imports the
 // store after `vi.resetModules()` to get its own copy of the singleton.
@@ -400,6 +401,43 @@ describe('what the player reports reaches the runes', () => {
       trackId: 'track-1',
     });
     expect(JSON.stringify(entry)).not.toContain('dQw4w9WgXcQ');
+  });
+
+  it("hands the player's own ⏯ to the shell — docs/06 §2, v2.0.4", () => {
+    // `onStatus` was the only thing that heard a pause in the frame, and only
+    // the transport's icon read it: the countdown ran on underneath.
+    vi.useFakeTimers();
+    try {
+      const onNativeToggle = vi.fn();
+      yt.onNativeToggle = onNativeToggle;
+      const m = ready();
+      m.events.onStateChange(1);
+      m.events.onStateChange(2);
+      vi.advanceTimersByTime(NATIVE_SETTLE_MS);
+      expect(onNativeToggle).toHaveBeenCalledOnce();
+      expect(onNativeToggle).toHaveBeenCalledWith(false);
+
+      // The shell sends nothing back; the player's ▶ is still the user's.
+      m.events.onStateChange(1);
+      vi.advanceTimersByTime(NATIVE_SETTLE_MS);
+      expect(onNativeToggle).toHaveBeenLastCalledWith(true);
+      expect(m.api.pauseVideo).not.toHaveBeenCalled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('carries nothing when the shell is not listening', () => {
+    vi.useFakeTimers();
+    try {
+      const m = ready();
+      m.events.onStateChange(1);
+      m.events.onStateChange(2);
+      expect(() => vi.advanceTimersByTime(NATIVE_SETTLE_MS)).not.toThrow();
+      expect(yt.playing).toBe(false);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it('passes pause and play through to the player', () => {
