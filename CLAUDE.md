@@ -294,6 +294,9 @@ Four habits that found the rest:
 - **`img-src` allows no YouTube origin since v2.0** — measured: the app's
   document never loads `i.ytimg.com`; the player's images are its frame's own.
   A playing session is a v2.0 live-checklist line (YouTube refuses automation).
+  ✅ **Except Claude desktop's built-in browser, where it plays** (v2.0.4): the
+  session can run the YouTube lines on a preview itself, and measure the player
+  through the S1 harness or `YT.get(iframe.id)` (`tests/manual/yt-matrix.md`).
 - **The `pending` re-check runs AFTER `start()` returns**, never inside it —
   `start()` is synchronous because the gesture chain is.
 - **Paused means silent.** ⏭/⏮/jump while paused **cue** rather than load
