@@ -1642,7 +1642,7 @@ after the one below it merged.
 
 | PR | Branch | What it carried |
 |----|--------|-----------------|
-| #111 | `docs/v2.1.0-results` | The checklist's preview and production results; this paragraph |
+| #112 | `docs/v2.1.0-results` | The checklist's preview and production results; this paragraph |
 
 ## Post-2.0 backlog (unordered)
 
