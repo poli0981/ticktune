@@ -1587,6 +1587,14 @@ already taken the track's length off, so removing the row took nothing. The code
 was right; the spec had assumed its precondition. The fixtures now start with
 the WAV, and the spec waits for the element to move, or skips and says why.
 
+On #110, CI's Firefox failed the gate's "nothing behind it" spec with the
+feature working: it lets script close a one-entry tab, and does. A closing page
+rejects every wait still pending on it, so `waitForURL` lost the race by
+rejecting, and once the click itself ended with its page. Local WebKit then
+showed the neighbouring spec passing for nothing. It matched the landing with
+`/\/$/`, which `/app/` satisfies, so it passed before the back navigation
+landed. Both specs were fixed before merge.
+
 **What the preview found, with the real key.**
 
 - A channel's uploads list answered its first 50 videos, in order.
@@ -1608,6 +1616,33 @@ Google's word, because until then the preview could not say why it had refused.
   a choice of what the box takes.
 - **Dropping the `@types/node` major ignore**, as the backlog line said. It
   would reopen #14's loop at Node 27.
+
+**Released — 2026-11-03, 14:30 UTC.** The PRs merged by rebase in the order A,
+B, C, D. Each stacked branch was rebased onto the new `main` and re-tested
+after the one below it merged.
+
+- **#107**'s first `e2e` failed on the WebKit precondition above. #110's first
+  failed on the Firefox close.
+- **The tag.** `v2.1.0` sits on `f67d98a`. Its tree is identical to the branch
+  head CI passed, and that branch's preview, `c046f59c`, served `/app/`, `/`,
+  a legal page and `sw.js` byte-identical to `96b8195d`, where the live
+  checklist ran. The signature was verified against a keyring holding only
+  `https://github.com/poli0981.gpg` before the push.
+- **The deploy.** `deploy.yml`'s verify, deploy and release jobs were green,
+  with exactly one new deployment (`b4a35302`).
+- **Production:**
+  - About reads 2.1.0, and the gate shows v2.1 with the AI point and Decline
+    and go back;
+  - a real channel's uploads imported 50 videos with lengths from the Data
+    API;
+  - `verify:csp` 6/6.
+- **The preview.** Real YouTube played a playlist's first video. A fitted
+  countdown lost exactly the 252.5 s of a removed link and ended on the
+  normal Finished screen (`tests/manual/v2.1.0-live-checklist.md`).
+
+| PR | Branch | What it carried |
+|----|--------|-----------------|
+| #111 | `docs/v2.1.0-results` | The checklist's preview and production results; this paragraph |
 
 ## Post-2.0 backlog (unordered)
 
