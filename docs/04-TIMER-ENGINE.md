@@ -21,7 +21,17 @@ start(durationMs)  → endAtEpoch = Date.now() + durationMs
 tick()             → remaining = max(0, endAtEpoch - Date.now())
 pause()            → remainingAtPauseMs = remaining; endAtEpoch = null
 resume()           → endAtEpoch = Date.now() + remainingAtPauseMs
+shorten(ms)        → endAtEpoch = max(Date.now(), endAtEpoch - ms)      // running
+                     remainingAtPauseMs = max(0, remainingAtPauseMs - ms) // paused
 ```
+
+`shorten` exists for one caller, a fitted queue that lost a track (`02 §5.2`,
+v2.1). It moves the deadline and counts nothing, so invariant 3 holds. The deadline
+**never goes below now**: a deadline in the past would be measured as an
+overshoot, and `§2`'s late Finished screen would announce a moment nobody saw.
+The driver sends the new deadline to the worker in the same call, as it does
+for a re-anchor (below), and ticks once at once, so a shortening that reaches
+zero finishes now rather than one worker interval later.
 
 Why `Date.now()` and not `performance.now()` for the **deadline**: the
 authoritative clock is shared between the main thread and the Worker, and
@@ -334,7 +344,8 @@ These four values are the unit-test truth table in `§7`.
   format** from the table above — `tt-format.ts` returns the formatted value and
   its ghost together so they cannot drift apart. An `H` hour digit widens past 9
   hours (`10:00:00`, 8 glyphs); the ghost widens with it.
-- Countdown input range: 1 s – 24 h. Presets + `Match queue length` in Setup.
+- Countdown input range: 1 s – 24 h. Presets + `Match queue length` in Setup;
+  Match also latches the countdown to the queue (`02 §5.2`, v2.1).
 
 ## 5. Interaction with media
 
@@ -345,9 +356,13 @@ issued to both on Play, ⏯ pauses and resumes both, and the Worker's `done`
 triggers the media fade. Since v2.0.4 ⏯ includes the YouTube player's own
 controls (`06 §2`) — the user's transport, wherever they press it; the player
 decides only that they did. (This read "exactly two points", Play and `done`,
-until then, and ⏯ had been a third since P2.) This isolation is what makes both
-engines independently unit-testable (Vitest fake timers for the timer; no audio
-needed).
+until then, and ⏯ had been a third since P2.) Since v2.1 there is one more, and
+the user's again: in a run latched to its queue with Repeat off, a track that
+leaves the order takes what it had left to play off the countdown (`02 §5.2`).
+The media's own state still drives nothing. An exhausted queue, a skip and a
+player error leave the countdown alone; only a track **leaving** counts. This
+isolation is what makes both engines independently unit-testable (Vitest fake
+timers for the timer; no audio needed).
 
 ## 6. Edge cases
 
@@ -359,6 +374,7 @@ needed).
 | System sleep/suspend across zero | On wake, first tick sees `remaining ≤ 0` → immediate `done` (single-fire latch) + `TT-SYS-203` log |
 | Pause during `< 60 s` | Frozen `SS.mmm` value displayed; rAF loop idles |
 | Countdown longer than total media (Single/Playlist) | Media loops per mode rules (`02 §5`); timer unaffected |
+| A latched run loses a track (`02 §5.2`) | `shorten` by its unplayed part. Running: the deadline moves, never below now. Paused: the frozen value drops. A shortening to zero finishes at once, on time (`late: false`, overshoot 0) |
 | `done` while media between crossfades | Fade applies to the master stage — `fadeGain`, downstream of both deck gains — so it is always correct regardless of A/B element state (`05 §1`) |
 
 ## 7. Test hooks
@@ -373,7 +389,8 @@ clock jump advances only `now()`. A suite that drove a single clock would pass
 against an implementation that cannot tell them apart.
 
 Unit suite covers: derived remaining under simulated throttle gaps; pause/resume
-exactness (±0 ms); single-fire `done` across every path that can emit it (worker,
+exactness (±0 ms); `shorten` running, paused, past zero (on time, never late)
+and as a no-op idle, done or for a non-positive amount; single-fire `done` across every path that can emit it (worker,
 `visibilitychange` latch, `focus` latch); `TT-SYS-201` fires on skew and **not**
 on a same-sized throttling gap; `TT-SYS-203` on sleep-across-zero; the format
 truth table at the `§4` boundaries 3 600 000 / 3 599 999 / 60 000 / 59 999 / 0,

@@ -141,6 +141,90 @@ describe('pause / resume', () => {
   });
 });
 
+describe('shorten — a fitted queue lost a track (docs/02 §5.2, v2.1)', () => {
+  it('moves the deadline, and the remainder stays derived from it', () => {
+    const h = harness();
+    h.timer.start(90_000);
+    h.advance(10_000);
+
+    h.timer.shorten(25_000);
+    expect(h.timer.remainingMs).toBe(55_000);
+    h.advance(5_000);
+    expect(h.timer.tick()).toBe(50_000);
+  });
+
+  it('never moves the deadline into the past — the finish is on time, not late', () => {
+    /*
+     * A deadline behind `now` would be read as an overshoot, and the Finished
+     * screen would claim zero was reached at a moment nobody saw (docs/04 §2).
+     */
+    const h = harness();
+    h.timer.start(10_000);
+    h.advance(4_000);
+
+    h.timer.shorten(60_000);
+    expect(h.timer.remainingMs).toBe(0);
+    h.timer.tick();
+
+    expect(h.done).toHaveBeenCalledOnce();
+    const { late, overshootMs } = h.done.mock.calls[0]![0] as {
+      late: boolean;
+      overshootMs: number;
+    };
+    expect(late).toBe(false);
+    expect(overshootMs).toBe(0);
+  });
+
+  it('shrinks the stored remainder while paused, and resume runs from it', () => {
+    const h = harness();
+    h.timer.start(60_000);
+    h.advance(20_000);
+    h.timer.pause();
+
+    h.timer.shorten(15_000);
+    expect(h.timer.remainingMs).toBe(25_000);
+    h.advance(600_000); // still paused
+    expect(h.timer.remainingMs).toBe(25_000);
+
+    h.timer.resume();
+    h.advance(5_000);
+    expect(h.timer.tick()).toBe(20_000);
+  });
+
+  it('clamps a paused remainder at zero, and resuming then finishes at once', () => {
+    const h = harness();
+    h.timer.start(30_000);
+    h.timer.pause();
+
+    h.timer.shorten(45_000);
+    expect(h.timer.remainingMs).toBe(0);
+    expect(h.done).not.toHaveBeenCalled();
+
+    h.timer.resume();
+    h.timer.tick();
+    expect(h.done).toHaveBeenCalledOnce();
+  });
+
+  it('does nothing idle, after done, or for a non-positive amount', () => {
+    const h = harness();
+    h.timer.shorten(5_000);
+    expect(h.timer.state).toMatchObject({ phase: 'idle', endAtEpoch: null });
+
+    h.timer.start(10_000);
+    const deadline = h.timer.state.endAtEpoch;
+    h.timer.shorten(0);
+    h.timer.shorten(-3_000);
+    h.timer.shorten(Number.NaN);
+    expect(h.timer.state.endAtEpoch).toBe(deadline);
+
+    h.advance(10_000);
+    h.timer.tick();
+    h.timer.shorten(5_000);
+    expect(h.timer.state).toMatchObject({ phase: 'done', endAtEpoch: null });
+    expect(h.done).toHaveBeenCalledOnce();
+  });
+});
+
 describe('single-fire done (docs/04 §6)', () => {
   it('fires exactly once no matter how many ticks follow', () => {
     const h = harness();

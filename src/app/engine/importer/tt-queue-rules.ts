@@ -87,9 +87,9 @@ export function queueTotalMs(queue: readonly TtTrack[]): number | null {
 /**
  * "Match queue length" — docs/03 §3.
  *
- * Disabled (null) on an empty queue or any unknown duration — which is also
- * what disables it in YouTube mode, where `durationMs` stays null until player
- * backfill.
+ * Disabled (null) on an empty queue or any unknown duration. In YouTube mode
+ * that is a link the Data API gave no length for (docs/06 §3) — a live stream,
+ * or a deployment without the key — until the player backfills it.
  */
 export function matchQueueLengthMs(queue: readonly TtTrack[]): number | null {
   const total = queueTotalMs(queue);

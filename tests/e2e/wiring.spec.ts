@@ -16,6 +16,7 @@ import {
   fireYtSeq,
   gotoYouTubeApp,
   installFakeYt,
+  mockDurations,
   mockOembed,
   stageLinks,
   ytCalls,
@@ -591,5 +592,173 @@ test.describe('live defects — v2.0.4', () => {
     await expect(tally(page)).toHaveClass(/tt-live/);
     const now = await digits(page).textContent();
     await expect.poll(() => digits(page).textContent()).not.toBe(now);
+  });
+});
+
+test.describe('a fitted countdown follows removals — v2.1', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
+  /*
+   * docs/02 §5.2. The owner's rule: with Repeat off, a countdown that "Khớp độ
+   * dài" set loses what a removed track had left to play; with Repeat on, the
+   * frame stays and the queue loops inside it. Every engine below was already
+   * right — the timer moved nothing because nothing ever told it to — so each
+   * spec is about what the SHELL hands between them. Every spec that expects
+   * a change fails with the hook or the follow unwired (shown by mutation);
+   * the two that expect none guard Repeat and a hand edit.
+   */
+  const TONES = ['tone-5s.mp3', 'tone-5s.flac', 'tone-5s.wav'];
+  const digits = (page: Page) => page.locator('.tt-countdown .tt-live');
+  /** `SS.mmm`, `MM:SS` or `H:MM:SS` (docs/04 §4) → seconds. */
+  const seconds = async (page: Page): Promise<number> =>
+    ((await digits(page).textContent()) ?? '')
+      .trim()
+      .split(':')
+      .map(Number)
+      .reduce((acc, part) => acc * 60 + part, 0);
+  /**
+   * What `act` took off a RUNNING countdown, net of the time that passed.
+   *
+   * 🔴 A first draft polled "the digits fell by 4.5 s" — and passed with the
+   * wiring removed, because a running countdown falls by 4.5 s on its own in
+   * 4.5 s. Shown by mutation; the wall clock is subtracted now.
+   */
+  async function takenBy(page: Page, act: () => Promise<void>): Promise<number> {
+    const before = await seconds(page);
+    const t0 = Date.now();
+    await act();
+    await page.waitForTimeout(300);
+    const after = await seconds(page);
+    return before - after - (Date.now() - t0) / 1000;
+  }
+
+  async function matchedPlaylist(page: Page, repeat: 'on' | 'off'): Promise<void> {
+    dismissUnloadDialogs(page);
+    await gotoApp(page);
+    await stagePlaylist(page, TONES);
+    // Repeat defaults to ON (docs/02 §3.1).
+    if (repeat === 'off') await page.getByTestId('tt-repeat').click();
+    await expect(page.getByTestId('tt-repeat')).toHaveAttribute(
+      'aria-pressed',
+      repeat === 'on' ? 'true' : 'false',
+    );
+    await page.getByTestId('tt-match-length').click();
+    await expect(page.getByTestId('tt-fit-note')).toBeVisible();
+  }
+
+  test('removing a track still ahead takes all of it off, and the run ends at the new zero', async ({
+    page,
+  }) => {
+    await matchedPlaylist(page, 'off');
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await page.waitForTimeout(500);
+
+    // Row 3 is not reached yet: all of its ~5 s goes.
+    const taken = await takenBy(page, () => page.getByTestId('tt-queue-remove').nth(2).click());
+    expect(taken).toBeGreaterThan(4);
+    expect(taken).toBeLessThan(6);
+
+    // The worker heard it too: the run finishes at the new zero, on time — a
+    // deadline moved into the past would show the late Finished screen.
+    const after = await seconds(page);
+    const removedAt = Date.now();
+    await expect(page.getByTestId('tt-finished')).toBeVisible({ timeout: (after + 3) * 1000 });
+    expect(Date.now() - removedAt).toBeLessThan((after + 2.5) * 1000);
+    await expect(page.getByTestId('tt-finished-late')).toHaveCount(0);
+  });
+
+  test('removing the playing track takes off only what was left of it', async ({
+    browserName,
+    page,
+  }) => {
+    // The amount depends on where the element is, so the element must play.
+    await skipWithoutAudio(page, browserName);
+    await matchedPlaylist(page, 'off');
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await expect(transport(page)).toHaveAttribute('aria-label', 'Tạm dừng');
+    await page.waitForTimeout(2_000);
+
+    // The current row: ~5 s long, ~2 s played — about 3 s off, never all of it.
+    const taken = await takenBy(page, () => page.getByTestId('tt-queue-remove').first().click());
+    expect(taken).toBeGreaterThan(1.5);
+    expect(taken).toBeLessThan(4.2);
+    await expect(page.getByTestId('tt-queue-row').first()).toHaveClass(/tt-current/);
+  });
+
+  test('while paused, the frozen remainder drops by the removed track', async ({ page }) => {
+    await matchedPlaylist(page, 'off');
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await page.waitForTimeout(500);
+    await transport(page).click(); // ⏸
+    await expect(transport(page)).toHaveAttribute('aria-label', 'Phát');
+
+    const frozen = await seconds(page);
+    await page.getByTestId('tt-queue-remove').nth(2).click();
+    await expect.poll(() => seconds(page)).toBeLessThan(frozen - 4.5);
+    const shortened = await seconds(page);
+    await page.waitForTimeout(800);
+    expect(await seconds(page)).toBe(shortened); // still paused, still exact
+  });
+
+  test('Repeat on keeps the frame — nothing is taken off', async ({ page }) => {
+    await matchedPlaylist(page, 'on');
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await page.waitForTimeout(500);
+
+    const taken = await takenBy(page, () => page.getByTestId('tt-queue-remove').nth(2).click());
+    expect(Math.abs(taken)).toBeLessThan(1);
+  });
+
+  test('a countdown typed by hand is never shortened, even one equal to the total', async ({
+    page,
+  }) => {
+    await matchedPlaylist(page, 'off');
+    // The same value Match wrote, typed back in: the user's now (docs/03 §3).
+    const typed = Number(await page.getByLabel('giây', { exact: true }).inputValue());
+    await setDuration(page, 0, 0, typed);
+    await expect(page.getByTestId('tt-fit-note')).toHaveCount(0);
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await page.waitForTimeout(500);
+
+    const taken = await takenBy(page, () => page.getByTestId('tt-queue-remove').nth(2).click());
+    expect(Math.abs(taken)).toBeLessThan(1);
+  });
+
+  test('YouTube: removing a link still ahead takes its length off', async ({ page }) => {
+    const [A, B, C] = ['jNQXAC9IVRw', '9bZkp7q19f0', 'dQw4w9WgXcQ'] as const;
+    dismissUnloadDialogs(page);
+    await gotoYouTubeApp(page);
+    await mockDurations(page, { [A]: 60_000, [B]: 60_000, [C]: 60_000 });
+    await stageLinks(page, [A, B, C]);
+    await page.getByTestId('tt-repeat').click();
+    await expect(page.getByTestId('tt-match-length')).toBeEnabled();
+    await page.getByTestId('tt-match-length').click();
+    await expect(page.getByLabel('phút', { exact: true })).toHaveValue('3');
+
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await ytReady(page);
+    await fireYt(page, 'playing');
+    const taken = await takenBy(page, () => page.getByTestId('tt-queue-remove').nth(2).click());
+    expect(taken).toBeGreaterThan(59);
+    expect(taken).toBeLessThan(61);
+  });
+
+  test('Setup: a matched countdown follows a removal; after a hand edit it does not', async ({
+    page,
+  }) => {
+    await matchedPlaylist(page, 'off');
+    const field = page.getByLabel('giây', { exact: true });
+    const matched = Number(await field.inputValue());
+
+    await page.getByTestId('tt-queue-remove').nth(2).click();
+    await expect
+      .poll(async () => Number(await field.inputValue()))
+      .toBeLessThanOrEqual(matched - 4);
+    await expect(page.getByTestId('tt-fit-note')).toBeVisible();
+
+    await page.getByRole('button', { name: '5 phút', exact: true }).click(); // a preset is a hand edit
+    await expect(page.getByTestId('tt-fit-note')).toHaveCount(0);
+    await page.getByTestId('tt-queue-remove').nth(1).click();
+    await expect(page.getByTestId('tt-queue-row')).toHaveCount(1);
+    await expect(page.getByLabel('phút', { exact: true })).toHaveValue('5');
   });
 });

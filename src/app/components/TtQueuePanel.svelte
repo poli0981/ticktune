@@ -45,9 +45,9 @@
      * Whether a total-duration cap applies — false in YouTube mode.
      *
      * docs/06 §5: "No per-track or total duration limits in this mode." Showing
-     * `… / 91:00` against links would assert a ceiling that does not exist, and
-     * the numerator is `–` anyway until the player backfills each duration
-     * (docs/06 §2), so the row would read as a limit nobody can measure.
+     * `… / 91:00` against links would assert a ceiling that does not exist. The
+     * numerator is real since v2.0 — lengths come from the Data API at import
+     * (docs/06 §3) — but a denominator would still be a limit that is not there.
      */
     capped: boolean;
     onremove: (id: string) => void;

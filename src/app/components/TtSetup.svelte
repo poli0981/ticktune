@@ -22,6 +22,13 @@
     minutes: number;
     seconds: number;
     onchange: (h: number, m: number, s: number) => void;
+    /**
+     * docs/02 §5.2 (v2.1) — "Khớp độ dài", which sets the countdown AND latches
+     * it to the queue; `onchange` is every other write, and clears the latch.
+     */
+    onmatch: () => void;
+    /** The latch holds for this mode — the shell's, so it survives a run. */
+    fitted: boolean;
     onstart: () => void;
     /** ?ttdebug=1 only — the docs/15 §S2 timer-only Start. */
     debug: boolean;
@@ -29,8 +36,18 @@
     oninfo: (track: TtTrack) => void;
   }
 
-  const { hours, minutes, seconds, onchange, onstart, debug, ondebugstart, oninfo }: Props =
-    $props();
+  const {
+    hours,
+    minutes,
+    seconds,
+    onchange,
+    onmatch,
+    fitted,
+    onstart,
+    debug,
+    ondebugstart,
+    oninfo,
+  }: Props = $props();
 
   /** docs/03 §3 — presets in MINUTES. The unit was never stated until P2. */
   const PRESETS = [5, 10, 15, 25, 30, 45, 60, 90];
@@ -273,8 +290,10 @@
             onclick={() => setFromMs(p * 60_000)}>{p}′</button
           >
         {/each}
-        <!-- docs/03 §3: disabled on an empty queue or any unknown duration, and
-             one-shot — it does not recompute when the queue changes later.
+        <!-- docs/03 §3: disabled on an empty queue or any unknown duration.
+             Since v2.1 it also latches the countdown to the queue, which then
+             follows it with Repeat off until a hand edit — never overwritten —
+             ends that (docs/02 §5.2).
              The title states WHY: one untagged file in a 95-track queue is enough
              to disable it, and a dead-looking button with no reason is the same
              defect as a silent fallback (docs/03 §2 totals footer). -->
@@ -283,10 +302,21 @@
           data-testid="tt-match-length"
           disabled={session.matchableMs === null}
           title={session.matchableMs === null ? i18n.t('setup.countdown.matchLocked') : ''}
-          onclick={() => setFromMs(session.matchableMs ?? 0)}
-          >{i18n.t('setup.countdown.match')}</button
+          onclick={onmatch}>{i18n.t('setup.countdown.match')}</button
         >
       </div>
+      <!-- docs/02 §5.2: said where it is decided — nothing else on Setup tells
+           the user that removing a row changes the number above. Two literal
+           calls rather than a key in a variable, for the key guard (docs/08 §3). -->
+      {#if fitted && !single}
+        <p class="tt-fit" data-testid="tt-fit-note">
+          {#if settings.current.repeatPlaylist}
+            {i18n.t('setup.countdown.fittedRepeat')}
+          {:else}
+            {i18n.t('setup.countdown.fitted')}
+          {/if}
+        </p>
+      {/if}
     </div>
 
     <div class="tt-actions">
@@ -498,7 +528,8 @@
   .tt-debug-btn {
     color: var(--color-tt-warn);
   }
-  .tt-why {
+  .tt-why,
+  .tt-fit {
     margin: 0;
     font-size: var(--tt-text-xs);
     color: var(--color-tt-muted);

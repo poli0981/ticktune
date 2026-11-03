@@ -55,6 +55,8 @@
       "seconds": "giây",
       "match": "Khớp độ dài",
       "matchLocked": "Cần biết thời lượng của mọi bài trong danh sách",
+      "fitted": "Đã khớp với danh sách: xoá một bài sẽ rút ngắn bộ đếm.",
+      "fittedRepeat": "Đang bật lặp lại: bộ đếm giữ nguyên độ dài, danh sách phát vòng trong đó.",
       "preset": "{{minutes}} phút"
     },
     "start": "Bắt đầu",

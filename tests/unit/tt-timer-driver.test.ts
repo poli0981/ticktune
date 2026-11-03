@@ -102,6 +102,48 @@ describe('the re-anchored deadline reaches the worker — docs/04 §1', () => {
   });
 });
 
+describe('a shortened run reaches the worker — docs/02 §5.2 (v2.1)', () => {
+  /*
+   * The worker keeps its own deadline and creates the finish notification from
+   * it. A shortening that moved only the core's would end the countdown on
+   * screen while the worker still waited for the old zero.
+   */
+  it('sends the new deadline in the same call', () => {
+    const { driver, worker } = make();
+    driver.start(60_000);
+    vi.advanceTimersByTime(10_000);
+
+    driver.shorten(20_000);
+    expect(worker.lastStart()).toBe(1_800_000_000_000 + 40_000);
+    expect(driver.remainingMs).toBe(30_000);
+  });
+
+  it('finishes at once when the shortening reaches zero — not one worker tick later', () => {
+    const { driver, onDone } = make();
+    driver.start(10_000);
+    vi.advanceTimersByTime(3_000);
+
+    driver.shorten(30_000);
+    expect(onDone).toHaveBeenCalledTimes(1);
+    expect(onDone.mock.calls[0]![0]).toMatchObject({ late: false, overshootMs: 0 });
+  });
+
+  it('paused: nothing goes to the worker until resume, which carries the shorter deadline', () => {
+    const { driver, worker } = make();
+    driver.start(60_000);
+    vi.advanceTimersByTime(10_000);
+    driver.pause();
+    const posted = worker.posted.length;
+
+    driver.shorten(20_000);
+    expect(worker.posted).toHaveLength(posted);
+    expect(driver.remainingMs).toBe(30_000);
+
+    driver.resume();
+    expect(worker.lastStart()).toBe(Date.now() + 30_000);
+  });
+});
+
 describe('an unexplained early done — the TT-SYS-208 safety net', () => {
   it('re-sends the deadline and logs TT-SYS-208 once', () => {
     const { driver, worker, onDone, logs } = make();

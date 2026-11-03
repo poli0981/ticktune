@@ -650,6 +650,61 @@ describe('queue mutation while playing — docs/02 §5.1', () => {
   });
 });
 
+describe('onLeave hears every drop BEFORE the store moves — docs/02 §5.2 (v2.1)', () => {
+  /*
+   * The fitted countdown asks "how much of this track was still to play?", and
+   * the answer depends on the order and the cursor as they were. A hook called
+   * after the advance would see the track gone and the cursor already moved.
+   */
+  beforeEach(async () => {
+    await settings.patch({ shuffle: false, repeatPlaylist: false });
+  });
+
+  function record(): Array<{ id: string; order: string[]; currentId: string | null }> {
+    const seen: Array<{ id: string; order: string[]; currentId: string | null }> = [];
+    session.onLeave = (id) =>
+      seen.push({ id, order: [...session.order], currentId: session.currentId });
+    return seen;
+  }
+
+  it('a removal: called once, with the order and cursor still as they were', async () => {
+    await stage('playlist', [track('a'), track('b'), track('c')]);
+    session.start();
+    const seen = record();
+
+    session.removeTrack('a');
+
+    expect(seen).toEqual([{ id: 'a', order: ['a', 'b', 'c'], currentId: 'a' }]);
+    expect(session.currentId).toBe('b');
+  });
+
+  it('a track marked errored — a decode failure or TT-YT-007 — is a drop too', async () => {
+    await stage('playlist', [track('a'), track('b'), track('c')]);
+    session.start();
+    const seen = record();
+
+    session.markTrackError('c');
+
+    expect(seen).toEqual([{ id: 'c', order: ['a', 'b', 'c'], currentId: 'a' }]);
+    expect(session.order).toEqual(['a', 'b']);
+  });
+
+  it('a pending link re-checked into an error reaches it through markTrackError', async () => {
+    await stageLinks([
+      track('p', { source: 'youtube', status: 'pending', videoId: 'aaaaaaaaaaa' }),
+      track('q', { source: 'youtube', status: 'pending', videoId: 'bbbbbbbbbbb' }),
+    ]);
+    session.start(); // the cursor is on 'p', which the re-check skips
+    const seen = record();
+    lookup.mockResolvedValue({ ok: false, cause: 'not_found' });
+
+    await session.recheckPending();
+
+    expect(seen.map((s) => s.id)).toEqual(['q']);
+    expect(seen[0]?.order).toEqual(['p', 'q']);
+  });
+});
+
 describe('import progress — docs/02 §4', () => {
   /**
    * The requirement is not "show a bar while importing", it is "do not flash a
