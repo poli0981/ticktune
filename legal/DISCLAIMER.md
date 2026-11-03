@@ -1,6 +1,6 @@
 # TickTune — Disclaimer
 
-Version 2.0 · 2026-10-21 · English canonical; Vietnamese at
+Version 2.1 · 2026-11-03 · English canonical; Vietnamese at
 `/legal/disclaimer/`. Summarised at the Legal Gate.
 
 1. **Your content.** Everything TickTune plays is supplied by you, and you bear

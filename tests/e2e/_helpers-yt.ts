@@ -247,6 +247,76 @@ export async function mockDurations(
   return asked;
 }
 
+/** One list in `mockPlaylists`: its videos, or a cause word. */
+export type TtListReply = { ids: string[]; skipped?: number; total?: number } | { error: string };
+
+/**
+ * Stand in for `/api/yt/playlists` (docs/06 §9, v2.1).
+ *
+ * ⚠️ It answers `application/json`, as the Worker always does — the driver
+ * reads anything else as transient, so a mock without it would turn every
+ * cause case into "unavailable" and pass for the wrong reason (the oEmbed
+ * mock's lesson). `'html'` is that case on purpose: the static 404 page
+ * `astro preview` serves where the Worker would be.
+ *
+ * @param table list id → reply (absent → not in the answer), or a failure.
+ * @returns every `ids` list the app asked for, in order.
+ */
+export async function mockPlaylists(
+  page: Page,
+  table: Record<string, TtListReply> | 'not_configured' | 'rate_limited' | 'html',
+): Promise<string[][]> {
+  const asked: string[][] = [];
+  await page.route('**/api/yt/playlists*', (route) => {
+    const ids = (new URL(route.request().url()).searchParams.get('ids') ?? '').split(',');
+    asked.push(ids);
+    if (table === 'html') {
+      return route.fulfill({
+        status: 404,
+        contentType: 'text/html; charset=utf-8',
+        body: '<!doctype html><title>404</title><p>Not found</p>',
+      });
+    }
+    if (typeof table === 'string') {
+      return route.fulfill({
+        status: table === 'rate_limited' ? 429 : 503,
+        contentType: 'application/json; charset=utf-8',
+        body: JSON.stringify({ error: table }),
+      });
+    }
+    const lists = Object.fromEntries(
+      ids
+        .filter((id) => id in table)
+        .map((id) => {
+          const reply = table[id] as TtListReply;
+          return [
+            id,
+            'error' in reply
+              ? reply
+              : {
+                  ids: reply.ids,
+                  skipped: reply.skipped ?? 0,
+                  total: reply.total ?? reply.ids.length + (reply.skipped ?? 0),
+                },
+          ];
+        }),
+    );
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json; charset=utf-8',
+      body: JSON.stringify({ lists }),
+    });
+  });
+  return asked;
+}
+
+/** Paste lines into the YouTube box in the Playlist kind, and press Add. */
+export async function pastePlaylists(page: Page, lines: string[]): Promise<void> {
+  await page.getByTestId('tt-yt-kind-playlists').click();
+  await page.getByTestId('tt-yt-input').fill(lines.join('\n'));
+  await page.getByTestId('tt-yt-add').click();
+}
+
 /** Both stubs, then the app, gate cleared. */
 export async function gotoYouTubeApp(
   page: Page,

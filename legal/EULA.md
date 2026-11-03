@@ -1,6 +1,6 @@
 # TickTune — Terms of Use
 
-Version 2.0 · 2026-10-21 · English is canonical; the Vietnamese translation at
+Version 2.1 · 2026-11-03 · English is canonical; the Vietnamese translation at
 `/legal/eula/` is provided for convenience. Written by the developer, not a
 lawyer, for a free, open-source, non-commercial web app.
 
@@ -27,8 +27,8 @@ are processed inside your browser and are never uploaded.
 ## 4. YouTube
 
 YouTube mode uses YouTube's official embedded player, and the lengths of the
-links you add are looked up through the YouTube Data API — both part of the
-YouTube API Services. By using them you agree to be bound by the
+links you add, and the videos of the playlists you add, are looked up through the
+YouTube Data API — all part of the YouTube API Services. By using them you agree to be bound by the
 [YouTube Terms of Service](https://www.youtube.com/t/terms); Google's handling of
 your data is described in the
 [Google Privacy Policy](https://policies.google.com/privacy). Whether a video

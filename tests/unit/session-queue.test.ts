@@ -36,6 +36,7 @@ vi.mock('../../src/app/engine/importer/tt-import', () => ({
 }));
 
 const importLinks = vi.fn<() => Promise<TtImportResult>>();
+const importPlaylists = vi.fn<() => Promise<{ result: TtImportResult; reached: boolean | null }>>();
 
 // Only the PIPELINE is mocked. `reachedEdge` is pure, it is the docs/06 §8
 // decision these tests are about, and a fake one would let the store agree with
@@ -45,6 +46,10 @@ vi.mock('../../src/app/engine/youtube/tt-yt-import', async (importOriginal) => (
   importLinks: (input: unknown) => {
     lastLinksInput = input as LinksInput;
     return importLinks();
+  },
+  importPlaylists: (input: unknown) => {
+    lastLinksInput = input as LinksInput;
+    return importPlaylists();
   },
 }));
 /**
@@ -702,6 +707,80 @@ describe('onLeave hears every drop BEFORE the store moves — docs/02 §5.2 (v2.
 
     expect(seen.map((s) => s.id)).toEqual(['q']);
     expect(seen[0]?.order).toEqual(['p', 'q']);
+  });
+});
+
+describe('importPlaylists — docs/06 §9 (v2.1)', () => {
+  /*
+   * The pipeline is the engine's (tt-yt-import.test.ts). What only the store
+   * can get wrong is where the answer LANDS and what it concludes about the
+   * network — the two things v2.0.1's shelves were about.
+   */
+  const link = (id: string) => track(id, { source: 'youtube', videoId: `${id}`.padEnd(11, 'x') });
+
+  it('lands on the YouTube shelf, is the toast’s result, and is handed only that shelf', async () => {
+    await stage('playlist', [track('file')]);
+    session.setMode('youtube');
+    const result = { added: [link('a'), link('b')], skipped: [], notes: [] };
+    importPlaylists.mockResolvedValueOnce({ result, reached: true });
+
+    await session.importPlaylists('PLaaaaaaaaaaaaaaaa');
+
+    expect(session.queue.map((t) => t.id)).toEqual(['a', 'b']);
+    expect(session.lastImport).toEqual(result);
+    expect(lastLinksInput?.queue).toEqual([]); // the files are not its shelf
+    session.setMode('playlist');
+    expect(session.queue.map((t) => t.id)).toEqual(['file']);
+  });
+
+  it('takes the batch’s verdict about the edge when no video lookup gave one', async () => {
+    session.setMode('youtube');
+    importPlaylists.mockResolvedValueOnce({
+      result: {
+        added: [],
+        skipped: [{ code: 'TT-YT-011', fileName: 'PLaaaaaaaaaaaaaaaa' }],
+        notes: [],
+      },
+      reached: false,
+    });
+    await session.importPlaylists('PLaaaaaaaaaaaaaaaa');
+    expect(session.online).toBe(false);
+
+    importPlaylists.mockResolvedValueOnce({
+      result: {
+        added: [],
+        skipped: [{ code: 'TT-YT-011', fileName: 'PLaaaaaaaaaaaaaaaa' }],
+        notes: [],
+      },
+      reached: true, // our own JSON refusal: the edge answered
+    });
+    await session.importPlaylists('PLaaaaaaaaaaaaaaaa');
+    expect(session.online).toBe(true);
+  });
+
+  it('shares the one import slot with a paste of links', async () => {
+    session.setMode('youtube');
+    let release: (v: { result: TtImportResult; reached: boolean | null }) => void = () => {};
+    importPlaylists.mockReturnValueOnce(
+      new Promise((res) => {
+        release = res;
+      }),
+    );
+    const first = session.importPlaylists('PLaaaaaaaaaaaaaaaa');
+    await session.importLinks('https://www.youtube.com/watch?v=dQw4w9WgXcQ');
+    expect(importLinks).not.toHaveBeenCalled();
+
+    release({ result: { added: [], skipped: [], notes: [] }, reached: null });
+    await first;
+    expect(session.importing).toBe(false);
+  });
+
+  it('does nothing outside YouTube mode or for an empty paste', async () => {
+    session.setMode('playlist');
+    await session.importPlaylists('PLaaaaaaaaaaaaaaaa');
+    session.setMode('youtube');
+    await session.importPlaylists('   ');
+    expect(importPlaylists).not.toHaveBeenCalled();
   });
 });
 

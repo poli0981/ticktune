@@ -1,20 +1,24 @@
 /**
  * The edge endpoints — docs/01 §1, docs/06 §3.
  *
- * Two, each for a reason the browser cannot meet on its own:
+ * Three, each for a reason the browser cannot meet on its own:
  *
  * - `/api/yt/oembed` — https://www.youtube.com/oembed sends no CORS headers.
  * - `/api/yt/durations` (v2.0) — the YouTube Data API needs a key, and a key in
  *   the page is a key anyone can take. It stays a Worker secret.
+ * - `/api/yt/playlists` (v2.1) — the same key, asking what a playlist holds
+ *   (docs/06 §9).
  *
- * Neither is a URL proxy. The only input is 11-character video ids matched
- * against a strict regex; every upstream URL is constructed here and never
- * taken from the request (docs/09 §1). That is what stops them being usable as
- * open proxies. Everything else is static assets.
+ * None is a URL proxy. The only input is ids matched against a strict regex —
+ * 11-character video ids, or playlist ids (`src/lib/tt-yt-list.ts`); every
+ * upstream URL is constructed here and never taken from the request (docs/09
+ * §1). That is what stops them being usable as open proxies. Everything else is
+ * static assets.
  */
 
 import { isoDurationMs } from '../src/lib/tt-iso-duration';
-import { ytCauseFromUpstream, ytCauseIsTransient } from '../src/lib/tt-yt-cause';
+import { ytCauseFromUpstream, ytCauseIsTransient, type TtYtCause } from '../src/lib/tt-yt-cause';
+import { YT_LIST_ID, ytListCause, ytListUnreadable } from '../src/lib/tt-yt-list';
 
 /** Workers Rate Limiting binding — counted in edge memory, never logged. */
 interface TtRateLimit {
@@ -34,6 +38,8 @@ interface Env {
   API_LIMIT?: TtRateLimit;
   /** `ratelimits` in wrangler.jsonc — per-IP budget for /api/yt/durations. */
   YT_DURATIONS_LIMIT?: TtRateLimit;
+  /** `ratelimits` in wrangler.jsonc — per-IP budget for /api/yt/playlists (v2.1). */
+  YT_PLAYLISTS_LIMIT?: TtRateLimit;
 }
 
 /**
@@ -305,6 +311,155 @@ async function durations(ids: string[], env: Env, ctx: ExecutionContext): Promis
   return json({ durations: out }, 200, NO_DURATION_TTL_S);
 }
 
+/** docs/06 §9 — the owner's number for a paste, v2.1. */
+const MAX_PLAYLISTS = 10;
+
+/**
+ * An hour for what a list holds, 15 min for "not found / private" (the same
+ * `ERROR_TTL_S` oEmbed uses). A playlist changes far more often than a
+ * video's length, so the hour is the price of an edited list showing its
+ * old order for a while; the policy ceiling is 30 days.
+ */
+const PLAYLIST_TTL_S = 3_600;
+const PLAYLIST_CACHE_VERSION = 'v1';
+
+const playlistKey = (id: string) =>
+  new Request(`https://tt-yt-playlist.invalid/${PLAYLIST_CACHE_VERSION}/${id}`);
+
+/** `ids=a,b` → unique list ids, or null if any is malformed or unreadable, or none, or too many. */
+function parseListIds(param: string | null): string[] | null {
+  if (param === null || param === '') return null;
+  const ids = [...new Set(param.split(','))];
+  if (ids.length > MAX_PLAYLISTS) return null;
+  if (!ids.every((id) => YT_LIST_ID.test(id) && ytListUnreadable(id) === null)) return null;
+  return ids;
+}
+
+type TtListAnswer = { ids: string[]; skipped: number; total: number } | { error: TtYtCause };
+
+/** Google's `error.errors[0].reason`, if the body carries one. */
+async function errorReason(res: Response): Promise<string | null> {
+  try {
+    const body = (await res.json()) as { error?: { errors?: Array<{ reason?: unknown }> } };
+    const reason = body.error?.errors?.[0]?.reason;
+    return typeof reason === 'string' ? reason : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * One list's FIRST page — 50 entries, which is the whole YouTube shelf — or
+ * what kind of failure it was. `'refused'` is about our key or quota, never
+ * the list, and the caller answers the whole batch with it.
+ */
+async function fetchList(
+  id: string,
+  key: string,
+  signal: AbortSignal,
+): Promise<TtListAnswer | 'refused'> {
+  const upstream = new URL('https://www.googleapis.com/youtube/v3/playlistItems');
+  upstream.searchParams.set('part', 'contentDetails,status');
+  upstream.searchParams.set('maxResults', '50');
+  upstream.searchParams.set('playlistId', id);
+  upstream.searchParams.set(
+    'fields',
+    'pageInfo/totalResults,items(contentDetails(videoId,videoPublishedAt),status/privacyStatus)',
+  );
+
+  let res: Response;
+  try {
+    res = await fetch(upstream, {
+      headers: { accept: 'application/json', 'x-goog-api-key': key, referer: DATA_API_REFERER },
+      signal,
+    });
+  } catch {
+    return { error: 'upstream_unreachable' };
+  }
+  if (!res.ok) {
+    const cause = ytListCause(res.status, await errorReason(res));
+    return cause === 'refused' ? 'refused' : { error: cause };
+  }
+
+  try {
+    const parsed = (await res.json()) as {
+      pageInfo?: { totalResults?: unknown };
+      items?: unknown;
+    } | null;
+    if (parsed === null || typeof parsed !== 'object') throw new TypeError('not an object');
+    const items = parsed.items ?? [];
+    if (!Array.isArray(items)) throw new TypeError('items is not an array');
+    const ids: string[] = [];
+    let skipped = 0;
+    for (const item of items as unknown[]) {
+      const it = item as {
+        contentDetails?: { videoId?: unknown; videoPublishedAt?: unknown };
+        status?: { privacyStatus?: unknown };
+      } | null;
+      const videoId = it?.contentDetails?.videoId;
+      const privacy = it?.status?.privacyStatus;
+      // A deleted or private entry stays in the list with no publish date;
+      // the oEmbed check would refuse it anyway, so it does not take a slot.
+      const playable =
+        typeof videoId === 'string' &&
+        VIDEO_ID.test(videoId) &&
+        typeof it?.contentDetails?.videoPublishedAt === 'string' &&
+        (privacy === 'public' || privacy === 'unlisted');
+      if (playable) ids.push(videoId);
+      else skipped += 1;
+    }
+    const total = parsed.pageInfo?.totalResults;
+    return {
+      ids,
+      skipped,
+      total: typeof total === 'number' && total > 0 ? total : ids.length + skipped,
+    };
+  } catch {
+    return { error: 'upstream_unreachable' };
+  }
+}
+
+/**
+ * docs/06 §9 — `{lists: {id: {ids, skipped, total} | {error}}}` for up to ten
+ * lists, one Data API call per list the cache does not hold.
+ *
+ * ONE deadline for the whole batch. A Worker keeps at most six connections
+ * open at once, so ten lists queue, and ten separate 8 s timers could run past
+ * the client's own 10 s and turn a slow answer into no answer.
+ */
+async function playlists(ids: string[], env: Env, ctx: ExecutionContext): Promise<Response> {
+  const cache = caches.default;
+  const out: Record<string, TtListAnswer> = {};
+  const missing: string[] = [];
+  await Promise.all(
+    ids.map(async (id) => {
+      const hit = await cache.match(playlistKey(id));
+      if (hit) out[id] = (await hit.json()) as TtListAnswer;
+      else missing.push(id);
+    }),
+  );
+  if (missing.length === 0) return json({ lists: out }, 200, 0);
+
+  const key = env.YT_DATA_API_KEY;
+  if (key === undefined || key === '') return json({ error: 'not_configured' }, 503, 0);
+
+  const signal = AbortSignal.timeout(UPSTREAM_TIMEOUT_MS);
+  const answers = await Promise.all(missing.map((id) => fetchList(id, key, signal)));
+  if (answers.includes('refused')) return json({ error: 'upstream_refused' }, 503, 0);
+
+  missing.forEach((id, i) => {
+    const answer = answers[i] as TtListAnswer;
+    out[id] = answer;
+    // Only a verdict about the LIST is remembered — the oEmbed rule.
+    if ('error' in answer && ytCauseIsTransient(answer.error)) return;
+    const ttl = 'error' in answer ? ERROR_TTL_S : PLAYLIST_TTL_S;
+    ctx.waitUntil(cache.put(playlistKey(id), json(answer, 200, ttl)));
+  });
+  // Never cached by the browser: an entry here may be transient, and the edge
+  // cache above already answers a repeat.
+  return json({ lists: out }, 200, 0);
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
@@ -338,6 +493,22 @@ export default {
         return json({ error: 'rate_limited' }, 429, 0);
       }
       return durations(ids, env, ctx);
+    }
+
+    if (url.pathname === '/api/yt/playlists') {
+      if (request.method !== 'GET') return json({ error: 'method_not_allowed' }, 405, 0);
+      const ids = parseListIds(url.searchParams.get('ids'));
+      if (ids === null) return json({ error: 'invalid_id' }, 400, 0);
+
+      /*
+       * Up to ten quota units a call, one per list the cache does not hold —
+       * so this budget is tighter than the lengths' (docs/10 §6). A person
+       * pastes once; ten a minute is far above that.
+       */
+      if (await overBudget(env.YT_PLAYLISTS_LIMIT, request)) {
+        return json({ error: 'rate_limited' }, 429, 0);
+      }
+      return playlists(ids, env, ctx);
     }
 
     if (url.pathname === '/api/yt/oembed') {

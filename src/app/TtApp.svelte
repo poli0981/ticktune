@@ -185,6 +185,8 @@
    * equal the total.
    */
   let fit = $state<TtFit | null>(null);
+  /** docs/06 §9 (v2.1) — videos or playlists in the paste box; held here so a run does not reset it. */
+  let ytKind = $state<'videos' | 'playlists'>('videos');
   const fitted = $derived(fit !== null && fit.mode === session.mode);
 
   function onMatch() {
@@ -1550,6 +1552,8 @@
       }}
       {fitted}
       onmatch={onMatch}
+      {ytKind}
+      onytkind={(kind) => (ytKind = kind)}
       onstart={() => onStart()}
       {debug}
       ondebugstart={() => onStart(true)}

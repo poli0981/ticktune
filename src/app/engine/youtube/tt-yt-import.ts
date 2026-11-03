@@ -1,8 +1,8 @@
-import { ytCauseIsTransient, type TtYtCause } from '../../../lib/tt-yt-cause';
+import { isYtCause, ytCauseIsTransient, type TtYtCause } from '../../../lib/tt-yt-cause';
 import { TT_QUEUE_CAP, isPlayable } from '../importer/tt-queue-rules';
-import type { TtImportCode, TtImportResult, TtImportSkip, TtTrack } from '../importer/types';
-import { parseVideoIds } from './tt-yt-url';
-import type { TtYtLookup, TtYtPorts } from './types';
+import type { TtImportCode, TtImportResult, TtTrack } from '../importer/types';
+import { parsePlaylistIds, parseVideoIds } from './tt-yt-url';
+import type { TtYtList, TtYtListLookup, TtYtLookup, TtYtPorts } from './types';
 
 /**
  * The YouTube import pipeline — docs/06 §5.
@@ -70,7 +70,8 @@ function codeForCause(cause: TtYtCause): TtImportCode {
 export function reachedEdge(result: TtImportResult): boolean | null {
   // A cause is only nameable if the edge produced it (`src/lib/tt-yt-cause.ts`),
   // so any of these IS proof we got through — even though the track was refused.
-  const ANSWERED: readonly TtImportCode[] = ['TT-YT-100', 'TT-YT-101', 'TT-YT-004'];
+  // TT-YT-010 is the playlist path's (docs/06 §9): Google's reason, relayed.
+  const ANSWERED: readonly TtImportCode[] = ['TT-YT-100', 'TT-YT-101', 'TT-YT-004', 'TT-YT-010'];
 
   const answered =
     result.added.some((t) => t.status === 'ok') ||
@@ -96,15 +97,34 @@ export async function importLinks(
   input: TtYtImportInput,
   ports: TtYtPorts,
 ): Promise<TtImportResult> {
-  const { text, queue, allowDuplicates } = input;
-
-  const added: TtTrack[] = [];
-  const skipped: TtImportSkip[] = [];
-  const notes: TtImportSkip[] = [];
+  const out: TtImportResult = { added: [], skipped: [], notes: [] };
 
   // ── step 1: parse every line ──────────────────────────────────────────────
-  const { ids, rejected } = parseVideoIds(text);
-  for (const line of rejected) skipped.push({ code: 'TT-YT-002', fileName: line });
+  const { ids, rejected } = parseVideoIds(input.text);
+  for (const line of rejected) out.skipped.push({ code: 'TT-YT-002', fileName: line });
+
+  await importVideoIds(ids, input, ports, out);
+  return out;
+}
+
+/** The free slots on the YouTube shelf — docs/06 §5 step 3. */
+function capacityOf(queue: readonly TtTrack[]): number {
+  return Math.max(0, TT_QUEUE_CAP.youtube - queue.filter(isPlayable).length);
+}
+
+/**
+ * Steps 2–5 for ids already parsed — a paste of links, or what a batch of
+ * playlists expanded to (docs/06 §9). One core, so the dedupe, the 50-link
+ * cap and the sequential oEmbed check cannot differ between the two.
+ */
+async function importVideoIds(
+  ids: readonly string[],
+  input: Pick<TtYtImportInput, 'queue' | 'allowDuplicates'>,
+  ports: TtYtPorts,
+  out: TtImportResult,
+): Promise<void> {
+  const { queue, allowDuplicates } = input;
+  const { added, skipped, notes } = out;
 
   // ── step 2: dedupe by videoId ─────────────────────────────────────────────
   // BEFORE the cap, in docs/06 §5's own order. A repeat is never added, so it
@@ -126,8 +146,7 @@ export async function importLinks(
   // Same reasoning as docs/02 §4's step 0: checking the cap after the lookups
   // would spend 50 round-trips to add at most a handful of tracks. The code is
   // TT-YT-003, not TT-IMP-004 — docs/06 §5 gives the link cap its own.
-  const existing = queue.filter(isPlayable).length;
-  const capacity = Math.max(0, TT_QUEUE_CAP.youtube - existing);
+  const capacity = capacityOf(queue);
   const accepted = unique.slice(0, capacity);
   for (const over of unique.slice(capacity)) skipped.push({ code: 'TT-YT-003', fileName: over });
 
@@ -163,7 +182,69 @@ export async function importLinks(
   }
 
   ports.onProgress?.(accepted.length, accepted.length);
-  return { added, skipped, notes };
+}
+
+/**
+ * Up to ten playlists, expanded into the YouTube shelf — docs/06 §9 (v2.1).
+ *
+ * ONE call for the whole paste: the lists come back as video ids, in paste
+ * order and then playlist order, and go through `importVideoIds` exactly as
+ * pasted links would. A paste is therefore at most 1 + 50 + 1 = 52 `/api`
+ * calls — the batch, the oEmbed checks, the lengths — under both the Worker's
+ * 60 a minute and the zone's 60 per 10 s (docs/10 §6).
+ *
+ * @returns the result, and `reached` — whether our edge answered the batch,
+ *   for the docs/06 §8 verdict when no video did.
+ */
+export async function importPlaylists(
+  input: TtYtImportInput,
+  ports: TtYtPorts,
+): Promise<{ result: TtImportResult; reached: boolean | null }> {
+  const out: TtImportResult = { added: [], skipped: [], notes: [] };
+  const lines = parsePlaylistIds(input.text);
+  for (const line of lines.rejected) out.skipped.push({ code: 'TT-YT-014', fileName: line });
+  for (const id of lines.refused) out.skipped.push({ code: 'TT-YT-012', fileName: id });
+  for (const id of lines.duplicates) out.skipped.push({ code: 'TT-IMP-005', fileName: id });
+  for (const id of lines.overflow) out.skipped.push({ code: 'TT-YT-013', fileName: id });
+  if (lines.ids.length === 0) return { result: out, reached: null };
+
+  // A full shelf takes nothing, so asking Google what the lists hold would
+  // spend quota for nothing — the step 3 reasoning, one level up.
+  if (capacityOf(input.queue) === 0) {
+    for (const id of lines.ids) out.skipped.push({ code: 'TT-YT-003', fileName: id });
+    return { result: out, reached: null };
+  }
+
+  // The bar counts the lists while the batch is out, then the videos.
+  ports.onProgress?.(0, lines.ids.length);
+  const lookup: TtYtListLookup =
+    ports.lookupPlaylists === undefined
+      ? { reached: false, lists: null }
+      : await ports.lookupPlaylists(lines.ids);
+
+  const videoIds: string[] = [];
+  for (const id of lines.ids) {
+    const list = lookup.lists?.get(id);
+    // Unanswered, or answered "try later": nothing of it, and the paste can
+    // simply be repeated. Kept lists are what TT-YT-001 is for, and a list
+    // whose videos we never saw has nothing to keep.
+    if (list === undefined || (!list.ok && ytCauseIsTransient(list.cause))) {
+      out.skipped.push({ code: 'TT-YT-011', fileName: id });
+      continue;
+    }
+    if (!list.ok) {
+      out.skipped.push({ code: 'TT-YT-010', fileName: id });
+      continue;
+    }
+    for (let i = 0; i < list.skipped; i++) out.skipped.push({ code: 'TT-YT-100', fileName: id });
+    if (list.total > list.ids.length + list.skipped) {
+      out.notes.push({ code: 'TT-YT-015', fileName: id });
+    }
+    videoIds.push(...list.ids);
+  }
+
+  await importVideoIds(videoIds, input, ports, out);
+  return { result: out, reached: lookup.reached };
 }
 
 /**
@@ -237,4 +318,44 @@ export function readDurations(body: unknown, asked: readonly string[]): Map<stri
     if (typeof ms === 'number' && Number.isFinite(ms) && ms > 0) out.set(id, ms);
   }
   return out;
+}
+
+/** docs/06 §5 — a video id, as the Worker and `tt-yt-url.ts` agree on it. */
+const VIDEO_ID = /^[A-Za-z0-9_-]{11}$/;
+
+/**
+ * The Worker's playlist answer, believed only as far as it goes — docs/06 §9.
+ *
+ * Only lists that were ASKED; only ids that are video ids; counts that are
+ * counts. A cause word nobody registered reads as `unavailable`, the honest
+ * bucket, and a list missing from the answer is absent — which the importer
+ * reports as unavailable, never as gone.
+ */
+export function readPlaylists(body: unknown, asked: readonly string[]): Map<string, TtYtList> {
+  const out = new Map<string, TtYtList>();
+  const table =
+    body !== null && typeof body === 'object' ? (body as { lists?: unknown }).lists : null;
+  if (table === null || typeof table !== 'object') return out;
+  for (const id of asked) {
+    const entry = (table as Record<string, unknown>)[id];
+    if (entry === null || typeof entry !== 'object') continue;
+    const e = entry as { ids?: unknown; skipped?: unknown; total?: unknown; error?: unknown };
+    if (Array.isArray(e.ids)) {
+      const ids = e.ids.filter((v): v is string => typeof v === 'string' && VIDEO_ID.test(v));
+      const skipped = count(e.skipped);
+      out.set(id, {
+        ok: true,
+        ids,
+        skipped,
+        total: Math.max(count(e.total), ids.length + skipped),
+      });
+    } else if (typeof e.error === 'string') {
+      out.set(id, { ok: false, cause: isYtCause(e.error) ? e.error : 'unavailable' });
+    }
+  }
+  return out;
+}
+
+function count(v: unknown): number {
+  return typeof v === 'number' && Number.isInteger(v) && v > 0 ? v : 0;
 }

@@ -48,8 +48,14 @@
  * logged. The text was made true in the same PR and nobody's position changed,
  * so this follows the translation precedent above, not the logs one; both
  * documents' tables record the edit.
+ *
+ * 🔁 **`2.0` → `2.1` in v2.1**, one bump for the release. YouTube playlists
+ * joined the data flows: playlist ids go to our Worker, which asks the Data
+ * API what each list holds and keeps the answer up to an hour (docs/06 §9).
+ * The rest of the release's legal changes land under this same version
+ * before the tag — every one of them in one prompt.
  */
-export const TT_LEGAL_VERSION = '2.0';
+export const TT_LEGAL_VERSION = '2.1';
 
 /**
  * The legal set, as one table.

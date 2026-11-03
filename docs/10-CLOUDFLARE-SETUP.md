@@ -118,13 +118,16 @@ enforces**: the bindings, measured there, refused nothing.
 |---------|--------|--------|-----|
 | `API_LIMIT` | every `/api/*` request — malformed and wrong-method ones too | **60 / 60 s per IP** | floods: Worker invocations, and oEmbed egress from Cloudflare's shared IPs, which YouTube could throttle for everyone |
 | `YT_DURATIONS_LIMIT` (v2.0) | `/api/yt/durations` calls that pass validation | **20 / 60 s per IP**, on top of the above | the Data API quota, 10,000 units a day (`06 §3`) |
+| `YT_PLAYLISTS_LIMIT` (v2.1) | `/api/yt/playlists` calls that pass validation | **10 / 60 s per IP**, on top of `API_LIMIT` | the same quota, faster: one call can spend ten units, one per uncached list (`06 §9`) |
 
 - Over budget, the Worker answers `429 {"error":"rate_limited"}` — JSON,
   `nosniff`, `max-age=0`, no CORS header — before the cache or any upstream.
   Because it is our own JSON, the client names the cause: the track is kept as
   `status:'pending'` → **TT-YT-001**, toast `toast.import.TT-YT-001`, re-checked
   on Start (`06 §8`). For durations the paste keeps `–` (TT-YT-008), never loses
-  a track. A 50-link paste is 51 calls made one at a time (`06 §3`), so it fits.
+  a track; for playlists the paste adds nothing and says so (TT-YT-011). A
+  50-link paste is 51 calls made one at a time (`06 §3`), and a playlist paste
+  at most 52 (`06 §9`), so both fit.
 - **A limiter that cannot answer lets the request through** — both budgets are
   flood guards, and failing closed would turn a Cloudflare hiccup into an
   outage for every user at once.

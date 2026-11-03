@@ -9,8 +9,9 @@ TickTune (`poli0981/ticktune`, GPL-3.0-only): a desktop-only static web app —
 user-supplied music (local files or YouTube links) behind a large DSEG7 digital
 countdown, styled as broadcast rack hardware ("Rack Unit", `docs/03`). Astro 7
 static pages + one Svelte 5 island at `/app/`, deployed to Cloudflare Workers
-Static Assets with two API routes (`GET /api/yt/oembed`, and since v2.0
-`GET /api/yt/durations`, which holds the Data API key as a Worker secret). Vietnamese
+Static Assets with three API routes (`GET /api/yt/oembed`; since v2.0
+`GET /api/yt/durations`, which holds the Data API key as a Worker secret; and
+since v2.1 `GET /api/yt/playlists`, the same key). Vietnamese
 default UI, English mirror, and since v2.0 a Japanese app, landing and 404.
 
 The island is **hand-mounted**, not mounted with an Astro client directive:
@@ -36,7 +37,8 @@ the reasoning and the numbers are in `docs/01 §3`.
    tick (`docs/04`). Do not introduce interval-accumulation timers. `docs/04 §4`
    is the **only** place display formats are defined — never restate them.
 4. **Limits are spec, not suggestions:** Single 1×≤10:02 · Playlist ≤95 files,
-   ≤10:02 each, ≤91:00 total · YouTube ≤50 links (no duration caps). Countdown
+   ≤10:02 each, ≤91:00 total · YouTube ≤50 links (no duration caps; since v2.1
+   ≤10 playlists per paste, expanded inside the same 50). Countdown
    1 s–24 h; < 60 s shows `SS.mmm`.
 5. **Fallback rendering:** missing text → `N/A`, missing numeric → `–`.
 6. **Mobile blocked site-wide** via the inline head gate (`docs/07`). Do not add

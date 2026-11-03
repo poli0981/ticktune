@@ -29,6 +29,12 @@
     onmatch: () => void;
     /** The latch holds for this mode — the shell's, so it survives a run. */
     fitted: boolean;
+    /**
+     * docs/06 §9 (v2.1) — what the YouTube paste box takes. The shell holds it:
+     * Setup unmounts for every run, and the choice should not snap back.
+     */
+    ytKind: 'videos' | 'playlists';
+    onytkind: (kind: 'videos' | 'playlists') => void;
     onstart: () => void;
     /** ?ttdebug=1 only — the docs/15 §S2 timer-only Start. */
     debug: boolean;
@@ -43,6 +49,8 @@
     onchange,
     onmatch,
     fitted,
+    ytKind,
+    onytkind,
     onstart,
     debug,
     ondebugstart,
@@ -148,13 +156,41 @@
         tab shows the links' (docs/02 §3.5).
       -->
       <div class="tt-links">
+        <!--
+          docs/06 §9 (v2.1) — the owner's playlist mode, as a choice of what the
+          box takes rather than a fourth tab: either kind fills the same shelf,
+          under the same 50-link cap. Buttons with aria-pressed, the pattern of
+          the header's language keys — a tablist would promise panels.
+        -->
+        <div class="tt-seg tt-yt-kind" role="group" aria-label={i18n.t('yt.setup.kind.label')}>
+          <button
+            type="button"
+            aria-pressed={ytKind === 'videos'}
+            data-testid="tt-yt-kind-videos"
+            onclick={() => onytkind('videos')}>{i18n.t('yt.setup.kind.videos')}</button
+          >
+          <button
+            type="button"
+            aria-pressed={ytKind === 'playlists'}
+            data-testid="tt-yt-kind-playlists"
+            onclick={() => onytkind('playlists')}>{i18n.t('yt.setup.kind.playlists')}</button
+          >
+        </div>
         <label>
-          <span>{i18n.t('yt.setup.paste.label')}</span>
+          <span>
+            {#if ytKind === 'playlists'}
+              {i18n.t('yt.setup.paste.playlistsLabel')}
+            {:else}
+              {i18n.t('yt.setup.paste.label')}
+            {/if}
+          </span>
           <textarea
             bind:value={links}
             rows="4"
             class="tt-field"
-            placeholder="https://www.youtube.com/watch?v=..."
+            placeholder={ytKind === 'playlists'
+              ? 'https://www.youtube.com/playlist?list=...'
+              : 'https://www.youtube.com/watch?v=...'}
             data-testid="tt-yt-input"></textarea>
         </label>
         <button
@@ -164,7 +200,9 @@
           onclick={() => {
             const text = links;
             links = '';
-            void session.importLinks(text);
+            void (ytKind === 'playlists'
+              ? session.importPlaylists(text)
+              : session.importLinks(text));
           }}>{i18n.t('yt.setup.paste.submit')}</button
         >
       </div>
@@ -445,6 +483,10 @@
     display: grid;
     gap: var(--tt-space-2);
     justify-items: end;
+  }
+  /* The kind reads before the box it changes, so it sits where reading starts. */
+  .tt-yt-kind {
+    justify-self: start;
   }
   .tt-links label {
     display: grid;

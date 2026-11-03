@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  isYtCause,
   ytCauseFromResponse,
   ytCauseFromUpstream,
   ytCauseIsTransient,
@@ -135,5 +136,27 @@ describe('ytCauseFromResponse — a status is only a cause if it is OURS', () =>
     // A proxy or SSO wall answering 401 must not read as "embedding disabled".
     expect(ytCauseFromResponse(401, 'text/html')).toBe('upstream_unreachable');
     expect(ytCauseFromResponse(403, 'text/html')).toBe('upstream_unreachable');
+  });
+});
+
+describe('isYtCause — a word read back from the Worker (docs/06 §9, v2.1)', () => {
+  it('names every cause this module produces', () => {
+    for (const word of [
+      'invalid_id',
+      'embed_off',
+      'private',
+      'not_found',
+      'upstream_unreachable',
+      'rate_limited',
+      'unavailable',
+    ]) {
+      expect(isYtCause(word)).toBe(true);
+    }
+  });
+
+  it('refuses a word nobody registered, so it cannot pose as a reason', () => {
+    expect(isYtCause('upstream_refused')).toBe(false);
+    expect(isYtCause('')).toBe(false);
+    expect(isYtCause('PRIVATE')).toBe(false);
   });
 });

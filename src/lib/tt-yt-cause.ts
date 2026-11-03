@@ -64,6 +64,24 @@ export type TtYtCause =
   /** Any other non-2xx. Honest fallback rather than a guess. */
   | 'unavailable';
 
+const CAUSES: ReadonlySet<string> = new Set<TtYtCause>([
+  'invalid_id',
+  'embed_off',
+  'private',
+  'not_found',
+  'upstream_unreachable',
+  'rate_limited',
+  'unavailable',
+]);
+
+/**
+ * Is `word` a cause this module names? For an answer read back from the
+ * Worker (docs/06 §9): an unregistered word is not a reason we can state.
+ */
+export function isYtCause(word: string): word is TtYtCause {
+  return CAUSES.has(word);
+}
+
 /**
  * Map an oEmbed response status to a cause.
  *

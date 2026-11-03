@@ -233,6 +233,13 @@ describe('Legal 2.0 discloses what v2.0 does', () => {
     expect(privacy[l]).toMatch(l === 'en' ? /per IP address/ : /theo địa chỉ IP/);
   });
 
+  it.each(['en', 'vi'] as const)('%s: playlists, by playlist ID, from our server (v2.1)', (l) => {
+    // Legal 2.1 — a new data flow ships with its disclosure (docs/06 §9).
+    expect(privacy[l]).toContain('/api/yt/playlists');
+    expect(privacy[l]).toMatch(l === 'en' ? /playlist ID/ : /mã playlist/);
+    expect(eula[l]).toMatch(l === 'en' ? /playlists you add/ : /playlist bạn thêm/);
+  });
+
   it.each(['en', 'vi'] as const)('%s: the governing law is Viet Nam’s', (l) => {
     expect(eula[l]).toMatch(
       l === 'en'

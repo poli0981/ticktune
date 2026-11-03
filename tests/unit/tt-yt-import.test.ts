@@ -1,11 +1,13 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   importLinks,
+  importPlaylists,
   reachedEdge,
   readDurations,
+  readPlaylists,
   ytDurationTargets,
 } from '../../src/app/engine/youtube/tt-yt-import';
-import type { TtYtLookup, TtYtPorts } from '../../src/app/engine/youtube/types';
+import type { TtYtList, TtYtLookup, TtYtPorts } from '../../src/app/engine/youtube/types';
 import type { TtImportResult, TtTrack } from '../../src/app/engine/importer/types';
 
 /**
@@ -356,4 +358,189 @@ describe('lengths from the Data API — docs/06 §3 (v2.0)', () => {
       expect(readDurations(body, [A]).size).toBe(0);
     },
   );
+});
+
+describe('playlists — docs/06 §9 (v2.1)', () => {
+  const A = 'PLaaaaaaaaaaaaaaaa';
+  const B = 'PLbbbbbbbbbbbbbbbb';
+  /** Eleven-character ids that look like videos: 'v' + a padded number. */
+  const vids = (prefix: string, n: number) =>
+    Array.from(
+      { length: n },
+      (_, i) => `${prefix}${String(i).padStart(10 - prefix.length + 1, '0')}`,
+    );
+
+  function listPorts(
+    answers: Record<string, TtYtList> | null,
+    reached = true,
+  ): TtYtPorts & { asked: string[][] } {
+    const asked: string[][] = [];
+    return {
+      ...always(OK),
+      asked,
+      lookupPlaylists: (ids) => {
+        asked.push([...ids]);
+        return Promise.resolve({
+          reached,
+          lists: answers === null ? null : new Map(Object.entries(answers)),
+        });
+      },
+    };
+  }
+
+  it('expands in paste order, then playlist order, through the per-video pipeline', async () => {
+    const ports = listPorts({
+      [A]: { ok: true, ids: vids('a', 2), skipped: 0, total: 2 },
+      [B]: { ok: true, ids: vids('b', 2), skipped: 0, total: 2 },
+    });
+    const { result, reached } = await importPlaylists({ ...base, text: `${A}\n${B}` }, ports);
+
+    expect(ports.asked).toEqual([[A, B]]); // ONE call for the whole paste
+    expect(result.added.map((t) => t.videoId)).toEqual([...vids('a', 2), ...vids('b', 2)]);
+    expect(result.added.every((t) => t.status === 'ok' && t.source === 'youtube')).toBe(true);
+    expect(reached).toBe(true);
+  });
+
+  it('caps the expanded videos at the 50-link shelf, with TT-YT-003 for the rest', async () => {
+    const ports = listPorts({
+      [A]: { ok: true, ids: vids('a', 40), skipped: 0, total: 40 },
+      [B]: { ok: true, ids: vids('b', 20), skipped: 0, total: 20 },
+    });
+    const { result } = await importPlaylists({ ...base, text: `${A}\n${B}` }, ports);
+    expect(result.added).toHaveLength(50);
+    expect(result.skipped.filter((s) => s.code === 'TT-YT-003')).toHaveLength(10);
+  });
+
+  it('dedupes a video two lists share — and one already on the shelf', async () => {
+    const shared = vids('s', 1)[0] as string;
+    const ports = listPorts({
+      [A]: { ok: true, ids: [shared, 'aaaaaaaaaa1'], skipped: 0, total: 2 },
+      [B]: { ok: true, ids: [shared], skipped: 0, total: 1 },
+    });
+    const queue = [{ source: 'youtube', status: 'ok', videoId: 'aaaaaaaaaa1' } as TtTrack];
+    const { result } = await importPlaylists({ ...base, queue, text: `${A}\n${B}` }, ports);
+    expect(result.added.map((t) => t.videoId)).toEqual([shared]);
+    expect(result.skipped.filter((s) => s.code === 'TT-IMP-005')).toHaveLength(2);
+  });
+
+  it('reports a list that is gone or private as TT-YT-010, and keeps the others', async () => {
+    const ports = listPorts({
+      [A]: { ok: false, cause: 'not_found' },
+      [B]: { ok: true, ids: vids('b', 1), skipped: 0, total: 1 },
+    });
+    const { result } = await importPlaylists({ ...base, text: `${A}\n${B}` }, ports);
+    expect(result.skipped).toContainEqual({ code: 'TT-YT-010', fileName: A });
+    expect(result.added).toHaveLength(1);
+  });
+
+  it('a transient answer, or none, is TT-YT-011 — never "gone"', async () => {
+    const ports = listPorts({ [A]: { ok: false, cause: 'upstream_unreachable' } });
+    const { result } = await importPlaylists({ ...base, text: `${A}\n${B}` }, ports);
+    expect(result.skipped).toEqual([
+      { code: 'TT-YT-011', fileName: A },
+      { code: 'TT-YT-011', fileName: B }, // missing from the answer
+    ]);
+    expect(result.added).toEqual([]);
+  });
+
+  it('a failed call adds nothing, and passes on what it proved about the edge', async () => {
+    const refused = await importPlaylists({ ...base, text: A }, listPorts(null, true));
+    expect(refused.result.skipped).toEqual([{ code: 'TT-YT-011', fileName: A }]);
+    expect(refused.reached).toBe(true); // our JSON 503: the edge answered
+
+    const offline = await importPlaylists({ ...base, text: A }, listPorts(null, false));
+    expect(offline.reached).toBe(false);
+  });
+
+  it('a port without the call reads as unavailable', async () => {
+    const { result, reached } = await importPlaylists({ ...base, text: A }, always(OK));
+    expect(result.skipped).toEqual([{ code: 'TT-YT-011', fileName: A }]);
+    expect(reached).toBe(false);
+  });
+
+  it('counts the private and deleted entries, and notes a list read only in part', async () => {
+    const ports = listPorts({ [A]: { ok: true, ids: vids('a', 3), skipped: 2, total: 120 } });
+    const { result } = await importPlaylists({ ...base, text: A }, ports);
+    expect(result.skipped.filter((s) => s.code === 'TT-YT-100')).toHaveLength(2);
+    expect(result.notes).toEqual([{ code: 'TT-YT-015', fileName: A }]);
+  });
+
+  it('asks nothing for a paste with no list in it, or for a full shelf', async () => {
+    const none = listPorts({});
+    const empty = await importPlaylists({ ...base, text: 'no list\nWL' }, none);
+    expect(none.asked).toEqual([]);
+    expect(empty.result.skipped).toEqual([
+      { code: 'TT-YT-014', fileName: 'no list' },
+      { code: 'TT-YT-012', fileName: 'WL' },
+    ]);
+    expect(empty.reached).toBeNull();
+
+    const full = listPorts({});
+    const queue = Array.from(
+      { length: 50 },
+      (_, i) => ({ source: 'youtube', status: 'ok', videoId: `v${i}` }) as TtTrack,
+    );
+    const capped = await importPlaylists({ ...base, queue, text: A }, full);
+    expect(full.asked).toEqual([]);
+    expect(capped.result.skipped).toEqual([{ code: 'TT-YT-003', fileName: A }]);
+  });
+
+  it('a list never seen at all is not a TT-YT-001 note — there is nothing to keep', async () => {
+    const { result } = await importPlaylists({ ...base, text: A }, listPorts(null));
+    expect(result.notes).toEqual([]);
+  });
+});
+
+describe('readPlaylists — the Worker’s answer, believed only as far as it goes', () => {
+  const A = 'PLaaaaaaaaaaaaaaaa';
+
+  it('takes asked lists only, video ids only, and counts that are counts', () => {
+    const body = {
+      lists: {
+        [A]: { ids: ['dQw4w9WgXcQ', 'not-an-id', 42], skipped: 2, total: 9 },
+        PLzzzzzzzzzzzzzzzz: { ids: ['jNQXAC9IVRw'], skipped: 0, total: 1 },
+      },
+    };
+    expect(readPlaylists(body, [A])).toEqual(
+      new Map([[A, { ok: true, ids: ['dQw4w9WgXcQ'], skipped: 2, total: 9 }]]),
+    );
+  });
+
+  it('a total smaller than what was read is raised to it, never trusted below it', () => {
+    const body = { lists: { [A]: { ids: ['dQw4w9WgXcQ'], skipped: -3, total: 0 } } };
+    expect(readPlaylists(body, [A]).get(A)).toEqual({
+      ok: true,
+      ids: ['dQw4w9WgXcQ'],
+      skipped: 0,
+      total: 1,
+    });
+  });
+
+  it('reads a cause, and an unregistered word as the honest bucket', () => {
+    expect(readPlaylists({ lists: { [A]: { error: 'private' } } }, [A]).get(A)).toEqual({
+      ok: false,
+      cause: 'private',
+    });
+    expect(readPlaylists({ lists: { [A]: { error: 'nonsense' } } }, [A]).get(A)).toEqual({
+      ok: false,
+      cause: 'unavailable',
+    });
+  });
+
+  it('anything malformed is simply absent', () => {
+    expect(readPlaylists(null, [A]).size).toBe(0);
+    expect(readPlaylists({ lists: 'x' }, [A]).size).toBe(0);
+    expect(readPlaylists({ lists: { [A]: 'x' } }, [A]).size).toBe(0);
+  });
+});
+
+describe('reachedEdge counts a playlist verdict as an answer', () => {
+  it('TT-YT-010 is Google’s reason, relayed — proof the edge answered', () => {
+    const r: TtImportResult = {
+      added: [],
+      skipped: [{ code: 'TT-YT-010', fileName: 'PLaaaaaaaaaaaaaaaa' }],
+      notes: [],
+    };
+    expect(reachedEdge(r)).toBe(true);
+  });
 });

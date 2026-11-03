@@ -1,6 +1,6 @@
 import { ytCauseFromResponse } from '../../../lib/tt-yt-cause';
-import { readDurations } from './tt-yt-import';
-import type { TtYtLookup, TtYtMeta, TtYtPorts } from './types';
+import { readDurations, readPlaylists } from './tt-yt-import';
+import type { TtYtListLookup, TtYtLookup, TtYtMeta, TtYtPorts } from './types';
 
 /**
  * The browser half of the YouTube importer — docs/06 §5 step 4.
@@ -110,11 +110,39 @@ export async function lookupDurations(ids: readonly string[]): Promise<Map<strin
   }
 }
 
+/**
+ * docs/06 §9 (v2.1) — up to ten playlists, one request. Never rejects.
+ *
+ * The status is read before the body, as in `lookup`. A refusal that is OUR
+ * JSON — no key, the quota spent, the per-IP budget — still proves the edge
+ * answered (docs/06 §8); an HTML page or a rejected fetch does not, which is
+ * what `astro preview`'s static 404 and a zone block page both are.
+ */
+async function lookupPlaylists(ids: readonly string[]): Promise<TtYtListLookup> {
+  let res: Response;
+  try {
+    res = await fetch(`/api/yt/playlists?ids=${ids.map(encodeURIComponent).join(',')}`, {
+      headers: { accept: 'application/json' },
+      signal: AbortSignal.timeout(LOOKUP_TIMEOUT_MS),
+    });
+  } catch {
+    return { reached: false, lists: null };
+  }
+  const ours = (res.headers.get('content-type') ?? '').includes('application/json');
+  if (!res.ok) return { reached: ours, lists: null };
+  try {
+    return { reached: true, lists: readPlaylists(await res.json(), ids) };
+  } catch {
+    return { reached: false, lists: null };
+  }
+}
+
 export function browserYtPorts(onProgress?: TtYtPorts['onProgress']): TtYtPorts {
   return {
     newId: () => crypto.randomUUID(),
     now: () => Date.now(),
     lookup,
+    lookupPlaylists,
     ...(onProgress === undefined ? {} : { onProgress }),
   };
 }
