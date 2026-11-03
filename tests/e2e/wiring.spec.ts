@@ -606,7 +606,9 @@ test.describe('a fitted countdown follows removals — v2.1', () => {
    * a change fails with the hook or the follow unwired (shown by mutation);
    * the two that expect none guard Repeat and a hand edit.
    */
-  const TONES = ['tone-5s.mp3', 'tone-5s.flac', 'tone-5s.wav'];
+  // WAV first: the one spec that depends on the PLAYING track needs a format
+  // every engine decodes (CI's WebKit did not play the MP3 — see below).
+  const TONES = ['tone-5s.wav', 'tone-5s.mp3', 'tone-5s.flac'];
   const digits = (page: Page) => page.locator('.tt-countdown .tt-live');
   /** `SS.mmm`, `MM:SS` or `H:MM:SS` (docs/04 §4) → seconds. */
   const seconds = async (page: Page): Promise<number> =>
@@ -622,6 +624,13 @@ test.describe('a fitted countdown follows removals — v2.1', () => {
    * wiring removed, because a running countdown falls by 4.5 s on its own in
    * 4.5 s. Shown by mutation; the wall clock is subtracted now.
    */
+  /** The bottom bar's `M:SS / M:SS` → the position, in seconds (0 for `–`). */
+  async function positionSeconds(page: Page): Promise<number> {
+    const shown = ((await page.getByTestId('tt-position').textContent()) ?? '').split('/')[0];
+    const [m, sec] = (shown ?? '').trim().split(':').map(Number);
+    return Number.isFinite(m) && Number.isFinite(sec) ? (m ?? 0) * 60 + (sec ?? 0) : 0;
+  }
+
   async function takenBy(page: Page, act: () => Promise<void>): Promise<number> {
     const before = await seconds(page);
     const t0 = Date.now();
@@ -675,7 +684,23 @@ test.describe('a fitted countdown follows removals — v2.1', () => {
     await matchedPlaylist(page, 'off');
     await page.getByRole('button', { name: 'Bắt đầu' }).click();
     await expect(transport(page)).toHaveAttribute('aria-label', 'Tạm dừng');
-    await page.waitForTimeout(2_000);
+
+    /*
+     * 🔴 Measured, not assumed. CI's WebKit has an AudioContext, so
+     * `skipWithoutAudio` let it through — and it still did not play the MP3
+     * that came first: the row was marked errored (TT-PLY-101), which already
+     * took its length off, and removing it then took nothing. So the spec
+     * waits for the element to have MOVED, and says so when it has not.
+     */
+    const first = page.getByTestId('tt-queue-row').first();
+    const deadline = Date.now() + 8_000;
+    while (Date.now() < deadline && (await positionSeconds(page)) < 2) {
+      await page.waitForTimeout(200);
+    }
+    const playing =
+      (await positionSeconds(page)) >= 2 &&
+      !/tt-error/.test((await first.getAttribute('class')) ?? '');
+    test.skip(!playing, `this ${browserName} runner did not play the first fixture (docs/13 §3)`);
 
     // The current row: ~5 s long, ~2 s played — about 3 s off, never all of it.
     const taken = await takenBy(page, () => page.getByTestId('tt-queue-remove').first().click());
