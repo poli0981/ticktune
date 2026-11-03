@@ -137,37 +137,13 @@ jobs:
           fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
+      # The action's own default scanner (8.3.0.16463 in v8.4.0). The
+      # `scannerVersion` pin that ran ahead of v8.3.0's default went with the
+      # bump that caught up with it, as its note asked — kept, it would have
+      # been a downgrade from here on.
       - name: SonarQube Cloud scan
-        uses: SonarSource/sonarqube-scan-action@d209202bc7d53ff1cc128f7f907dac145c9d6ae9 # v8.3.0
+        uses: SonarSource/sonarqube-scan-action@4d1dc0c91ee400dcf8a6dddf2f705ac36542e304 # v8.4.0
         with:
-          # The newest scanner. v8.3.0's own default is 8.1.0.6389; the
-          # action's main branch already defaults to this one (SQSCANGHA-177).
-          # Delete this input with the Dependabot bump that brings it, or the
-          # pin turns into a downgrade on the release after.
-          scannerVersion: 8.2.0.6438
           args: -Dsonar.projectVersion=${{ steps.version.outputs.version }}
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-  # Node 26 becomes LTS on 2026-10-28 (docs/14 §1). Until the pin moves, this
-  # job keeps the next runtime honest: build and tests only — lint, types and
-  # knip do not depend on the Node version. Not a required check.
-  ci-node26:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-    timeout-minutes: 20
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-      - uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
-      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
-        with:
-          node-version: 26
-          cache: pnpm
-      - run: pnpm install --frozen-lockfile
-      - name: Build
-        run: pnpm build
-      - name: Unit + component tests
-        run: pnpm test

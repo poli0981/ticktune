@@ -41,21 +41,22 @@ allowBuilds:
 #            imports chromium-bidi only through a dynamic `import('bidi.js')`
 #            for `protocol: 'webDriverBiDi'`, and Lighthouse connects over CDP,
 #            so zod 3 leaves the tree the way sprintf-js did.
-# extract-zip (GHSA-7pqw-9j4j-h8q3, GHSA-jmr9-qjv8-65gv) has no override: the
-# advisories now name 2.0.2 as patched, but npm's newest is still 2.0.1, and
-# docs/11 §5 records why it stays.
+# No override, and docs/11 §5 records why each stays:
+#   extract-zip (GHSA-7pqw-9j4j-h8q3, GHSA-jmr9-qjv8-65gv) — the advisories name
+#            2.0.2 as patched, but npm's newest is still 2.0.1.
+#   deepmerge (GHSA-gcqx-w48m-w2h4, low) — through @sveltejs/vite-plugin-svelte,
+#            which merges its own build config with it; npm's newest is 4.3.1,
+#            the last vulnerable one, so there is nothing to move to.
+#   minimatch (GHSA-g3hv-75wg-m249, moderate) — through eslint and
+#            @eslint/config-array, which ask for `^10.2.6` while the fix exists
+#            only in 11.0.1+; an override would cross the major ESLint calls on
+#            every lint, and the patterns it parses are our own config's globs.
 #
-# And one outside @lhci, in Wrangler's dev-only tree (docs/11 §5):
-#   miniflare>undici
-#            GHSA-xjj6-f33q-929c (high), GHSA-4qv8-2p9j-2685 and
-#            GHSA-f72v-6w45-q472 (moderate) — patched in 7.30.1. Wrangler
-#            4.152.0 (the latest) still pins miniflare to `undici: 7.29.1`
-#            exactly, so there is no bump to prefer; this is a patch within
-#            the 7.x line miniflare chose. Drop it once Wrangler ships one.
+# Wrangler's `miniflare>undici ^7.30.1` override went in v2.1: Wrangler 4.156.0
+# ships a miniflare that asks for undici 7.30.1 itself, as its note asked.
 overrides:
   tmp: ^0.2.6
   uuid: ^11.1.1
   'js-yaml@3>argparse': ^2.0.1
   'get-uri>basic-ftp': ^6.2.1
   'chromium-bidi>zod': ^4.6.6
-  'miniflare>undici': ^7.30.1

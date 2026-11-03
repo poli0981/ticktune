@@ -15,7 +15,7 @@ inheritance bug, and the habit costs nothing.
 
 | Workflow | Trigger | Purpose |
 |----------|---------|---------|
-| `ci.yml` | PR + push main | corpus guard → install → lint → check → knip → doc refs → **build → tests**; then `sonar` (the SonarQube Cloud scan of the same commit, reading `ci`'s coverage report, not required); plus `ci-node26` (install → build → tests on Node 26, not required) |
+| `ci.yml` | PR + push main | corpus guard → install → lint → check → knip → doc refs → **build → tests**; then `sonar` (the SonarQube Cloud scan of the same commit, reading `ci`'s coverage report, not required). Every job runs the Node `.nvmrc` names — 26 since v2.1; the `ci-node26` job that ran ahead of its LTS date went with the switch |
 | `e2e.yml` | PR to main | Playwright chromium + firefox + webkit + 2 mobile projects, then **`verify-csp` under `wrangler dev`** |
 | `audit.yml` | weekly cron + PR touching lockfile/manifests | `pnpm audit --prod --audit-level high`, then the whole tree at `critical` |
 | `deploy.yml` | push tag `v*` **only** | verify (signature, ancestry, gates) → deploy → GitHub Release (`§5`) |
@@ -57,10 +57,11 @@ first.
 only while that file existed.
 
 **SonarQube Cloud** has been **CI-based** since 2026-10-23: the `sonar` job in
-`ci.yml`, on the official `SonarSource/sonarqube-scan-action` (v8.3.0, running
-SonarScanner CLI 8.2.0.6438 — pinned ahead of v8.3.0's own default until the
-action's next release catches up; delete the `scannerVersion` input with that
-Dependabot bump). Automatic Analysis is **off and must stay off** — SonarQube
+`ci.yml`, on the official `SonarSource/sonarqube-scan-action` (v8.4.0, running
+its own default SonarScanner CLI, 8.3.0.16463). Until v2.1 a `scannerVersion`
+input pinned 8.2.0.6438 ahead of v8.3.0's default, with a note to delete it with
+the bump that caught up. Dependabot's #105 bumped the action alone and would have
+kept the pin as a downgrade, so the bump was taken by hand with the pin removed. Automatic Analysis is **off and must stay off** — SonarQube
 Cloud refuses a CI analysis while it is on. Switching was what made the gate
 whole: Automatic Analysis could import no coverage, so "Sonar way"'s
 *coverage on new code ≥ 80%* condition was never evaluated, and with no
@@ -104,9 +105,11 @@ minor/patch with a 3-day **cooldown** (pnpm 11's `minimumReleaseAge` otherwise
 fails a release-day PR at install). Majors arrive individually so each gets its
 written breaking-change and licence re-check (`11 §5`). `typescript` and
 `@types/node` majors are ignored on evidence (`11 §4`). `engines` is
-`>=24 <27`: `.nvmrc` pins Node 24 for every job and for Workers Builds, and the
-`ci-node26` job runs build and tests on Node 26 ahead of its LTS date
-(2026-10-28), so the switch is a one-line pin once it lands.
+`>=26 <27` since v2.1: `.nvmrc` pins Node 26 for every job and for Workers
+Builds. The `ci-node26` job ran build and tests on 26 on every v2.0 PR ahead of
+its LTS date (2026-10-28), so the switch was a pin, not a migration, and the job
+went with it. The `@types/node` major ignore stays: it now holds 27 back until
+Node 27 is the floor, which is what it held 26 back for.
 
 **Corpus guard.** `ci.yml` runs `scripts/guard-no-corpus.mjs` as its **first**
 step, before install, and `.githooks/pre-commit` runs it against the index.
@@ -146,7 +149,7 @@ pack it. Reclaim with
 
 | Workflow / job | permissions |
 |----------------|-------------|
-| ci (`ci`, `sonar`, `ci-node26`) · e2e · audit · quality | `contents: read`, on each job; `{}` at the workflow level |
+| ci (`ci`, `sonar`) · e2e · audit · quality | `contents: read`, on each job; `{}` at the workflow level |
 | deploy → `verify`, `deploy` | `contents: read` (+ Cloudflare secrets in `deploy` only) |
 | deploy → `release` | `contents: **write**` — for `gh release create`, and it runs no build tooling |
 

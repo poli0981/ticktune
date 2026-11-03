@@ -14,22 +14,26 @@ updates:
           - minor
           - patch
     ignore:
-      # TypeScript 7 is rejected on evidence, not preference: svelte-check 4.7.3
+      # TypeScript 7 is rejected on evidence, not preference: svelte-check
       # crashes against it and typescript-eslint declares peer `<6.1.0`, so
       # `pnpm check` and `pnpm lint` both break. Full measurements in docs/11 §4.
       # TS 6 was taken by hand on 2026-10-26 (both accept it); 7 is the next
-      # major this rule holds back, and still neither accepts it.
+      # major this rule holds back, and still neither accepts it — re-measured
+      # 2026-11-03: svelte-check 4.7.8 peers `^5 || ^6`, typescript-eslint
+      # 8.72.1 peers `<6.1.0`, typescript latest 7.0.2.
       # CI already catches this (Dependabot proposed it once and the lint gate
       # failed), but re-proposing it every week is noise. Unpin deliberately when
       # svelte-check supports TS 7 AND typescript-eslint widens its range —
       # either alone is not enough.
       - dependency-name: 'typescript'
         update-types: ['version-update:semver-major']
-      # `engines.node` is `>=24 <25` and `.nvmrc` is 24, so `@types/node` must
-      # track Node 24's API surface. A major here (26.x) type-checks against
-      # functions the supported runtime does not have — #14 sat open for three
-      # months proposing exactly that. Bump it deliberately, together with
-      # `.nvmrc` and `engines`, when the project moves to the next Node LTS.
+      # `engines.node` is `>=26 <27` and `.nvmrc` is 26 (since v2.1, when Node
+      # 26 became LTS), so `@types/node` must track Node 26's API surface. A
+      # major here (27.x, once Node 27 ships) type-checks against functions the
+      # supported runtime does not have — #14 sat open for three months
+      # proposing exactly that for 26. Kept through the switch for that reason:
+      # bump it deliberately, together with `.nvmrc` and `engines`, at the next
+      # LTS (Node 28, October 2027).
       - dependency-name: '@types/node'
         update-types: ['version-update:semver-major']
     # pnpm 11 refuses packages published less than a day ago
