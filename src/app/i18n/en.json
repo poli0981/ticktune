@@ -55,6 +55,8 @@
       "seconds": "seconds",
       "match": "Match length",
       "matchLocked": "Every track in the queue needs a known duration",
+      "fitted": "Matched to the queue: removing a track shortens the countdown.",
+      "fittedRepeat": "Repeat is on: the countdown keeps its length while the queue loops.",
       "preset": "{{minutes}} minutes"
     },
     "start": "Start",

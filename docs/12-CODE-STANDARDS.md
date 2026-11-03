@@ -77,6 +77,7 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-PLY-103 | End-behavior chime could not be scheduled (AudioContext not running) |
 | TT-PLY-105 | `AudioContext.resume()` did not complete — no usable audio output; playback continues unreported rather than hanging |
 | TT-PLY-106 | No crossfade for this track: its length is unknown, or too short to fade — a hard cut at `ended` instead (`05 §2`). Once per track. Registered v2.0 |
+| TT-PLY-107 | A fitted, play-once run lost a track — removed from the queue, a local file that would not decode, or a link the Start re-check found gone (TT-YT-007) — and the countdown was shortened by what that track had left to play (`02 §5.2`). Message: the seconds taken off, e.g. `-212 s`. Info. Registered v2.1 |
 | TT-PLY-108 | The incoming track of a crossfade did not start — the outgoing one plays out and `ended` advances, once (`05 §2`). `NotAllowedError` reports TT-PLY-100 instead. Registered v2.0 |
 | TT-USR-001 | Track removed by user |
 | TT-USR-100 | Legal gate accepted (records the version) |

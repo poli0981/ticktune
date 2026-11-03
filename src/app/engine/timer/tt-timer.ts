@@ -92,6 +92,28 @@ export class TtTimer {
     this.#phase = 'running';
   }
 
+  /**
+   * Take `byMs` off the run — docs/04 §1, for a fitted queue that lost a
+   * track (docs/02 §5.2, v2.1).
+   *
+   * Still derived: the DEADLINE moves, and `remaining` stays `endAt − now()`.
+   * Never below now, though. A deadline in the past would make the next tick
+   * report an overshoot of that size, and the Finished screen would announce
+   * that zero was reached at a moment nobody saw (docs/04 §2). Clamped at now,
+   * the run simply ends on the next tick.
+   *
+   * Paused, the stored remainder shrinks instead; resume then re-anchors from
+   * it exactly as it always has, and a remainder of 0 finishes at once.
+   */
+  shorten(byMs: number): void {
+    if (!(byMs > 0)) return;
+    if (this.#phase === 'running' && this.#endAtEpoch !== null) {
+      this.#endAtEpoch = Math.max(this.#now(), this.#endAtEpoch - byMs);
+    } else if (this.#phase === 'paused') {
+      this.#remainingAtPauseMs = Math.max(0, (this.#remainingAtPauseMs ?? 0) - byMs);
+    }
+  }
+
   reset(): void {
     this.#endAtEpoch = null;
     this.#remainingAtPauseMs = null;

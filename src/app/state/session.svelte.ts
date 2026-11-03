@@ -150,6 +150,15 @@ class SessionStore {
    */
   #online = $state(true);
 
+  /**
+   * Set by the app shell: `id` is about to leave the play order — removed, or
+   * marked errored (docs/02 §5.2, v2.1). A fitted play-once run loses what that
+   * track had left, and only the shell knows where the engine is and owns the
+   * timer. Called BEFORE anything moves, so the order, the cursor and the track
+   * are still the ones the answer depends on.
+   */
+  onLeave: ((id: string) => void) | null = null;
+
   get mode(): TtMode {
     return this.#mode;
   }
@@ -695,6 +704,7 @@ class SessionStore {
 
   /** docs/02 §6 — user removal. All removals release the track's URLs at once. */
   removeTrack(id: string): void {
+    this.onLeave?.(id);
     // docs/02 §6 "stop if current → advance", and §5.1 rule 5. Advance FIRST,
     // while the id is still in the order: afterwards `nextInOrder` could only
     // restart from the top, which is a different track than the one after it.
@@ -899,6 +909,7 @@ class SessionStore {
 
   /** docs/02 §6 — a track that failed to decode is marked, not silently dropped. */
   markTrackError(id: string): void {
+    this.onLeave?.(id);
     // Same ordering as removeTrack, and for the same reason: marking it first
     // drops it out of `order` (isPlayable), after which the cursor is stranded
     // and can only restart from the top.

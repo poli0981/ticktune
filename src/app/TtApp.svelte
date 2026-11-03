@@ -15,6 +15,7 @@
   import TtVisualizer from './components/TtVisualizer.svelte';
   import TtYouTubeRail from './components/TtYouTubeRail.svelte';
   import type { TtTrack } from './engine/importer/types';
+  import { fitFollowMs, isFittedCountdown, unplayedMs, type TtFit } from './engine/queue/tt-fit';
   import { TtTimerDriver } from './engine/timer/tt-timer-driver';
   import { milestoneFor } from './engine/timer/tt-milestones';
   import type { TtTickSample } from './engine/timer/types';
@@ -76,6 +77,9 @@
     // docs/06 §2 (v2.0.4) — a pause or play made on the player itself is the
     // user's ⏯, and the run follows it through the transport's own handlers.
     yt.onNativeToggle = onNativeToggle;
+    // docs/02 §5.2 (v2.1) — every way a track leaves the order goes through the
+    // store, so one hook sees the rail's ×, a decode error and TT-YT-007 alike.
+    session.onLeave = onTrackLeaving;
 
     void settings.load(navigator.language).then((s) => {
       // docs/08 §2 — before anything renders a string. `settings.load` has
@@ -175,6 +179,48 @@
   });
 
   /**
+   * docs/02 §5.2 (v2.1) — "Khớp độ dài" was the last thing to set the
+   * countdown. Any hand edit — a field, a preset — clears it, so a value the
+   * user chose is never overwritten (docs/03 §3), even one that happens to
+   * equal the total.
+   */
+  let fit = $state<TtFit | null>(null);
+  const fitted = $derived(fit !== null && fit.mode === session.mode);
+
+  function onMatch() {
+    const ms = session.matchableMs;
+    if (ms === null) return;
+    setCountdownMs(ms);
+    fit = { mode: session.mode, totalMs: ms };
+  }
+
+  /**
+   * …and while it holds, with Repeat off, the countdown follows the queue's
+   * total. On every screen, not only Setup, so a re-run (`endAction`, "Chạy
+   * lại") starts from the queue that is left. `tt-fit.ts` decides; this writes.
+   */
+  $effect(() => {
+    const now = {
+      mode: session.mode,
+      totalMs: session.matchableMs,
+      repeat: settings.current.repeatPlaylist,
+    };
+    untrack(() => {
+      const next = fitFollowMs(fit, now);
+      if (next === null) return;
+      fit = { mode: now.mode, totalMs: next };
+      setCountdownMs(next);
+    });
+  });
+
+  function setCountdownMs(ms: number) {
+    const total = Math.floor(ms / 1000);
+    hours = Math.floor(total / 3600);
+    minutes = Math.floor((total % 3600) / 60);
+    seconds = total % 60;
+  }
+
+  /**
    * While idle the digits preview whatever the inputs currently say, so the
    * format regime and colour are visible before committing to a run. Once the
    * timer owns the value we show its derived remainder — and `done` holds
@@ -224,6 +270,15 @@
   }
   /** The last run's `force`, so Chạy lại / auto re-runs repeat a ?ttdebug run faithfully. */
   let lastForce = false;
+  /**
+   * docs/02 §5.2 (v2.1) — this run started at the queue's own length, Repeat
+   * off. Turning Repeat on ends it for the rest of the run: once the frame is
+   * fixed it stays fixed, so a removal made meanwhile is never "owed" back.
+   */
+  let fittedRun = false;
+  $effect(() => {
+    if (settings.current.repeatPlaylist) fittedRun = false;
+  });
   let flashTimer: ReturnType<typeof setTimeout> | undefined;
 
   let maxRenderGapVisibleMs = $state(0);
@@ -380,6 +435,14 @@
     if (!session.start(force)) return;
     lastForce = force;
     if (!auto) autoRestarted = false;
+    // docs/02 §5.2 — decided once, here: did Match set this run, and is it
+    // still the queue's own length?
+    fittedRun =
+      !force &&
+      fitted &&
+      session.mode !== 'single' &&
+      !settings.current.repeatPlaylist &&
+      isFittedCountdown(durationMs, session.queue);
 
     // The previous run's fade left fadeGain at 0; without this the next run is
     // silent for its whole duration with nothing on screen to explain it.
@@ -552,6 +615,40 @@
     if (!wasCurrent) return;
     if (session.currentId === null) stopCurrentEngine();
     else loadCurrent();
+  }
+
+  /**
+   * `id` is about to leave the order — docs/02 §5.2 (v2.1). A fitted run with
+   * Repeat off loses what the track had left to play: all of it if it was
+   * still ahead, the rest of it if it is the one playing, nothing if it was
+   * already heard. `session.onLeave`, so the rail's ×, a decode error
+   * (`onTrackFailed`) and a link re-checked into an error (TT-YT-007) all
+   * arrive here, before the store has moved anything.
+   *
+   * The shortening itself waits for the store to finish. One that reaches zero
+   * runs `onDone` — the Finished screen and the End Behavior — and that must
+   * not happen in the middle of the removal that caused it.
+   */
+  function onTrackLeaving(id: string) {
+    if (!fittedRun || !onPlayerScreen) return;
+    const track = session.queue.find((t) => t.id === id);
+    if (track === undefined) return;
+    const ms = unplayedMs({
+      order: session.order,
+      currentId: session.currentId,
+      removedId: id,
+      durationMs: track.durationMs,
+      // The 10 Hz pull that drives the bottom bar (below) — at most 100 ms
+      // old while playing, and exact while paused, when nothing moves.
+      positionMs: session.mode === 'youtube' ? yt.positionMs : playback.positionMs,
+      exhausted: session.exhausted,
+    });
+    if (ms <= 0) return;
+    queueMicrotask(() => {
+      if (session.state !== 'playing' && session.state !== 'paused') return;
+      driver.shorten(ms);
+      ttLog.info('TT-PLY-107', `-${Math.round(ms / 1000)} s`, id);
+    });
   }
 
   /**
@@ -1448,7 +1545,11 @@
         hours = h;
         minutes = m;
         seconds = s;
+        // A hand edit or a preset: the countdown is the user's now (docs/02 §5.2).
+        fit = null;
       }}
+      {fitted}
+      onmatch={onMatch}
       onstart={() => onStart()}
       {debug}
       ondebugstart={() => onStart(true)}

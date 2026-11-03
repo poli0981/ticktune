@@ -548,12 +548,76 @@ makes rules 1–3 fall out rather than needing their own machinery.
    removes (`§6`, TT-USR-001).
 6. **Exhaustion with Repeat OFF** is `§5`'s documented outcome and nothing more:
    media stops, **the countdown continues**, TT-PLY-102 is logged, and the bottom
-   bar shows "Playlist ended". The timer and the media engine meet at exactly two
-   points and this is not one of them (`04 §5`).
+   bar shows "Playlist ended". Exhaustion is not a point where the timer and the
+   media engine meet (`04 §5`); a countdown fitted to its queue (`§5.2`) is
+   shortened when a track LEAVES the order, never when the order runs out.
 
 Only tracks passing `isPlayable` (`§1`) enter the playback order, so a track that
 fails to decode mid-run (TT-PLY-101) is skipped by the next advance rather than
 needing a special case.
+
+### 5.2 A countdown fitted to its queue (v2.1)
+
+The owner's request (2026-11-03): with Repeat off, a countdown set to the
+queue's length should follow the queue when a track leaves it; with Repeat on,
+the countdown keeps its frame and the queue plays inside it.
+
+**Fitted is a latch, not a mode.** "Khớp độ dài" sets it, together with the
+countdown it writes (`03 §3`). Any other write clears it — a field, a preset —
+so a value the user chose is never overwritten, even one that happens to equal
+the total. The latch is per mode, because a tab shows its own shelf (`§3.5`): a
+countdown matched to the files does not leap to the links' total when the user
+looks at them. It lives in the shell, not in Setup, so it survives a run. There
+is no toggle and nothing persists. `engine/queue/tt-fit.ts` holds every
+decision; the shell only writes them.
+
+| | Repeat off — Playlist, YouTube | Repeat on, or Single |
+|---|---|---|
+| **The total changes** (any screen) while the latch holds | H:MM:SS becomes the new total; an unknown total (a link's length still on its way) changes nothing until it lands | unchanged |
+| **A run that started latched** loses a track from the order: the rail's × or the menu's Xoá, a local file that will not decode (TT-PLY-101), a link the Start re-check finds gone (TT-YT-007) | the countdown loses that track's **unplayed part**, TT-PLY-107 | unchanged |
+| ⏭ / ⏮ / jump / reorder | unchanged — a skipped track's rest becomes silence at the end, as it always has (`§5`) | unchanged |
+
+**The unplayed part** (`unplayedMs`). A track after the cursor in the play
+order counts in full. The current track counts as its length minus the engine's
+position: the element's, or the player's, from the 10 Hz pull that drives the
+bottom bar. A track before the cursor counts nothing, and so does anything once
+the order is exhausted (`playback.stop()` resets the position to 0, which would
+otherwise count the last track in full).
+
+It is computed **before** the store drops the track. Afterwards the track is in
+neither the order nor the shelf, and "after the cursor" has no answer. One hook,
+`session.onLeave`, is called first thing in `removeTrack` and `markTrackError`,
+so every path above reaches it. The play order is the one that counts: with
+Shuffle on, a track displayed last may be next.
+
+**How the countdown loses it** (`04 §1`). `shorten(ms)` moves the deadline,
+never below now, and the remainder stays derived from it. A deadline moved into
+the past would be read as an overshoot, and the late Finished screen would name
+a moment nobody saw (`04 §2`). Paused, the stored remainder shrinks instead, to
+0 at the least, and resume then finishes at once. The worker gets the new
+deadline in the same call, so `done` and the finish notification move with it.
+The shortening waits for the store to finish its removal: one that reaches zero
+runs `onDone`, and that must not happen in the middle of the removal that caused
+it.
+
+**Decided at Start, ended by Repeat.** A run is latched if the latch holds,
+Repeat is off, and the countdown is still the queue's own length — a total over
+24 h is not, because Match clamped it. Turning Repeat on mid-run ends it for the
+rest of that run. Once the frame is fixed it stays fixed, and a removal made
+while Repeat was on is never "owed" back.
+
+**Not taken:**
+
+- **Re-fit on ⏭, ⏮, jump and reorder** — the owner's call, 2026-11-03. The
+  countdown would grow on ⏮ and depend on the engine's position at every press.
+- **A video the YouTube player cannot play.** The error card (`06 §4`) skips the
+  video without taking it out of the order — unlike a local decode error, which
+  marks the row — so a latched run keeps its length and ends in silence. Such
+  failures are rare by then: the oEmbed check at import turns away embed-off,
+  private and deleted videos, which leaves age- and region-restricted ones.
+- **Crossfade overlaps are still not subtracted.** Match never subtracted them,
+  so a fitted queue with crossfade ends a few seconds before zero, as before
+  (`05 §2`).
 
 ## 6. Removal & failure paths (spec: "deleted from source")
 
@@ -567,6 +631,7 @@ through these concrete paths:
 | ~~YouTube video deleted / made private mid-session (`onError` 100)~~ | **folded into the row below — see the note** | remove on next validation | TT-YT-100 |
 | YouTube **anything** unplayable at play time — deleted, private, embed-off, age-restricted, region-blocked | overlay (typed) → auto-skip after 5 s | — | TT-YT-150 |
 | User deletes track via UI | stop if current → advance | remove | TT-USR-001 |
+| …or any of the above in a **fitted** run, Repeat off (`§5.2`, v2.1) | the countdown loses what the track had left | the countdown loses all of it | TT-PLY-107 |
 
 All removals release the track's ledger entries — its media URL and its cover —
 immediately (`05 §3`, `TtUrlLedger.releaseTrack`).
@@ -602,10 +667,10 @@ user learns why before the countdown starts, instead of watching a track fail.
 **Single-mode carve-out.** "Auto-advance to next" has no next track when the
 queue holds exactly one. So: media stops, the track is marked `status:'error'`
 and shown as failed, TT-PLY-101 is logged — and **the countdown continues to
-zero**. It does not stop, restart or absorb the failure, because the timer and
-the media engine meet at exactly two points and this is not one of them
-(`04 §5`). A countdown that quietly died because a file failed to decode would be
-the worse bug.
+zero**. It does not stop, restart or absorb the failure, because a media failure
+is not a point where the timer and the media engine meet (`04 §5`). A countdown
+that quietly died because a file failed to decode would be the worse bug. (Single
+mode is never fitted — it always loops — so `§5.2` never applies here.)
 
 ## 7. Log & diagnostics
 

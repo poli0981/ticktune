@@ -131,6 +131,24 @@ export class TtTimerDriver {
     this.#emit();
   }
 
+  /**
+   * A fitted run lost a track — docs/02 §5.2 (v2.1).
+   *
+   * 🔴 The worker keeps its own copy of the deadline (docs/04 §1), and the
+   * finish notification is created from it. Moving only the core's would have
+   * the countdown reach zero on screen while the worker still waited for the
+   * old one: no `done` from it, and a notification at a moment that no longer
+   * means anything. So the new deadline goes out in the same call, and the
+   * tick runs here rather than waiting up to 200 ms for the worker's, so a
+   * shortening that reaches zero finishes now.
+   */
+  shorten(byMs: number): void {
+    this.#timer.shorten(byMs);
+    this.#syncWorker();
+    this.#timer.tick();
+    this.#emit();
+  }
+
   reset(): void {
     this.#timer.reset();
     this.#postToWorker({ type: 'stop' });

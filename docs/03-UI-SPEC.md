@@ -351,9 +351,14 @@ the computed opacity and the box, not ask the platform whether it is visible.
    player backfill, which disabled it for every link queue. A deployment
    without the key, or a live stream in the queue, still disables it — with
    the reason shown.
-   It is **one-shot**: it does not re-compute when the queue changes afterwards,
-   because a user who then edits the countdown by hand must not have that
-   silently overwritten.
+   It was **one-shot** until v2.1, because a user who then edits the countdown
+   by hand must not have that silently overwritten. That reason still decides
+   the design. Since v2.1 the button also **latches** the countdown to the
+   queue, and with Repeat off the countdown then follows the queue's total —
+   on Setup and through a run (`02 §5.2`). Any hand edit, a field or a preset,
+   clears the latch, so a value the user typed is never touched again. While the
+   latch holds, one line under the presets says so: "follows the queue —
+   removing a track shortens it", or, with Repeat on, that the frame stays.
 
    **Mode tabs.** All three render, and since P4 all three are enabled.
    `lastMode` is written only when the user picks an **enabled** tab — which is
