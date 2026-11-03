@@ -1532,12 +1532,95 @@ accepting the Legal Gate on the live site in a lasting browser profile.
 |----|--------|-----------------|
 | #104 | `docs/v2.0.4-results` | The checklist's preview and production results; this paragraph |
 
+## v2.1 — the owner's five · **v2.1.0**, 2026-11-03
+
+The owner's list, in their order:
+
+1. a dependency and Actions sweep;
+2. a countdown that follows the queue when a track leaves it, with Repeat off;
+3. YouTube playlists, at most ten;
+4. a disclosure of the AI that built the project, naming the model and the
+   provider;
+5. a way out of the Legal Gate.
+
+The owner decided four things before any code (2026-11-03):
+
+- ten playlists per paste, inside the same 50-link shelf;
+- the countdown shortened only when a track LEAVES the queue, never on
+  ⏭/⏮/jump/reorder;
+- the gate's button acts as the browser's ←, because no page may open the
+  browser's home page;
+- the AI disclosure as new sections of the existing documents, with one legal
+  bump for everything, the 404 correction included.
+
+| PR | Branch | What it carried |
+|----|--------|-----------------|
+| #106 | Dependabot | 11 minor and patch updates, wrangler 4.156.0 and astro 7.4.4 among them |
+| #108 | `chore/node-26` | Node 26 LTS everywhere: `.nvmrc`, `engines`, `@types/node`; `ci-node26` retired. sonarqube-scan-action 8.4.0 with its stale `scannerVersion` pin deleted — #105, the action alone, would have kept a downgrade, and was closed. The `miniflare>undici` override retired. deepmerge and minimatch recorded without overrides (`11 §5`) |
+| #107 | `feat/fit-to-queue` | A countdown "Khớp độ dài" set follows the queue with Repeat off. On Setup the inputs follow the total; in a run, a leaving track takes its unplayed part off (`02 §5.2`, `TtTimer.shorten`, TT-PLY-107) |
+| #109 | `feat/yt-playlists` | The Playlists kind: ten per paste and one batch call to `/api/yt/playlists`, which has its own binding and takes causes from Google's reason (`06 §9`). Also the `videoseries` parse fix, and Legal 2.1's bump with the playlist disclosure |
+| #110 | `feat/legal-2.1` | The AI disclosure (Disclaimer §7, EULA §2, Privacy §3, the gate, README, CONTRIBUTING); the 404 correction (Privacy §6, the backlog's last legal item); **Decline and go back** (`03 §3`); and the release |
+
+**What an independent review changed before CI ran.** A second agent read the
+code, not these conclusions, and three of its points shipped:
+
+- **Fitted became a latch.** "Khớp độ dài" sets it and any hand edit clears it.
+  A comparison of values would have overwritten a typed countdown that happened
+  to equal the total — the very reason Match was one-shot.
+- **The log code moved from TT-USR to TT-PLY.** Two of its three causes are not
+  the user's.
+- **The playlist batch got one shared deadline.** A Worker holds six
+  connections, so ten queued 8 s timers could outlast the client's 10 s.
+
+**What mutation found.** The first fitted-countdown specs polled "the digits
+fell by 4.5 s", and they passed with the wiring removed: a running countdown
+falls 4.5 s in 4.5 s on its own. Every amount is now measured net of the wall
+clock.
+
+- With the store hook and the follow unwired, the five specs that expect a
+  change fail.
+- With the latch and the Repeat guard removed, the two that expect none fail.
+
+**What CI found.** The runner's WebKit has an AudioContext, but it did not play
+the first fixture, an MP3. The row errored (TT-PLY-101), and that error had
+already taken the track's length off, so removing the row took nothing. The code
+was right; the spec had assumed its precondition. The fixtures now start with
+the WAV, and the spec waits for the element to move, or skips and says why.
+
+**What the preview found, with the real key.**
+
+- A channel's uploads list answered its first 50 videos, in order.
+- A missing list answered 404.
+- A regex-valid id that Google answers with a 400 **refused the whole batch**.
+  `ytListCause` read every 4xx except 404 as "about us", so one bad line cost
+  the user the other nine.
+
+The last one was fixed before merge. A 400 or 404 is now about the list; only
+reasons that name the key or the quota refuse a batch; and the refusal carries
+Google's word, because until then the preview could not say why it had refused.
+
+**Not taken:**
+
+- **Re-fitting on ⏭/⏮/jump/reorder** — the owner's call.
+- **A YouTube video the player cannot play.** The error card skips it without
+  taking it out of the order, so a fitted run keeps its length (`02 §5.2`).
+- **A fourth tab for playlists.** Both kinds fill the same shelf, so the kind is
+  a choice of what the box takes.
+- **Dropping the `@types/node` major ignore**, as the backlog line said. It
+  would reopen #14's loop at Node 27.
+
 ## Post-2.0 backlog (unordered)
 
-- **Node 26 LTS — 2026-10-28.** Move `.nvmrc`, `engines` (`>=26 <27`),
-  `@types/node` and the CI jobs to 26, and drop the `dependabot.yml` ignore.
-  `ci-node26` has run on every PR since v2.0, so this is a switch, not a
-  migration.
+- **The playlist route's quota exposure** (v2.1, `06 §9`). One call can spend
+  ten units, and the per-IP binding is loose on production. The remedies are a
+  separate key or Cloud project for playlists, so the lengths keep their
+  quota, or a Durable Object budget — the owner's call.
+- **Playlist entries, unmeasured** (`06 §9`): how deleted and private entries
+  report inside a list, and whether YouTube Music's `RDCLAK…` lists are
+  readable. They are refused today as Mixes, on their prefix.
+- **A video the YouTube player cannot play, in a fitted run** — skipped, not
+  dropped, so the countdown keeps its length. If it ever matters, route the
+  error card's skip through `session.onLeave` (`02 §5.2`).
 - **Loudness normalisation — S6 failed.** A later spike on one of `15 §S6`'s
   remedies: slice-and-accumulate at 48 kHz, WebCodecs `AudioDecoder`, or tags
   only — the last an owner decision, since it leaves untagged files alone.
@@ -1573,15 +1656,6 @@ accepting the Legal Gate on the live site in a lasting browser profile.
   `onTrackEnded`, which moves only a playing run, so the failed video stays
   current until a resume makes it fail again. Pre-existing; found in v2.0.4's
   review.
-- **The Privacy Policy is wrong about 404s.** `§6` says Worker logs are
-  "YouTube lookups only" and that "loading a page never creates one". A
-  mistyped URL matches no asset, so it invokes the Worker, and Workers Logs
-  keeps it like any other invocation — `wrangler tail` on production showed the
-  request with its headers, `cf-connecting-ip` among them (2026-10-27). Real
-  pages never invoked it. Correcting an untrue description is the reason
-  `1.0-draft` became `1.1-draft` (`tt-legal-const.ts`), so this is a
-  `TT_LEGAL_VERSION` bump — batched with the next legal change, the owner's
-  call.
 
 ## Standing rules
 

@@ -128,7 +128,7 @@ measuring again.
 
 ## Current status
 
-**v2.0.4** (2026-10-28) is the current release, live on `https://ticktune.net`.
+**v2.1.0** (2026-11-03) is the current release, live on `https://ticktune.net`.
 P1–P7 are complete — v1.0.0 closed P7 — and every phase's exit review is in
 `docs/16`. v1.1 was a full review rather than a phase; v1.1.1 fixed two live
 defects. **v2.0 shipped every post-1.1 direction**: link lengths from the
@@ -145,7 +145,16 @@ two dev-tree overrides (`docs/11 §5`). **v2.0.3 rate-limits `/api/*` in the
 Worker** — the zone rule `docs/10 §6` had promised since P4 never existed.
 **v2.0.4 makes the YouTube player's own ⏯ the run's** — a pause in the frame
 used to stop the music and leave the countdown running (the owner's report).
-`docs/16`'s v2.0 through v2.0.4 sections have the reviews.
+**v2.1 is the owner's five:**
+- Node 26 LTS and the deps/Actions sweep.
+- A countdown "Khớp độ dài" set that follows the queue when a track leaves it,
+  with Repeat off.
+- YouTube playlists — ten per paste, inside the same 50.
+- Legal 2.1: the AI-assisted development disclosure, and the 404-logging
+  correction that open item 2 had waited on.
+- **Decline and go back** at the gate.
+
+`docs/16`'s v2.0 through v2.1 sections have the reviews.
 
 **Releases are tag-only (decided 2026-10-20).** Workers Builds runs
 `npx wrangler versions upload` for every push, so a branch gets a preview URL
@@ -220,6 +229,20 @@ Four habits that found the rest:
 
 **Audio and time**
 
+- **A fitted countdown is a latch** (v2.1, `docs/02 §5.2`). "Khớp độ dài" sets
+  it, per mode; any hand edit or preset clears it, so a typed value is never
+  overwritten — even one equal to the total.
+  - **Setup:** while the latch holds and Repeat is off, H:MM:SS follows the
+    total on every screen.
+  - **A run that started latched:** each track that LEAVES the order (×, a
+    decode error, TT-YT-007) takes its unplayed part off through
+    `TtTimer.shorten`, which never moves the deadline below now — a past
+    deadline reads as a late finish. The cut is computed BEFORE the store
+    moves (`session.onLeave`), and applied after it.
+  - **Not counted:** ⏭/⏮/jump/reorder (the owner's call), and a video the
+    YouTube player cannot play (skipped, not dropped).
+  - Turning Repeat on ends the fit for the rest of the run.
+
 - **S2 failed, and so did its remedy** (`docs/04 §2`): hidden + silent, `done`
   fired 2 m 57 s late; with the keep-alive oscillator ON, still 52.4 s late —
   the stall is main-thread message processing. **Do not build a keep-alive
@@ -261,6 +284,19 @@ Four habits that found the rest:
   `done`.
 
 **YouTube**
+
+- **Playlists are a kind of paste, not a mode** (v2.1, `docs/06 §9`):
+  - Ten per paste, expanded into the same shelf under the same 50.
+  - ONE batch call. A paste is then at most 1 + 50 + 1 = 52 `/api` calls, under
+    60/60 s and 60/10 s; ten lookups would be 61.
+  - The batch shares one 8 s deadline: a Worker holds six connections.
+  - **Causes come from Google's `reason`, never the status.** `quotaExceeded`
+    is a 403 like a private list, and the preview showed a 400 for one bad id
+    sinking the whole batch.
+  - Only reasons that name our key or quota refuse a batch, and the refusal
+    carries Google's word.
+  - `src/lib/tt-yt-list.ts` is shared with the Worker, like `tt-yt-cause.ts`.
+  - The kind is held by the shell, so a run does not reset it.
 
 - **S1: `onError` does not discriminate** — private, age-restricted,
   region-blocked, deleted, malformed and embed-off all report **150**. The
@@ -389,6 +425,26 @@ Four habits that found the rest:
 
 **Static pages and legal**
 
+- **Legal 2.1 is one bump for four changes** (`tt-legal-const.ts`):
+  - the playlist flow;
+  - the AI disclosure: Disclaimer §7 names Claude Code by Anthropic, PBC, with
+    Claude Opus 4.8 for 0.2.0–1.0.0 and Claude Opus 5.5 from 1.1.0; EULA §2 says
+    the GPL covers all of it; Privacy §3 says no AI service receives anything;
+  - the 404 correction: a mistyped address reaches the Worker and is logged,
+    headers and IP included;
+  - EULA §1 naming the buttons as they read.
+
+  The AI facts come from the commits' `Co-Authored-By` trailers — keep them
+  true when the model changes, which is a text edit, not a bump (the
+  translation precedent).
+- **The gate's way out is the browser's ←** (`src/lib/tt-leave.ts`, v2.1). No
+  page may open the browser's home page: `about:home` and `chrome://newtab` are
+  refused to web content. So the order is `history.back()`, then
+  `window.close()`, then `about:blank`. There is no timer after `back()` — a
+  slow cross-origin navigation would race it — and no `canGoBack`, which counts
+  same-origin entries only. It stores nothing, and it sits after Accept so the
+  keyboard order holds.
+
 - **Static key parity is a COMPILE error**: `vi.ts` is annotated against
   `typeof en`, and `en.ts` is deliberately not `as const`.
 - **hreflang lives in the page, asserted as reciprocity**; `@astrojs/sitemap`'s
@@ -443,16 +499,15 @@ svelte-check and is outside typescript-eslint's peer range, `docs/11 §4`)
 
 ### Open items, in the order they block things
 
-1. **Node 26 becomes LTS on 2026-10-28.** Switch `.nvmrc`, `engines`,
-   `@types/node` and CI to 26 and drop the `dependabot.yml` ignore — `ci-node26`
-   has been green on every v2.0 PR, so it is a switch, not a migration.
-2. **The Privacy Policy is wrong about 404s** (found 2026-10-27, `docs/16`
-   v2.0.3). It says Worker logs are "YouTube lookups only" and "loading a page
-   never creates one"; a mistyped URL has no asset, so it DOES invoke the Worker
-   and Workers Logs records it — request headers included (`wrangler tail`).
-   Real pages never do. An untrue description is the 1.0-draft → 1.1-draft
-   class: correct the text and bump `TT_LEGAL_VERSION`, batched — the owner's
-   call.
+1. **The playlist route's quota exposure** (v2.1, `docs/06 §9`). One call can
+   spend ten Data API units, and the per-IP binding is loose on production, so
+   a determined abuser could empty the day's 10,000 units. The cost would be
+   playlists and lengths until midnight Pacific; links still import and play.
+   The remedies are a separate key or project for playlists, or a Durable
+   Object budget — both the owner's call.
+2. **Playlist entries, unmeasured** (`docs/06 §9`): how deleted and private
+   entries report inside a list, and whether YouTube Music `RDCLAK…` lists are
+   readable (refused today as Mixes, on their prefix).
 3. **The owner's S5 run** — an everyday browser with a click on the
    notification, and Safari (`docs/15 §S5`). The crossfade was confirmed by ear
    on the released build (2026-10-21, `tests/manual/v2.0-live-checklist.md`).
