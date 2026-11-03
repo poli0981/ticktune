@@ -25,6 +25,19 @@ Enable the corpus guard once per clone: `git config core.hooksPath .githooks`.
   gate). PRs that violate an invariant are closed regardless of quality.
 - For anything non-trivial, open an issue first to align on approach.
 
+## AI-assisted contributions
+
+Welcome, on the terms this project holds itself to (the Disclaimer's §7):
+
+- **Disclose it.** A commit made with an AI assistant ends with a
+  `Co-Authored-By:` trailer naming the model, as every commit here does.
+- **You are the author.** Review every line you submit; the invariants, the PR
+  checklist and the tests apply exactly as they do to hand-written code.
+- **Keep secrets and people out of it.** Never paste keys, tokens, a user's
+  Copy Diagnostics output or anything from a private report into an AI tool.
+- **Licence.** Contributions are GPL-3.0-only, AI-assisted ones included. Do not
+  submit output you have reason to think reproduces someone else's code.
+
 ## Workflow
 
 1. Branch from `main`: `feat/…`, `fix/…`, `docs/…`, `chore/…`, `spike/…`.

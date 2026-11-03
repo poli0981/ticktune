@@ -6,10 +6,11 @@ lawyer, for a free, open-source, non-commercial web app.
 
 ## 1. Acceptance
 
-By ticking the box and clicking **Accept** at the Legal Gate you agree to these
-terms, the [Disclaimer](./DISCLAIMER.md) and the
+By ticking the box and clicking **Agree and continue** at the Legal Gate you
+agree to these terms, the [Disclaimer](./DISCLAIMER.md) and the
 [Privacy Policy](./PRIVACY-POLICY.md). Your acceptance is stored only on your
-device. If these documents change materially, the gate asks again.
+device; **Decline and go back** stores nothing. If these documents change
+materially, the gate asks again.
 
 ## 2. Licence
 
@@ -17,6 +18,11 @@ TickTune's source code is licensed **GPL-3.0-only**
 ([github.com/poli0981/ticktune](https://github.com/poli0981/ticktune)). These
 terms cover your use of the hosted service at `ticktune.net`; they never restrict
 what the GPL lets you do with the code.
+
+Much of that code was written with an AI assistant, under the developer's
+direction and review ([Disclaimer](./DISCLAIMER.md) §7). All of it is distributed
+under the same licence as published; Anthropic, the assistant's provider, is not
+a party to these terms and gives no warranty for TickTune.
 
 ## 3. Your content
 

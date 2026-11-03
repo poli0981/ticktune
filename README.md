@@ -140,6 +140,16 @@ The `docs/` suite is authoritative; `CLAUDE.md` is its condensed contract.
 | `15-SPIKES` | The validation spikes and their results |
 | `16-ROADMAP` | Phases, exit reviews, what is next |
 
+## AI-assisted development
+
+TickTune is built with **Claude Code**, Anthropic's coding assistant: the
+**Claude Opus 4.8** model for 0.2.0–1.0.0 (July 2026), **Claude Opus 5.5** from
+1.1.0 (October 2026). The developer directs and reviews every change, and each
+commit made with the assistant carries a `Co-Authored-By` trailer, so the
+history shows which. [`CLAUDE.md`](CLAUDE.md) is the contract it works under. The
+app itself has no AI features and sends nothing to any AI service — the
+[Disclaimer](https://ticktune.net/en/legal/disclaimer/) §7 says the same.
+
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) first — especially the hard invariants in

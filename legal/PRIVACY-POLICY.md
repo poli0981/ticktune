@@ -41,7 +41,8 @@ request.
 | You add YouTube playlists | `/api/yt/playlists` on our own domain, which asks the **YouTube Data API** which videos each playlist holds | The playlist IDs only, up to ten. As for lengths, the request to Google comes from our server with our own key and carries nothing about you |
 | YouTube mode | The YouTube IFrame API (`www.youtube.com`), the player (`youtube-nocookie.com`) and thumbnails (`i.ytimg.com`) | Whatever YouTube's player requests |
 
-Local modes make no request to Google at all.
+Local modes make no request to Google at all. No part of TickTune sends
+anything to an AI service.
 
 ## 4. Cloudflare Web Analytics
 
@@ -58,8 +59,8 @@ YouTube mode uses YouTube API Services: the embedded player, and the YouTube
 Data API, which our server asks for the length of each video you add — by video
 ID — and for the videos of each playlist you add — by playlist ID — with no
 information about you. Lengths are kept for up to 24 hours per video, and what a
-playlist holds for up to an hour, so the same thing is not looked up again. Once you interact with the player,
-Google may set cookies and process data as described in the
+playlist holds for up to an hour, so the same thing is not looked up again. Once
+you interact with the player, Google may set cookies and process data as described in the
 [Google Privacy Policy](https://policies.google.com/privacy). The player is
 created on the privacy-enhanced `youtube-nocookie.com` host.
 
@@ -68,10 +69,13 @@ created on the privacy-enhanced `youtube-nocookie.com` host.
 - **Cloudflare dashboard — aggregates only:** requests, bandwidth, approximate
   unique visitors, countries, status codes, cache use, blocked threats, and the
   Web Analytics figures in `§4`. No individual IP addresses or browser strings.
-- **Worker logs — YouTube lookups only:** each `/api/yt/oembed`,
-  `/api/yt/durations` and `/api/yt/playlists` call is logged (the request, the response and the country
-  Cloudflare attaches) and deleted by Cloudflare after **7 days**. Loading a page
-  never creates one.
+- **Worker logs — YouTube lookups and missing pages:** each `/api/yt/oembed`,
+  `/api/yt/durations` and `/api/yt/playlists` call is logged, and so is a request
+  for an address that does not exist — it reaches our Worker, which answers with
+  the "not found" page. An entry holds the request, with its address and headers
+  (your IP address and browser among them), the response and the country
+  Cloudflare attaches, and Cloudflare deletes it after **7 days**. Loading a page
+  that exists never creates one.
 - **Rate limiting:** to protect the service and a shared quota, each call to
   `/api/yt/oembed`, `/api/yt/durations` and `/api/yt/playlists` is counted
   per IP address for one minute, in the memory of Cloudflare's servers. That
@@ -99,7 +103,7 @@ changes bring the Legal Gate back; every revision is in the Git repository.
 
 | Version | Date | Change |
 |---------|------|--------|
-| 2.1 | 2026-11-03 | YouTube playlists: their videos are read through the YouTube Data API, by playlist ID, from our server, and kept up to an hour |
+| 2.1 | 2026-11-03 | YouTube playlists through the YouTube Data API (playlist IDs only, from our server; kept up to an hour). Worker logs also record requests for addresses that do not exist, headers included — this policy said loading a page never created one. No AI service receives anything (AI-assisted development is disclosed in the Disclaimer §7) |
 | 2.0 | 2026-10-27 | The per-IP rate limit also counts `/api/yt/oembed`, the other YouTube lookup — the same count, kept the same way (text only; the gate is not shown again) |
 | 2.0 | 2026-10-21 | YouTube lengths via the YouTube Data API; offline cache of the app's own files; optional finish notifications; settings file export/import; per-IP rate limit on lengths |
 | 1.1 | 2026-10-20 | Cloudflare Web Analytics; Worker logs kept 7 days (Workers Paid); privacy contact; YouTube and Google links; shortened |

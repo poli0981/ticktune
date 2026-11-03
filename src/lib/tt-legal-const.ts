@@ -52,8 +52,18 @@
  * 🔁 **`2.0` → `2.1` in v2.1**, one bump for the release. YouTube playlists
  * joined the data flows: playlist ids go to our Worker, which asks the Data
  * API what each list holds and keeps the answer up to an hour (docs/06 §9).
- * The rest of the release's legal changes land under this same version
- * before the tag — every one of them in one prompt.
+ * The rest of the release's legal changes landed under this same version
+ * before the tag, so every one of them is in one prompt:
+ * - the Privacy Policy's `§6` was untrue about 404s — "loading a page never
+ *   creates one", while a mistyped address reaches the Worker and Workers Logs
+ *   keeps it with its headers (found 2026-10-27). The 1.0-draft → 1.1-draft
+ *   class, waiting since v2.0.3 for a bump to ride;
+ * - AI-assisted development is disclosed: the Disclaimer's `§7` names Claude
+ *   Code, Anthropic and the two models; the EULA's `§2` says the licence
+ *   covers all of it; the Privacy Policy says no AI service receives anything;
+ * - the EULA's `§1` names the button as it is ("Agree and continue"), and the
+ *   gate's new **Decline and go back**, which stores nothing;
+ * - Third-Party Notices gained the YouTube Data API row Legal 2.0 never added.
  */
 export const TT_LEGAL_VERSION = '2.1';
 

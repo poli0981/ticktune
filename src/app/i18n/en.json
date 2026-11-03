@@ -10,6 +10,8 @@
       "responsibilityRest": " TickTune neither moderates nor stores that content.",
       "youtube": "YouTube mode uses YouTube’s official player and the YouTube Data API",
       "youtubeRest": "; by using it you are also bound by YouTube’s and Google’s terms.",
+      "ai": "Built with AI assistance.",
+      "aiRest": " Claude Code (Anthropic) helped write the code and these texts, under the developer’s review; the app itself sends nothing to any AI.",
       "asIs": "The software is provided \"AS IS\", without warranty."
     },
     "full": "Full text:",
@@ -21,6 +23,7 @@
     },
     "agree": "I have read and agree to the terms above.",
     "accept": "Agree and continue",
+    "leave": "Decline and go back",
     "stored": "stored locally on your machine"
   },
   "setup": {

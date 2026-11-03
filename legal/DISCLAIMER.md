@@ -28,3 +28,14 @@ Version 2.1 · 2026-11-03 · English canonical; Vietnamese at
 
 6. **Desktop only.** TickTune is built for desktop browsers; phones and
    touch-only tablets see a notice instead of the app.
+
+7. **Built with AI assistance.** TickTune's code, tests, documentation and these
+   legal texts were written with the help of an AI coding assistant: **Claude
+   Code** by **Anthropic, PBC**, using the **Claude Opus 4.8** model for versions
+   0.2.0–1.0.0 (July 2026) and **Claude Opus 5.5** from version 1.1.0 (October
+   2026). The developer directed and reviewed every change and is responsible
+   for the result; each commit made with the assistant says so in a
+   `Co-Authored-By` line in the public Git history. AI output can be wrong in
+   ways that look right — one more reason the software comes "AS IS" (§5).
+   TickTune itself has no AI features: nothing you add or do in the app is sent
+   to Anthropic or to any other AI service, or used to train a model.

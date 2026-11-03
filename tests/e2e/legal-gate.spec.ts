@@ -126,3 +126,49 @@ test.describe('legal gate', () => {
     await expect(gate(page)).toBeVisible();
   });
 });
+
+test.describe('the way out — docs/03 §3 item 2 (v2.1)', () => {
+  test.skip(
+    ({ isMobile }) => !!isMobile,
+    'desktop projects only — the island does not load on mobile',
+  );
+
+  test('goes back where the user came from, and stores nothing', async ({ page }) => {
+    await page.goto('/');
+    await page.goto('/app/');
+    await expect(page.locator('[role=dialog]')).toBeVisible();
+
+    await page.getByTestId('tt-gate-leave').click();
+
+    await expect(page).toHaveURL(/\/$/);
+    await expect(page.locator('h1')).toBeVisible(); // the landing, not the app
+    expect((await storedSettings(page))?.['legalAccepted'] ?? null).toBeNull();
+  });
+
+  test('with nothing behind it, the tab closes or turns blank — never a home page', async ({
+    context,
+  }) => {
+    const page = await context.newPage();
+    await page.goto('/app/');
+    await expect(page.locator('[role=dialog]')).toBeVisible();
+
+    const closed = page.waitForEvent('close').then(() => 'closed' as const);
+    const blank = page.waitForURL('about:blank').then(() => 'blank' as const);
+    await page.getByTestId('tt-gate-leave').click();
+    // Which one is the engine's call: script may close a one-entry tab in
+    // some browsers and not in others. Either is the documented outcome.
+    expect(['closed', 'blank']).toContain(await Promise.race([closed, blank]));
+  });
+
+  test('keeps the keyboard order the gate relies on: checkbox, Accept, then this', async ({
+    page,
+  }) => {
+    await page.goto('/app/');
+    await expect(page.locator('[role=dialog]')).toBeVisible();
+    await page.keyboard.press('Space');
+    await page.keyboard.press('Tab');
+    await expect(page.getByTestId('tt-gate-accept')).toBeFocused();
+    await page.keyboard.press('Tab');
+    await expect(page.getByTestId('tt-gate-leave')).toBeFocused();
+  });
+});

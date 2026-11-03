@@ -250,3 +250,41 @@ describe('Legal 2.0 discloses what v2.0 does', () => {
     expect(eula[l]).toMatch(l === 'en' ? /mandatory protection/ : /quyền bảo vệ bắt buộc/);
   });
 });
+
+/**
+ * Legal 2.1 — what v2.1 says, in both languages. One bump carried four
+ * things (tt-legal-const.ts): the playlist flow (asserted above, beside the
+ * Data API), the AI disclosure, the 404 correction, and the gate's way out.
+ */
+describe('Legal 2.1 discloses what v2.1 does', () => {
+  // Prose, read as prose: a name the text wraps across two lines is still there.
+  const flat = (dir: string, file: string) => read(dir, file).replace(/\s+/g, ' ');
+  const disclaimer = { en: flat(EN_DIR, 'DISCLAIMER.md'), vi: flat(VI_DIR, 'DISCLAIMER.md') };
+  const privacy = { en: flat(EN_DIR, 'PRIVACY-POLICY.md'), vi: flat(VI_DIR, 'PRIVACY-POLICY.md') };
+  const eula = { en: flat(EN_DIR, 'EULA.md'), vi: flat(VI_DIR, 'EULA.md') };
+
+  it.each(['en', 'vi'] as const)('%s: the AI assistant, its provider and both models', (l) => {
+    for (const name of ['Claude Code', 'Anthropic, PBC', 'Claude Opus 4.8', 'Claude Opus 5.5']) {
+      expect(disclaimer[l]).toContain(name);
+    }
+    expect(disclaimer[l]).toContain('Co-Authored-By');
+    // …and that the app itself sends nothing to one.
+    expect(privacy[l]).toMatch(l === 'en' ? /AI service/ : /dịch vụ AI/);
+    expect(eula[l]).toMatch(l === 'en' ? /AI assistant/ : /trợ lý AI/);
+  });
+
+  it.each(['en', 'vi'] as const)('%s: Worker logs include addresses that do not exist', (l) => {
+    // The untrue sentence must be gone, and the true one there.
+    expect(privacy[l]).not.toMatch(/Loading a page\s+never creates one/);
+    expect(privacy[l]).not.toMatch(/Việc tải trang không bao giờ tạo ra/);
+    expect(privacy[l]).toMatch(
+      l === 'en' ? /address that does not exist/ : /địa chỉ không tồn tại/,
+    );
+    expect(privacy[l]).toMatch(l === 'en' ? /IP address and browser/ : /địa chỉ IP và trình duyệt/);
+  });
+
+  it.each(['en', 'vi'] as const)('%s: the gate’s buttons, by the names they carry', (l) => {
+    expect(eula[l]).toContain(l === 'en' ? 'Agree and continue' : 'Đồng ý và tiếp tục');
+    expect(eula[l]).toContain(l === 'en' ? 'Decline and go back' : 'Không đồng ý, quay lại');
+  });
+});

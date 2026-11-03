@@ -39,6 +39,7 @@ pnpm and similar — are not distributed with the app and so carry no notice her
 |---------|-------|
 | YouTube embedded player & IFrame Player API | [YouTube Terms of Service](https://www.youtube.com/t/terms); loaded from YouTube only in YouTube mode, never bundled or modified |
 | YouTube oEmbed (via our edge endpoint) | Public oEmbed endpoint; only video IDs are forwarded |
+| YouTube Data API v3 (via our edge endpoints) | [YouTube API Services Terms of Service](https://developers.google.com/youtube/terms/api-services-terms-of-service); called from our server with our own key — only video IDs and playlist IDs are forwarded |
 | Cloudflare (hosting, CDN, Workers) | Cloudflare service terms |
 | Cloudflare Web Analytics | Cloudflare service terms; beacon loaded from `static.cloudflareinsights.com` (see the Privacy Policy) |
 
