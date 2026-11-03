@@ -207,8 +207,28 @@ describe('causes — Google’s reason decides, never the status alone', () => {
     const res = await call(`?ids=${A},${B}`);
 
     expect(res.status).toBe(503);
-    await expect(res.json()).resolves.toEqual({ error: 'upstream_refused' });
+    // Google's word rides along: it names our quota, and it is the only place
+    // the reason survives (Workers Logs keeps the response).
+    await expect(res.json()).resolves.toEqual({
+      error: 'upstream_refused',
+      reason: 'quotaExceeded',
+    });
     expect(stored.size).toBe(0);
+  });
+
+  it('one list Google calls a bad request costs that list, never the batch', async () => {
+    fetchMock.mockImplementation((url: URL) =>
+      Promise.resolve(
+        url.searchParams.get('playlistId') === A
+          ? googleError(400, 'playlistOperationUnsupported')
+          : page([[V1, 'public', true]]),
+      ),
+    );
+    const res = await call(`?ids=${A},${B}`);
+    expect(res.status).toBe(200);
+    await expect(res.json()).resolves.toEqual({
+      lists: { [A]: { error: 'not_found' }, [B]: { ids: [V1], skipped: 0, total: 1 } },
+    });
   });
 
   it('Google having a bad minute is transient: answered as such, and never cached', async () => {
