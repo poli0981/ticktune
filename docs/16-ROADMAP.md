@@ -1675,6 +1675,32 @@ What 12.3.3 changes, from its notes, on the paths TickTune reads:
 | #111 | Dependabot | music-metadata 12.3.2 → 12.3.3, knip 6.44.0 → 6.44.1 |
 | #113 | `chore/release-2.1.1` | The version, this section, the live checklist |
 
+**Released — 2026-11-03, 15:59 UTC.** #113 merged by rebase once `e2e` passed,
+on its first attempt. Its tree is identical to the branch head the preview ran.
+
+- **The tag.** `v2.1.1` sits on `990aac3`. The signature was verified against a
+  keyring holding only `https://github.com/poli0981.gpg` before the push.
+- **The deploy.** `deploy.yml`'s verify, deploy and release jobs were green,
+  with exactly one new deployment (`aad8081b`).
+- **The preview** (`1baf2f1c`), through the shipped bundle:
+  - the four Vietnamese fixtures read exactly;
+  - ID3v1 still falls back to the file name (TT-IMP-007);
+  - the cover decodes;
+  - the 11-minute file is refused (TT-IMP-002);
+  - a run played with a clean console;
+  - `verify:csp` 6/6.
+- **Production:**
+  - About reads 2.1.1, and `verify:csp` passed 6/6;
+  - the preview's script passed 12/12 on its third attempt. The first two timed
+    out while Cloudflare reported degraded locations in Asia, and TLS from the
+    session's machine took seconds to over a minute;
+  - `/app/`, `/`, a legal page and `sw.js` were byte-identical to the
+    preview's.
+
+| PR | Branch | What it carried |
+|----|--------|-----------------|
+| #114 | `docs/v2.1.1-results` | The checklist's preview and production results; this paragraph |
+
 ## Post-2.0 backlog (unordered)
 
 - **The playlist route's quota exposure** (v2.1, `06 §9`). One call can spend
