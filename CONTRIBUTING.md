@@ -6,7 +6,7 @@ your contributions are licensed the same way.
 ## Setup
 
 ```bash
-# Requirements: Node 24 LTS, pnpm 11 (corepack enable)
+# Requirements: Node 26 LTS, pnpm 11 (corepack enable)
 git clone https://github.com/poli0981/ticktune
 cd ticktune
 pnpm install
