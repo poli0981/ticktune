@@ -128,7 +128,7 @@ measuring again.
 
 ## Current status
 
-**v2.1.0** (2026-11-03) is the current release, live on `https://ticktune.net`.
+**v2.1.1** (2026-11-03) is the current release, live on `https://ticktune.net`.
 P1–P7 are complete — v1.0.0 closed P7 — and every phase's exit review is in
 `docs/16`. v1.1 was a full review rather than a phase; v1.1.1 fixed two live
 defects. **v2.0 shipped every post-1.1 direction**: link lengths from the
@@ -154,7 +154,10 @@ used to stop the music and leave the countdown running (the owner's report).
   correction that open item 2 had waited on.
 - **Decline and go back** at the gate.
 
-`docs/16`'s v2.0 through v2.1 sections have the reviews.
+**v2.1.1 is the tag parser** — music-metadata 12.3.3 (ID3v2 and
+headerless-MP3 duration fixes) arrived as Dependabot #111 after v2.1.0, and it
+ships, so it got its own patch. `docs/16`'s v2.0 through v2.1.1 sections have
+the reviews.
 
 **Releases are tag-only (decided 2026-10-20).** Workers Builds runs
 `npx wrangler versions upload` for every push, so a branch gets a preview URL

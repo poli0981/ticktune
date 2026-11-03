@@ -1644,6 +1644,37 @@ after the one below it merged.
 |----|--------|-----------------|
 | #112 | `docs/v2.1.0-results` | The checklist's preview and production results; this paragraph |
 
+## v2.1.1 — the tag parser · **v2.1.1**, 2026-11-03
+
+Dependabot's #111 opened after v2.1.0 was tagged. It carries **music-metadata
+12.3.3**, the parser every local import goes through: its tags, cover art and
+durations (`02 §4`). It ships, so it is a release of its own rather than a
+merge that waits for the next one. knip 6.44.1, dev-only, came with it.
+
+What 12.3.3 changes, from its notes, on the paths TickTune reads:
+
+- ID3v2 tags whose unsynchronisation was removed at the wrong level, or whose
+  extended header was sized by the wrong version's rule. That is the tag
+  layer behind every MP3 title, artist and cover, and behind `05 §5`'s
+  mojibake check.
+- Headerless MP3 durations are now scanned past early CBR frames. That is the
+  length the 10:02 limit and Match read (`02 §4` step 3).
+- Fixes to FLAC STREAMINFO, MP4 and EBML (WebM and Opus) handling.
+
+**Verified.**
+
+- #111's CI passed on its own base, all five E2E projects included. This PR
+  re-ran them on `main` with the change merged.
+- The importer's specs cover the Vietnamese ID3v2.3/2.4 and Vorbis fixtures,
+  the cover-art fixture and the over-10:02 rejection.
+- On the preview, those fixtures were imported in a real browser through the
+  shipped bundle (`tests/manual/v2.1.1-live-checklist.md`).
+
+| PR | Branch | What it carried |
+|----|--------|-----------------|
+| #111 | Dependabot | music-metadata 12.3.2 → 12.3.3, knip 6.44.0 → 6.44.1 |
+| #113 | `chore/release-2.1.1` | The version, this section, the live checklist |
+
 ## Post-2.0 backlog (unordered)
 
 - **The playlist route's quota exposure** (v2.1, `06 §9`). One call can spend
