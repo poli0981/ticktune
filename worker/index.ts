@@ -348,16 +348,19 @@ async function errorReason(res: Response): Promise<string | null> {
   }
 }
 
+/** A refusal about our key or quota, never the list, with Google's word for it. */
+type TtRefused = { refused: string };
+
 /**
  * One list's FIRST page — 50 entries, which is the whole YouTube shelf — or
- * what kind of failure it was. `'refused'` is about our key or quota, never
- * the list, and the caller answers the whole batch with it.
+ * what kind of failure it was. A `TtRefused` is about us, and the caller
+ * answers the whole batch with it.
  */
 async function fetchList(
   id: string,
   key: string,
   signal: AbortSignal,
-): Promise<TtListAnswer | 'refused'> {
+): Promise<TtListAnswer | TtRefused> {
   const upstream = new URL('https://www.googleapis.com/youtube/v3/playlistItems');
   upstream.searchParams.set('part', 'contentDetails,status');
   upstream.searchParams.set('maxResults', '50');
@@ -377,8 +380,9 @@ async function fetchList(
     return { error: 'upstream_unreachable' };
   }
   if (!res.ok) {
-    const cause = ytListCause(res.status, await errorReason(res));
-    return cause === 'refused' ? 'refused' : { error: cause };
+    const reason = await errorReason(res);
+    const cause = ytListCause(res.status, reason);
+    return cause === 'refused' ? { refused: reason ?? String(res.status) } : { error: cause };
   }
 
   try {
@@ -445,7 +449,17 @@ async function playlists(ids: string[], env: Env, ctx: ExecutionContext): Promis
 
   const signal = AbortSignal.timeout(UPSTREAM_TIMEOUT_MS);
   const answers = await Promise.all(missing.map((id) => fetchList(id, key, signal)));
-  if (answers.includes('refused')) return json({ error: 'upstream_refused' }, 503, 0);
+  /*
+   * Google's word goes back with the refusal. It names our key or quota —
+   * `quotaExceeded`, `keyInvalid` — never a person, and it is the only place
+   * the reason survives: the client reads one word, and Workers Logs keeps the
+   * response. Found on the v2.1 preview, where a refusal with no reason could
+   * not be told apart from a misread one.
+   */
+  const refused = answers.find((a): a is TtRefused => 'refused' in a);
+  if (refused !== undefined) {
+    return json({ error: 'upstream_refused', reason: refused.refused }, 503, 0);
+  }
 
   missing.forEach((id, i) => {
     const answer = answers[i] as TtListAnswer;

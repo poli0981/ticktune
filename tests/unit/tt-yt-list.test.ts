@@ -54,6 +54,15 @@ describe('ytListCause — Google’s reason decides, never the status alone', ()
     expect(ytListCause(404, 'playlistNotFound')).toBe('not_found');
     expect(ytListCause(404, null)).toBe('not_found');
     expect(ytListCause(403, 'playlistItemsNotAccessible')).toBe('private');
+    expect(ytListCause(403, 'watchLaterNotAccessible')).toBe('private');
+  });
+
+  it('any other 400 is about the list too — one bad id must not cost the batch', () => {
+    // Measured on the v2.1 preview: a regex-valid id Google refused with a
+    // 400 took the other lists of its paste down with it.
+    expect(ytListCause(400, 'playlistOperationUnsupported')).toBe('not_found');
+    expect(ytListCause(400, 'invalidValue')).toBe('not_found');
+    expect(ytListCause(400, null)).toBe('not_found');
   });
 
   it('🔴 a spent quota is a 403 too, and must never read as "private"', () => {

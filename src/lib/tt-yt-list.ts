@@ -57,10 +57,37 @@ export function ytListCause(
   reason: string | null,
 ): 'not_found' | 'private' | 'upstream_unreachable' | 'refused' {
   if (status >= 500 || status === 429) return 'upstream_unreachable';
-  if (reason === 'rateLimitExceeded' || reason === 'userRateLimitExceeded') {
-    return 'upstream_unreachable';
-  }
-  if (reason === 'playlistNotFound' || status === 404) return 'not_found';
-  if (reason === 'playlistItemsNotAccessible') return 'private';
+  if (reason !== null && TRANSIENT.has(reason)) return 'upstream_unreachable';
+  if (reason !== null && ABOUT_US.has(reason)) return 'refused';
+  if (reason !== null && NOT_READABLE.has(reason)) return 'private';
+  /*
+   * The request is ours and fixed but for the id, so any other 400 or 404 is
+   * about the LIST: missing, malformed past our shape check, or one the API
+   * cannot list (`playlistOperationUnsupported`). Measured on the v2.1
+   * preview: such an id refused the WHOLE batch while this read 400 as "us",
+   * so one bad line cost the user the other nine.
+   */
+  if (status === 404 || status === 400) return 'not_found';
   return 'refused';
 }
+
+/** Google having a bad minute. */
+const TRANSIENT = new Set(['rateLimitExceeded', 'userRateLimitExceeded', 'backendError']);
+
+/** Our key, its restriction or the quota — a fact about us, for the whole batch. */
+const ABOUT_US = new Set([
+  'quotaExceeded',
+  'dailyLimitExceeded',
+  'keyInvalid',
+  'keyExpired',
+  'accessNotConfigured',
+  'ipRefererBlocked',
+  'forbidden',
+]);
+
+/** A list that exists and that a key may not read. */
+const NOT_READABLE = new Set([
+  'playlistItemsNotAccessible',
+  'watchHistoryNotAccessible',
+  'watchLaterNotAccessible',
+]);
