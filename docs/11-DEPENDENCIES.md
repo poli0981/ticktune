@@ -1,13 +1,13 @@
 # 11 — Dependencies & Versions
 
-Suite 2.0 · **Versions as of v2.1.0 (2026-11-03), resolved from `pnpm-lock.yaml`.**
+Suite 2.0 · **Versions as of v2.1.1 (2026-11-03), resolved from `pnpm-lock.yaml`.**
 Spec requirement: latest-or-LTS everywhere, no components with known critical
 CVEs. Dependabot moves these weekly, so treat a version here as a floor and the
 lockfile as the truth.
 
 ## 1. Runtime / toolchain
 
-| Component | Version (v2.1.0) | Channel | Notes |
+| Component | Version (v2.1.1) | Channel | Notes |
 |-----------|---------------------|---------|-------|
 | Node.js | **26.x (Active LTS)** | LTS | LTS since 2026-10-28; v2.1 moved every pin to it — `.nvmrc` 26 (every job, Workers Builds), `engines` `>=26 <27`, `@types/node` 26. The `ci-node26` job that ran ahead of the date on every v2.0 PR went with the switch, as redundant. Node 24 stays in Maintenance LTS until 2028-04-30, but nothing here runs on it any more. |
 | pnpm | 11.15.1 | latest | Portfolio used 10.x this month; 11 is current major — adopt for new repo, migration is trivial. |
@@ -22,7 +22,7 @@ lockfile as the truth.
 | @astrojs/svelte | 9.1.2 | MIT | Integration |
 | tailwindcss / @tailwindcss/vite | 4.3.3 | MIT | Styling, `@theme` tokens |
 | motion | — | MIT | **Not installed.** The vetted choice over GSAP (licence, D7) if imperative animation is ever needed; every animation shipped through v1.1 is CSS keyframes and transitions |
-| music-metadata | 12.3.2 | MIT | `parseBlob` tag/cover extraction. **Production dependency**, dynamically imported at first import action so it stays off the boot chunk (`13 §5` budget) |
+| music-metadata | 12.3.3 | MIT | `parseBlob` tag/cover extraction. **Production dependency**, dynamically imported at first import action so it stays off the boot chunk (`13 §5` budget) |
 | dexie | 4.4.7 | Apache-2.0 | Settings persistence (Apache-2.0 → GPL-3.0 compatible, one-way) |
 | i18next | 26.5.12 | MIT | App runtime i18n — installed in P5 slice 1, when the dictionaries were wired (`08 §2`) |
 | @fontsource/be-vietnam-pro | 5.3.0 | OFL-1.1 (pkg MIT) | UI font, VI diacritics. **Installed in P6 slice A** — see the note below |
@@ -40,7 +40,7 @@ lockfile as the truth.
 | eslint-plugin-svelte · svelte-eslint-parser | 3.23.1 · 1.10.0 | Svelte rules |
 | globals | 17.13.0 | ESLint environment globals |
 | prettier | 3.9.10 | Format. **Plugins must be `prettier-plugin-svelte@^4` and `prettier-plugin-tailwindcss@^0.8`** — the 3.x/0.6.x pair crashes on every `.svelte` file with `TypeError: getVisitorKeys is not a function` (the Tailwind plugin wraps the Svelte one and the older pair mis-negotiates prettier 3.9's embedded-language API). Also `prettier-plugin-astro` for `.astro`. |
-| knip | 6.44.0 | Dead/unused code gate (spec requirement) |
+| knip | 6.44.1 | Dead/unused code gate (spec requirement) |
 | svelte-check · @astrojs/check | 4.7.7 · 0.9.12 | Template type-checking (`pnpm check`) |
 | @sveltejs/vite-plugin-svelte | 7.3.1 | Svelte in Vitest |
 | vitest | 5.0.5 | Unit/component runner. The 4 → 5 major (2026-10-26) needed no change: 1,030 tests green, and the coverage report lists the same 53 files under both — 5's `coverage.include` matching is relative to the root now, and `src/**/*.ts` already was. `clearMocks` defaults to `true` in 5, which can only make an assertion stricter; none failed |
