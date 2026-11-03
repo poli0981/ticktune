@@ -16,7 +16,7 @@ Suite 2.0 · 2026-10-21
 | State | Meaning | Allowed transitions |
 |-------|---------|---------------------|
 | `boot` | Island mounted, settings loading from Dexie | → `gate` (first run / legal version bumped) or → `setup` |
-| `gate` | Blocking legal gate (`legal/*`). The **Accept click is the user gesture** that unlocks autoplay: `AudioContext.resume()` is called here. | → `setup` |
+| `gate` | Blocking legal gate (`legal/*`). The **Accept click is the user gesture** that unlocks autoplay: `AudioContext.resume()` is called here. Since v2.1 **Decline and go back** leaves the page instead and writes nothing (`03 §3` item 2) | → `setup` |
 | `setup` | Choose mode, set countdown, build queue. Validation runs continuously. Start is enabled iff `isReady` (below). | → `playing` (Start, only while `isReady`) |
 | `playing` | Countdown running, media playing. | ⇄ `paused`, → `finished`, → `setup` (Stop) |
 | `paused` | Countdown frozen (remaining stored), media paused. | ⇄ `playing`, → `setup` (Stop) |

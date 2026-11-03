@@ -1,5 +1,6 @@
 <script lang="ts">
   import { i18n } from '../state/i18n.svelte';
+  import { browserLeavePorts, leaveGate } from '../../lib/tt-leave';
   import { ttLegalHref, TT_LEGAL_VERSION } from '../../lib/tt-legal-const';
 
   /**
@@ -66,6 +67,10 @@
       <li>
         <strong>{i18n.t('gate.point.youtube')}</strong>{i18n.t('gate.point.youtubeRest')}
       </li>
+      <!-- v2.1 — the Disclaimer's §7, summarised where consent is given. -->
+      <li>
+        <strong>{i18n.t('gate.point.ai')}</strong>{i18n.t('gate.point.aiRest')}
+      </li>
       <li>{i18n.t('gate.point.asIs')}</li>
     </ul>
 
@@ -105,6 +110,21 @@
       onclick={() => onaccept(TT_LEGAL_VERSION)}
     >
       {i18n.t('gate.accept')}
+    </button>
+
+    <!--
+      v2.1 — the way out the owner asked for (docs/03 §3 item 2). AFTER Accept
+      in the DOM, so the keyboard order a11y.spec.ts relies on — checkbox, then
+      Accept — still holds; before the box is ticked, Tab reaches this instead.
+      It writes nothing: declining is not a setting.
+    -->
+    <button
+      type="button"
+      class="tt-key tt-gate-leave"
+      data-testid="tt-gate-leave"
+      onclick={() => leaveGate(browserLeavePorts(window))}
+    >
+      {i18n.t('gate.leave')}
     </button>
 
     <p class="tt-gate-stored">
@@ -243,6 +263,12 @@
     width: 100%;
     min-height: 48px;
     font-size: var(--tt-text-base);
+  }
+  /* The secondary way: below the primary one, full width so neither reads as a footnote. */
+  .tt-gate-leave {
+    width: 100%;
+    min-height: 40px;
+    margin-top: var(--tt-space-2);
   }
   .tt-gate-stored {
     margin: var(--tt-space-3) 0 0;

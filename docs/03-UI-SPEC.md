@@ -327,8 +327,19 @@ the computed opacity and the box, not ask the platform whether it is visible.
    was a labelled placeholder until P7, and is re-recorded whenever the UI it
    shows changes — v1.1's redesign included.
 2. **Legal Gate** — first run at `/app/`: blocking modal, summary of
-   EULA/Disclaimer/Privacy + links to `/legal/*` and GitHub; single checkbox +
-   Accept. Accept = autoplay-unlock gesture (`02 §1`). Re-shown if legal version
+   EULA/Disclaimer/Privacy + links to the four `/legal/*` documents. There is no
+   GitHub link — the source offer lives in About and the footer; until v2.1 this
+   line promised one. A single checkbox + **Agree and continue**.
+   Accept = autoplay-unlock gesture (`02 §1`).
+
+   Since v2.1, **Decline and go back** is the way out the owner asked for
+   (`src/lib/tt-leave.ts`). A page cannot open the browser's home page:
+   `about:home` and `chrome://newtab` are refused to web content. So the button
+   does what the browser's ← does — back where the user came from, which from a
+   new tab is that tab's own page. With nothing behind it, the tab closes where
+   the browser allows script to (one history entry, or the installed app's
+   window), otherwise `about:blank`. It stores nothing. It sits **after** Accept
+   in the DOM, so the keyboard order checkbox → Accept (`a11y.spec.ts`) holds. Re-shown if legal version
    bumps. Styled as the power-on plate — lit tally, wordmark, the version being
    agreed to — and the card **scrolls itself**: `main` is inert behind it, so on
    a short window or at 200% zoom nothing else could bring Accept into view.

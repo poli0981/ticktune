@@ -10,6 +10,8 @@
       "responsibilityRest": "TickTune はそのコンテンツを審査も保存もしません。",
       "youtube": "YouTube モードは YouTube の公式プレーヤーと YouTube Data API を使います",
       "youtubeRest": "。利用すると、YouTube と Google の規約にも同意したことになります。",
+      "ai": "AI の支援を受けて開発しています。",
+      "aiRest": " コードとこれらの文書は、開発者の確認のもと Claude Code（Anthropic）の支援で書かれています。アプリ自体は AI に何も送信しません。",
       "asIs": "本ソフトウェアは「現状のまま」提供され、いかなる保証もありません。"
     },
     "full": "全文（英語）：",
@@ -21,6 +23,7 @@
     },
     "agree": "上記の規約を読み、同意します。",
     "accept": "同意して続ける",
+    "leave": "同意せずに戻る",
     "stored": "この端末にのみ保存されます"
   },
   "setup": {

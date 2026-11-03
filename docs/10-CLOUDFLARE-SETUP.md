@@ -196,7 +196,7 @@ different one, built for what Free allows.
 them before the Worker runs (`run_worker_first` is unset), so no binding can
 see them. Routing them through the Worker would make every page view a billed
 invocation and a Workers Logs entry — false against the Privacy Policy
-("loading a page never creates one") and a `TT_LEGAL_VERSION` bump — to protect
+("loading a page that exists never creates one") and a `TT_LEGAL_VERSION` bump — to protect
 requests that Workers Static Assets serves free and unmetered, behind
 Cloudflare's always-on DDoS mitigation (`§4`). The zone's one Free rule was
 the only other place a whole-site limit could live, and it went to `/api/`
@@ -283,10 +283,15 @@ YouTube mode still needs the network — the player is Google's — and says so
 
 - Workers → ticktune → **Observability → Logs** for `/api` errors.
   `observability.enabled` writes one entry per Worker invocation (request,
-  response, country) — **retained 7 days on Workers Paid**. Static pages never
-  invoke the Worker, so only `/api/yt/oembed` calls are logged. This is disclosed
-  in `legal/PRIVACY-POLICY.md`; changing the setting or the plan changes the
-  policy (`wrangler.jsonc` says the same next to the setting).
+  response, country) — **retained 7 days on Workers Paid**. Pages that exist
+  never invoke the Worker. What is logged is every `/api/yt/*` call — oEmbed,
+  durations, playlists — and every request for an address with no asset, which
+  reaches the Worker for the 404 page, headers included. That second half was
+  found with `wrangler tail` on 2026-10-27. Until Legal 2.1 the policy said
+  loading a page never created a log entry, and this line said only oEmbed was
+  logged. Both are disclosed in `legal/PRIVACY-POLICY.md`; changing the setting
+  or the plan changes the policy (`wrangler.jsonc` says the same next to the
+  setting).
 - **Cloudflare Web Analytics — ON since v1.1, via the manual snippet.** Decided
   2026-10-20: the beacon (`<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": …}'>`)
   is in `src/layouts/TtBase.astro`, so it is on every page including `/app/`.

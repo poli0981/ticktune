@@ -10,6 +10,8 @@
       "responsibilityRest": " TickTune không kiểm duyệt và không lưu trữ nội dung đó.",
       "youtube": "Chế độ YouTube dùng trình phát chính thức và YouTube Data API",
       "youtubeRest": " của YouTube; khi dùng, bạn cũng chịu ràng buộc bởi điều khoản của YouTube và Google.",
+      "ai": "Được xây dựng với sự hỗ trợ của AI.",
+      "aiRest": " Claude Code (Anthropic) hỗ trợ viết mã và các văn bản này, dưới sự xem xét của nhà phát triển; bản thân ứng dụng không gửi gì cho AI nào.",
       "asIs": "Phần mềm cung cấp \"NGUYÊN TRẠNG\", không bảo hành."
     },
     "full": "Toàn văn:",
@@ -21,6 +23,7 @@
     },
     "agree": "Tôi đã đọc và đồng ý với các điều khoản trên.",
     "accept": "Đồng ý và tiếp tục",
+    "leave": "Không đồng ý, quay lại",
     "stored": "lưu cục bộ trên máy bạn"
   },
   "setup": {

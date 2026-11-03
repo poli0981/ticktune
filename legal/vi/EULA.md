@@ -6,10 +6,11 @@ luật sư, cho một ứng dụng web nguồn mở, miễn phí, phi thương m
 
 ## 1. Chấp thuận
 
-Khi đánh dấu ô và bấm **Đồng ý** tại Cổng pháp lý, bạn đồng ý với các điều khoản
-này, với [Tuyên bố miễn trừ](./DISCLAIMER.md) và
+Khi đánh dấu ô và bấm **Đồng ý và tiếp tục** tại Cổng pháp lý, bạn đồng ý với
+các điều khoản này, với [Tuyên bố miễn trừ](./DISCLAIMER.md) và
 [Chính sách quyền riêng tư](./PRIVACY-POLICY.md). Sự đồng ý của bạn chỉ được lưu
-trên thiết bị của bạn. Nếu các văn bản này thay đổi đáng kể, Cổng sẽ hỏi lại.
+trên thiết bị của bạn; **Không đồng ý, quay lại** không lưu gì cả. Nếu các văn bản
+này thay đổi đáng kể, Cổng sẽ hỏi lại.
 
 ## 2. Giấy phép
 
@@ -17,6 +18,11 @@ Mã nguồn TickTune được cấp phép **GPL-3.0-only**
 ([github.com/poli0981/ticktune](https://github.com/poli0981/ticktune)). Các điều
 khoản này áp dụng cho việc bạn dùng dịch vụ được lưu trữ tại `ticktune.net`; chúng
 không bao giờ hạn chế những gì GPL cho phép bạn làm với mã nguồn.
+
+Phần lớn mã nguồn đó được viết cùng một trợ lý AI, dưới sự định hướng và xem xét
+của nhà phát triển ([Tuyên bố miễn trừ](./DISCLAIMER.md) §7). Toàn bộ được phân
+phối theo cùng giấy phép như đã công bố; Anthropic, nhà cung cấp trợ lý, không
+phải là một bên của các điều khoản này và không đưa ra bảo đảm nào cho TickTune.
 
 ## 3. Nội dung của bạn
 

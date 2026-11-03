@@ -40,6 +40,7 @@ thông báo ở đây.
 |---------|------------|
 | Trình phát nhúng YouTube & IFrame Player API | [Điều khoản dịch vụ của YouTube](https://www.youtube.com/t/terms); chỉ tải từ YouTube trong chế độ YouTube, không bao giờ được đóng gói hay sửa đổi |
 | YouTube oEmbed (qua điểm cuối biên của chúng tôi) | Điểm cuối oEmbed công khai; chỉ mã video được chuyển tiếp |
+| YouTube Data API v3 (qua các điểm cuối biên của chúng tôi) | [Điều khoản dịch vụ của YouTube API Services](https://developers.google.com/youtube/terms/api-services-terms-of-service); gọi từ máy chủ của chúng tôi bằng khoá của chúng tôi — chỉ mã video và mã playlist được chuyển tiếp |
 | Cloudflare (lưu trữ, CDN, Workers) | Điều khoản dịch vụ của Cloudflare |
 | Cloudflare Web Analytics | Điều khoản dịch vụ của Cloudflare; beacon tải từ `static.cloudflareinsights.com` (xem Chính sách quyền riêng tư) |
 
