@@ -39,7 +39,9 @@ calls it on its own origin, so `*` only ever served other sites). Details in
 Why the second exists (v2.0): a link's length comes from the YouTube Data API,
 which needs a key — and a key in the page is a key anyone can take. The Worker
 holds it as a secret and exposes `GET /api/yt/durations?ids=<id,…>` (≤ 50 ids),
-cached per id, same-origin only, behind a per-IP limiter (`06 §3`).
+cached per id, same-origin only, behind a per-IP limiter (`06 §3`). The third
+(v2.1) uses the same key: `GET /api/yt/playlists?ids=<list,…>` (≤ 10 lists)
+answers what each playlist holds, cached per list for an hour (`06 §9`).
 
 ## 2. Principles (in priority order)
 
@@ -276,7 +278,7 @@ Three notes where this tree previously disagreed with the chapters that use it:
 
   | `wrangler.jsonc` | Why |
   |------------------|-----|
-  | `main: worker/index.ts` | The Worker: `/api/yt/oembed` and `/api/yt/durations`, everything else `env.ASSETS.fetch` |
+  | `main: worker/index.ts` | The Worker: `/api/yt/oembed`, `/api/yt/durations` and `/api/yt/playlists`, everything else `env.ASSETS.fetch` |
   | `assets.not_found_handling: '404-page'` | Serves `dist/404.html` |
   | `workers_dev: false` | No public `*.workers.dev` alias of production |
   | `preview_urls: true` | Each uploaded version gets a preview URL — where a release's live checklist runs (`14 §5`) |

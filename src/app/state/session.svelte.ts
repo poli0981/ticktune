@@ -19,7 +19,12 @@ import {
 } from '../engine/queue/tt-play-order';
 import { ytCauseIsTransient } from '../../lib/tt-yt-cause';
 import { browserYtPorts, lookupDurations } from '../engine/youtube/tt-yt-driver';
-import { importLinks, reachedEdge, ytDurationTargets } from '../engine/youtube/tt-yt-import';
+import {
+  importLinks,
+  importPlaylists,
+  reachedEdge,
+  ytDurationTargets,
+} from '../engine/youtube/tt-yt-import';
 import { finishReport } from '../engine/timer/tt-late';
 import { TT_MAX_COUNTDOWN_MS, TT_MIN_COUNTDOWN_MS } from '../engine/timer/tt-format';
 import type { TtFinishInfo, TtFinishReport } from '../engine/timer/types';
@@ -583,49 +588,86 @@ class SessionStore {
     if (!this.#begin(0)) return;
 
     try {
-      const result = await importLinks(
-        {
-          text,
-          queue: this.#shelves.youtube,
-          allowDuplicates: settings.current.allowDuplicates,
-        },
-        browserYtPorts((done, total) => {
-          this.#progress = { done, total };
-        }),
-      );
-
-      for (const s of result.skipped) ttLog.warn(s.code, '');
-      /*
-       * Notes carry their track id; skips cannot, because a skipped link never
-       * became a track.
-       *
-       * A note is always a KEPT track (docs/06 §5 — the transient causes), and
-       * `recheckPending` later logs a verdict for that same track. Logging both
-       * with an empty id left nothing to correlate them by: the diagnostics
-       * buffer showed a retry promised and a retry answered with no way to tell
-       * which link either belonged to. `fileName` is the videoId here, which is
-       * what matches a note to the row it produced.
-       */
-      for (const s of result.notes) {
-        const added = result.added.find((t) => t.videoId === s.fileName);
-        ttLog.warn(s.code, '', added?.id);
-      }
-
-      if (result.added.length > 0) {
-        this.#shelves.youtube = [...this.#shelves.youtube, ...result.added];
-      }
-      this.#syncOrder();
-      this.#lastImport = result;
-      if (result.added.length > 0) void this.#fillDurations();
-
-      // docs/06 §8 — `navigator.onLine` is the hint, THIS is the authority. It
-      // is the only signal that survives a machine whose interface is up but
-      // whose internet is not, which is the state the live v0.5.0 run was in.
-      const reached = reachedEdge(result);
-      if (reached !== null) this.#online = reached;
+      const result = await importLinks(this.#linksInput(text), this.#ytPorts());
+      this.#land(result, null);
     } finally {
       this.#end();
     }
+  }
+
+  /**
+   * docs/06 §9 (v2.1) — paste up to ten playlist links.
+   *
+   * What they hold lands on the YouTube shelf through the very path a paste of
+   * links takes (`#land`), so the 50-link cap, the dedupe, the oEmbed check and
+   * the lengths all apply unchanged. Same slot as `importLinks`: one import at
+   * a time, whichever kind.
+   */
+  async importPlaylists(text: string): Promise<void> {
+    if (this.#mode !== 'youtube' || text.trim() === '') return;
+    if (!this.#begin(0)) return;
+
+    try {
+      const { result, reached } = await importPlaylists(this.#linksInput(text), this.#ytPorts());
+      this.#land(result, reached);
+    } finally {
+      this.#end();
+    }
+  }
+
+  #linksInput(text: string) {
+    return {
+      text,
+      queue: this.#shelves.youtube,
+      allowDuplicates: settings.current.allowDuplicates,
+    };
+  }
+
+  #ytPorts() {
+    return browserYtPorts((done, total) => {
+      this.#progress = { done, total };
+    });
+  }
+
+  /**
+   * The tail both link imports share: log, shelve, look the lengths up, and
+   * update docs/06 §8's verdict.
+   *
+   * @param batchReached what the playlist batch proved about our edge, for when
+   *   no video lookup did — null for a paste of links, which has no batch.
+   */
+  #land(result: TtImportResult, batchReached: boolean | null): void {
+    for (const s of result.skipped) ttLog.warn(s.code, '');
+    /*
+     * Notes carry their track id; skips cannot, because a skipped link never
+     * became a track.
+     *
+     * A note is always a KEPT track (docs/06 §5 — the transient causes), and
+     * `recheckPending` later logs a verdict for that same track. Logging both
+     * with an empty id left nothing to correlate them by: the diagnostics
+     * buffer showed a retry promised and a retry answered with no way to tell
+     * which link either belonged to. `fileName` is the videoId here, which is
+     * what matches a note to the row it produced. The one note that is not a
+     * track is TT-YT-015, a playlist read only in part: its `fileName` is the
+     * list id, so it matches no row and carries none.
+     */
+    for (const s of result.notes) {
+      const added = result.added.find((t) => t.videoId === s.fileName);
+      ttLog.warn(s.code, '', added?.id);
+    }
+
+    if (result.added.length > 0) {
+      this.#shelves.youtube = [...this.#shelves.youtube, ...result.added];
+    }
+    this.#syncOrder();
+    this.#lastImport = result;
+    if (result.added.length > 0) void this.#fillDurations();
+
+    // docs/06 §8 — `navigator.onLine` is the hint, THIS is the authority. It
+    // is the only signal that survives a machine whose interface is up but
+    // whose internet is not, which is the state the live v0.5.0 run was in.
+    const reached = reachedEdge(result) ?? batchReached;
+    if (reached !== null) this.#online = reached;
   }
 
   /**

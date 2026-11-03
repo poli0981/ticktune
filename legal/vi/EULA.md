@@ -1,6 +1,6 @@
 # TickTune — Điều khoản sử dụng
 
-Version 2.0 · 2026-10-21 · Bản tiếng Anh là bản gốc có hiệu lực; bản dịch tiếng
+Version 2.1 · 2026-11-03 · Bản tiếng Anh là bản gốc có hiệu lực; bản dịch tiếng
 Việt này được cung cấp cho thuận tiện. Văn bản do nhà phát triển soạn, không phải
 luật sư, cho một ứng dụng web nguồn mở, miễn phí, phi thương mại.
 
@@ -27,8 +27,8 @@ Tệp của bạn được xử lý ngay trong trình duyệt và không bao gi�
 ## 4. YouTube
 
 Chế độ YouTube dùng trình phát nhúng chính thức của YouTube, và thời lượng của
-các liên kết bạn thêm được tra qua YouTube Data API — cả hai đều thuộc Dịch vụ API
-của YouTube. Khi sử dụng, bạn đồng ý chịu ràng buộc bởi
+các liên kết bạn thêm cùng các video của những playlist bạn thêm được tra qua
+YouTube Data API — tất cả đều thuộc Dịch vụ API của YouTube. Khi sử dụng, bạn đồng ý chịu ràng buộc bởi
 [Điều khoản dịch vụ của YouTube](https://www.youtube.com/t/terms); cách Google xử
 lý dữ liệu của bạn được mô tả trong
 [Chính sách quyền riêng tư của Google](https://policies.google.com/privacy). Việc

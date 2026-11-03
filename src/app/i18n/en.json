@@ -76,8 +76,14 @@
   },
   "yt": {
     "setup": {
+      "kind": {
+        "label": "What you are pasting",
+        "videos": "Videos",
+        "playlists": "Playlists"
+      },
       "paste": {
         "label": "Paste YouTube links — one per line",
+        "playlistsLabel": "Paste up to 10 YouTube playlist links — one per line",
         "submit": "Add to queue"
       }
     },
@@ -200,6 +206,12 @@
       "TT-YT-002": "Not a YouTube video link",
       "TT-YT-003": "Over the 50-link limit",
       "TT-YT-004": "YouTube refused, reason unknown",
+      "TT-YT-010": "Playlist not found, or private",
+      "TT-YT-011": "Could not read the playlist right now — paste it again later",
+      "TT-YT-012": "Mixes and personal lists (Liked, Watch later) cannot be imported",
+      "TT-YT-013": "Over the 10-playlist limit",
+      "TT-YT-014": "No playlist in this line",
+      "TT-YT-015": "Long playlist — only its first 50 videos were read",
       "TT-YT-100": "Video deleted or private",
       "TT-YT-101": "The owner does not allow embedding"
     }

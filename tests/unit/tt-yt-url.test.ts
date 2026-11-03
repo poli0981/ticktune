@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { parseVideoId, parseVideoIds } from '../../src/app/engine/youtube/tt-yt-url';
+import {
+  TT_MAX_PLAYLISTS,
+  parsePlaylistIds,
+  parsePlaylistLine,
+  parseVideoId,
+  parseVideoIds,
+} from '../../src/app/engine/youtube/tt-yt-url';
 
 /** docs/06 §5 step 1 — the six accepted shapes, and everything that is not one. */
 
@@ -58,6 +64,13 @@ describe('what is not a video link — all of these are TT-YT-002', () => {
     ['a lookalike host', `https://notyoutube.com/watch?v=${ID}`],
     ['a channel page', 'https://www.youtube.com/@RickAstleyYT'],
     ['a playlist with no video', 'https://www.youtube.com/playlist?list=PLabc'],
+    // v2.1 review: "videoseries" is 11 URL-safe characters, so it passed the id
+    // regex and went to oEmbed as a video. It is the PLAYLIST embed.
+    ['a playlist embed', 'https://www.youtube.com/embed/videoseries?list=PL0123456789ABCDEF'],
+    [
+      'a playlist embed on our own player host',
+      'https://www.youtube-nocookie.com/embed/videoseries?list=PL0123456789ABCDEF',
+    ],
     ['the bare domain', 'https://www.youtube.com/'],
     ['id one char short', 'https://youtu.be/dQw4w9WgXc'],
     ['id one char long', 'https://youtu.be/dQw4w9WgXcQQ'],
@@ -133,5 +146,71 @@ describe('parseVideoIds — a whole textarea', () => {
   it('handles CRLF, which is what a Windows paste actually contains', () => {
     const { ids } = parseVideoIds(`${ID}\r\njNQXAC9IVRw`);
     expect(ids).toEqual([ID, 'jNQXAC9IVRw']);
+  });
+});
+
+describe('the Playlist kind — docs/06 §9 (v2.1)', () => {
+  const LIST = 'PLrAXtmErZgOeiKm4sgNOknGvNjby9efdf';
+
+  it.each([
+    ['/playlist', `https://www.youtube.com/playlist?list=${LIST}`],
+    [
+      'a watch URL from inside the playlist',
+      `https://www.youtube.com/watch?v=${ID}&list=${LIST}&index=3`,
+    ],
+    ['youtu.be with a list', `https://youtu.be/${ID}?list=${LIST}`],
+    ['the playlist embed', `https://www.youtube.com/embed/videoseries?list=${LIST}`],
+    ['YouTube Music', `https://music.youtube.com/playlist?list=${LIST}`],
+    ['scheme-less', `www.youtube.com/playlist?list=${LIST}`],
+    ['a bare list id', LIST],
+  ])('reads %s', (_label, line) => {
+    expect(parsePlaylistLine(line)).toEqual({ id: LIST });
+  });
+
+  it('refuses a Mix and the personal lists before any request', () => {
+    expect(parsePlaylistLine(`https://www.youtube.com/watch?v=${ID}&list=RD${ID}`)).toEqual({
+      refused: 'mix',
+      id: `RD${ID}`,
+    });
+    expect(parsePlaylistLine('https://www.youtube.com/playlist?list=WL')).toEqual({
+      refused: 'personal',
+      id: 'WL',
+    });
+    expect(parsePlaylistLine('LL')).toEqual({ refused: 'personal', id: 'LL' });
+  });
+
+  it.each([
+    ['a video link with no list', `https://www.youtube.com/watch?v=${ID}`],
+    ['a bare video id', ID],
+    ['another site', `https://vimeo.com/playlist?list=${LIST}`],
+    ['a list param too short to be one', 'https://www.youtube.com/playlist?list=PLabc'],
+    ['prose', 'my favourite playlist'],
+  ])('names no playlist in %s', (_label, line) => {
+    expect(parsePlaylistLine(line)).toBeNull();
+  });
+
+  it('sorts a paste into the ten looked up and everything the toast counts', () => {
+    const lists = Array.from({ length: 12 }, (_, i) => `PL${String(i).padStart(16, '0')}`);
+    const text = [
+      ...lists.slice(0, 3),
+      lists[0], // a repeat
+      'no list here',
+      `https://www.youtube.com/watch?v=${ID}&list=RD${ID}`,
+      ...lists.slice(3),
+    ].join('\r\n');
+
+    const out = parsePlaylistIds(text);
+    expect(out.ids).toEqual(lists.slice(0, TT_MAX_PLAYLISTS));
+    expect(out.overflow).toEqual(lists.slice(TT_MAX_PLAYLISTS));
+    expect(out.duplicates).toEqual([lists[0]]);
+    expect(out.rejected).toEqual(['no list here']);
+    expect(out.refused).toEqual([`RD${ID}`]);
+  });
+
+  it('counts a repeat of a list past the tenth as a repeat, not as overflow twice', () => {
+    const lists = Array.from({ length: 11 }, (_, i) => `PL${String(i).padStart(16, '0')}`);
+    const out = parsePlaylistIds([...lists, lists[10]].join('\n'));
+    expect(out.overflow).toEqual([lists[10]]);
+    expect(out.duplicates).toEqual([lists[10]]);
   });
 });

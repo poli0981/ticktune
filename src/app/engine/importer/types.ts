@@ -85,6 +85,12 @@ export type TtImportCode =
   | 'TT-YT-004' // oEmbed failed for a reason nobody has classified
   | 'TT-YT-006' // a pending track was re-checked on Start and now resolves
   | 'TT-YT-007' // a pending track was re-checked and the video itself is the problem
+  | 'TT-YT-010' // a playlist not found, or private
+  | 'TT-YT-011' // a playlist that could not be read now — nothing of it added
+  | 'TT-YT-012' // a Mix or a personal list, which the Data API cannot read
+  | 'TT-YT-013' // more than ten playlists in one paste
+  | 'TT-YT-014' // a line in the Playlist kind that names no playlist
+  | 'TT-YT-015' // a playlist longer than its first 50 videos — only those were read
   | 'TT-YT-100' // deleted, never existed, or private
   | 'TT-YT-101'; // embedding disabled by the owner
 

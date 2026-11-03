@@ -22,6 +22,7 @@ let fetchMock: ReturnType<typeof vi.fn>;
 let assets: ReturnType<typeof vi.fn>;
 let apiLimit: ReturnType<typeof vi.fn>;
 let durationsLimit: ReturnType<typeof vi.fn>;
+let playlistsLimit: ReturnType<typeof vi.fn>;
 
 const ctx = { waitUntil: (p: Promise<unknown>) => void p, passThroughOnException: () => undefined };
 
@@ -31,6 +32,7 @@ function env() {
     YT_DATA_API_KEY: 'test-key-not-a-real-one',
     API_LIMIT: { limit: apiLimit },
     YT_DURATIONS_LIMIT: { limit: durationsLimit },
+    YT_PLAYLISTS_LIMIT: { limit: playlistsLimit },
   };
 }
 
@@ -49,6 +51,7 @@ function call(path: string, { method = 'GET', ip = '203.0.113.7' } = {}): Promis
 const ID = 'dQw4w9WgXcQ';
 const OEMBED = `/api/yt/oembed?id=${ID}`;
 const DURATIONS = `/api/yt/durations?ids=${ID}`;
+const PLAYLISTS = '/api/yt/playlists?ids=PLaaaaaaaaaaaaaaaa';
 
 const oembedBody = () =>
   new Response(JSON.stringify({ title: 't', author_name: 'a', thumbnail_url: null }), {
@@ -69,6 +72,7 @@ beforeEach(() => {
     .mockImplementation(() => Promise.resolve(new Response('404 page', { status: 404 })));
   apiLimit = vi.fn().mockResolvedValue({ success: true });
   durationsLimit = vi.fn().mockResolvedValue({ success: true });
+  playlistsLimit = vi.fn().mockResolvedValue({ success: true });
 });
 
 afterEach(() => {
@@ -80,6 +84,7 @@ describe('what is counted', () => {
   it.each([
     ['oEmbed', OEMBED],
     ['durations', DURATIONS],
+    ['playlists', PLAYLISTS],
     ['a malformed id', '/api/yt/oembed?id=nope'],
     ['an /api/ path that does not exist', '/api/nothing-here'],
   ])('%s spends one unit, keyed on the client IP', async (_name, path) => {
@@ -182,6 +187,23 @@ describe('the two budgets together', () => {
   it('oEmbed never touches the durations budget', async () => {
     await call(OEMBED);
     expect(durationsLimit).not.toHaveBeenCalled();
+  });
+
+  it('playlists spends from the /api/ budget first, then its own — never the lengths’', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(JSON.stringify({ pageInfo: { totalResults: 0 }, items: [] }), {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      }),
+    );
+    await call(PLAYLISTS);
+
+    expect(apiLimit).toHaveBeenCalledTimes(1);
+    expect(playlistsLimit).toHaveBeenCalledTimes(1);
+    expect(durationsLimit).not.toHaveBeenCalled();
+    expect(apiLimit.mock.invocationCallOrder[0]).toBeLessThan(
+      playlistsLimit.mock.invocationCallOrder[0] ?? 0,
+    );
   });
 
   it('the durations budget alone can still refuse', async () => {

@@ -481,7 +481,8 @@ import in Single mode **replaces** the held track rather than being rejected:
 `§1`'s `isQueueValid('single')` requires exactly one playable track, so rejecting
 it would strand a user who simply wants a different track behind a remove
 control they have not found yet.
-YouTube import pipeline is defined in `06-YOUTUBE-INTEGRATION.md §5` (cap 50,
+YouTube import pipeline is defined in `06-YOUTUBE-INTEGRATION.md §5`, and its
+playlist kind in `§9` — at most ten playlists per paste, inside the same 50 (cap 50,
 dedupe by `videoId`, oEmbed pre-check via `/api/yt/oembed`).
 
 ## 5. Playback flow

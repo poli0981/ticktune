@@ -95,6 +95,12 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-YT-007 | A `pending` track was re-checked on Start and the cause is now a property of the video — marked `error` and dropped from the order (`02 §6`) |
 | TT-YT-008 | Link lengths unavailable from `/api/yt/durations` — no key on this deployment, quota spent, edge unreachable or rate-limited. Info: lengths stay `–` until the player backfills them (`06 §3`) |
 | TT-YT-009 | The run was paused or resumed from the YouTube player's own controls — its ⏯, its keyboard shortcuts or the OS media keys. Message `pause` / `play`. Info, so a misdetection is visible in Diagnostics rather than a countdown that stopped by itself (`06 §2`). v2.0.4 |
+| TT-YT-010 | A playlist was not found, or is private — Google's own reason (`playlistNotFound`, `playlistItemsNotAccessible`), never inferred from a status (`06 §9`). Nothing of it added. v2.1 |
+| TT-YT-011 | A playlist could not be read now — no key on this deployment, the quota spent, the edge unreachable or rate-limited. Transient: nothing of it added, the paste can simply be repeated (`06 §9`). v2.1 |
+| TT-YT-012 | A Mix (`RD…`) or a personal list (Liked videos, Watch later, Liked music) was refused before any request — a key cannot read them (`06 §9`). v2.1 |
+| TT-YT-013 | A paste named more than ten playlists — the ones after the tenth were not looked up (`06 §9`). v2.1 |
+| TT-YT-014 | A line in the Playlist kind named no playlist — TT-YT-002's "not a video link" would be the wrong sentence there (`06 §9`). v2.1 |
+| TT-YT-015 | A playlist longer than its first 50 videos — only those were read, which the 50-link shelf caps at anyway. Note, per list (`06 §9`). v2.1 |
 | TT-YT-100 | Video unavailable (deleted/private) |
 | TT-YT-101 / 150 | Embedding blocked (embed-off / age / region) |
 | TT-SYS-201 | Wall-clock drift > 2 s re-anchored |

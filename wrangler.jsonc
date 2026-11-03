@@ -51,6 +51,14 @@
       "namespace_id": "1001",
       "simple": { "limit": 20, "period": 60 },
     },
+    // docs/06 §9 (v2.1) — the same quota, faster: one /api/yt/playlists call
+    // can spend ten units (one per uncached list). A person pastes once per
+    // batch, so ten a minute is far above them. Counted on top of API_LIMIT.
+    {
+      "name": "YT_PLAYLISTS_LIMIT",
+      "namespace_id": "1003",
+      "simple": { "limit": 10, "period": 60 },
+    },
   ],
 
   // 🔴 This setting is DISCLOSED in legal/PRIVACY-POLICY.md. It is not a free

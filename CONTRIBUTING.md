@@ -14,8 +14,8 @@ pnpm dev            # http://localhost:4321
 ```
 
 Optional: `pnpm wrangler dev` to exercise the `/api/yt/*` routes locally
-(`/api/yt/durations` answers `not_configured` without the Data API key, which
-lives only on the deployed Worker).
+(`/api/yt/durations` and `/api/yt/playlists` answer `not_configured` without
+the Data API key, which lives only on the deployed Worker).
 Enable the corpus guard once per clone: `git config core.hooksPath .githooks`.
 
 ## Before you code

@@ -70,7 +70,9 @@ Missing metadata shows as `N/A` (text) or `–` (numbers), never as a blank.
 - **YouTube mode** loads YouTube's player from `youtube-nocookie.com`; link
   titles and lengths are looked up through this site's own `/api/yt/oembed`
   and `/api/yt/durations` routes, which forward only the video IDs — from the
-  server, with its own key — and cache each answer for a day.
+  server, with its own key — and cache each answer for a day. Pasted playlists
+  (up to ten) go through `/api/yt/playlists`, which forwards only the playlist
+  IDs and keeps what each holds for an hour.
 - **A finish notification** is created by the tab itself: no push service, no
   subscription, nothing leaves the machine.
 - **The offline copy** holds the app's own files only — never yours.

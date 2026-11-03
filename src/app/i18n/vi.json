@@ -76,8 +76,14 @@
   },
   "yt": {
     "setup": {
+      "kind": {
+        "label": "Loại link bạn dán",
+        "videos": "Video",
+        "playlists": "Playlist"
+      },
       "paste": {
         "label": "Dán link YouTube — mỗi dòng một link",
+        "playlistsLabel": "Dán tối đa 10 link playlist YouTube — mỗi dòng một link",
         "submit": "Thêm vào danh sách"
       }
     },
@@ -200,6 +206,12 @@
       "TT-YT-002": "Không phải link video YouTube",
       "TT-YT-003": "Vượt giới hạn 50 link",
       "TT-YT-004": "YouTube từ chối, không rõ lý do",
+      "TT-YT-010": "Không tìm thấy playlist, hoặc playlist ở chế độ riêng tư",
+      "TT-YT-011": "Chưa đọc được playlist lúc này — hãy dán lại sau",
+      "TT-YT-012": "Không nhập được Mix và danh sách cá nhân (Đã thích, Xem sau)",
+      "TT-YT-013": "Vượt giới hạn 10 playlist",
+      "TT-YT-014": "Dòng này không có playlist",
+      "TT-YT-015": "Playlist dài — chỉ đọc 50 video đầu tiên",
       "TT-YT-100": "Video đã xoá hoặc ở chế độ riêng tư",
       "TT-YT-101": "Chủ video không cho phép nhúng"
     }

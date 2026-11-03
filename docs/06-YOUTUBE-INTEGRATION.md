@@ -353,12 +353,18 @@ Each overlay: icon, title, one-line cause, countdown-to-skip, "Skip now" button.
 
 ## 5. Import pipeline (YouTube mode)
 
-Input: textarea paste (one URL per line) and/or repeated single adds.
+Input: textarea paste (one URL per line) and/or repeated single adds. Since
+v2.1 the box has two kinds, **Videos** (below) and **Playlists** (`§9`). A
+playlist expands into video ids that enter at step 2, so every step after
+that is the same for both.
 
 ```
 1. Extract videoId per line — accepted shapes:
    watch?v= · youtu.be/ · shorts/ · live/ · embed/ · music.youtube.com/watch?v=
    (11-char id regex; extra params ignored)          fail → TT-YT-002
+   `list=` is ignored in this kind — the Playlists kind reads it (§9) — and
+   `embed/videoseries` (the PLAYLIST embed) is not a video: until v2.1 its
+   eleven letters passed the regex and went to oEmbed as one
 2. Dedupe by videoId (default skip + toast)          dup  → TT-IMP-005
 3. Cap: the links shelf would exceed 50 (02 §3.5)    fail → TT-YT-003
 4. oEmbed pre-check via /api/yt/oembed
@@ -425,12 +431,14 @@ rule 5). Settings → Visualizer states the limit, so it never reads as a bug.
 - CSP additions (full policy in `09 §4`): `frame-src` youtube-nocookie.com +
   youtube.com; `script-src` www.youtube.com (iframe_api); no `img-src` origin
   since v2.0 (`§3`);
-  `connect-src 'self'` covers the oEmbed proxy.
+  `connect-src 'self'` covers the oEmbed proxy, and since v2.1 the playlist
+  route (`§9`): same origin, so the CSP did not change.
 - Privacy Policy discloses: entering YouTube mode loads Google's player, which may
   set cookies/collect data per Google's privacy policy; local modes make no
   request to Google at all (`legal/PRIVACY-POLICY.md` §3 and §5). The only third
   party on every page, local modes included, is the disclosed Cloudflare
-  beacon (`09 §1`).
+  beacon (`09 §1`). Since v2.1 the policy also names the playlist ids our server
+  sends the Data API, and the hour their contents are kept (Legal 2.1).
 
 ## 8. Offline — specified in P4, because nothing else did
 
@@ -508,3 +516,98 @@ the 60 req/min rule in `§6`.
 
 ⬜ **Still not implemented:** a re-check on *reconnect*. `navigator.onLine` is a
 hint (`§8` above), and the natural trigger — Start — is now covered.
+
+## 9. Playlists (v2.1)
+
+The owner asked for a playlist mode with a cap of ten (2026-11-03). Ten
+playlists per paste; the videos they hold go onto the same YouTube shelf,
+which keeps its cap of 50. The mode is a choice of what the paste box takes,
+not a fourth tab. Either kind fills the same shelf with the same tracks, so a
+tab would promise a separate queue that does not exist. The choice is two
+pressed-state keys above the box, **Videos | Playlists**. The shell holds it,
+so a run does not reset it.
+
+```
+1. Read each line (`parsePlaylistLine`): `list=` on any accepted host — a watch
+   URL from inside a playlist, /playlist, embed/videoseries, youtu.be, YouTube
+   Music — or a bare list id. In this kind `list=` wins over `v=`.
+     no playlist in the line                          → TT-YT-014
+     a Mix (`RD…`), Liked, Watch later, Liked music   → TT-YT-012, no request
+     a repeat                                         → TT-IMP-005
+     the 11th and after                               → TT-YT-013
+2. A full shelf asks nothing                          → TT-YT-003 per list
+3. ONE GET /api/yt/playlists?ids=<up to ten>
+     call failed (no key, quota, 429, unreachable)    → TT-YT-011 per list
+     a list not found or private                      → TT-YT-010
+     a list "try later"                               → TT-YT-011
+     ok → its first page's playable videos, in order
+          private/deleted entries on that page        → TT-YT-100 each
+          more than the first page                    → TT-YT-015 note
+4. All the videos, in paste order then playlist order, enter §5 at step 2:
+   dedupe, the 50 cap, the sequential oEmbed check, `pending`, one lengths call.
+```
+
+**The rate budget is why it is ONE call.** A paste is at most 1 + 50 + 1 = 52
+`/api` calls: the batch, the oEmbed checks and the lengths. That fits under the
+Worker's 60 a minute and the zone's 60 per 10 s (`10 §6`). Ten separate list
+lookups would have been 61.
+
+**The route** (`worker/index.ts`) checks, in this order:
+
+1. `API_LIMIT`.
+2. The ids: unique, at most ten, each `YT_LIST_ID` (13–64 URL-safe characters,
+   so a bare video id can never read as one), and never a Mix or a personal list.
+3. Its own per-IP binding, `YT_PLAYLISTS_LIMIT` (10 a minute). One call can
+   spend ten quota units.
+
+For each list the cache does not hold, it makes one `playlistItems.list` call:
+first page only, `maxResults=50`, `fields` cut to `videoId`, `videoPublishedAt`
+and `privacyStatus`, the key in `x-goog-api-key`, the website-restriction
+Referer. The whole batch shares **one** 8 s deadline. A Worker keeps at most six
+connections open at once, so ten lists queue, and ten separate timers could run
+past the client's 10 s.
+
+An entry is playable when it is public or unlisted and carries a publish date;
+deleted and private entries have none. The client's oEmbed check still runs on
+every video, so this filter only saves slots.
+
+**Causes come from Google's reason, never from the status** (`ytListCause`,
+`src/lib/tt-yt-list.ts`). A spent quota and a private list are both 403. Read by
+status, a spent quota would tell every user that every playlist is private for
+the rest of the day — the confident wrong cause S1 removed from the video path.
+
+| Google says | Our answer | Cached |
+|---|---|---|
+| `playlistNotFound`, or any 404 | that list: `not_found` → TT-YT-010 | 15 min |
+| `playlistItemsNotAccessible` | that list: `private` → TT-YT-010 | 15 min |
+| 5xx, 429, `rateLimitExceeded`, a timeout, a body that will not parse | that list: `upstream_unreachable` → TT-YT-011 | never |
+| anything else: `quotaExceeded`, a refused key or referer… | the whole batch: 503 `upstream_refused` → TT-YT-011 | never |
+
+A list's contents are cached for **1 h**, under a versioned key, and the batch
+response is never cached by the browser. A playlist changes far more often than
+a video's length; the policy ceiling is 30 days.
+
+**Two shared modules keep both ends in agreement.** `src/lib/tt-yt-list.ts`
+(the id shape, the unreadable kinds, the cause map) and `src/lib/tt-yt-cause.ts`
+are what the Worker and the app both import.
+
+**What the client believes** (`readPlaylists`): only lists it asked for, only
+ids that are video ids, and only counts that are counts. A word that is not a
+registered cause reads as `unavailable`. A list missing from the answer is
+TT-YT-011, never "gone". The same applies to a response that is not our JSON:
+under `astro preview` the route is the static 404 page, and the driver reads that
+as unreachable, as `lookup` does.
+
+**Measured, not assumed:**
+
+- how deleted and private entries report themselves;
+- whether a YouTube Music `RDCLAK…` album list is readable (refused today as a
+  Mix, on its prefix);
+- what a malformed but regex-valid id returns.
+
+All three are lines on the v2.1 live checklist, run on the preview with the
+real key. ⚠️ **Quota exposure, accepted:** one validated call can spend ten
+units, and the per-IP binding is loose on production (`10 §6`). A sustained
+abuser could empty the day's 10,000 units, and the cost would be playlists and
+lengths until midnight Pacific. Links still import and still play. The remedies
+are in `16`'s backlog: a separate key, or a Durable Object budget.
