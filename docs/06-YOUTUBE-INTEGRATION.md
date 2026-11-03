@@ -598,15 +598,30 @@ TT-YT-011, never "gone". The same applies to a response that is not our JSON:
 under `astro preview` the route is the static 404 page, and the driver reads that
 as unreachable, as `lookup` does.
 
-**Measured, not assumed:**
+**Measured on #109's preview, with the real key (2026-11-03):**
 
-- how deleted and private entries report themselves;
-- whether a YouTube Music `RDCLAK…` album list is readable (refused today as a
-  Mix, on its prefix);
-- what a malformed but regex-valid id returns.
+- A channel's uploads list (`UU…`) answered its first 50 videos in playlist
+  order, as `{ids, skipped, total}`.
+- A well-formed id with no list behind it (`PLaaaaaaaaaaaaaaaa`) came back
+  404 → `not_found`.
+- 🔴 **A regex-valid id Google answers with a 400** (`PLzzzzzzzzzzzzzzzz`)
+  refused the WHOLE batch. `ytListCause` read every 4xx other than a 404 as
+  "about us", so the uploads list in the same paste came back as part of a 503.
+  Now a 400 or 404 is about the list, and only reasons that name the key or the
+  quota refuse the batch. The refusal also carries Google's reason, because
+  until then the preview could not say why it had refused.
+- A Mix id is refused at our own edge, `400 invalid_id`, and Google is never
+  asked.
 
-All three are lines on the v2.1 live checklist, run on the preview with the
-real key. ⚠️ **Quota exposure, accepted:** one validated call can spend ten
+**Not measured:**
+
+- how deleted and private entries report themselves inside a list. The filter
+  reads both the privacy status and the publish date, and the oEmbed check
+  catches whatever it misses;
+- whether a YouTube Music `RDCLAK…` album list is readable. It is refused on
+  its `RD` prefix like a Mix.
+
+Both are candidates in `16`'s backlog. ⚠️ **Quota exposure, accepted:** one validated call can spend ten
 units, and the per-IP binding is loose on production (`10 §6`). A sustained
 abuser could empty the day's 10,000 units, and the cost would be playlists and
 lengths until midnight Pacific. Links still import and still play. The remedies
