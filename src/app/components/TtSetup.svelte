@@ -325,7 +325,12 @@
       <!-- v2.2: the live region exists before the summary does, so filling it is
          an announcement every screen reader makes (docs/03 §8). Empty, it is
          an empty grid item and takes no room. -->
-      <div class="tt-import-status" role="status" data-testid="tt-import-status">
+      <div
+        class="tt-import-status"
+        class:tt-import-idle={!session.lastImport}
+        role="status"
+        data-testid="tt-import-status"
+      >
         {#if session.lastImport}
           <TtToast result={session.lastImport} ondismiss={() => session.dismissImport()} />
         {/if}
@@ -502,11 +507,15 @@
     gap: var(--tt-space-3);
     min-width: 0;
   }
-  /* An empty grid item still costs a gap; the negative margin pays it back.
-     Never `display: none` here — a live region must already be in the
-     accessibility tree when its content arrives, or nothing is announced. */
-  .tt-import-status:empty {
-    margin-top: calc(-1 * var(--tt-space-3));
+  /* Idle, the region leaves the grid's flow, so it costs no gap — but it stays
+     rendered, never `display: none`: a live region must already be in the
+     accessibility tree when its content arrives, or nothing is announced.
+     A class, not `:empty` (Svelte leaves an anchor, so `:empty` never matched),
+     and not a negative margin (a grid STRETCHES an item against its own
+     margin, and the empty box grew to fill it). Both grew Setup by 12 px, and
+     the visual baselines caught it. */
+  .tt-import-idle {
+    position: absolute;
   }
 
   .tt-staged {
