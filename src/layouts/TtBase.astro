@@ -210,6 +210,32 @@ const ogImageUrl = new URL(ogImage, Astro.site);
           パソコンのブラウザーでお試しください。
         </p>
 
+        {/*
+          v2.2 (docs/07 §4) — a desktop lands here too. The gate reads
+          `innerWidth` once at load, and browser zoom shrinks it: a 1920 px
+          window zoomed to ~190% is under 1024 CSS px, and this notice told that
+          user — often one who zooms because they need to — that their computer
+          was a phone. HTML only; the inline script and its CSP hash are as before.
+        */}
+        <div
+          class="flex flex-col gap-2 border-t border-black/60 pt-4 text-xs leading-relaxed text-balance text-tt-muted"
+          data-testid="tt-gate-desktop-hint"
+        >
+          <p lang="vi">
+            Đang dùng máy tính? TickTune cần cửa sổ rộng ít nhất 1024 px lúc tải trang — hãy đưa mức
+            thu phóng về mặc định (Ctrl+0, hoặc ⌘0 trên Mac) hoặc mở rộng cửa sổ, rồi tải lại.
+          </p>
+          <p lang="en">
+            On a computer? TickTune needs a window at least 1024 px wide when the page loads — reset
+            the zoom (Ctrl+0, or ⌘0 on a Mac) or widen the window, then reload.
+          </p>
+          <p lang="ja">
+            パソコンをお使いですか？ TickTune は読み込み時に幅 1024 px
+            以上のウィンドウが必要です。ズームを元に戻す（Ctrl+0、Mac では
+            ⌘0）か、ウィンドウを広げてから再読み込みしてください。
+          </p>
+        </div>
+
         <a
           href={repo}
           rel="noopener noreferrer"

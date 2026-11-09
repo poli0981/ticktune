@@ -1,15 +1,27 @@
 import { test, expect, type Page } from './_fixtures';
 import AxeBuilder from '@axe-core/playwright';
-import { gotoApp, gotoSingleMode, setDuration, stageSingle, storedSettings } from './_helpers';
-import { seedSettings } from './_helpers-yt';
+import {
+  dismissUnloadDialogs,
+  gotoApp,
+  gotoSingleMode,
+  setDuration,
+  skipWithoutAudio,
+  stagePlaylist,
+  stageSingle,
+  storedSettings,
+} from './_helpers';
+import { fireYtError, gotoYouTubeApp, seedSettings, stageLinks, ytReady } from './_helpers-yt';
 
 /**
  * The accessibility pass — `docs/13 §6`, P7 slice B.
  *
- * `13 §6` asks for four things and this file owns three of them: the axe scan on
- * Landing / Setup / Player / Settings, the keyboard-only journey, and the
- * contrast spot-check under the brightest background. Reduced motion already has
- * coverage in `backgrounds.spec.ts` and is not duplicated here.
+ * `13 §6` asks for four things and this file owns two of them: the axe scan
+ * (every surface a user spends time on, since v2.2) and the keyboard-only
+ * journey. The contrast spot-check under the brightest background lives in
+ * `backgrounds.spec.ts`, and reduced motion is covered there and in
+ * `landing.spec.ts` — not duplicated here. (This header said it owned the
+ * contrast check until v2.2; it never did.) Forced colours have their own file,
+ * `forced-colors.spec.ts`.
  *
  * ## Why axe is only half the answer
  *
@@ -38,8 +50,13 @@ import { seedSettings } from './_helpers-yt';
  *
  * `best-practice` is included for exactly that gap. The suite is clean under
  * both, so including it costs nothing today and catches the next regression.
+ *
+ * `wcag22aa` since v2.2 — ACCESSIBILITY.md names WCAG 2.2 AA as the target, and
+ * a scan that cannot see 2.2's rules (target size, 2.5.8) would be quietly
+ * narrower than the statement. axe has no `wcag22a` tag: the 2.2 Level A
+ * criteria it could test do not exist in it.
  */
-const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'best-practice'];
+const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa', 'wcag22aa', 'best-practice'];
 
 async function scan(page: Page, context?: string) {
   const builder = new AxeBuilder({ page }).withTags(TAGS);
@@ -120,6 +137,71 @@ test.describe('axe — docs/13 §6', () => {
     await setDuration(page, 0, 0, 30);
     await page.getByRole('button', { name: 'Bắt đầu' }).click();
     await expect(page.locator('.tt-countdown')).toBeVisible();
+    await scan(page);
+  });
+
+  /*
+   * v2.2 — the surfaces the scan had never visited. Each is a screen a user
+   * spends time on; none was ever checked by anything but eye.
+   */
+
+  test('Setup with an import summary is clean', async ({ page }) => {
+    await gotoSingleMode(page);
+    await stageSingle(page);
+    await expect(page.getByTestId('tt-toast')).toBeVisible();
+    await scan(page);
+  });
+
+  test('the Playlist rail, the track info dialog and Finished are clean', async ({ page }) => {
+    dismissUnloadDialogs(page);
+    await gotoApp(page);
+    await stagePlaylist(page, ['tone-5s.mp3', 'tone-5s.wav']);
+    // Long enough for two scans and a menu before zero arrives on its own.
+    await setDuration(page, 0, 0, 8);
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await expect(page.getByTestId('tt-queue-row').first()).toHaveClass(/tt-current/);
+    await scan(page);
+
+    // The row's context menu, opened the way a keyboard user opens it.
+    await page.getByTestId('tt-queue-row').first().locator('.tt-row-main').focus();
+    await page.keyboard.press('Shift+F10');
+    await expect(page.getByTestId('tt-context-menu')).toBeVisible();
+    await scan(page);
+    await page.keyboard.press('Escape');
+
+    await expect(page.getByTestId('tt-finished')).toBeVisible({ timeout: 15_000 });
+    await scan(page);
+  });
+
+  test('the Single rail’s track info dialog is clean', async ({ page }) => {
+    await gotoSingleMode(page);
+    await stageSingle(page);
+    await setDuration(page, 0, 0, 30);
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await page.getByTestId('tt-nowplaying').focus();
+    await page.keyboard.press('Shift+F10');
+    await expect(page.getByTestId('tt-trackinfo')).toBeVisible();
+    await scan(page);
+  });
+
+  test('the YouTube rail with an error card is clean', async ({ page }) => {
+    dismissUnloadDialogs(page);
+    await gotoYouTubeApp(page);
+    await stageLinks(page, ['jNQXAC9IVRw', '9bZkp7q19f0']);
+    await setDuration(page, 0, 2, 0);
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await expect(page.getByTestId('tt-yt-frame')).toBeVisible();
+    await ytReady(page);
+    await fireYtError(page, 150);
+    await expect(page.getByTestId('tt-yt-overlay')).toBeVisible();
+    // The frame is the stub's, not YouTube's: what is scanned is OUR rail.
+    await scan(page);
+  });
+
+  test('the 404 page and an English legal document are clean', async ({ page }) => {
+    await page.goto('/does-not-exist');
+    await scan(page);
+    await page.goto('/en/legal/eula/');
     await scan(page);
   });
 });
@@ -258,5 +340,119 @@ test.describe('keyboard only — docs/13 §6', () => {
 
     await page.keyboard.press('Escape');
     await expect(panel).toBeHidden();
+  });
+
+  /*
+   * ── v2.2 ────────────────────────────────────────────────────────────────
+   * Each spec below was shown red on the code before its fix (docs/13 §6).
+   */
+
+  test('Space on a focused control is that control’s, not play/pause (WCAG 2.1.1)', async ({
+    page,
+    browserName,
+  }) => {
+    // The hotkey called preventDefault on Space during playback whatever had
+    // focus: Space on ⏭ paused the run and skipped nothing.
+    dismissUnloadDialogs(page);
+    await gotoApp(page);
+    await skipWithoutAudio(page, browserName);
+    await stagePlaylist(page, ['tone-5s.mp3', 'tone-5s.wav']);
+    await setDuration(page, 0, 1, 0);
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    const rows = page.getByTestId('tt-queue-row');
+    await expect(rows.first()).toHaveClass(/tt-current/);
+
+    await page.getByRole('button', { name: 'Bài sau' }).focus();
+    await page.keyboard.press('Space');
+    await expect(rows.nth(1)).toHaveClass(/tt-current/);
+    await expect(page.getByTestId('tt-playpause')).toHaveAttribute('aria-label', 'Tạm dừng');
+  });
+
+  test('the single-key shortcuts can be switched off (WCAG 2.1.4)', async ({ page }) => {
+    await gotoApp(page);
+    const panel = page.getByTestId('tt-settings');
+    await page.keyboard.press('s');
+    await expect(panel).toBeVisible();
+    await page.getByRole('checkbox', { name: /Phím tắt một ký tự/ }).uncheck();
+    await expect.poll(() => storedSettings(page)).toMatchObject({ letterKeys: false });
+    await page.keyboard.press('Escape');
+    await expect(panel).toBeHidden();
+
+    // Off: S opens nothing, M mutes nothing — the field is READ, not just stored.
+    await page.keyboard.press('s');
+    await page.keyboard.press('m');
+    await expect(panel).toBeHidden();
+    expect(await storedSettings(page)).toMatchObject({ muted: false });
+  });
+
+  test('the remaining time can be read on demand — a role=timer twin (WCAG 1.3.1)', async ({
+    page,
+  }) => {
+    // The digits are aria-hidden; before v2.2 a reader heard the time only at
+    // the five milestones.
+    await gotoSingleMode(page);
+    await stageSingle(page);
+    await setDuration(page, 0, 2, 0);
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    const timer = page.getByRole('timer');
+    await expect(timer).toContainText('Thời gian còn lại');
+    await expect(timer).toContainText(/phút|giây/);
+  });
+
+  test('the bottom bar keeps focus, and its controls stay in the tree when idle', async ({
+    page,
+  }) => {
+    dismissUnloadDialogs(page);
+    await gotoSingleMode(page);
+    await stageSingle(page);
+    await setDuration(page, 0, 0, 30);
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    const bar = page.getByTestId('tt-bottom-bar');
+
+    // Idle with focus elsewhere: faded, but a screen reader in browse mode —
+    // whose keys never reach the page — can still find ⏹.
+    await expect(bar).toHaveAttribute('data-visible', 'false', { timeout: 8_000 });
+    await expect(page.getByRole('button', { name: 'Dừng hẳn' })).toHaveCount(1);
+
+    // Focus inside: it stays up past the 4 s idle, and keeps the focus.
+    await page.getByRole('button', { name: 'Dừng hẳn' }).focus();
+    await expect(bar).toHaveAttribute('data-visible', 'true');
+    await page.waitForTimeout(5_000);
+    await expect(bar).toHaveAttribute('data-visible', 'true');
+    await expect(page.getByRole('button', { name: 'Dừng hẳn' })).toBeFocused();
+  });
+
+  test('the mode tabs are one tab stop, moved with the arrow keys', async ({ page }) => {
+    await gotoApp(page);
+    await expect(page.locator('[role=tab][tabindex="0"]')).toHaveCount(1);
+    const selected = page.locator('[role=tab][aria-selected=true]');
+    await selected.focus();
+    const before = await selected.getAttribute('data-testid');
+    await page.keyboard.press('ArrowRight');
+    const now = page.locator('[role=tab][aria-selected=true]');
+    await expect(now).not.toHaveAttribute('data-testid', before ?? '');
+    await expect(now).toBeFocused();
+    await expect(page.getByRole('tabpanel')).toBeVisible();
+  });
+
+  test('the import summary lands in a live region that was already there', async ({ page }) => {
+    // A region inserted already filled is announced by some readers only.
+    await gotoSingleMode(page);
+    const region = page.getByTestId('tt-import-status');
+    await expect(region).toHaveAttribute('role', 'status');
+    await expect(region).toBeEmpty();
+    await stageSingle(page);
+    await expect(region.getByTestId('tt-toast')).toBeVisible();
+  });
+
+  test('Finished takes focus when the player leaves (WCAG 2.4.3)', async ({ page }) => {
+    // The player held focus and unmounted at zero; focus fell to <body>.
+    dismissUnloadDialogs(page);
+    await gotoSingleMode(page);
+    await stageSingle(page);
+    await setDuration(page, 0, 0, 2);
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await expect(page.getByTestId('tt-finished')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByRole('heading', { level: 1 })).toBeFocused();
   });
 });

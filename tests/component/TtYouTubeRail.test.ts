@@ -173,7 +173,22 @@ describe('typed overlays — docs/06 §4', () => {
 
   it('is announced — role=alert, because it appears without user action', () => {
     mount({ overlay: { key: 'yt.err.player', code: 'TT-YT-005', ambiguous: false } });
-    expect(screen.getByTestId('tt-yt-overlay').getAttribute('role')).toBe('alert');
+    const alert = screen.getByRole('alert');
+    expect(screen.getByTestId('tt-yt-overlay').contains(alert)).toBe(true);
+    // The title and the cause: what the user needs to hear, once.
+    expect(alert.querySelector('strong')?.textContent).toBeTruthy();
+    expect(alert.querySelector('p')?.textContent).toBeTruthy();
+  });
+
+  it('keeps the per-second counter OUT of the alert (v2.2)', () => {
+    // role=alert is atomic: a counter inside it re-announced the whole card
+    // every second, over the cause the user was trying to hear.
+    mount({
+      overlay: { key: 'yt.err.blocked', code: 'TT-YT-150', ambiguous: true },
+      skipInSeconds: 4,
+    });
+    const alert = screen.getByRole('alert');
+    expect(alert.contains(screen.getByTestId('tt-yt-skip-in'))).toBe(false);
   });
 });
 

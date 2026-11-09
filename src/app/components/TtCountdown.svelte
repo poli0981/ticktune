@@ -1,5 +1,7 @@
 <script lang="ts">
   import { formatRemaining } from '../engine/timer/tt-format';
+  import { splitDuration } from '../engine/timer/tt-late';
+  import { i18n } from '../state/i18n.svelte';
 
   import type { TtClockFace, TtSize } from '../state/tt-settings-schema';
 
@@ -13,6 +15,12 @@
     focusMode?: boolean;
     /** v2.0, docs/03 §1 — seven or fourteen segments, the same advance widths. */
     face?: TtClockFace;
+    /**
+     * v2.2, docs/03 §8 — render the spoken `role="timer"` twin. The player
+     * screen only: on Setup the digits are a preview of the input, which the
+     * H/M/S fields already name.
+     */
+    speak?: boolean;
   }
 
   const {
@@ -21,9 +29,50 @@
     size = 'm',
     focusMode = false,
     face = 'dseg7',
+    speak = false,
   }: Props = $props();
 
   const f = $derived(formatRemaining(remainingMs));
+
+  /*
+   * v2.2 — the time remaining, for a screen reader that asks (WCAG 1.3.1).
+   *
+   * The digits stay `aria-hidden`: they change every frame below a minute and
+   * DSEG glyphs read badly. This twin is `role="timer"`, whose implicit
+   * `aria-live` is OFF — nothing is announced on its own (the five milestones
+   * still are, from the shell); a reader that moves to it hears the current
+   * value. Whole seconds only, so the DOM changes at most once a second.
+   *
+   * Spoken words, not a display format — docs/04 §4 owns those and nothing
+   * here restates them. `Intl.DurationFormat` gives each language its own
+   * plurals ("1 minute", "2 minutes"); an engine without it falls back to the
+   * Finished screen's unit keys.
+   */
+  type TtDurationFormat = new (
+    locale: string,
+    options: { style: 'long' },
+  ) => { format(d: { hours: number; minutes: number; seconds: number }): string };
+  const DurationFormat = (Intl as unknown as { DurationFormat?: TtDurationFormat }).DurationFormat;
+
+  const wholeSeconds = $derived(Math.max(0, Math.floor(remainingMs / 1000)));
+  const spoken = $derived.by(() => {
+    const { h, m, s } = splitDuration(wholeSeconds * 1000);
+    const words =
+      DurationFormat && wholeSeconds > 0
+        ? new DurationFormat(i18n.locale, { style: 'long' }).format({
+            hours: h,
+            minutes: m,
+            seconds: s,
+          })
+        : [
+            h > 0 ? i18n.t('finished.unit.hours', { count: h }) : '',
+            m > 0 ? i18n.t('finished.unit.minutes', { count: m }) : '',
+            s > 0 || wholeSeconds === 0 ? i18n.t('finished.unit.seconds', { count: s }) : '',
+          ]
+            .filter(Boolean)
+            .join(' ');
+    return words;
+  });
 
   /*
    * The ghost is the all-segments glyph of the face in use: `8` lights every
@@ -62,6 +111,14 @@
   <span class="tt-ghost" aria-hidden="true">{ghost}</span>
   <span class="tt-live">{f.text}</span>
 </div>
+{#if speak}
+  <!-- The label is in the text, not `aria-label`: a reader in browse mode reads
+       a timer's content, and a name that replaced it would say only "Time
+       remaining". -->
+  <span class="tt-sr" role="timer" data-testid="tt-countdown-spoken"
+    >{i18n.t('player.remaining', { time: spoken })}</span
+  >
+{/if}
 
 <style>
   .tt-countdown {

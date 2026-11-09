@@ -33,6 +33,7 @@ export const ja: StaticDict = {
     heroSub:
       '大きな 7 セグメントのカウントダウンと、その後ろで流れるあなたの音楽。どこにも何もアップロードしません。',
     heroMediaAlt: 'ビジュアライザーを背景にカウントダウンを表示している TickTune',
+    heroStop: 'デモ動画を停止',
 
     featuresTitle: 'できること',
     features: [
@@ -87,6 +88,8 @@ export const ja: StaticDict = {
     contactPress: '報道関係',
     contactCollab: 'コラボレーション',
     contactSecurity: 'セキュリティ',
+    contactAccessibility: 'アクセシビリティ',
+    a11yStatement: 'アクセシビリティ方針（英語）',
   },
 
   faq: [

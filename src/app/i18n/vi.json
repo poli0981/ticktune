@@ -113,6 +113,7 @@
     }
   },
   "player": {
+    "remaining": "Thời gian còn lại: {{time}}",
     "transport": {
       "prev": "Bài trước",
       "play": "Phát",
@@ -369,6 +370,10 @@
       "bracket": "Ẩn / hiện bảng bên phải",
       "esc": "Đóng hộp thoại hoặc bảng",
       "altUpDown": "Di chuyển bài đang chọn",
+      "enter": "Phát bài đang chọn",
+      "menu": "Mở menu của bài",
+      "letters": "Phím tắt một ký tự (M, F, H, S, ])",
+      "lettersHint": "Tắt đi nếu bạn nhập liệu bằng giọng nói hoặc hay lỡ tay bấm phím. Space, các phím mũi tên và Esc vẫn hoạt động.",
       "note": "Phím tắt không hoạt động khi bạn đang gõ trong ô nhập."
     },
     "diagnostics": {

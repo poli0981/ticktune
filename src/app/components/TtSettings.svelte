@@ -631,6 +631,9 @@
             max="60000"
             step="1000"
             data-testid="tt-set-interval"
+            aria-valuetext={i18n.t('settings.display.intervalValue', {
+              seconds: Math.round(s.slideshowIntervalMs / 1000),
+            })}
             value={s.slideshowIntervalMs}
             oninput={(e) =>
               void settings.patch({ slideshowIntervalMs: e.currentTarget.valueAsNumber })}
@@ -806,6 +809,9 @@
           max="5000"
           step="250"
           data-testid="tt-set-endfade"
+          aria-valuetext={i18n.t('settings.countdown.endFadeValue', {
+            seconds: (s.endFadeMs / 1000).toFixed(2),
+          })}
           value={s.endFadeMs}
           oninput={(e) => void settings.patch({ endFadeMs: e.currentTarget.valueAsNumber })}
         />
@@ -1084,6 +1090,20 @@
       callers by grepping for literal `t('…')`, so a table built from a list
       would report eleven orphan keys and fail the build.
     -->
+    <!-- v2.2, WCAG 2.1.4 (docs/03 §7): the single-character keys can be
+         switched off — speech input types letters into whatever has focus. -->
+    <label class="tt-row tt-check">
+      <input
+        class="tt-switch"
+        type="checkbox"
+        data-testid="tt-set-letterkeys"
+        aria-describedby="tt-letterkeys-hint"
+        checked={s.letterKeys}
+        onchange={(e) => void settings.patch({ letterKeys: e.currentTarget.checked })}
+      />
+      <span>{i18n.t('settings.hotkeys.letters')}</span>
+    </label>
+    <p class="tt-note" id="tt-letterkeys-hint">{i18n.t('settings.hotkeys.lettersHint')}</p>
     <dl class="tt-keys">
       <dt><kbd>Space</kbd></dt>
       <dd>{i18n.t('settings.hotkeys.space')}</dd>
@@ -1105,6 +1125,10 @@
       <dd>{i18n.t('settings.hotkeys.esc')}</dd>
       <dt><kbd>Alt</kbd>+<kbd>↑</kbd><kbd>↓</kbd></dt>
       <dd>{i18n.t('settings.hotkeys.altUpDown')}</dd>
+      <dt><kbd>Enter</kbd></dt>
+      <dd>{i18n.t('settings.hotkeys.enter')}</dd>
+      <dt><kbd>Menu</kbd> / <kbd>Shift</kbd>+<kbd>F10</kbd></dt>
+      <dd>{i18n.t('settings.hotkeys.menu')}</dd>
     </dl>
     <p class="tt-note">{i18n.t('settings.hotkeys.note')}</p>
   </section>
@@ -1420,6 +1444,19 @@
     box-shadow:
       inset 0 0 0 1px rgb(0 0 0 / 40%),
       0 0 0 2px var(--color-tt-signal);
+  }
+  /* v2.2 — forced colours: a swatch is a picture of a colour, so it keeps its
+     own (forced-color-adjust: none); the chosen one is marked by an outline in
+     the system highlight rather than by the amber ring. */
+  @media (forced-colors: active) {
+    .tt-swatch {
+      forced-color-adjust: none;
+      border-color: CanvasText;
+    }
+    .tt-swatch[aria-pressed='true'] {
+      outline: 3px solid Highlight;
+      outline-offset: 2px;
+    }
   }
   input[type='color'] {
     width: 2.5rem;

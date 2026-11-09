@@ -113,6 +113,7 @@
     }
   },
   "player": {
+    "remaining": "Time remaining: {{time}}",
     "transport": {
       "prev": "Previous track",
       "play": "Play",
@@ -369,6 +370,10 @@
       "bracket": "Show / hide the right panel",
       "esc": "Close a dialog or panel",
       "altUpDown": "Move the selected track",
+      "enter": "Play the selected track",
+      "menu": "Open the track's menu",
+      "letters": "Single-key shortcuts (M, F, H, S, ])",
+      "lettersHint": "Turn them off if you use speech input or press keys by accident. Space, the arrows and Esc keep working.",
       "note": "Shortcuts are off while you are typing in a field."
     },
     "diagnostics": {

@@ -92,4 +92,21 @@ test.describe('desktop viewports', () => {
     await page.goto('/does-not-exist');
     await expect(page.getByText('Không tìm thấy kênh')).toBeVisible();
   });
+
+  test('a desktop zoomed past the gate is told how to get in (v2.2)', async ({ page }) => {
+    /*
+     * docs/07 §4. Browser zoom shrinks `innerWidth`, so a 1920 px window at
+     * ~190% loads below 1024 CSS px and gets the notice — which used to say only
+     * "not available on mobile", to someone on a computer, often someone who
+     * zooms because they need to. A narrow desktop viewport is the same input.
+     */
+    await page.setViewportSize({ width: 900, height: 800 });
+    await page.goto('/');
+    await expect(page.locator('.tt-mobile-gate')).toBeVisible();
+    const hint = page.getByTestId('tt-gate-desktop-hint');
+    await expect(hint).toBeVisible();
+    await expect(hint).toContainText('Ctrl+0');
+    await expect(hint).toContainText('1024 px');
+    await expect(hint.locator('p[lang]')).toHaveCount(3);
+  });
 });

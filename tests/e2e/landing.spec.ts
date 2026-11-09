@@ -208,6 +208,37 @@ test.describe('landing', () => {
     await expect(page.locator('img.tt-hero-still')).toBeVisible();
   });
 
+  test('the looping hero can be stopped from the keyboard, with no JavaScript (v2.2)', async ({
+    page,
+  }) => {
+    /*
+     * WCAG 2.2.2: motion that starts by itself and lasts more than five seconds
+     * needs a way to stop it — reduced motion above covers only users who have
+     * set the OS preference. A real checkbox and `:has(:checked)`: the same
+     * swap, under the user's control, and still zero JS on the landing.
+     */
+    await page.goto('/');
+    const stop = page.getByRole('checkbox', { name: 'Dừng video minh hoạ' });
+    await expect(page.locator('video.tt-hero-video')).toBeVisible();
+    await stop.focus();
+    await page.keyboard.press('Space');
+    await expect(stop).toBeChecked();
+    await expect(page.locator('video.tt-hero-video')).toBeHidden();
+    await expect(page.locator('img.tt-hero-still')).toBeVisible();
+    // And back.
+    await page.keyboard.press('Space');
+    await expect(page.locator('video.tt-hero-video')).toBeVisible();
+  });
+
+  test('the footer offers the accessibility contact and statement (v2.2)', async ({ page }) => {
+    await page.goto('/en/');
+    await expect(page.locator('a[href="mailto:accessibility@poli0981.dev"]')).toBeVisible();
+    await expect(page.getByTestId('tt-a11y-link')).toHaveAttribute(
+      'href',
+      'https://github.com/poli0981/ticktune/blob/main/ACCESSIBILITY.md',
+    );
+  });
+
   test('Open Graph and the favicon are wired, same-origin', async ({ page }) => {
     await page.goto('/');
     expect(await meta(page, 'meta[property="og:image"]')).toMatch(/ticktune\.net\/og\//);

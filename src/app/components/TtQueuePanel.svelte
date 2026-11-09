@@ -522,10 +522,12 @@
     text-decoration: line-through;
     opacity: 0.55;
   }
+  /* 24 px wide since v2.2 — WCAG 2.5.8's minimum target, which 20 px missed
+     (the row's other target, ×, was already 24 × 24). */
   .tt-grip {
     display: grid;
     place-items: center;
-    width: 20px;
+    width: 24px;
     height: 28px;
     padding: 0;
     font-size: var(--tt-text-sm);

@@ -29,6 +29,7 @@ export const vi: StaticDict = {
     heroSub:
       'Một đồng hồ đếm ngược bảy đoạn cỡ lớn, nhạc của bạn phía sau, và không có gì được tải lên đâu cả.',
     heroMediaAlt: 'TickTune đang đếm ngược với hiệu ứng nhạc phía sau',
+    heroStop: 'Dừng video minh hoạ',
 
     featuresTitle: 'TickTune làm được gì',
     features: [
@@ -82,6 +83,8 @@ export const vi: StaticDict = {
     contactPress: 'Báo chí',
     contactCollab: 'Hợp tác',
     contactSecurity: 'Bảo mật',
+    contactAccessibility: 'Trợ năng',
+    a11yStatement: 'Tuyên bố về trợ năng (tiếng Anh)',
   },
 
   faq: [

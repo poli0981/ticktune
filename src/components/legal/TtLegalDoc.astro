@@ -234,6 +234,14 @@ const versionGhost = TT_LEGAL_VERSION.replace(/\d/g, '8');
     content: attr(data-ghost) / '';
   }
 
+  /* v2.2 — under forced colours the 8% alpha becomes an opaque system colour
+     and the unlit 8s would read as the version (docs/03 §8). */
+  @media (forced-colors: active) {
+    .tt-version-value::before {
+      display: none;
+    }
+  }
+
   .tt-canonical {
     padding-left: var(--tt-space-3);
     font-size: var(--tt-text-sm);

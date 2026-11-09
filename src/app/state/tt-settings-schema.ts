@@ -90,6 +90,13 @@ export interface TtSettings {
   shuffle: boolean;
   repeatPlaylist: boolean;
   allowDuplicates: boolean;
+
+  /**
+   * v2.2, WCAG 2.1.4 — the single-character shortcuts M, F, H, S and `]`
+   * (`03 §7`). A NEW field, so no migration (`02 §3.2`), and `true` — today's
+   * behaviour — is its long-term default on day one. Off is for speech input.
+   */
+  letterKeys: boolean;
 }
 
 const TT_SETTINGS_SCHEMA = 2 as const;
@@ -141,6 +148,7 @@ export const TT_DEFAULT_SETTINGS: TtSettings = {
   shuffle: false,
   repeatPlaylist: true,
   allowDuplicates: false,
+  letterKeys: true,
 };
 
 const LANGS: TtLang[] = ['vi', 'en', 'ja'];
@@ -255,6 +263,7 @@ export function clampSettings(raw: unknown): TtSettings {
     shuffle: bool(r['shuffle'], d.shuffle),
     repeatPlaylist: bool(r['repeatPlaylist'], d.repeatPlaylist),
     allowDuplicates: bool(r['allowDuplicates'], d.allowDuplicates),
+    letterKeys: bool(r['letterKeys'], d.letterKeys),
   };
 }
 

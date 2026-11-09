@@ -649,3 +649,98 @@ html[data-tt-blocked] body {
     transition-duration: 0.01ms !important;
   }
 }
+
+/* ── Forced colours — Windows Contrast themes (v2.2, docs/03 §8) ─────────────
+   The browser replaces every author colour with the user's system palette, and
+   that is the point: the user chose it. What it cannot replace is MEANING
+   carried by a colour alone, and the rack carried several that way — measured
+   under Chromium's forced-colours emulation before this block existed:
+   - the pressed key of every segmented strip (VI/EN/JA, the mode tabs, the
+     loop style, the theme) looked exactly like the others;
+   - a switch read the same on and off — its thumb is a background;
+   - a fader lost its track, leaving a thumb floating in nothing;
+   - an LED's on/off is only a background.
+   Each is restated here in SYSTEM colours (Highlight, CanvasText, GrayText),
+   which the user's theme defines. `!important` because a component's scoped
+   rule is unlayered and would otherwise win (see the layer note above), and
+   because this is the one place a theme colour must never come back.
+   The ghost layers ("8" behind the digits) are each component's own business
+   and are dropped there: an opaque system colour turns them into lit segments. */
+@media (forced-colors: active) {
+  [aria-pressed='true'],
+  [role='tab'][aria-selected='true'] {
+    forced-color-adjust: none !important;
+    color: HighlightText !important;
+    background-color: Highlight !important;
+  }
+
+  .tt-switch {
+    forced-color-adjust: none;
+    background: Canvas;
+    border-color: CanvasText;
+    box-shadow: none;
+  }
+  .tt-switch::before {
+    background: CanvasText;
+    box-shadow: none;
+  }
+  .tt-switch:checked {
+    background: Highlight;
+    border-color: Highlight;
+  }
+  .tt-switch:checked::before {
+    background: HighlightText;
+    box-shadow: none;
+  }
+  .tt-switch:disabled,
+  .tt-switch:disabled::before {
+    border-color: GrayText;
+  }
+
+  .tt-fader {
+    forced-color-adjust: none;
+  }
+  .tt-fader::-webkit-slider-runnable-track {
+    background: CanvasText;
+  }
+  .tt-fader::-moz-range-track {
+    background: CanvasText;
+  }
+  .tt-fader::-moz-range-progress {
+    background: Highlight;
+  }
+  .tt-fader::-webkit-slider-thumb {
+    background: ButtonFace;
+    border-color: ButtonText;
+    box-shadow: none;
+  }
+  .tt-fader::-moz-range-thumb {
+    background: ButtonFace;
+    border-color: ButtonText;
+    box-shadow: none;
+  }
+  .tt-fader:focus-visible::-webkit-slider-thumb,
+  .tt-fader:hover::-webkit-slider-thumb {
+    background: Highlight;
+    border-color: Highlight;
+  }
+  .tt-fader:focus-visible::-moz-range-thumb,
+  .tt-fader:hover::-moz-range-thumb {
+    background: Highlight;
+    border-color: Highlight;
+  }
+
+  .tt-led {
+    forced-color-adjust: none;
+    background: GrayText;
+    box-shadow: none;
+  }
+  .tt-led[data-on='true'] {
+    background: Highlight;
+    box-shadow: none;
+  }
+  /* Inside a pressed key the key itself is Highlight: the lit LED inverts. */
+  [aria-pressed='true'] > .tt-led {
+    background: HighlightText !important;
+  }
+}
