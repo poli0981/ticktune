@@ -113,6 +113,13 @@
   .over {
     border-color: var(--color-tt-signal);
   }
+  /* v2.2 — the global ring (global.css :focus-visible) lands on the input, which
+     is 1 px and transparent here, so a keyboard user saw only the dashed border
+     change colour. The bay itself carries the ring instead. */
+  .tt-drop:has(input:focus-visible) {
+    outline: 2px solid var(--color-tt-signal);
+    outline-offset: 2px;
+  }
   /* A file held over the bay: the slot lights. */
   .over {
     background: color-mix(in srgb, var(--color-tt-signal) 7%, var(--color-tt-void));

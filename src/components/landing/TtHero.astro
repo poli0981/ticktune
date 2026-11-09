@@ -107,14 +107,29 @@ for (const row of t.limits) {
     <span class="tt-screws tt-screws-l" aria-hidden="true"></span>
     <span class="tt-screws tt-screws-r" aria-hidden="true"></span>
     {/* Hardware labelling, not content: "ON AIR" is a studio sign, not copy. */}
-    <div class="tt-monitor-strip" aria-hidden="true">
-      <span class="tt-onair">
+    <div class="tt-monitor-strip">
+      <span class="tt-onair" aria-hidden="true">
         <span class="tt-onair-lamp"></span>On Air
       </span>
-      <span class="tt-monitor-leds">
-        <span class="tt-led" data-on="true"></span>
-        <span class="tt-led" data-on="true"></span>
-        <span class="tt-led"></span>
+      <span class="tt-strip-end">
+        <span class="tt-monitor-leds" aria-hidden="true">
+          <span class="tt-led" data-on="true"></span>
+          <span class="tt-led" data-on="true"></span>
+          <span class="tt-led"></span>
+        </span>
+        {/*
+          v2.2, WCAG 2.2.2 — the demo loops for as long as the page is open, so
+          it needs a way to stop. A real checkbox and CSS `:has(:checked)`
+          swapping in the still below: the landing still ships ZERO JavaScript
+          (`01 §5`, the single-inline-script rule). Checked = stopped; the name
+          stays the same in both states, as a checkbox's should. The video is
+          hidden, not paused — muted, and the only cost is its decoding.
+        */}
+        <label class="tt-key tt-key-sm tt-hero-stop">
+          <input class="tt-hero-stop-input" type="checkbox" data-testid="tt-hero-stop" />
+          <span class="tt-led" aria-hidden="true"></span>
+          {t.heroStop}
+        </label>
       </span>
     </div>
 
@@ -402,6 +417,45 @@ for (const row of t.limits) {
     .tt-hero-still {
       display: block;
     }
+    /* Nothing moves, so there is nothing to stop. */
+    .tt-hero-stop {
+      display: none;
+    }
+  }
+
+  /* v2.2 — the stop control's effect: the same swap reduced motion makes. */
+  .tt-monitor:has(.tt-hero-stop-input:checked) .tt-hero-video {
+    display: none;
+  }
+  .tt-monitor:has(.tt-hero-stop-input:checked) .tt-hero-still {
+    display: block;
+  }
+
+  .tt-strip-end {
+    display: inline-flex;
+    gap: var(--tt-space-4);
+    align-items: center;
+  }
+  .tt-hero-stop {
+    gap: var(--tt-space-2);
+    cursor: pointer;
+  }
+  /* The checkbox is the control; the keycap is how it looks. Visually hidden
+     rather than `display: none`, so it keeps focus and its role. */
+  .tt-hero-stop-input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+  }
+  /* The global ring would land on the 1 px input; the keycap carries it. */
+  .tt-hero-stop:has(.tt-hero-stop-input:focus-visible) {
+    outline: 2px solid var(--color-tt-signal);
+    outline-offset: 2px;
+  }
+  .tt-hero-stop:has(.tt-hero-stop-input:checked) .tt-led {
+    background: var(--color-tt-signal);
+    box-shadow: var(--tt-glow-signal);
   }
 
   .tt-glass {
@@ -467,6 +521,16 @@ for (const row of t.limits) {
     line-height: 1;
     color: rgb(245 238 220 / 7%);
     content: attr(data-ghost);
+  }
+  /* v2.2 — forced colours make the unlit segments' 7% alpha an opaque system
+     colour, and "10:02" read as "88:88" (measured, docs/03 §8). Drop them. */
+  @media (forced-colors: active) {
+    .tt-window::before {
+      display: none;
+    }
+    .tt-hero-stop:has(.tt-hero-stop-input:checked) .tt-led {
+      background: Highlight;
+    }
   }
   /* Generated, not typed: a lone math symbol is text axe cannot evaluate
      ("non-BMP"), and the strip is decorative (aria-hidden) anyway. */

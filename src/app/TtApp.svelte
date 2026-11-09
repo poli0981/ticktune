@@ -887,6 +887,21 @@
   let railCollapsed = $state(false);
   let settingsOpen = $state(false);
 
+  /** v2.2, WCAG 2.1.4 — the character keys `letterKeys` switches off (docs/03 §7). */
+  const TT_LETTER_KEYS = new Set(['m', 'f', 'h', 's', ']']);
+  /** v2.2, WCAG 2.1.1 — controls that own Space themselves (docs/03 §7). */
+  const TT_SPACE_OWNERS =
+    'button, a[href], summary, [role=button], [role=menuitem], [role=tab], [role=switch], [role=checkbox], [role=option], [role=radio]';
+
+  /*
+   * H is the only way out of Focus, and Focus hides every control. Switching
+   * the letters off from inside it (S opens ⚙ there) would strand the user, so
+   * the switch takes Focus down with it.
+   */
+  $effect(() => {
+    if (!settings.current.letterKeys && untrack(() => focusMode)) focusMode = false;
+  });
+
   /**
    * The 3 s chip both `03 §2` and `03 §4` call for — one region, two messages.
    *
@@ -1257,6 +1272,14 @@
     )
       return;
     if (booted && needsGate) return;
+    /*
+     * v2.2, WCAG 2.1.4 — the single-character shortcuts can be switched off.
+     * Speech input types letters into whatever has focus, and on <body> each one
+     * used to open a panel or mute the music. Space, the arrows and Esc are not
+     * character keys and stay; so do the components' own keys (Alt+↑/↓, Menu).
+     */
+    const letter = TT_LETTER_KEYS.has(e.key.toLowerCase());
+    if (letter && !settings.current.letterKeys) return;
     if (settingsOpen) {
       // `S` toggles, so it has to survive the guard that the panel's own `Esc`
       // handler otherwise hides behind.
@@ -1264,6 +1287,13 @@
       return;
     }
     if (infoTrack) return;
+    /*
+     * v2.2, WCAG 2.1.1 — Space on a focused control is that control's. The
+     * hotkey used to call preventDefault on it during playback, so Space on ⏭
+     * paused the run instead of skipping, and on the Settings switches did
+     * nothing at all. `body` (nothing focused) still gets play/pause.
+     */
+    if (e.key === ' ' && el?.closest(TT_SPACE_OWNERS)) return;
 
     if (e.key === 's' || e.key === 'S') {
       settingsOpen = true;
@@ -1487,6 +1517,7 @@
         size={settings.current.countdownSize}
         face={settings.current.clockFace}
         {focusMode}
+        speak={onPlayerScreen}
       />
     </div>
 
@@ -1624,13 +1655,18 @@
   -->
   <p class="tt-sr" role="status" aria-live="polite" data-testid="tt-milestone">{milestone}</p>
 
-  {#if hint === 'focus'}
-    <p class="tt-hint-chip" role="status" data-testid="tt-hint">{i18n.t('player.focus.hint')}</p>
-  {:else if hint === 'railLocked'}
-    <p class="tt-hint-chip" role="status" data-testid="tt-hint">
-      {i18n.t('player.focus.railLocked')}
-    </p>
-  {/if}
+  <!-- v2.2: one persistent status region the chip appears INSIDE — a region
+       inserted already filled is announced by some readers and not others.
+       The wrapper has no box of its own; the chip is fixed-position. -->
+  <div class="tt-hint-region" role="status" data-testid="tt-hint-region">
+    {#if hint === 'focus'}
+      <p class="tt-hint-chip" data-testid="tt-hint">{i18n.t('player.focus.hint')}</p>
+    {:else if hint === 'railLocked'}
+      <p class="tt-hint-chip" data-testid="tt-hint">
+        {i18n.t('player.focus.railLocked')}
+      </p>
+    {/if}
+  </div>
 
   <!-- docs/03 §6 endFlash. Decoration, so reduced motion removes it entirely. -->
   {#if flashing}
@@ -1715,6 +1751,18 @@
     box-shadow: var(--tt-shadow-key);
   }
   /* The unlit lamp is a dark red lens, not grey: hardware never loses colour. */
+  /* v2.2 — forced colours keep the lamp: on and off were only colours, and
+     the global block (global.css) restates state in system colours. */
+  @media (forced-colors: active) {
+    .tt-tally {
+      forced-color-adjust: none;
+      background: GrayText !important;
+      box-shadow: none !important;
+    }
+    .tt-tally.tt-live {
+      background: Highlight !important;
+    }
+  }
   .tt-tally {
     width: 10px;
     height: 10px;
@@ -1802,6 +1850,11 @@
    * Focus the corners are exactly what has just been emptied. Right-inset by the
    * rail reserve so it can never reach the player rect.
    */
+  /* Out of `main`'s flow: an empty item would still cost the layout a gap.
+     The chip inside is fixed, so this box's position never moves it. */
+  .tt-hint-region {
+    position: absolute;
+  }
   .tt-hint-chip {
     position: fixed;
     bottom: 1.5rem;

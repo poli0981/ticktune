@@ -50,6 +50,8 @@ export const en = {
     heroSub:
       'A large seven-segment countdown, your own audio behind it, and nothing uploaded anywhere.',
     heroMediaAlt: 'TickTune running a countdown with a visualizer behind it',
+    /** v2.2, WCAG 2.2.2 — the hero's CSS-only stop control (docs/03 §8). */
+    heroStop: 'Stop the demo video',
 
     featuresTitle: 'What it does',
     features: [
@@ -105,6 +107,9 @@ export const en = {
     contactPress: 'Press',
     contactCollab: 'Collaboration',
     contactSecurity: 'Security',
+    /** v2.2 — the accessibility contact and statement (ACCESSIBILITY.md). */
+    contactAccessibility: 'Accessibility',
+    a11yStatement: 'Accessibility statement',
   },
 
   faq: [

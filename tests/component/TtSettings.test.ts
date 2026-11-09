@@ -293,6 +293,26 @@ describe('glow, volume, mute and allowDuplicates', () => {
   });
 });
 
+describe('the single-key shortcuts switch — v2.2, WCAG 2.1.4', () => {
+  it('writes letterKeys, and its hint describes it', async () => {
+    mount();
+    const sw = screen.getByTestId('tt-set-letterkeys') as HTMLInputElement;
+    expect(sw.checked).toBe(true);
+    const hint = document.getElementById(sw.getAttribute('aria-describedby') ?? '');
+    expect(hint?.textContent).toContain('Esc');
+    await fireEvent.click(sw);
+    expect(patch).toHaveBeenCalledWith({ letterKeys: false });
+  });
+
+  it('lists the two keys the table used to leave out: Enter and the menu key', () => {
+    mount();
+    const table = screen.getByTestId('tt-set-hotkeys').textContent ?? '';
+    expect(table).toContain('Enter');
+    expect(table).toContain('Shift');
+    expect(table).toContain('F10');
+  });
+});
+
 describe('shuffle and repeat go through the session, not straight to the row', () => {
   it('calls session.setShuffle and session.setRepeat', async () => {
     // docs/02 §5.1: the store patches the field AND re-derives the play order.

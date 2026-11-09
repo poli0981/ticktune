@@ -27,6 +27,18 @@
 
   const { report, onrestart, onback, now = () => Date.now() }: Props = $props();
 
+  /*
+   * v2.2, docs/03 §8 — focus lands on the stamp. The player that held focus
+   * unmounts at zero, and the browser then drops focus on <body>: a keyboard
+   * user's next Tab started from the top of the page, and a screen reader said
+   * nothing about the screen that had replaced it. A heading, not a button, so
+   * Enter cannot restart a run by accident.
+   */
+  let title: HTMLHeadingElement | undefined = $state();
+  $effect(() => {
+    title?.focus({ preventScroll: true });
+  });
+
   // Recomputed at 1 Hz so "2 phút 57 giây trước" does not rot while the user
   // reads it — DERIVED from zeroAtEpoch each time, never incremented (docs/04
   // §1). Only runs on the late variant, where the phrase exists at all.
@@ -69,7 +81,7 @@
 
 <section class="tt-finished" data-testid="tt-finished" data-variant={report.variant}>
   <!-- The stamp: framed, lit, and the only thing on the stage at zero. -->
-  <h1 class="tt-title">{i18n.t('finished.title')}</h1>
+  <h1 class="tt-title" tabindex="-1" bind:this={title}>{i18n.t('finished.title')}</h1>
 
   {#if report.variant === 'late'}
     <!-- docs/03 §3.5: state WHEN, rather than implying now. -->
@@ -120,6 +132,11 @@
       0 0 24px color-mix(in srgb, var(--color-tt-danger) 22%, transparent),
       inset 0 0 24px color-mix(in srgb, var(--color-tt-danger) 14%, transparent);
     animation: tt-stamp var(--duration-tt-slow) var(--ease-tt);
+  }
+  /* A focus TARGET, not a control (tabindex -1): the stamp's own frame already
+     marks it, and the global ring would draw a second box around the first. */
+  .tt-title:focus {
+    outline: none;
   }
   /* Scale only — a fade would leave the heading at partial opacity, which
      axe measures as a contrast failure if it scans during the 400 ms. */

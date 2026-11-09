@@ -113,16 +113,22 @@
         break the running countdown, and an overlay elsewhere would leave a
         failed video looking like a frozen player.
       -->
-      <div class="tt-overlay" role="alert" data-testid="tt-yt-overlay" data-tt-key={overlay.key}>
-        <strong>{title}</strong>
-        <p>{cause}</p>
+      <div class="tt-overlay" data-testid="tt-yt-overlay" data-tt-key={overlay.key}>
+        <!--
+          The alert is the title and the cause only (v2.2). It used to be the
+          whole card, and `role=alert` is atomic: every second the counter below
+          changed, a reader announced the card again from the top.
+        -->
+        <div class="tt-overlay-msg" role="alert">
+          <strong>{title}</strong>
+          <p>{cause}</p>
+        </div>
         <!--
           docs/06 §4 lists FIVE parts and this was the missing one: without the
           countdown the card sat still and then vanished, which reads as the app
           losing its place rather than as a decision it announced.
 
-          `aria-live` is off on purpose — the card itself is `role=alert`, so it
-          is announced once on arrival; a per-second counter re-announcing would
+          Outside the alert on purpose: a per-second counter re-announcing would
           talk over the reason the user is trying to read.
         -->
         {#if skipInSeconds !== null}
@@ -251,6 +257,12 @@
     padding: var(--tt-space-4);
     text-align: center;
     background: color-mix(in srgb, var(--color-tt-void) 94%, transparent);
+  }
+  /* Same stack as the card, so wrapping the alert moved nothing on screen. */
+  .tt-overlay-msg {
+    display: grid;
+    justify-items: center;
+    gap: var(--tt-space-2);
   }
   .tt-overlay strong {
     font-family: var(--font-display);

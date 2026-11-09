@@ -37,7 +37,16 @@ describe('defaults', () => {
       clockFace: 'dseg7',
       // Off for good: turning it on asks the browser, which only a click may.
       finishNotify: false,
+      // v2.2, WCAG 2.1.4: on — the behaviour every earlier version had.
+      letterKeys: true,
     });
+  });
+
+  it('clamps letterKeys to a boolean and keeps an old row readable (v2.2)', () => {
+    expect(clampSettings({ letterKeys: 'no' }).letterKeys).toBe(true);
+    expect(clampSettings({ letterKeys: false }).letterKeys).toBe(false);
+    // A row written before v2.2 has no such field: it gains today's behaviour.
+    expect(clampSettings({ schema: 2, lang: 'en' }).letterKeys).toBe(true);
   });
 
   it('clamps theme and clockFace to their sets and keeps an old row readable', () => {

@@ -57,7 +57,10 @@
   });
 </script>
 
-<div class="tt-toast" role="status" data-testid="tt-toast">
+<!-- No role of its own (v2.2): it renders inside Setup's persistent
+     `role=status` region. A live region inserted already filled — which this
+     was — is announced by some screen readers and skipped by others. -->
+<div class="tt-toast" data-testid="tt-toast">
   <p class="tt-summary">
     <span class="tt-led" data-on={result.added.length > 0} aria-hidden="true"></span>
     {i18n.t('toast.summary', { added: result.added.length, skipped: result.skipped.length })}

@@ -78,6 +78,28 @@
    * straight into the rate limit the P4 exit criterion is about.
    */
   let links = $state('');
+
+  /*
+   * v2.2 — the mode tabs follow the ARIA tabs pattern (docs/03 §8): one tab
+   * stop, ←/→ and Home/End move between them, and selection follows focus —
+   * switching a shelf is instant and loses nothing (docs/02 §3.5).
+   */
+  const TT_MODES = ['single', 'playlist', 'youtube'] as const;
+  let tablist: HTMLDivElement | undefined = $state();
+  function onTabKey(e: KeyboardEvent) {
+    const i = TT_MODES.indexOf(session.mode);
+    let n: number;
+    if (e.key === 'ArrowRight') n = (i + 1) % TT_MODES.length;
+    else if (e.key === 'ArrowLeft') n = (i + TT_MODES.length - 1) % TT_MODES.length;
+    else if (e.key === 'Home') n = 0;
+    else if (e.key === 'End') n = TT_MODES.length - 1;
+    else return;
+    const next = TT_MODES[n] ?? 'single';
+    // Handled here, so the shell's ←/→ (previous/next track) must not see it.
+    e.preventDefault();
+    session.setMode(next);
+    tablist?.querySelector<HTMLElement>(`[data-testid=tt-tab-${next}]`)?.focus();
+  }
 </script>
 
 <section class="tt-setup" data-testid="tt-setup">
@@ -96,37 +118,62 @@
       shown. Single and Playlist share the files; YouTube shows only its links
       (docs/02 §3.5).
     -->
-    <div class="tt-seg tt-tabs" role="tablist" aria-label={i18n.t('setup.mode.label')}>
+    <div
+      class="tt-seg tt-tabs"
+      role="tablist"
+      aria-label={i18n.t('setup.mode.label')}
+      bind:this={tablist}
+    >
       <button
         role="tab"
+        id="tt-tab-single"
         aria-selected={single}
+        aria-controls="tt-source-panel"
+        tabindex={single ? 0 : -1}
         data-testid="tt-tab-single"
+        onkeydown={onTabKey}
         onclick={() => session.setMode('single')}>{i18n.t('setup.mode.single')}</button
       >
       <button
         role="tab"
+        id="tt-tab-playlist"
         aria-selected={playlist}
+        aria-controls="tt-source-panel"
+        tabindex={playlist ? 0 : -1}
         data-testid="tt-tab-playlist"
+        onkeydown={onTabKey}
         onclick={() => session.setMode('playlist')}>{i18n.t('setup.mode.playlist')}</button
       >
       <button
         role="tab"
+        id="tt-tab-youtube"
         aria-selected={youtube}
+        aria-controls="tt-source-panel"
+        tabindex={youtube ? 0 : -1}
         data-testid="tt-tab-youtube"
+        onkeydown={onTabKey}
         onclick={() => session.setMode('youtube')}>{i18n.t('setup.mode.youtube')}</button
       >
     </div>
 
-    <!--
+    <!-- The tabs' one panel: every mode fills the same box with its own shelf.
+         Same grid and gap as the module, so the wrapper moved nothing. -->
+    <div
+      class="tt-source-panel"
+      id="tt-source-panel"
+      role="tabpanel"
+      aria-labelledby="tt-tab-{session.mode}"
+    >
+      <!--
       docs/06 §8 — the offline banner. Renders in the Setup column and never over
       Z4: `03 §2`'s carve-out applies to it like any other overlay.
     -->
-    {#if !session.online}
-      <p class="tt-offline" role="status" data-testid="tt-offline">
-        {i18n.t('setup.offline.title')}{youtube
-          ? i18n.t('setup.offline.youtube')
-          : i18n.t('setup.offline.local')}
-        <!--
+      {#if !session.online}
+        <p class="tt-offline" role="status" data-testid="tt-offline">
+          {i18n.t('setup.offline.title')}{youtube
+            ? i18n.t('setup.offline.youtube')
+            : i18n.t('setup.offline.local')}
+          <!--
           The way out, and it has to exist.
 
           The banner blocks Start (§8), and the re-check that would clear it runs
@@ -138,146 +185,152 @@
           A poll is not the answer (§8 rejects it — the only endpoint worth
           probing is the one the rate limit guards), so the user says when to try.
         -->
-        {#if youtube && session.hasPending}
-          <button
-            type="button"
-            class="tt-key tt-key-sm tt-retry"
-            data-testid="tt-offline-retry"
-            onclick={() => void session.recheckPending()}>{i18n.t('setup.offline.retry')}</button
-          >
-        {/if}
-      </p>
-    {/if}
+          {#if youtube && session.hasPending}
+            <button
+              type="button"
+              class="tt-key tt-key-sm tt-retry"
+              data-testid="tt-offline-retry"
+              onclick={() => void session.recheckPending()}>{i18n.t('setup.offline.retry')}</button
+            >
+          {/if}
+        </p>
+      {/if}
 
-    {#if youtube}
-      <!--
+      {#if youtube}
+        <!--
         docs/06 §5. Sources do not mix, so YouTube mode shows a paste box and no
         drop zone at all — links and files live on separate shelves, and this
         tab shows the links' (docs/02 §3.5).
       -->
-      <div class="tt-links">
-        <!--
+        <div class="tt-links">
+          <!--
           docs/06 §9 (v2.1) — the owner's playlist mode, as a choice of what the
           box takes rather than a fourth tab: either kind fills the same shelf,
           under the same 50-link cap. Buttons with aria-pressed, the pattern of
           the header's language keys — a tablist would promise panels.
         -->
-        <div class="tt-seg tt-yt-kind" role="group" aria-label={i18n.t('yt.setup.kind.label')}>
-          <button
-            type="button"
-            aria-pressed={ytKind === 'videos'}
-            data-testid="tt-yt-kind-videos"
-            onclick={() => onytkind('videos')}>{i18n.t('yt.setup.kind.videos')}</button
-          >
-          <button
-            type="button"
-            aria-pressed={ytKind === 'playlists'}
-            data-testid="tt-yt-kind-playlists"
-            onclick={() => onytkind('playlists')}>{i18n.t('yt.setup.kind.playlists')}</button
-          >
-        </div>
-        <label>
-          <span>
-            {#if ytKind === 'playlists'}
-              {i18n.t('yt.setup.paste.playlistsLabel')}
-            {:else}
-              {i18n.t('yt.setup.paste.label')}
-            {/if}
-          </span>
-          <textarea
-            bind:value={links}
-            rows="4"
-            class="tt-field"
-            placeholder={ytKind === 'playlists'
-              ? 'https://www.youtube.com/playlist?list=...'
-              : 'https://www.youtube.com/watch?v=...'}
-            data-testid="tt-yt-input"></textarea>
-        </label>
-        <button
-          class="tt-key"
-          data-testid="tt-yt-add"
-          disabled={session.importing || links.trim() === ''}
-          onclick={() => {
-            const text = links;
-            links = '';
-            void (ytKind === 'playlists'
-              ? session.importPlaylists(text)
-              : session.importLinks(text));
-          }}>{i18n.t('yt.setup.paste.submit')}</button
-        >
-      </div>
-    {:else}
-      <TtDropZone
-        busy={session.importing}
-        multiple={!single}
-        compact={session.queue.length > 0}
-        ondrop={(dt) => void session.importDropped(dt)}
-        onpick={(files) => void session.importPicked(files)}
-      />
-    {/if}
-
-    {#if single}
-      {#if track}
-        <div class="tt-staged" data-testid="tt-staged">
-          <div class="tt-staged-text">
-            <!-- Hard invariant 5: missing text is `N/A`. This row used an em dash
-                 for a missing artist — the one surface that bypassed `text()`. -->
-            <strong>{text(track.title)}</strong>
-            <span>{text(track.artist)} · {positionText(track.durationMs)}</span>
+          <div class="tt-seg tt-yt-kind" role="group" aria-label={i18n.t('yt.setup.kind.label')}>
+            <button
+              type="button"
+              aria-pressed={ytKind === 'videos'}
+              data-testid="tt-yt-kind-videos"
+              onclick={() => onytkind('videos')}>{i18n.t('yt.setup.kind.videos')}</button
+            >
+            <button
+              type="button"
+              aria-pressed={ytKind === 'playlists'}
+              data-testid="tt-yt-kind-playlists"
+              onclick={() => onytkind('playlists')}>{i18n.t('yt.setup.kind.playlists')}</button
+            >
           </div>
+          <label>
+            <span>
+              {#if ytKind === 'playlists'}
+                {i18n.t('yt.setup.paste.playlistsLabel')}
+              {:else}
+                {i18n.t('yt.setup.paste.label')}
+              {/if}
+            </span>
+            <textarea
+              bind:value={links}
+              rows="4"
+              class="tt-field"
+              placeholder={ytKind === 'playlists'
+                ? 'https://www.youtube.com/playlist?list=...'
+                : 'https://www.youtube.com/watch?v=...'}
+              data-testid="tt-yt-input"></textarea>
+          </label>
           <button
-            class="tt-key tt-key-sm tt-key-danger"
-            data-testid="tt-remove-track"
-            onclick={() => session.removeTrack(track.id)}>{i18n.t('setup.staged.remove')}</button
+            class="tt-key"
+            data-testid="tt-yt-add"
+            disabled={session.importing || links.trim() === ''}
+            onclick={() => {
+              const text = links;
+              links = '';
+              void (ytKind === 'playlists'
+                ? session.importPlaylists(text)
+                : session.importLinks(text));
+            }}>{i18n.t('yt.setup.paste.submit')}</button
           >
         </div>
+      {:else}
+        <TtDropZone
+          busy={session.importing}
+          multiple={!single}
+          compact={session.queue.length > 0}
+          ondrop={(dt) => void session.importDropped(dt)}
+          onpick={(files) => void session.importPicked(files)}
+        />
       {/if}
-    {:else}
-      <!-- Same component as the Z4 rail: one now-playing highlight, one totals
-           footer, one place for either to be wrong (docs/03 §2). -->
-      <TtQueuePanel
-        variant="setup"
-        tracks={session.queue}
-        currentId={session.currentId}
-        shuffle={settings.current.shuffle}
-        repeat={settings.current.repeatPlaylist}
-        exhausted={false}
-        capped={!youtube}
-        onremove={(id) => session.removeTrack(id)}
-        onjump={() => undefined}
-        onshuffle={(on) => session.setShuffle(on)}
-        onrepeat={(on) => session.setRepeat(on)}
-        onmove={(id, delta) => session.moveTrack(id, delta)}
-        {oninfo}
-      />
-    {/if}
 
-    <!--
+      {#if single}
+        {#if track}
+          <div class="tt-staged" data-testid="tt-staged">
+            <div class="tt-staged-text">
+              <!-- Hard invariant 5: missing text is `N/A`. This row used an em dash
+                 for a missing artist — the one surface that bypassed `text()`. -->
+              <strong>{text(track.title)}</strong>
+              <span>{text(track.artist)} · {positionText(track.durationMs)}</span>
+            </div>
+            <button
+              class="tt-key tt-key-sm tt-key-danger"
+              data-testid="tt-remove-track"
+              onclick={() => session.removeTrack(track.id)}>{i18n.t('setup.staged.remove')}</button
+            >
+          </div>
+        {/if}
+      {:else}
+        <!-- Same component as the Z4 rail: one now-playing highlight, one totals
+           footer, one place for either to be wrong (docs/03 §2). -->
+        <TtQueuePanel
+          variant="setup"
+          tracks={session.queue}
+          currentId={session.currentId}
+          shuffle={settings.current.shuffle}
+          repeat={settings.current.repeatPlaylist}
+          exhausted={false}
+          capped={!youtube}
+          onremove={(id) => session.removeTrack(id)}
+          onjump={() => undefined}
+          onshuffle={(on) => session.setShuffle(on)}
+          onrepeat={(on) => session.setRepeat(on)}
+          onmove={(id, delta) => session.moveTrack(id, delta)}
+          {oninfo}
+        />
+      {/if}
+
+      <!--
       docs/02 §4's progress indicator, deferred out of P2 and landed here.
 
       The store decides whether it is worth showing at all (PROGRESS_DELAY_MS), so
       a one-file import renders nothing rather than flashing — which is the exact
       reason P2 chose to defer it instead of shipping a spinner.
     -->
-    {#if session.progress}
-      <div class="tt-progress" data-testid="tt-import-progress">
-        <progress
-          max={session.progress.total}
-          value={session.progress.done}
-          aria-label={i18n.t('setup.progress.label')}
-        ></progress>
-        <span>
-          {i18n.t('setup.progress.text', {
-            done: session.progress.done,
-            total: session.progress.total,
-          })}
-        </span>
-      </div>
-    {/if}
+      {#if session.progress}
+        <div class="tt-progress" data-testid="tt-import-progress">
+          <progress
+            max={session.progress.total}
+            value={session.progress.done}
+            aria-label={i18n.t('setup.progress.label')}
+          ></progress>
+          <span>
+            {i18n.t('setup.progress.text', {
+              done: session.progress.done,
+              total: session.progress.total,
+            })}
+          </span>
+        </div>
+      {/if}
 
-    {#if session.lastImport}
-      <TtToast result={session.lastImport} ondismiss={() => session.dismissImport()} />
-    {/if}
+      <!-- v2.2: the live region exists before the summary does, so filling it is
+         an announcement every screen reader makes (docs/03 §8). Empty, it is
+         an empty grid item and takes no room. -->
+      <div class="tt-import-status" role="status" data-testid="tt-import-status">
+        {#if session.lastImport}
+          <TtToast result={session.lastImport} ondismiss={() => session.dismissImport()} />
+        {/if}
+      </div>
+    </div>
   </div>
 
   <div class="tt-module tt-timer">
@@ -340,8 +393,15 @@
           data-testid="tt-match-length"
           disabled={session.matchableMs === null}
           title={session.matchableMs === null ? i18n.t('setup.countdown.matchLocked') : ''}
+          aria-describedby={session.matchableMs === null ? 'tt-match-why' : undefined}
           onclick={onmatch}>{i18n.t('setup.countdown.match')}</button
         >
+        <!-- v2.2: `title` reaches a mouse only, and a disabled button gets no
+             hover on most keyboards' journeys — the reason is also a
+             description a screen reader reads with the button. -->
+        {#if session.matchableMs === null}
+          <span class="tt-sr" id="tt-match-why">{i18n.t('setup.countdown.matchLocked')}</span>
+        {/if}
       </div>
       <!-- docs/02 §5.2: said where it is decided — nothing else on Setup tells
            the user that removing a row changes the number above. Two literal
@@ -434,6 +494,19 @@
   }
   .tt-tabs {
     justify-self: start;
+  }
+  /* The tab panel (v2.2) repeats the module's own stack, so the rows inside it
+     sit exactly where they did as the module's children. */
+  .tt-source-panel {
+    display: grid;
+    gap: var(--tt-space-3);
+    min-width: 0;
+  }
+  /* An empty grid item still costs a gap; the negative margin pays it back.
+     Never `display: none` here — a live region must already be in the
+     accessibility tree when its content arrives, or nothing is announced. */
+  .tt-import-status:empty {
+    margin-top: calc(-1 * var(--tt-space-3));
   }
 
   .tt-staged {

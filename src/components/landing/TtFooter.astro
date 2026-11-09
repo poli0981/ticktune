@@ -41,7 +41,17 @@ const contacts = [
   { label: t.contactPress, address: 'press@poli0981.dev' },
   { label: t.contactCollab, address: 'collab@poli0981.dev' },
   { label: t.contactSecurity, address: 'security@poli0981.dev' },
+  // v2.2 — created 2026-11-09 for barrier reports (ACCESSIBILITY.md).
+  { label: t.contactAccessibility, address: 'accessibility@poli0981.dev' },
 ];
+
+/**
+ * v2.2 — the accessibility statement. It lives in the repository with the
+ * other community files and is written in English, so the Vietnamese and
+ * Japanese labels say so, as the legal links do. A navigation, not a fetch:
+ * the CSP is untouched.
+ */
+const a11yStatement = `${TT_LEGAL_LINKS.repo}/blob/main/ACCESSIBILITY.md`;
 
 const docs = [
   { href: ttLegalHref('eula', lang), label: legal.docs.eula },
@@ -79,6 +89,11 @@ const docs = [
           </li>
         ))}
       </ul>
+      <p class="tt-a11y">
+        <a href={a11yStatement} hreflang="en" rel="noopener noreferrer" data-testid="tt-a11y-link">
+          {t.a11yStatement}
+        </a>
+      </p>
     </div>
 
     <p class="tt-source">
@@ -120,8 +135,13 @@ const docs = [
     padding: 0;
     list-style: none;
   }
+  .tt-a11y {
+    margin-top: var(--tt-space-4);
+    font-size: var(--tt-text-sm);
+  }
   .tt-docs a,
-  .tt-contacts a {
+  .tt-contacts a,
+  .tt-a11y a {
     text-decoration: underline;
     text-decoration-color: var(--color-tt-outline);
     text-underline-offset: 4px;
@@ -133,8 +153,12 @@ const docs = [
     font-size: var(--tt-text-base);
     color: var(--color-tt-text);
   }
+  .tt-a11y a {
+    color: var(--color-tt-text);
+  }
   .tt-docs a:hover,
-  .tt-contacts a:hover {
+  .tt-contacts a:hover,
+  .tt-a11y a:hover {
     color: var(--color-tt-signal);
     text-decoration-color: currentcolor;
   }

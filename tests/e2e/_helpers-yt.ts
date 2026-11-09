@@ -97,6 +97,11 @@ export async function installFakeYt(page: Page): Promise<void> {
             frame.width = String(opts.width);
             frame.height = String(opts.height);
             frame.style.border = '0';
+            // The real frame always has a name: "YouTube video player" before a
+            // video, then the video's own title — measured 2026-11-09 in the
+            // built-in browser (v2.2). Without it axe's frame-title rule failed
+            // on the STUB, a finding production does not have.
+            frame.title = 'YouTube video player';
             el.replaceWith(frame);
 
             var ev = opts.events || {};

@@ -54,13 +54,20 @@
   }: Props = $props();
 
   const IDLE_MS = 4_000;
-  let visible = $state(true);
+  let awake = $state(true);
+  /*
+   * v2.2, docs/03 §8 — a bar holding focus never hides. It used to idle out
+   * under a focused ⏭ after 4 s, and a hidden element cannot keep focus: the
+   * browser dropped it on <body>, so the next Tab started again from the top.
+   */
+  let focusInside = $state(false);
+  const visible = $derived(awake || focusInside);
 
   $effect(() => {
     // Re-runs whenever the parent bumps the token, restarting the idle timer.
     void wakeToken;
-    visible = true;
-    const id = setTimeout(() => (visible = false), IDLE_MS);
+    awake = true;
+    const id = setTimeout(() => (awake = false), IDLE_MS);
     return () => clearTimeout(id);
   });
 
@@ -72,13 +79,24 @@
 <!--
   `tt-bar-idle`, not `hidden`: Tailwind scans this file, and a bare `hidden`
   class is its `display: none` utility — which silently replaced the fade with a
-  cut. The idle bar also leaves the tab order (`visibility`), as it did then.
+  cut.
+
+  v2.2: the idle bar fades out but stays in the accessibility tree and the tab
+  order. With `visibility: hidden` a screen reader in browse mode — whose keys
+  never reach the page, so never wake the bar — lost every transport control
+  four seconds into a run. A Tab still wakes it before focus lands, and focus
+  inside keeps it up.
 -->
 <footer
   class="tt-bar"
   class:tt-bar-idle={!visible}
   data-testid="tt-bottom-bar"
   data-visible={visible}
+  onfocusin={() => (focusInside = true)}
+  onfocusout={(e) => {
+    // Moving between the bar's own buttons is not leaving it.
+    if (!e.currentTarget.contains(e.relatedTarget as Node | null)) focusInside = false;
+  }}
 >
   <div class="tt-meta">
     <strong data-testid="tt-bar-title">{text(track?.title)}</strong>
@@ -140,6 +158,7 @@
       max="100"
       value={Math.round(volume * 100)}
       aria-label={i18n.t('player.transport.volume')}
+      aria-valuetext={`${Math.round(volume * 100)}%`}
       data-testid="tt-volume"
       oninput={(e) => onvolume(Number(e.currentTarget.value) / 100)}
     />
@@ -188,17 +207,11 @@
     border-radius: var(--tt-radius-md);
     box-shadow: var(--tt-shadow-panel);
     container-type: inline-size;
-    transition:
-      opacity var(--duration-tt-base) var(--ease-tt),
-      visibility 0s linear 0s;
+    transition: opacity var(--duration-tt-base) var(--ease-tt);
   }
   .tt-bar-idle {
-    visibility: hidden;
     opacity: 0;
     pointer-events: none;
-    transition:
-      opacity var(--duration-tt-base) var(--ease-tt),
-      visibility 0s linear var(--duration-tt-base);
   }
   /* docs/03 §8: the bar still hides, it just stops fading (content, not
      decoration — the state change is instant instead of animated). */

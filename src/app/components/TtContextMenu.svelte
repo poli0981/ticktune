@@ -148,6 +148,12 @@
     } else if (e.key === 'ArrowUp') {
       e.preventDefault();
       step(-1);
+    } else if (e.key === 'Home' || e.key === 'End') {
+      // v2.2 — the ARIA menu pattern's first/last item, skipping disabled ones.
+      e.preventDefault();
+      const order = e.key === 'Home' ? items : [...items].reverse();
+      const target = order.find((it) => !it.disabled);
+      if (target) active = items.indexOf(target);
     } else if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
       const item = items[active];
