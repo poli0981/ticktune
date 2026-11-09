@@ -1772,6 +1772,16 @@ its fix.
 YouTube stub: its iframe had no `title`. Measured in the built-in browser, the
 real frame always has one, so the stub now matches and the app did not change.
 
+**What the visual baselines found.** #115's first `visual` run failed on Setup
+and Settings, light and dark. The source module was 12 px taller, and that was
+a regression, not an intended change. The import summary's persistent live
+region costs a grid gap even when empty. The first attempt to pay it back
+matched `:empty`, which never matches because Svelte leaves an anchor. The
+second used a negative margin, and the grid stretched the empty box against
+that margin to 12 px. The idle region is now `position: absolute`: out of the
+flow, still in the accessibility tree. The module measures 364 px again,
+matching the existing baselines, so no baseline changed.
+
 **Not taken.** Each is in `ACCESSIBILITY.md`'s Known limitations, by its effect
 on users:
 
@@ -1784,7 +1794,7 @@ on users:
 
 | PR | Branch | What it carried |
 |----|--------|-----------------|
-| — | `feat/a11y-2.2` | Everything above, `ACCESSIBILITY.md`, the issue form and the PR template, and the release |
+| #115 | `feat/a11y-2.2` | Everything above, `ACCESSIBILITY.md`, the issue form and the PR template, and the release |
 
 ## Post-2.0 backlog (unordered)
 
