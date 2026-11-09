@@ -205,6 +205,9 @@ interface TtSettings {
   shuffle: boolean;
   repeatPlaylist: boolean;
   allowDuplicates: boolean;
+
+  // ── Keyboard ──────────────────────────────────────────────────────────────
+  letterKeys: boolean;                      // v2.2 — 03 §7; WCAG 2.1.4
 }
 
 export const TT_DEFAULT_SETTINGS: TtSettings = {
@@ -242,6 +245,7 @@ export const TT_DEFAULT_SETTINGS: TtSettings = {
   shuffle: false,
   repeatPlaylist: true,       // 03 §6
   allowDuplicates: false,     // 03 §6
+  letterKeys: true,           // v2.2, additive — today's behaviour on day one
 };
 ```
 
@@ -278,8 +282,8 @@ One row, primary key `'app'`. A keyed store rather than a free key/value table s
 a settings read is a single `get('app')` and the whole object is typed as
 `TtSettings` — no per-key parsing, no partial-write races.
 
-**Upgrade policy — additive only** (v1.x, and v2.0's `theme`, `clockFace` and
-`finishNotify` arrived the same way). New fields are added to
+**Upgrade policy — additive only** (v1.x, v2.0's `theme`, `clockFace` and
+`finishNotify`, and v2.2's `letterKeys` arrived the same way). New fields are added to
 `TtSettings` with a default in `TT_DEFAULT_SETTINGS`; the read path is
 `{ ...TT_DEFAULT_SETTINGS, ...storedRow }`, so a row written by an older build
 gains new fields with their defaults and needs no Dexie version bump. A Dexie

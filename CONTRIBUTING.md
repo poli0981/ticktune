@@ -74,12 +74,24 @@ Welcome, on the terms this project holds itself to (the Disclaimer's §7):
       `src/lib/tt-legal-const.ts` in the same PR, so users are asked again —
       and batch legal changes, because every bump re-prompts everyone
 - [ ] Behavior changes reflected in the relevant `docs/` chapter
+- [ ] UI changes meet [ACCESSIBILITY.md](ACCESSIBILITY.md)'s contributor
+      expectations: keyboard only, a screen-reader spot check, forced colours
+      and reduced motion checked, and a new screen scanned in
+      `tests/e2e/a11y.spec.ts` (`docs/13 §6`)
 
 ## Reporting bugs
 
 Use the bug template — it **requires** the browser console errors and (ideally)
 the output of Settings → Diagnostics → **Copy Diagnostics**. Reports without
 console output usually can't be diagnosed and will be sent back for info.
+
+## Accessibility
+
+A barrier — something hard or impossible to use with a keyboard, a screen
+reader, zoom, contrast or motion settings — has its own issue form,
+**Accessibility barrier**, or can be emailed to accessibility@poli0981.dev. What
+is built in, what is known not to work and how reports are handled is in
+[ACCESSIBILITY.md](ACCESSIBILITY.md).
 
 ## Security
 

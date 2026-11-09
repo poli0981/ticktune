@@ -1,0 +1,105 @@
+name: Accessibility barrier
+description: Something in TickTune is hard or impossible to use with a keyboard, screen reader, zoom, contrast or motion settings
+title: "[A11y]: "
+labels: ["accessibility"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you — barrier reports are taken seriously (see
+        [ACCESSIBILITY.md](https://github.com/poli0981/ticktune/blob/main/ACCESSIBILITY.md)).
+
+        - **You never need to tell us about a disability.**
+        - Only the fields marked required are required. Answer the rest if you can.
+        - Prefer not to use GitHub? Email **accessibility@poli0981.dev** instead.
+
+  - type: textarea
+    id: task
+    attributes:
+      label: What were you trying to do?
+      placeholder: "e.g. Start a 25-minute countdown with two local files"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: where
+    attributes:
+      label: Where did it happen?
+      options:
+        - Landing page
+        - Terms dialog (first visit to /app/)
+        - Setup (choosing music and time)
+        - Player (while the countdown runs)
+        - Finished screen
+        - Settings panel
+        - Track info or track menu
+        - Legal pages
+        - The "not available on mobile" notice
+        - Somewhere else
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened, and what did you expect?
+      description: For example "focus disappeared after I pressed Tab", or "the screen reader said nothing when time was up".
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce (optional)
+      placeholder: |
+        1. Open /app/ and accept the terms
+        2. Press Tab three times
+        3. ...
+
+  - type: input
+    id: assistive-tech
+    attributes:
+      label: Assistive technology and version (if any)
+      placeholder: "e.g. Narrator, NVDA 2026.1, VoiceOver, Windows Voice Access, keyboard only, 200% zoom, Contrast theme"
+
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and version
+      placeholder: "e.g. Firefox 145, Chrome 142, Edge 142, Brave 1.85"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: Operating system
+      placeholder: "e.g. Windows 11 24H2, macOS 16"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: How much does it get in your way?
+      description: Your view helps; we confirm the level when we triage (ACCESSIBILITY.md → Severity).
+      options:
+        - "Critical — I cannot do the task at all"
+        - "Serious — I can only do it with great difficulty or a workaround"
+        - "Moderate — it is annoying or inconsistent"
+        - "Minor — small impact"
+        - "Not sure"
+
+  - type: textarea
+    id: media
+    attributes:
+      label: Screenshot or recording (optional)
+      description: Drag a file here if it helps. It is never required.
+
+  - type: checkboxes
+    id: confirm
+    attributes:
+      label: Checks
+      options:
+        - label: I looked for an existing issue about the same barrier
+          required: false
