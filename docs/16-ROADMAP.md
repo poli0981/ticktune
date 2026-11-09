@@ -1822,7 +1822,7 @@ the checklist.
 
 | PR | Branch | What it carried |
 |----|--------|-----------------|
-| — | `docs/v2.2.0-results` | The checklist's preview and production results; this paragraph |
+| #116 | `docs/v2.2.0-results` | The checklist's preview and production results; this paragraph |
 
 ## Post-2.0 backlog (unordered)
 
