@@ -1701,7 +1701,103 @@ on its first attempt. Its tree is identical to the branch head the preview ran.
 |----|--------|-----------------|
 | #114 | `docs/v2.1.1-results` | The checklist's preview and production results; this paragraph |
 
+## v2.2 — accessibility · **v2.2.0**
+
+GitHub's Community Standards page listed **Accessibility → Add**. The owner
+asked (2026-11-09) for four things:
+
+- an `ACCESSIBILITY.md` in the right place;
+- the docs checked and synced;
+- the existing accessibility inventoried, with gaps proposed;
+- a release only if one was really needed.
+
+They had already run the app keyboard-only and with Windows Narrator, on Brave,
+Chrome and Firefox, and found no errors.
+
+**Decided before any code:**
+
+- the statement at the repository root, in English, like the other community
+  files;
+- WCAG 2.2 AA as a **target, not a conformance claim** — no audit exists;
+- all three community files: the statement, an **Accessibility barrier** issue
+  form with an `accessibility` label, and a pull request template;
+- fix real barriers and release;
+- a reporting address the owner created the same day,
+  `accessibility@poli0981.dev`.
+
+**What writing the statement found.** Every sentence had to be true of the
+shipped build, and an inventory of the code against WCAG 2.2 AA found Level A
+barriers that keyboard and Narrator testing had not hit:
+
+- the single-key shortcuts could not be switched off (2.1.4);
+- the landing's demo looped with no way to stop it (2.2.2);
+- Space on a focused control was taken for play/pause (2.1.1);
+- the countdown, the app's main content, was `aria-hidden`, readable only at
+  the five milestones (1.3.1).
+
+And at AA, or as plain defects:
+
+- a desktop zoomed in at load was told it was a phone;
+- forced colours were unhandled — the landing's gauges read "88:88" under a
+  Windows Contrast theme, and no pressed key, tab or switch showed its state;
+- the bottom bar idled out under a focused ⏭ and dropped focus on `<body>`, and
+  left the accessibility tree four seconds into every run;
+- Finished dropped focus too;
+- the YouTube error card re-announced itself every second;
+- two status messages were inserted already filled;
+- the drop zone's focus ring was invisible;
+- the drag grip was 20 px wide;
+- the Setup tabs lacked their arrow keys;
+- three sliders spoke bare numbers;
+- the "Match length" reason reached a mouse only.
+
+**What shipped.** Each item is specified in `03 §7` and `03 §8`, and
+`13 §6`'s v2.2 subsection lists the specs, each shown red on the code before
+its fix.
+
+- **Keyboard:** the `letterKeys` switch (`02 §3.1`, additive); Space stays with
+  a focused control; the tabs pattern; the context menu's `Home`/`End`; the
+  hotkey table's two missing rows.
+- **Screen readers:** the `role="timer"` twin; persistent status regions; the
+  error card's alert narrowed to its title and cause; focus kept by the bar and
+  given to Finished.
+- **Vision:** `global.css`'s forced-colours block, and the ghosts dropped in
+  their components.
+- **Landing and gate:** the hero's CSS-only stop control — still zero JS — and
+  the zoomed-desktop line (`07 §4`). The footer carries the accessibility
+  contact and the statement.
+- **The scan:** `wcag22aa`, and every surface a user spends time on.
+
+**What the harness changed.** The widened scan's one finding was the E2E's
+YouTube stub: its iframe had no `title`. Measured in the built-in browser, the
+real frame always has one, so the stub now matches and the app did not change.
+
+**Not taken.** Each is in `ACCESSIBILITY.md`'s Known limitations, by its effect
+on users:
+
+- reflow at 400% — the desktop-only decision (D2);
+- the error card's 5 s auto-skip;
+- no on-screen note when the scrim reaches its cap;
+- track changes not announced;
+- `/app/`'s static title;
+- the landing footer inside `<main>`.
+
+| PR | Branch | What it carried |
+|----|--------|-----------------|
+| — | `feat/a11y-2.2` | Everything above, `ACCESSIBILITY.md`, the issue form and the PR template, and the release |
+
 ## Post-2.0 backlog (unordered)
+
+- **Accessibility, from `ACCESSIBILITY.md`'s Known limitations** (v2.2). These
+  are the actionable ones:
+  - an on-screen note when the auto scrim hits its 0.60 cap;
+  - a way to keep the YouTube error card longer than 5 s;
+  - the landing footer as a `contentinfo` landmark;
+  - `/app/` in Lighthouse's accessibility run;
+  - the remaining status messages that appear already filled — the offline
+    banner and ⚙'s import and copy results;
+  - NVDA, JAWS and VoiceOver runs. The owner's Narrator run is the only real
+    screen reader so far.
 
 - **The playlist route's quota exposure** (v2.1, `06 §9`). One call can spend
   ten units, and the per-IP binding is loose on production. The remedies are a
