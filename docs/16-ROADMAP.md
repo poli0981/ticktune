@@ -1701,7 +1701,7 @@ on its first attempt. Its tree is identical to the branch head the preview ran.
 |----|--------|-----------------|
 | #114 | `docs/v2.1.1-results` | The checklist's preview and production results; this paragraph |
 
-## v2.2 — accessibility · **v2.2.0**
+## v2.2 — accessibility · **v2.2.0**, 2026-11-09
 
 GitHub's Community Standards page listed **Accessibility → Add**. The owner
 asked (2026-11-09) for four things:
@@ -1795,6 +1795,34 @@ on users:
 | PR | Branch | What it carried |
 |----|--------|-----------------|
 | #115 | `feat/a11y-2.2` | Everything above, `ACCESSIBILITY.md`, the issue form and the PR template, and the release |
+
+**Released — 2026-11-09, 14:44 UTC.** #115 merged by rebase once every check
+was green, `visual` included, which means the existing baselines held. Its
+tree is identical to the branch head (`b48b528`) whose preview `74604d31` ran
+the checklist.
+
+- **The tag.** `v2.2.0` sits on `067c92e`. The signature was verified against
+  a keyring holding only `https://github.com/poli0981.gpg` before the push.
+- **The deploy.** `deploy.yml`'s verify, deploy and release jobs were green,
+  with exactly one new deployment (`14a0f3cc`).
+- **Production:**
+  - About reads 2.2.0;
+  - the preview's script passed 18/18 — keyboard, the timer twin, forced
+    colours, the hero stop, the zoomed gate, Finished's focus, a clean
+    console;
+  - `verify:csp` 6/6;
+  - `/app/`, `/`, a legal page and `sw.js` were byte-identical to the
+    preview's.
+- **GitHub:** the Community Standards page links Accessibility to
+  `ACCESSIBILITY.md` and ticks the pull request template. The health score
+  went from 71 to 85; a code of conduct is the one item left.
+- **Real YouTube**, in the built-in browser on the preview: the frame was
+  titled by the video, and the error card's alert held only its title and
+  cause (`tests/manual/v2.2.0-live-checklist.md`).
+
+| PR | Branch | What it carried |
+|----|--------|-----------------|
+| — | `docs/v2.2.0-results` | The checklist's preview and production results; this paragraph |
 
 ## Post-2.0 backlog (unordered)
 
