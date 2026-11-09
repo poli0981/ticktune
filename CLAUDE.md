@@ -128,7 +128,7 @@ measuring again.
 
 ## Current status
 
-**v2.1.1** (2026-11-03) is the current release, live on `https://ticktune.net`.
+**v2.2.0** (2026-11-09) is the current release, live on `https://ticktune.net`.
 P1–P7 are complete — v1.0.0 closed P7 — and every phase's exit review is in
 `docs/16`. v1.1 was a full review rather than a phase; v1.1.1 fixed two live
 defects. **v2.0 shipped every post-1.1 direction**: link lengths from the
@@ -156,8 +156,14 @@ used to stop the music and leave the countdown running (the owner's report).
 
 **v2.1.1 is the tag parser** — music-metadata 12.3.3 (ID3v2 and
 headerless-MP3 duration fixes) arrived as Dependabot #111 after v2.1.0, and it
-ships, so it got its own patch. `docs/16`'s v2.0 through v2.1.1 sections have
-the reviews.
+ships, so it got its own patch.
+**v2.2 is accessibility** — `ACCESSIBILITY.md` at the root (WCAG 2.2 AA as a
+target, not a claim), an **Accessibility barrier** issue form, a PR template,
+and the barriers writing it found: single-key shortcuts that could not be
+switched off, a hero that could not be stopped, Space taken from a focused
+control, a countdown a screen reader could not read, forced colours unhandled,
+a zoomed desktop told it was a phone. `docs/16`'s v2.0 through v2.2 sections
+have the reviews.
 
 **Releases are tag-only (decided 2026-10-20).** Workers Builds runs
 `npx wrangler versions upload` for every push, so a branch gets a preview URL
@@ -393,6 +399,26 @@ Four habits that found the rest:
   full-bleed backdrop is exactly what `03 §2` forbids over the player.
 - **`scrimAuto` is solved arithmetic** that reports its 0.60 cap rather than
   exceeding it; **auto-theme is a `hue-rotate`**, never a rebuilt gradient.
+- **Accessibility has a public statement, `ACCESSIBILITY.md`** (v2.2) —
+  `03 §8` is its spec and is fixed first when they disagree; a change that
+  makes a sentence there untrue updates it in the same PR. Reports go to the
+  issue form or accessibility@poli0981.dev.
+  - **`letterKeys`** switches off M/F/H/S/`]` (WCAG 2.1.4) and takes Focus
+    mode down with it — `H` is Focus's only exit.
+  - **Space on a focused control is the control's**; the hotkey applies only
+    when focus is on no control (`03 §7`).
+  - **The countdown has a `role="timer"` twin** — implicit `aria-live` off,
+    whole seconds, words from `Intl.DurationFormat`; the digits stay
+    `aria-hidden`. Never put `aria-live` on anything that ticks.
+  - **A live region exists before it speaks** — Setup's import region and the
+    hint chip's are persistent, never `display: none`; an `alert` holds only
+    what should be read once.
+  - **Forced colours** are restated in system colours in `global.css`
+    (`!important`, because scoped rules are unlayered); a ghost drawn with an
+    alpha COLOUR becomes opaque there and is dropped — the countdown's uses
+    `opacity` and survives.
+  - **The hero's stop control is a checkbox and `:has(:checked)`** — the
+    landing still ships zero JS.
 - **Pictures are sampled through `<img>`, never `fetch`** (v2.0.1, `docs/09 §4`).
   `connect-src` has no `blob:` on purpose; both samplers fetched blob: URLs and
   were refused in production from v0.7.0 to v2.0.0, behind silent catches.
@@ -464,7 +490,8 @@ Four habits that found the rest:
   no string in it can close the `<script>`. Its input is our own constant, never
   user text; `{@html}` stays banned in the island.
 - **Contacts are role addresses on `poli0981.dev`**: privacy@, legal@,
-  copyright@, security@, press@, collab@. `games@`, `dmca@`, `takedown@`,
+  copyright@, security@, press@, collab@, and accessibility@ (v2.2, created by
+  the owner 2026-11-09). `games@`, `dmca@`, `takedown@`,
   `code@` and `sponsor@` are deliberately unused — there is no hosted user
   content to take down.
 - **The perf budget is P7's measurement**, fixed when the surface was final.
@@ -517,7 +544,10 @@ svelte-check and is outside typescript-eslint's peer range, `docs/11 §4`)
 4. **Post-2.0 directions** are in `docs/16`'s backlog section: loudness
    normalization needs a new spike (S6 failed), and a seek control would leave
    S4b's PASS.
-5. `docs/AUDIT-BACKLOG.md` — **0 open**.
+5. **Accessibility's known limitations** (`ACCESSIBILITY.md`, `docs/16`
+   backlog): no scrim-cap note, the error card's fixed 5 s, a few status
+   messages still inserted filled, no NVDA/JAWS/VoiceOver run yet.
+6. `docs/AUDIT-BACKLOG.md` — **0 open**.
 
 **CodeQL runs as GitHub default setup — keep it enabled.** The old instruction to
 disable it applied only while the advanced `codeql.yml` existed; that file is
