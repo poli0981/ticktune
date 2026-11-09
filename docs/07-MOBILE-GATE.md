@@ -78,6 +78,23 @@ if (blocked) document.documentElement.dataset.ttBlocked = '1';
 The JA paragraph (v2.0) is HTML, like the others: the gate's inline script — and
 with it the CSP hash in `09 §4` — did not change.
 
+**A desktop lands here too** (v2.2). The criterion reads `innerWidth` once at
+load, and browser zoom shrinks it: a 1920 px window at ~188% or more, or a
+1280 px one above ~125%, loads below 1024 CSS px — and the notice told that
+user, often someone who zooms because they need to, that their computer was a
+phone. Below a rule, in all three languages, the gate now says how to get in:
+
+> **EN** — On a computer? TickTune needs a window at least 1024 px wide when the
+> page loads — reset the zoom (Ctrl+0, or ⌘0 on a Mac) or widen the window,
+> then reload.
+
+Zooming **after** the page has loaded is kept (`§2`: evaluated once), so a user
+who needs a larger view can load at 100% and zoom in. The layout itself still
+ends at 1024 CSS px: 400% zoom (WCAG 1.4.10 reflow) is not supported, and
+`ACCESSIBILITY.md` says so. HTML only — the inline script and its CSP hash are
+as before (`build` printed the same hash). `mobile-gate.spec.ts` asserts the
+line on a 900 px desktop viewport.
+
 (Original spec copy said "Desktop web/app"; adjusted — no desktop app exists.)
 Below the text: wordmark + tally light (static), link to GitHub. Nothing else.
 

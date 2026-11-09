@@ -660,7 +660,34 @@ without knowing the hotkey.
 `]` is a **no-op in YouTube mode** while a video is loaded — the rail holds the
 player and the player may never be hidden (`§2` carve-out, `06 §1.2`).
 
+**The single-key shortcuts can be switched off** (v2.2, WCAG 2.1.4). `M`, `F`,
+`H`, `S` and `]` are character keys, and speech input types characters into
+whatever has focus — on `<body>`, dictating a word opened the panel or muted the
+music. ⚙ → Keyboard shortcuts has a switch, `letterKeys` (`02 §3.1`), on by
+default. Off, those five do nothing; `Space`, the arrows, `Esc` and the
+components' own keys (`Alt+↑/↓`, `Menu`) are not character keys and stay.
+Turning it off also leaves Focus mode, because `H` is the only way out of a
+screen that hides every control. The table in ⚙ also lists `Enter` (play the
+row) and `Menu`/`Shift+F10` (the row's menu), which it used to leave out.
+
+**`Space` on a focused control is that control's** (v2.2, WCAG 2.1.1). The
+play/pause hotkey used to `preventDefault` Space during a run whatever had focus,
+so Space on ⏭ paused the run and skipped nothing, and on a ⚙ switch did nothing.
+It now applies only when focus is on no control — buttons, links, tabs,
+switches, menu items and options keep their own Space.
+
+**The Setup mode tabs are the ARIA tabs pattern** (v2.2): one tab stop, `←/→`
+and `Home/End` move between them with selection following focus, each tab
+`aria-controls` the one `role=tabpanel` that holds the shelf. The tabs handle
+the arrows themselves, so the shell's `←/→` (previous/next track) never sees
+them. The row's context menu answers `Home/End` too.
+
 ## 8. Motion & accessibility
+
+The public summary of what follows — what is built in, what is known not to
+work, how to report a barrier — is
+[`ACCESSIBILITY.md`](../ACCESSIBILITY.md) (v2.2). This section is the spec it
+summarises; when the two disagree, this one is fixed first.
 
 - Duration tokens 120 (key press) / 150 / 250 / 400 ms; ease
   `cubic-bezier(0.2, 0.7, 0.1, 1)` — mechanical: a short press, a damped
@@ -706,7 +733,70 @@ player and the player may never be hidden (`§2` carve-out, `06 §1.2`).
   12 000 and announced "one minute remaining". The pure function was correct
   throughout. A dedicated baseline fixed it; reverting it turns the spec red
   with exactly that spurious announcement.
+- **The time remaining, on demand** (v2.2, WCAG 1.3.1). The digits stay
+  `aria-hidden` — they change every frame below a minute, and DSEG glyphs read
+  badly — so until v2.2 a screen reader could hear the time only at the five
+  milestones above. On the player screen `TtCountdown` renders a visually
+  hidden twin with `role="timer"`, whose implicit `aria-live` is **off**:
+  nothing is announced on its own, and a reader that moves to it hears "Time
+  remaining: 1 hour, 23 minutes, 45 seconds". Whole seconds, so its DOM changes
+  at most once a second. The words come from `Intl.DurationFormat` (each
+  language's own plurals), falling back to the Finished screen's unit keys.
+  They are spoken words, not a display format — `04 §4` is not restated. The
+  label is in the text, not `aria-label`: a reader in browse mode reads a
+  timer's content, and a name that replaced it would say only "Time remaining".
+- **Status messages exist before they speak** (v2.2, WCAG 4.1.3). A live region
+  inserted already filled is announced by some readers and skipped by others.
+  The import summary now fills Setup's persistent `role=status` region
+  (`TtToast` has no role of its own), and the Focus/rail hint chip appears
+  inside a persistent region in the shell. The YouTube error card's
+  `role=alert` holds only its title and cause: it used to hold the
+  per-second "skip in N s" too, and `alert` is atomic, so the whole card was
+  read again every second.
+- **Focus never falls to `<body>`** (v2.2, WCAG 2.4.3). The Finished screen
+  moves focus to its heading (`tabindex=-1`, no ring — the stamp's frame is
+  its marker): the player that held focus unmounts at zero. The bottom bar
+  never idles out while it holds focus — it used to hide under a focused ⏭,
+  and a hidden element cannot keep focus. Idle, it fades (`opacity: 0`,
+  `pointer-events: none`) but stays in the accessibility tree, where a screen
+  reader in browse mode — whose keys never reach the page, so never wake the
+  bar — can still find ⏹.
 - Full keyboard support: queue rows focusable, context-menu equivalent via `Menu`
-  key / `Shift+F10`, visible focus ring (`tt-signal`, 2 px offset).
+  key / `Shift+F10`, visible focus ring (`tt-signal`, 2 px offset). Where the
+  focused element is a visually hidden input — the drop zone's file picker, the
+  landing's stop control — the ring is drawn on the visible box around it
+  (`:has(input:focus-visible)`); on the 1 px input itself it was invisible.
 - Language of parts: `lang` attribute switches with i18n so screen readers use the
   right voice.
+- **Target size** (v2.2, WCAG 2.5.8): every pointer target is at least 24 px
+  wide. The queue row's drag grip was 20 px; it is 24 × 28.
+- **The landing's demo can be stopped** (v2.2, WCAG 2.2.2). It loops for as long
+  as the page is open. A keycap in the monitor strip is a real checkbox ("Stop
+  the demo video"), and `.tt-monitor:has(:checked)` makes the same swap reduced
+  motion makes — the still for the video. Checked means stopped, and the name
+  stays the same in both states, as a checkbox's should. Zero JavaScript, so
+  `01 §5` and the single-inline-script rule hold. The video is hidden rather
+  than paused: it is muted, and its decoding is the only cost. Under reduced
+  motion the control is not shown — nothing moves.
+- **The screen flash** (`endFlash`, off by default) is two pulses of amber at
+  20 % opacity in 400 ms, once per finish; with `loop` at its 1 s minimum the
+  cycle is at least 1.4 s. At most two flashes in any second — under WCAG
+  2.3.1's three — and reduced motion removes it.
+- **Forced colours — Windows Contrast themes** (v2.2). The browser replaces
+  every author colour with the user's system palette; what breaks is meaning
+  carried by a colour alone. Measured under Chromium's forced-colours emulation
+  before the fix:
+  - the landing gauges read "88:88" — the unlit segments' 7 % alpha became an
+    opaque system colour over the values (the legal version readout likewise);
+  - every segmented strip's pressed key looked like the others;
+  - a switch read the same on and off, and a fader lost its track.
+
+  `global.css`'s `@media (forced-colors: active)` block restates each state in
+  system colours (`Highlight`, `CanvasText`, `GrayText`), `!important` because
+  a component's scoped rule is unlayered and would otherwise win. The ghosts
+  are dropped in their components. A gradient swatch keeps its own colours
+  (`forced-color-adjust: none` — it is a picture of a colour) and marks the
+  chosen one with a `Highlight` outline. The countdown's own ghost is drawn
+  with `opacity`, which forced colours keep, so it survives as a dim LCD.
+  `tests/e2e/forced-colors.spec.ts` compares two states of each control under
+  emulation.

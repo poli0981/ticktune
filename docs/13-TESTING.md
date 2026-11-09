@@ -476,7 +476,8 @@ Keyboard-only full journey; axe scan on Landing/Setup/Player/Settings; reduced-
 motion mode visual check; contrast spot-checks under brightest background preset.
 
 `tests/e2e/a11y.spec.ts` owns the first two; reduced motion is already covered in
-`backgrounds.spec.ts` and is not duplicated. `@axe-core/playwright` is **MPL-2.0**
+`backgrounds.spec.ts` (and the hero's in `landing.spec.ts`) and is not
+duplicated, and so is the brightest-background contrast check. `@axe-core/playwright` is **MPL-2.0**
 (GPL-3.0 compatible) and test-only, so it gets no notices row — and
 `make-notices.ts` proves that rather than asserting it: the generated artifact is
 built from the client bundle, and axe does not appear in it.
@@ -502,6 +503,44 @@ dialog, which is precisely what the `AudioContext` defect above did to the legal
 gate. The keyboard-only specs are that half, and they locate controls **by
 accessible label** (`getByLabel`, `getByRole`) rather than by testid, so they fail
 for the same reason a real user would.
+
+### v2.2 — the pass that wrote `ACCESSIBILITY.md`
+
+The repository's public statement, [`ACCESSIBILITY.md`](../ACCESSIBILITY.md),
+summarises this section and `03 §8`; writing it is what found the gaps below,
+because every sentence it makes had to be true of the shipped build.
+
+- **`wcag22aa` joined the tags.** The statement names WCAG 2.2 AA as its target,
+  and a scan that cannot see 2.2's rules would be quietly narrower than the
+  statement. (axe has no `wcag22a` tag.)
+- **Every surface a user spends time on is scanned**, not four: the three
+  landings, a VI and an EN legal document, 404, the gate, Setup (with and
+  without an import summary, and in Japanese), Settings, the Player in Single,
+  Playlist and YouTube mode — the last with an error card up — the context
+  menu, track info and Finished. The light theme repeats the app's four.
+- **The scan found one thing, and it was the stub's.** The YouTube rail failed
+  `frame-title`: the E2E's fake player built an iframe with no name. The real
+  frame always has one — "YouTube video player" before a video, then the
+  video's title — measured in the built-in browser with the S1 harness. The
+  stub now matches; the app did not change. (`CLAUDE.md`'s habit: ask what the
+  harness changes about the thing it measures.)
+- **New keyboard and screen-reader specs**, each shown red on the code before
+  its fix (`03 §7`, `03 §8`): Space on a focused control; the `letterKeys`
+  switch (the field is *read* — `S` and `M` do nothing when it is off); the
+  `role="timer"` twin; the bottom bar holding focus past its idle and staying
+  in the accessibility tree; the mode tabs; the import summary arriving in a
+  region that was already there; Finished taking focus.
+- **`forced-colors.spec.ts`** (Chromium only — its emulation renders the forced
+  palette): the landing and legal ghosts are dropped, and a pressed key, a
+  selected tab and a checked switch each differ from a neighbour in the other
+  state. Shown red with `global.css`'s forced-colours block removed.
+- **`landing.spec.ts`** stops the hero from the keyboard; **`mobile-gate.spec.ts`**
+  asserts the zoomed-desktop line on a 900 px desktop viewport.
+
+Still manual, and listed in the statement as such: real screen readers. The
+owner ran keyboard-only and Windows Narrator on Brave, Chrome and Firefox
+before v2.2 and found no errors; NVDA, JAWS, VoiceOver and speech input are
+untested.
 
 ## 7. Live-site smoke checklist (spec: "test directly on the live site")
 

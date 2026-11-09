@@ -42,8 +42,12 @@ Your files never leave your browser.
 - **Settings as a file**: export them, import them on another machine.
 - **Keyboard first**: `Space` play/pause, `←/→` tracks, `↑/↓` volume, `M` mute,
   `F` fullscreen, `H` Focus, `S` settings — the full table is in the app.
-- **Accessible**: screen-reader milestones at 10 / 5 / 1 min, 10 s and zero;
-  every control reachable by keyboard; reduced motion respected.
+- **Accessible**: screen-reader milestones at 10 / 5 / 1 min, 10 s and zero,
+  and the time remaining readable on demand; every control reachable by
+  keyboard, with the single-key shortcuts switchable off; Windows Contrast
+  themes and reduced motion respected. Target: WCAG 2.2 AA — details,
+  known limitations and how to report a barrier in
+  [ACCESSIBILITY.md](ACCESSIBILITY.md).
 
 **Desktop only, by design.** Phones and tablets get a notice instead of the app
 (`docs/07`) — the experience is a large clock on a large screen.
@@ -107,8 +111,9 @@ Astro 7 static pages, plus **one Svelte 5 island** at `/app/`, mounted by hand
 behind the mobile gate rather than with a client directive (`docs/01 §3`). The
 engines — timer, audio, import, queue, YouTube — are pure TypeScript under
 `src/app/engine/`; state lives in Svelte 5 runes stores. It is served by
-Cloudflare Workers Static Assets with exactly one Worker route,
-`GET /api/yt/oembed`.
+Cloudflare Workers Static Assets with three Worker routes —
+`GET /api/yt/oembed`, `GET /api/yt/durations` and `GET /api/yt/playlists` — the
+last two holding the YouTube Data API key as a Worker secret.
 
 ### Releases
 
@@ -130,7 +135,7 @@ The `docs/` suite is authoritative; `CLAUDE.md` is its condensed contract.
 | `05-AUDIO-ENGINE` | Web Audio graph, End Behavior, visualizer |
 | `06-YOUTUBE-INTEGRATION` | IFrame Player, ToS constraints, error causes, oEmbed |
 | `07-MOBILE-GATE` | The site-wide desktop gate |
-| `08-I18N` | VI/EN for the static pages and the app |
+| `08-I18N` | VI/EN/JA for the static pages and the app |
 | `09-SECURITY` | Threat model, headers, CSP |
 | `10-CLOUDFLARE-SETUP` | Zone, Worker and dashboard configuration |
 | `11-DEPENDENCIES` | Versions, licences, the notices rule |
@@ -155,6 +160,13 @@ app itself has no AI features and sends nothing to any AI service — the
 Read [CONTRIBUTING.md](CONTRIBUTING.md) first — especially the hard invariants in
 `CLAUDE.md`, which no change may break.
 
+## Accessibility
+
+[ACCESSIBILITY.md](ACCESSIBILITY.md) is the accessibility statement: what is
+built in, what has been tested, what is known not to work, and how to report a
+barrier — the **Accessibility barrier** issue form, or
+**accessibility@poli0981.dev**.
+
 ## Security
 
 Please report vulnerabilities privately: **security@poli0981.dev**, or GitHub's
@@ -170,6 +182,7 @@ Details in [SECURITY.md](.github/SECURITY.md).
 | Privacy | privacy@poli0981.dev |
 | Terms and legal | legal@poli0981.dev |
 | Licensing and attribution | copyright@poli0981.dev |
+| Accessibility barriers | accessibility@poli0981.dev |
 
 ## License
 
