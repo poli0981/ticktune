@@ -1894,6 +1894,34 @@ Wrangler 4.158.0.
 | #119 | Dependabot | Closed: the seventeen bumps, redone in #120 |
 | #120 | `chore/deps-2026-11` | The bumps, the image, the overrides, the version, this section, the live checklist |
 
+**Released — 2026-11-10, 12:16 UTC.** #120 merged by rebase once `e2e` passed
+(31 minutes), on its second push: the first failed `visual` at
+`corepack enable`, before any screenshot was taken. With pnpm installed, the
+existing baselines matched the 1.65.0 image, so none was regenerated. The
+merged tree is identical to the branch head the preview ran.
+
+- **The tag.** `v2.2.1` sits on `3e4b64c`. The signature was verified against a
+  keyring holding only `https://github.com/poli0981.gpg` before the push.
+- **The deploy.** `deploy.yml`'s verify, deploy and release jobs were green,
+  with exactly one new deployment (`07aa070b`).
+- **The preview** (`6d060548`), through the shipped bundle, 10 checks:
+  - the three landings and the privacy page in two languages render, and a
+    mistyped address is a 404;
+  - VI, EN and JA switch with no raw key on screen;
+  - the four Vietnamese fixtures read exactly, and the 11-minute file is
+    refused (TT-IMP-002);
+  - a run started and kept playing with a clean console;
+  - `verify:csp` 6/6.
+- **Production:**
+  - About reads 2.2.1, and `verify:csp` passed 6/6;
+  - the preview's script passed 10/10 on its first attempt;
+  - `/app/`, `/`, a legal page and `sw.js` were byte-identical to the
+    preview's.
+
+| PR | Branch | What it carried |
+|----|--------|-----------------|
+| #121 | `docs/v2.2.1-results` | The checklist's preview and production results; this paragraph |
+
 ## Post-2.0 backlog (unordered)
 
 - **Accessibility, from `ACCESSIBILITY.md`'s Known limitations** (v2.2). These
