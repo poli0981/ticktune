@@ -48,7 +48,9 @@ const update = process.argv.includes('--update');
 const inside = [
   'set -e',
   'mkdir -p /work && cd /work && tar -x -f -',
-  'corepack enable >&2',
+  // No corepack in the 1.65 image's Node (Node 25 dropped it): install the pnpm
+  // that `packageManager` names. `quality.yml`'s visual job runs the same line.
+  `npm install --global "pnpm@$(node -p "require('./package.json').packageManager.split('@')[1]")" >&2`,
   'CI=1 pnpm install --frozen-lockfile >&2',
   'pnpm build >&2',
   'status=0',

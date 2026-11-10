@@ -83,7 +83,8 @@ Missing metadata shows as `N/A` (text) or `–` (numbers), never as a blank.
 
 ## Development
 
-Requirements: **Node 26 LTS** and **pnpm 11** (`corepack enable`).
+Requirements: **Node 26 LTS** and **pnpm 11** (`npm install -g pnpm@11`; Node 26 ships no
+corepack).
 
 ```bash
 pnpm install
