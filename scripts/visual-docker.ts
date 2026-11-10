@@ -34,7 +34,7 @@ function bin(name: string): string {
 
 // Keep in step with the `visual` job in .github/workflows/quality.yml.
 const IMAGE =
-  'mcr.microsoft.com/playwright:v1.64.1-noble@sha256:7852dc5a7d72f5fe458a597d690f6c42fbc8e9e26ddfa95f8e6ef552558d9bbf';
+  'mcr.microsoft.com/playwright:v1.65.0-noble@sha256:6e3fb709361521eb27161606e6da6d2674e5e89fa16516cb37d6fdd91372273d';
 /*
  * `--update` rewrites EVERY baseline, not Playwright's default of the ones that
  * fail. A change inside the tolerance (`maxDiffPixelRatio` 0.001 — 1,296 px at
