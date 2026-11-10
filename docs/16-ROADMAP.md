@@ -1850,6 +1850,11 @@ keeps `@emnapi/runtime 1.11.3`, and #119 was closed.
 
 - The visual image is `mcr.microsoft.com/playwright:v1.65.0-noble`, pinned by
   digest in `quality.yml` and `scripts/visual-docker.ts`.
+- That image's Node has no corepack, so the visual job's `corepack enable`
+  failed on this PR's first push. The job and `scripts/visual-docker.ts` now
+  install the pnpm that `packageManager` names. README and CONTRIBUTING told a
+  contributor on Node 26 to run `corepack enable` too, which cannot work there;
+  they now say `npm install -g pnpm@11`.
 - `@lhci/cli` 0.16.0 is on Lighthouse 13.6.0. Four overrides left
   `pnpm-workspace.yaml` (`tmp`, `uuid`, `js-yaml@3>argparse`,
   `chromium-bidi>zod`), `get-uri>basic-ftp` stays, and extract-zip's two high
