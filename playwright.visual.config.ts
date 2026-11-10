@@ -6,7 +6,7 @@ import { defineConfig, devices } from '@playwright/test';
  * Screenshots are only comparable when they come from the same fonts, the same
  * rasteriser and the same browser build, so the baselines are made — and CI
  * compares them — inside the pinned official image
- * `mcr.microsoft.com/playwright:v1.64.1-noble` (`pnpm test:visual:docker`
+ * `mcr.microsoft.com/playwright:v1.65.0-noble` (`pnpm test:visual:docker`
  * locally, the `visual` job in .github/workflows/quality.yml). On any other
  * machine a mismatch says nothing about the app.
  *

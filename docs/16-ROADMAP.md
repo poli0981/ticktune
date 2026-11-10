@@ -1824,6 +1824,71 @@ the checklist.
 |----|--------|-----------------|
 | #116 | `docs/v2.2.0-results` | The checklist's preview and production results; this paragraph |
 
+## v2.2.1 — dependencies · **v2.2.1**, 2026-11-10
+
+Three Dependabot PRs were open the day after v2.2.0: two Actions bumps, green,
+and #119, seventeen minor and patch updates, red on `ci` and `visual`. Three of
+the seventeen ship — **Astro 7.4.7**, **music-metadata 12.3.5** and **i18next
+26.7.2** — so this is a release rather than a merge that waits (`11 §5`).
+
+**Why #119 was red, and neither reason was the code.**
+
+- `ci`: `astro check` reported that `@astrojs/check` and `typescript` were not
+  installed. Both were. Dependabot's lockfile had resolved
+  `@emnapi/runtime 2.0.0-beta.2`, and Astro could not load the checker with it.
+  Astro 7.4.6 is what made this visible: until then `astro check` exited 0 when
+  it could not load its checker. With this PR's lockfile it does load: the same command
+  reports 219 files.
+- `visual`: Playwright 1.65.0 asks for a Chromium build the pinned 1.64.1 image
+  does not hold. `11 §2` says a Playwright bump moves the image in the same PR;
+  Dependabot cannot.
+
+So the bumps were redone by hand on `chore/deps-2026-11`, with a lockfile that
+keeps `@emnapi/runtime 1.11.3`, and #119 was closed.
+
+**What changed beside the versions.**
+
+- The visual image is `mcr.microsoft.com/playwright:v1.65.0-noble`, pinned by
+  digest in `quality.yml` and `scripts/visual-docker.ts`.
+- `@lhci/cli` 0.16.0 is on Lighthouse 13.6.0. Four overrides left
+  `pnpm-workspace.yaml` (`tmp`, `uuid`, `js-yaml@3>argparse`,
+  `chromium-bidi>zod`), `get-uri>basic-ftp` stays, and extract-zip's two high
+  advisories closed because the package left the tree. `pnpm audit` on the
+  whole tree is down from four to two, the two with no patched release
+  (`11 §5`).
+- No source file changed.
+
+**What ships, from the release notes, on the paths TickTune uses.**
+
+- music-metadata 12.3.4 and 12.3.5: shared components with its editor package,
+  and normalised ID3 lyrics values. TickTune reads no lyrics; the tag, cover
+  and duration paths are the ones v2.1.1 checked.
+- i18next 26.6 to 26.7.2: type options that default off, `reloadResources()`
+  fixes for backends TickTune does not have, and debug-mode warnings for v27.
+- Astro 7.4.5 to 7.4.7: dev-server and build fixes, and stricter rendering of
+  dynamic tag names, which no page here uses.
+
+**Left for later.**
+
+- **i18next 27** (2026-11-07) is a major inside Dependabot's seven-day
+  cooldown, and 27.1.1 came out today. Its changed defaults are ones this app
+  already sets: `fallbackLng: 'en'` is explicit and escaping is off. The new
+  `strictInterpolationChecks` type default is the part to measure.
+- **TypeScript 7**: svelte-check 4.7.8 and @astrojs/check 0.9.12 still peer
+  `^5 || ^6`, and typescript-eslint 8.72.2 still `<6.1.0` (`11 §4`).
+
+**Verified, before the PR.** `pnpm check` 0 errors across 219 and 1,556 files;
+lint, knip and `check-doc-refs` clean; 1,199 unit and component tests; the
+build inside its budget (128.1 KB of 250); `wrangler deploy --dry-run` with
+Wrangler 4.158.0.
+
+| PR | Branch | What it carried |
+|----|--------|-----------------|
+| #117 | Dependabot | SonarSource/sonarqube-scan-action 8.4.0 → 8.4.1 |
+| #118 | Dependabot | pnpm/action-setup 6.1.0 → 6.1.1 |
+| #119 | Dependabot | Closed: the seventeen bumps, redone in #120 |
+| #120 | `chore/deps-2026-11` | The bumps, the image, the overrides, the version, this section, the live checklist |
+
 ## Post-2.0 backlog (unordered)
 
 - **Accessibility, from `ACCESSIBILITY.md`'s Known limitations** (v2.2). These

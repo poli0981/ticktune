@@ -128,7 +128,7 @@ measuring again.
 
 ## Current status
 
-**v2.2.0** (2026-11-09) is the current release, live on `https://ticktune.net`.
+**v2.2.1** (2026-11-10) is the current release, live on `https://ticktune.net`.
 P1–P7 are complete — v1.0.0 closed P7 — and every phase's exit review is in
 `docs/16`. v1.1 was a full review rather than a phase; v1.1.1 fixed two live
 defects. **v2.0 shipped every post-1.1 direction**: link lengths from the
@@ -162,8 +162,14 @@ target, not a claim), an **Accessibility barrier** issue form, a PR template,
 and the barriers writing it found: single-key shortcuts that could not be
 switched off, a hero that could not be stopped, Space taken from a focused
 control, a countdown a screen reader could not read, forced colours unhandled,
-a zoomed desktop told it was a phone. `docs/16`'s v2.0 through v2.2 sections
-have the reviews.
+a zoomed desktop told it was a phone.
+**v2.2.1 is dependencies only** — Astro 7.4.7, music-metadata 12.3.5 and
+i18next 26.7.2 ship; Playwright 1.65.0 moved the visual image; `@lhci/cli`
+0.16.0 (Lighthouse 13) retired four of the five dev-tree overrides and took
+extract-zip out of the tree (`docs/11 §5`). i18next 27 and TypeScript 7 were
+left: the first is inside Dependabot's seven-day cooldown, the second is still
+refused by svelte-check and typescript-eslint. `docs/16`'s v2.0 through v2.2.1
+sections have the reviews.
 
 **Releases are tag-only (decided 2026-10-20).** Workers Builds runs
 `npx wrangler versions upload` for every push, so a branch gets a preview URL
@@ -518,7 +524,7 @@ Four habits that found the rest:
   in; it also polls the stored acceptance before going offline, or the reload
   wins the race and the gate returns.
 - **Visual baselines exist for one image only** — the pinned
-  `mcr.microsoft.com/playwright:v1.64.1-noble` (`13 §3`). Lighthouse CI and the
+  `mcr.microsoft.com/playwright:v1.65.0-noble` (`13 §3`). Lighthouse CI and the
   visual job report, they do not block, until they have earned it.
 - **`check-doc-refs` reads code comments too** since v2.0 — a `docs/NN §M` in a
   comment rots like one in a chapter.

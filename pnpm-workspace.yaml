@@ -18,32 +18,19 @@ allowBuilds:
   sharp: true
   workerd: true
 
-# Security overrides inside @lhci/cli's dev-only tree (Lighthouse CI, docs/13 §5).
-# @lhci/cli 0.15.1 is the latest release and pins old versions; nothing below
-# reaches the shipped bundle. Each was a Dependabot alert the day it landed:
-#   tmp      GHSA-ph9p-34f9-6g65 (high), GHSA-52f5-9888-hmc6 (low) — patched
-#            in 0.2.6. @lhci/cli's `open` and inquirer's external-editor call
-#            `tmp.fileSync`, whose API 0.2 kept.
-#   uuid     GHSA-w5hq-g745-h8pq (medium) — patched in 11.1.1. @lhci/cli calls
-#            `uuid.v4()`, unchanged, through uuid 11's CommonJS build.
-#   js-yaml@3>argparse
-#            sprintf-js GHSA-hp3w-g68c-fv3c (medium) has no patched release.
-#            argparse 1 is its only path here, and js-yaml 3 loads argparse in
-#            its own CLI only, which nothing runs; argparse 2 has no sprintf-js.
+# Security override inside @lhci/cli's dev-only tree (Lighthouse CI, docs/13 §5).
+# Nothing below reaches the shipped bundle.
 #   get-uri>basic-ftp
 #            GHSA-c475-qrg2-pj4r (high; pnpm audit had it before Dependabot) —
 #            patched in 6.2.1. get-uri reaches FTP only for an `ftp:` PAC URL,
-#            which Lighthouse CI here never configures.
-#   chromium-bidi>zod
-#            GHSA-mrhx-c7xc-m3w5 (high) — patched in 4.6.6, with no 3.x
-#            release; chromium-bidi 14 asks for `^3.24.1` and puppeteer-core
-#            24.43.1 (the latest 24) pins chromium-bidi 14. puppeteer-core
-#            imports chromium-bidi only through a dynamic `import('bidi.js')`
-#            for `protocol: 'webDriverBiDi'`, and Lighthouse connects over CDP,
-#            so zod 3 leaves the tree the way sprintf-js did.
+#            which Lighthouse CI here never configures. @lhci/cli 0.16.0 still
+#            asks for proxy-agent 6, whose get-uri asks for basic-ftp 5.
+#
+# @lhci/cli 0.16.0 (Lighthouse 13, 2026-11-10) retired the other four — `tmp`,
+# `uuid`, `js-yaml@3>argparse` and `chromium-bidi>zod` — and took extract-zip
+# out of the tree: with the overrides removed, `pnpm audit` names none of them
+# (docs/11 §5).
 # No override, and docs/11 §5 records why each stays:
-#   extract-zip (GHSA-7pqw-9j4j-h8q3, GHSA-jmr9-qjv8-65gv) — the advisories name
-#            2.0.2 as patched, but npm's newest is still 2.0.1.
 #   deepmerge (GHSA-gcqx-w48m-w2h4, low) — through @sveltejs/vite-plugin-svelte,
 #            which merges its own build config with it; npm's newest is 4.3.1,
 #            the last vulnerable one, so there is nothing to move to.
@@ -55,8 +42,4 @@ allowBuilds:
 # Wrangler's `miniflare>undici ^7.30.1` override went in v2.1: Wrangler 4.156.0
 # ships a miniflare that asks for undici 7.30.1 itself, as its note asked.
 overrides:
-  tmp: ^0.2.6
-  uuid: ^11.1.1
-  'js-yaml@3>argparse': ^2.0.1
   'get-uri>basic-ftp': ^6.2.1
-  'chromium-bidi>zod': ^4.6.6
