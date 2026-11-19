@@ -2036,6 +2036,31 @@ reads them, as CLAUDE.md asks.
 | #128 | `feat/yt-availability` | Links that cannot play here, left out at import; the Privacy Policy's text |
 | #129 | `chore/release-2.3.0` | Maintenance mode, the AI disclosure, the version, this section, the live checklist |
 
+**Released — 2026-11-19, 11:57 UTC.** #129 merged by rebase once every check
+passed, the gated Qodana run included (0 results). The merged tree is
+byte-identical to the branch head the preview ran.
+
+- **The tag.** `v2.3.0` sits on `2f7c7b9`. The signature was verified against a
+  keyring holding only `https://github.com/poli0981.gpg` before the push.
+- **The deploy.** `deploy.yml`'s verify, deploy and release jobs were green,
+  with exactly one new deployment (`4c6fb9b2`).
+- **The preview** (`652ad02f`):
+  - the live spec's five checks: pages, version, languages, tags, a run, and
+    the Data API's verdicts for S1's ids;
+  - `verify:csp` 6/6;
+  - the real-player flow in the desktop app's browser: four links, two kept
+    with their lengths, TT-YT-101 and TT-YT-102 named in Vietnamese, the
+    fitted 0:04:08, and the kept video playing.
+- **Production:**
+  - the same five checks passed on the first attempt;
+  - `verify:csp` passed 6/6 on a second run — the first stopped on this
+    machine's DNS;
+  - six paths were byte-identical to the preview's.
+
+| PR | Branch | What it carried |
+|----|--------|-----------------|
+| #130 | `docs/v2.3.0-results` | The checklist's preview and production results; this paragraph |
+
 ## The backlog, in maintenance mode (since v2.3)
 
 Read with `MAINTENANCE.md`: what is still taken is a defect, a barrier or a
