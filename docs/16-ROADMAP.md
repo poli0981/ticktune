@@ -2034,7 +2034,7 @@ reads them, as CLAUDE.md asks.
 | #125 | `chore/deps-2026-11-19` | The thirteen bumps, the emnapi guard, strtok3, basic-ftp, the 1.65.1 image |
 | #127 | `chore/qodana` | Qodana for JS, its first run's findings, code scanning |
 | #128 | `feat/yt-availability` | Links that cannot play here, left out at import; the Privacy Policy's text |
-| this | `chore/release-2.3.0` | Maintenance mode, the AI disclosure, the version, this section, the live checklist |
+| #129 | `chore/release-2.3.0` | Maintenance mode, the AI disclosure, the version, this section, the live checklist |
 
 ## The backlog, in maintenance mode (since v2.3)
 
