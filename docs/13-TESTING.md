@@ -352,7 +352,7 @@ idle, by a mask.
 **Baselines exist for one image only.** A screenshot compares only against one
 taken with the same fonts, rasteriser and browser build, so baselines are made
 — and the `visual` job in `quality.yml` compares them — inside
-`mcr.microsoft.com/playwright:v1.65.0-noble`, **pinned by digest**.
+`mcr.microsoft.com/playwright:v1.65.1-noble`, **pinned by digest**.
 `pnpm test:visual:docker` checks and `pnpm test:visual:docker --update`
 rewrites: `scripts/visual-docker.ts` tars the working tree into the container,
 installs and builds **there** (a Linux `node_modules` must never land in the

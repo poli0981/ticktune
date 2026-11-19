@@ -524,7 +524,7 @@ Four habits that found the rest:
   in; it also polls the stored acceptance before going offline, or the reload
   wins the race and the gate returns.
 - **Visual baselines exist for one image only** — the pinned
-  `mcr.microsoft.com/playwright:v1.65.0-noble` (`13 §3`). Lighthouse CI and the
+  `mcr.microsoft.com/playwright:v1.65.1-noble` (`13 §3`). Lighthouse CI and the
   visual job report, they do not block, until they have earned it.
 - **`check-doc-refs` reads code comments too** since v2.0 — a `docs/NN §M` in a
   comment rots like one in a chapter.
