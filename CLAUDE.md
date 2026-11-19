@@ -74,7 +74,9 @@ the reasoning and the numbers are in `docs/01 §3`.
   than mapped over an array, and the hint chip branches on a tag instead of
   storing a `TtKey`.
   Log codes `TT-AAA-nnn`, registered in `docs/12 §6` before use.
-- Conventional Commits; branches `feat/* fix/* docs/* chore/* spike/*`.
+- Conventional Commits; branches `feat/* fix/* docs/* chore/* spike/*`. Since
+  v2.3 a `feat…` PR from outside the project is closed by the triage
+  workflow (`MAINTENANCE.md`).
 - CI caller stubs must keep **explicit `permissions:` blocks** (known GitHub
   inheritance bug — see `docs/14`) — on each job, with `permissions: {}` at the
   workflow level (SonarQube `githubactions:S8264`, `docs/14 §2`).
@@ -128,7 +130,10 @@ measuring again.
 
 ## Current status
 
-**v2.2.1** (2026-11-10) is the current release, live on `https://ticktune.net`.
+**v2.3.0** (2026-11-19) is the current release, live on `https://ticktune.net`,
+and the project is in **maintenance mode** since it (`MAINTENANCE.md`): no new
+features — dependencies, security, platform majors, defects, barriers,
+language fixes and genuinely necessary changes only.
 P1–P7 are complete — v1.0.0 closed P7 — and every phase's exit review is in
 `docs/16`. v1.1 was a full review rather than a phase; v1.1.1 fixed two live
 defects. **v2.0 shipped every post-1.1 direction**: link lengths from the
@@ -168,8 +173,20 @@ i18next 26.7.2 ship; Playwright 1.65.0 moved the visual image; `@lhci/cli`
 0.16.0 (Lighthouse 13) retired four of the five dev-tree overrides and took
 extract-zip out of the tree (`docs/11 §5`). i18next 27 and TypeScript 7 were
 left: the first is inside Dependabot's seven-day cooldown, the second is still
-refused by svelte-check and typescript-eslint. `docs/16`'s v2.0 through v2.2.1
-sections have the reviews.
+refused by svelte-check and typescript-eslint.
+**v2.3 is the last feature, and maintenance mode** — `docs/16`'s v2.3 section:
+- **The sweep:** #123's bumps redone by hand on an `@emnapi/runtime` override
+  (a peer range invites the 2.0 beta, and a fresh resolution takes it);
+  music-metadata 12.5.0 needed `strtok3` moved inside its own range;
+  i18next 27 merged; `pnpm audit` clean over the whole tree.
+- **Qodana for JS** (Ultimate, `qodana.yml`) — TypeScript only: Svelte and
+  Astro plugins stop the scan on this plan.
+- **YouTube links that cannot play here are left out at import** — age,
+  region, embed-off, not out yet — from the Data API.
+- **Maintenance mode:** the policy, the triage workflow that closes feature
+  requests, the forms, the badges.
+
+`docs/16`'s v2.0 through v2.3 sections have the reviews.
 
 **Releases are tag-only (decided 2026-10-20).** Workers Builds runs
 `npx wrangler versions upload` for every push, so a branch gets a preview URL
@@ -299,6 +316,26 @@ Four habits that found the rest:
   `done`.
 
 **YouTube**
+
+- **Links that cannot play here are left out at import** (v2.3, `docs/06 §3`).
+  oEmbed says 200 to age-restricted and region-blocked videos; the Data API
+  does not.
+  - `/api/yt/durations` answers `{durations, unplayable}` from one
+    `videos.list` call. `src/lib/tt-yt-availability.ts` is shared with the
+    Worker.
+  - **Positive evidence only**: an id Google did not return gets no reason,
+    and a live stream plays.
+  - The Worker **caches facts, never the visitor** (key `v2`) and judges the
+    region per request from `request.cf.country` — compared, never stored,
+    sent or logged; `XX`/`T1` mean no verdict. The response is `private`.
+  - The import **sends the call before its oEmbed checks and reads it after**,
+    so nothing that cannot play lands — not on the shelf, not in the fit,
+    not in a run. The same answer fills the shelf's missing lengths, so a
+    paste stays 1 + 50 + 1 calls; unanswered → everything kept, TT-YT-008
+    once.
+  - The cap comes first. The pending re-check after Start stays oEmbed-only.
+  - The Privacy Policy's text says how the country is used: no bump, the
+    v2.0.3 precedent, the owner's choice.
 
 - **Playlists are a kind of paste, not a mode** (v2.1, `docs/06 §9`):
   - Ten per paste, expanded into the same shelf under the same 50.
@@ -463,7 +500,8 @@ Four habits that found the rest:
 - **Legal 2.1 is one bump for four changes** (`tt-legal-const.ts`):
   - the playlist flow;
   - the AI disclosure: Disclaimer §7 names Claude Code by Anthropic, PBC, with
-    Claude Opus 4.8 for 0.2.0–1.0.0 and Claude Opus 5.5 from 1.1.0; EULA §2 says
+    Claude Opus 4.8 for 0.2.0–1.0.0, Claude Opus 5.5 from 1.1.0, and Claude
+    Fable 5.2 for 2.2.1 (named in v2.3, a text edit); EULA §2 says
     the GPL covers all of it; Privacy §3 says no AI service receives anything;
   - the 404 correction: a mistyped address reaches the Worker and is logged,
     headers and IP included;
@@ -535,6 +573,14 @@ svelte-check and is outside typescript-eslint's peer range, `docs/11 §4`)
 
 ### Open items, in the order they block things
 
+**Maintenance mode decides what is taken** (`MAINTENANCE.md`, since v2.3). A
+feature request answering "Something new", a `feat…` PR from outside the
+project, or an issue the owner labels `enhancement` is closed by
+`.github/workflows/triage.yml` with the `maintenance-mode` label. Its decision
+is the pure, tested `scripts/triage.ts`, and the label `roadmap` exempts. The
+items below are the backlog's "still taken" half; `docs/16` lists what is
+frozen.
+
 1. **The playlist route's quota exposure** (v2.1, `docs/06 §9`). One call can
    spend ten Data API units, and the per-IP binding is loose on production, so
    a determined abuser could empty the day's 10,000 units. The cost would be
@@ -547,13 +593,19 @@ svelte-check and is outside typescript-eslint's peer range, `docs/11 §4`)
 3. **The owner's S5 run** — an everyday browser with a click on the
    notification, and Safari (`docs/15 §S5`). The crossfade was confirmed by ear
    on the released build (2026-10-21, `tests/manual/v2.0-live-checklist.md`).
-4. **Post-2.0 directions** are in `docs/16`'s backlog section: loudness
-   normalization needs a new spike (S6 failed), and a seek control would leave
-   S4b's PASS.
+4. **Frozen in maintenance mode** (`docs/16`): loudness normalization (S6
+   failed, a new spike), a seek control (it would leave S4b's PASS), branded
+   error pages. They return only as necessary changes, through an issue.
 5. **Accessibility's known limitations** (`ACCESSIBILITY.md`, `docs/16`
    backlog): no scrim-cap note, the error card's fixed 5 s, a few status
    messages still inserted filled, no NVDA/JAWS/VoiceOver run yet.
 6. `docs/AUDIT-BACKLOG.md` — **0 open**.
+
+**Qodana for JS runs as `qodana.yml` since 2026-11-19** — the Ultimate licence in
+`QODANA_TOKEN`, results in code scanning (category `qodana`) and Qodana Cloud,
+not a required check. It reads **TypeScript only**: qodana-js bundles Vue but
+not Svelte or Astro, and their plugins stop the scan on this plan. Two
+inspections are off with their reasons in `qodana.yaml`; `src/spike` is out.
 
 **CodeQL runs as GitHub default setup — keep it enabled.** The old instruction to
 disable it applied only while the advanced `codeql.yml` existed; that file is
