@@ -115,7 +115,14 @@ because its step holds the token; the whole project is scanned every time
 (`pr-mode: false`), and the job writes no PR comments or annotations, which
 would need the write permissions it does not have. Dependabot's and forks'
 pull requests skip it with a notice, as they skip `sonar`. **Not a required
-check**, like `quality.yml`.
+check**, like `quality.yml`. ⚠️ **It reads the TypeScript only.** `qodana-js`
+bundles Vue but not Svelte or Astro, and installing JetBrains' plugins for them
+stops the scan on this plan (measured 2026-11-19, `qodana.yaml`); the
+components and pages are `svelte-check`'s, `astro check`'s,
+`eslint-plugin-svelte`'s and SonarQube Cloud's. The first run found 48
+findings in `.ts`: four real ones were fixed, two inspections that contradict
+the repository's own rules were switched off with their reasons, and the spike
+harnesses are left as they measured.
 
 **Dependabot**: `.github/dependabot.yml`, npm + github-actions, weekly, grouped
 minor/patch with a 3-day **cooldown** (pnpm 11's `minimumReleaseAge` otherwise

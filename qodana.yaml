@@ -11,13 +11,13 @@ withinDocker: false
 profile:
   name: qodana.recommended
 
-# Measured on the first run (2026-11-19): qodana-js bundles Vue.js but neither
-# Svelte nor Astro, so the 26 components and every page were indexed as plain
-# text and never inspected. Both plugins are JetBrains' own, from the
-# Marketplace.
-plugins:
-  - id: dev.blachut.svelte.lang
-  - id: org.jetbrains.plugins.astro
+# Svelte and Astro are outside this analysis, measured 2026-11-19: qodana-js
+# bundles Vue.js but neither of them, so the 26 components and every page are
+# indexed as plain text; and adding JetBrains' own plugins (
+# dev.blachut.svelte.lang, org.jetbrains.plugins.astro) stops the scan —
+# "This feature is not available in your ULTIMATE plan", then "Failed to
+# install plugins". svelte-check, astro check, eslint-plugin-svelte and
+# SonarQube Cloud cover those files; this covers the TypeScript.
 
 # What is not code, or not ours — the same set sonar-project.properties keeps
 # out of the analysis: build and coverage output, the local audio corpus,
