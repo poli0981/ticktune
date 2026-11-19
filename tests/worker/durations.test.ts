@@ -422,10 +422,10 @@ describe('availability — docs/06 §3 (v2.3)', () => {
   });
 
   it.each([
-    [undefined, 'no country at all'],
-    ['XX', 'Cloudflare does not know'],
-    ['T1', 'Tor'],
-  ])('refuses nobody on a region it cannot compare (%s — %s)', async (country) => {
+    { country: undefined, why: 'no country at all' },
+    { country: 'XX', why: 'Cloudflare does not know' },
+    { country: 'T1', why: 'Tor' },
+  ])('refuses nobody on a region it cannot compare ( — )', async ({ country }) => {
     fetchMock.mockResolvedValue(googleFull([fullItem(A, { allowed: ['US'] })]));
     const res = await call(`?ids=${A}`, country === undefined ? {} : { country });
 
