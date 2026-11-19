@@ -13,8 +13,8 @@ profile:
 
 # Svelte and Astro are outside this analysis, measured 2026-11-19: qodana-js
 # bundles Vue.js but neither of them, so the 26 components and every page are
-# indexed as plain text; and adding JetBrains' own plugins (
-# dev.blachut.svelte.lang, org.jetbrains.plugins.astro) stops the scan —
+# indexed as plain text; and adding JetBrains' own plugins under `plugins:`
+# (dev.blachut.svelte.lang, org.jetbrains.plugins.astro) stops the scan —
 # "This feature is not available in your ULTIMATE plan", then "Failed to
 # install plugins". svelte-check, astro check, eslint-plugin-svelte and
 # SonarQube Cloud cover those files; this covers the TypeScript.
