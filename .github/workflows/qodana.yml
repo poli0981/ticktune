@@ -1,0 +1,136 @@
+# Qodana for JS — docs/14 §1.
+#
+# A separate workflow, like SonarQube Cloud's job: a Qodana outage or opinion
+# must never change the colour of `ci`, which is a required check. Qodana is
+# not one, and reports rather than blocks until it has earned it (docs/14 §1).
+#
+# Two jobs, least privilege first:
+#   - `scan` runs the analysis. qodana-js resolves types through node_modules,
+#     so the dependencies are installed here — with install scripts off — and
+#     `astro sync` runs for `.astro/`'s generated types. That shares a runner
+#     with QODANA_TOKEN, the documented exception to "a token job installs
+#     nothing" (docs/14 §2): the token only uploads reports to one Qodana Cloud
+#     project (rotate it in qodana.cloud if a dependency is ever found
+#     compromised), and this job's GITHUB_TOKEN is read-only — no PR comments,
+#     no check runs, no annotations from here.
+#   - `publish` installs and runs nothing: it takes the SARIF report from
+#     `scan` and uploads it to GitHub code scanning, where the findings appear
+#     beside CodeQL's and on pull requests.
+name: Qodana
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  schedule:
+    - cron: '0 5 * * 1' # weekly, Monday — an hour after audit.yml
+
+# Explicit, and granted per job rather than here (docs/14 §2,
+# SonarQube githubactions:S8264).
+permissions: {}
+
+concurrency:
+  group: qodana-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  scan:
+    name: Qodana for JS
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    outputs:
+      ran: ${{ steps.token.outputs.present }}
+    steps:
+      # Dependabot and fork pull requests get no repository secrets: skip with
+      # a notice instead of failing, before installing anything. The push to
+      # main analyses whatever they changed.
+      - name: Check for QODANA_TOKEN
+        id: token
+        env:
+          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
+        run: |
+          if [ -n "$QODANA_TOKEN" ]; then
+            echo "present=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "present=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Qodana skipped — QODANA_TOKEN is not available to this run (Dependabot or fork PR)."
+          fi
+
+      # The default ref — on a pull request, its merge commit — which is the
+      # commit code scanning attributes an upload from this run to.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        if: steps.token.outputs.present == 'true'
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+        if: steps.token.outputs.present == 'true'
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        if: steps.token.outputs.present == 'true'
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      # --ignore-scripts: no dependency runs code at install time in a job that
+      # holds a token. The analysis needs the packages' types, not their builds.
+      - if: steps.token.outputs.present == 'true'
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      # src/env.d.ts references .astro/types.d.ts, which only `astro sync`
+      # writes; without it every `astro:*` import reads as unresolved.
+      - if: steps.token.outputs.present == 'true'
+        run: pnpm exec astro sync
+
+      - name: Qodana scan
+        if: steps.token.outputs.present == 'true'
+        # Pinned to a commit, not the moving `v2026.2` branch the vendor's
+        # snippet uses: this step holds a token. v2026.2.2 rather than the
+        # newest tag, which is younger than Dependabot's cooldown (docs/14 §1).
+        uses: JetBrains/qodana-action@3e8d76ff0e0241618abd808682f426afe84bab3f # v2026.2.2
+        with:
+          # The whole project every time — it is small, and a PR that touches
+          # only docs would otherwise scan nothing.
+          pr-mode: false
+          # Both need write permissions this job deliberately does not have;
+          # `publish` reports the findings through code scanning instead.
+          post-pr-comment: false
+          use-annotations: false
+          # The SARIF report as the `qodana-report` artifact.
+          upload-result: true
+        env:
+          QODANA_TOKEN: ${{ secrets.QODANA_TOKEN }}
+          QODANA_ENDPOINT: 'https://qodana.cloud'
+
+  publish:
+    name: Findings to code scanning
+    needs: scan
+    # !cancelled(), not the implicit success(): once qodana.yaml has failure
+    # conditions, a scan that FINDS something fails — and those are exactly the
+    # findings that must reach code scanning and the pull request.
+    if: ${{ !cancelled() && needs.scan.outputs.ran == 'true' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: qodana-report
+          path: qodana-report
+
+      # The artifact holds one zip, qodana-report.zip, whose entries carry
+      # absolute names ("/qodana.sarif.json"). Take only the report, by its
+      # exact name, to a fixed path — nothing else is unpacked.
+      - name: Extract the SARIF report
+        run: |
+          set -euo pipefail
+          unzip -p qodana-report/qodana-report.zip /qodana.sarif.json > qodana.sarif.json
+          test -s qodana.sarif.json || { echo "::error::no qodana.sarif.json in the report"; exit 1; }
+
+      - uses: github/codeql-action/upload-sarif@33d7b85da1a04171e211befe2c739303b9a4c066 # v4.39.3
+        with:
+          sarif_file: qodana.sarif.json
+          category: qodana
