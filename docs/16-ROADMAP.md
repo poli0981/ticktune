@@ -2059,7 +2059,7 @@ byte-identical to the branch head the preview ran.
 
 | PR | Branch | What it carried |
 |----|--------|-----------------|
-| #130 | `docs/v2.3.0-results` | The checklist's preview and production results; this paragraph |
+| #131 | `docs/v2.3.0-results` | The checklist's preview and production results; this paragraph |
 
 ## The backlog, in maintenance mode (since v2.3)
 
