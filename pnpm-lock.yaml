@@ -31,8 +31,8 @@ importers:
         specifier: 4.4.7
         version: 4.4.7
       i18next:
-        specifier: ^27.1.1
-        version: 27.1.1(typescript@6.0.3)
+        specifier: ^27.1.3
+        version: 27.1.3(typescript@6.0.3)
       music-metadata:
         specifier: 12.5.0
         version: 12.5.0(supports-color@10.2.2)
@@ -2766,8 +2766,8 @@ packages:
     resolution: {integrity: sha512-ag87y7cJJ9/3+GxFr8Oy4O5faDsGRGnBGsJj/YjOSsSx/5eadKLYTMPlzuR6obgoCDDm0abAAZitXXQkMOPSpA==}
     engines: {node: '>= 20'}
 
-  i18next@27.1.1:
-    resolution: {integrity: sha512-Qq3aJizS3RXQ30crhx9BKQLrHoa6GKpgrOJjVZ9vgj3EBxAddrmVfDNUrAMxSUimw5Jc+ld4SSZUAzf1q4nGyQ==}
+  i18next@27.1.3:
+    resolution: {integrity: sha512-Qih5Erw8m9qJPmuNUjoSiBctutYkfgg+mhzLaQ7xbn2Y9e2tsB8dNhYyMB00fUfBRt6v0UTFjPPCSROJPn93JQ==}
     engines: {node: '>=22'}
     peerDependencies:
       typescript: ^5 || ^6 || ^7
@@ -7106,7 +7106,7 @@ snapshots:
       - kerberos
       - supports-color
 
-  i18next@27.1.1(typescript@6.0.3):
+  i18next@27.1.3(typescript@6.0.3):
     optionalDependencies:
       typescript: 6.0.3
 
