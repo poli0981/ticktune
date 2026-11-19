@@ -62,7 +62,7 @@ const js = ts
       removeComments: true,
     },
   })
-  .outputText.replace(/^export \{\};?\s*$/gm, '')
+  .outputText.replace(/^export \{};?\s*$/gm, '')
   .replace(/^export /gm, '');
 
 const hash = createHash('sha256');

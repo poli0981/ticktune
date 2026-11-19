@@ -888,8 +888,7 @@ class SessionStore {
        * each answer lands rather than at the end, so a connection that comes
        * back mid-sweep is reflected at once.
        */
-      if (result.ok || !ytCauseIsTransient(result.cause)) this.#online = true;
-      else this.#online = false;
+      this.#online = result.ok || !ytCauseIsTransient(result.cause);
 
       // The queue is live: the user can remove a track, or the cursor can reach
       // it, while its answer is in flight. Both mean this answer is stale.
