@@ -4,6 +4,9 @@ Suite 2.0 · 2026-10-21 · Solo-dev pacing alongside OmniDeck/PipDock/poli0981.d
 Durations are effort estimates, not calendar promises. **v1.0 target: late Q3
 2026** (≈ 8 focused weeks from spike start).
 
+**Status: maintenance mode since v2.3.0 (2026-11-19)** — `MAINTENANCE.md`, and the
+v2.3 section below.
+
 | Phase | Scope | Exit criteria |
 |-------|-------|---------------|
 | **P0 · Spikes** (~1 wk) | S1–S4 (`15-SPIKES.md`) | All four ✅; docs 04/05/06 updated |
@@ -1922,7 +1925,125 @@ merged tree is identical to the branch head the preview ran.
 |----|--------|-----------------|
 | #121 | `docs/v2.2.1-results` | The checklist's preview and production results; this paragraph |
 
-## Post-2.0 backlog (unordered)
+## v2.3 — the last feature, and maintenance mode · **v2.3.0**, 2026-11-19
+
+The owner's brief for the session: check every alert, PR and advisory, run
+Qodana (the Ultimate licence), add **one** feature — YouTube links that cannot
+play here left out at import — and then put the project into **maintenance
+mode**, after confirming no other feature needed adding. This section is the
+record of all four, and `MAINTENANCE.md` is the policy that starts here.
+
+**The sweep (#122, #124, #125).**
+
+- **#122** (Sonar action 8.5.0) and **#124** (i18next 27.1.1, a major) were green
+  and merged as Dependabot opened them. i18next 27's written check is in
+  `11 §2`: every changed default was one the app already set, and no
+  dictionary holds the empty string 27 now falls back from.
+- **#123** went red for #119's reason: Dependabot's fresh lockfile resolved
+  `@emnapi/runtime 2.0.0-beta.2`, which `@napi-rs/wasm-runtime`'s peer range
+  invites. A second time is a pattern, so `pnpm-workspace.yaml` now overrides
+  `'@emnapi/runtime': ^1.11.3`. #125 redid the thirteen bumps by hand.
+- **The hand-made lockfile failed `build` instead.** music-metadata 12.5.0
+  imports `TokenWriter` from `strtok3` but declares `^10.6.3`, so an
+  incremental install kept 10.6.3. `pnpm update strtok3` fixed it inside the
+  range. The fresh resolution and the incremental one each failed in its own
+  way, and each was caught only because both were run.
+- **Advisories: none left.**
+  - basic-ftp's override floor rose to `^6.2.4` (GHSA-5pm8-86m8-9m6r).
+  - eslint 10.15.0 took minimatch to 11.0.5.
+  - deepmerge's advisory was withdrawn.
+  - `pnpm audit` over the whole tree is clean; code and secret scanning had
+    nothing open; SonarQube Cloud had no issue and no hotspot.
+- **Still blocked:** TypeScript 7.0.2 (`11 §4`).
+- **Node 26.13.1** is a security release that CI takes through `.nvmrc`.
+
+**Qodana (#127).** `QODANA_TOKEN` arrived on 2026-11-19; `qodana.yml`
+mirrors bookmarkmagic's (`14 §1`).
+
+- The first run found 48 findings, all in `.ts`:
+  - four were real and are fixed — a stale `@param`, a redundant regex
+    escape, a twice-read optional chain, a boolean set through if/else;
+  - two inspections contradict this repository's own rules and are off, each
+    with its reason in `qodana.yaml`;
+  - the spike harnesses are left as they measured;
+  - the Worker's five exceptions-as-control-flow were refactored in #128,
+    which rewrote that code anyway.
+- **Measured: Qodana does not read the components.** qodana-js bundles Vue
+  but not Svelte or Astro, and installing JetBrains' plugins for them stops
+  the scan on this plan ("This feature is not available in your ULTIMATE
+  plan"). `svelte-check`, `astro check`, `eslint-plugin-svelte` and SonarQube
+  Cloud keep those files.
+
+**The feature (#128) — and the one gap S1 left open.** oEmbed answers 200 for an
+age-restricted or a region-blocked video and the player calls both `onError
+150`, so those links reached the queue — and a fitted countdown — and failed
+on play. The Data API knows (`06 §3`).
+
+- `/api/yt/durations` asks `status`, `contentRating`, `regionRestriction` and
+  `liveBroadcastContent` beside the length, still one unit a call.
+- It answers a reason per video: age-restricted (TT-YT-102), blocked in your
+  country (103), not out yet (104), embedding off (101), gone or private (100).
+- The Worker caches facts, never the visitor, and judges the region per
+  request from `request.cf.country`, which is compared and dropped.
+- The import sends the call before its oEmbed checks and reads it after them,
+  so a link that cannot play never lands. A paste is still 1 + 50 + 1 calls,
+  because the same answer fills the lengths the session used to ask for
+  separately.
+- Measured on the PR's preview against the real API with S1's own ids, seen
+  from SG: both age-restricted ids and the VN-only video were refused for the
+  right reason, an embed-off id too, and the normal ids passed. Four of the
+  five E2E specs written for it fail on v2.2.1, where both rows land.
+- The Privacy Policy says how the country is used — a text edit under Legal
+  2.1, the owner's choice, by the v2.0.3 precedent.
+
+**Maintenance mode.** Nothing in the backlog below is a feature this project
+needs: what remains is either a defect, a barrier or a hardening step —
+still taken — or a feature that would reopen a measured decision. Those are
+frozen (below). So:
+
+- **`MAINTENANCE.md`** is the policy. It takes:
+  - dependencies on a schedule;
+  - high and critical advisories, and serious toolchain problems, fixed as
+    soon as a fix exists;
+  - platform majors on purpose;
+  - defects, barriers and language fixes;
+  - genuinely necessary changes.
+- **New features are closed automatically** by `.github/workflows/triage.yml`
+  (`14 §1`), ported from bookmarkmagic:
+  - a feature request answering "Something new";
+  - a `feat…` pull request from outside the project;
+  - an issue the owner labels `enhancement`.
+
+  Each gets the `maintenance-mode` label, a comment, and a close as "not
+  planned".
+- **Issue forms:** feature, wording (VI/EN/JA) and a chooser with blank issues
+  off and Discussions for ideas and questions.
+- **The README** carries the status badge and a "Project status" section.
+- **An announcement goes to Discussions › Announcements** with the release.
+
+**And a disclosure caught up.** v2.2.1's three commits carry `Co-Authored-By:
+Claude Fable 5.2`, which the Disclaimer `§7` and the README did not name. They
+do now, as a text edit: the AI facts come from the trailers, and this session
+reads them, as CLAUDE.md asks.
+
+| PR | Branch | What it carried |
+|----|--------|-----------------|
+| #122 | Dependabot | SonarSource/sonarqube-scan-action 8.4.1 → 8.5.0 |
+| #123 | Dependabot | Closed: thirteen bumps on a broken lockfile, redone in #125 |
+| #124 | Dependabot | i18next 26.7.2 → 27.1.1 |
+| #125 | `chore/deps-2026-11-19` | The thirteen bumps, the emnapi guard, strtok3, basic-ftp, the 1.65.1 image |
+| #127 | `chore/qodana` | Qodana for JS, its first run's findings, code scanning |
+| #128 | `feat/yt-availability` | Links that cannot play here, left out at import; the Privacy Policy's text |
+| this | `chore/release-2.3.0` | Maintenance mode, the AI disclosure, the version, this section, the live checklist |
+
+## The backlog, in maintenance mode (since v2.3)
+
+Read with `MAINTENANCE.md`: what is still taken is a defect, a barrier or a
+hardening step; what is frozen is a feature, and would reopen a measured
+decision. A frozen item comes back only as a necessary change, through an
+issue first.
+
+### Still taken — defects, barriers, security
 
 - **Accessibility, from `ACCESSIBILITY.md`'s Known limitations** (v2.2). These
   are the actionable ones:
@@ -1945,20 +2066,10 @@ merged tree is identical to the branch head the preview ran.
 - **A video the YouTube player cannot play, in a fitted run** — skipped, not
   dropped, so the countdown keeps its length. If it ever matters, route the
   error card's skip through `session.onLeave` (`02 §5.2`).
-- **Loudness normalisation — S6 failed.** A later spike on one of `15 §S6`'s
-  remedies: slice-and-accumulate at 48 kHz, WebCodecs `AudioDecoder`, or tags
-  only — the last an owner decision, since it leaves untagged files alone.
 - **S5's owner run** — an everyday browser profile, clicking the notification,
   and Safari's main-thread path (`15 §S5`).
-- **Why S5's main thread was prompt** when S2's was minutes late (`15 §S5`).
-  Nothing shipped depends on the answer — the notification fires from the
-  worker — but `04 §2`'s re-scoped promise rests on S2's numbers.
-- **A seek control would leave S4b's PASS.** Chrome places a VBR MP3 by its
-  Xing table and `currentTime` stays up to a second off the audio; the trigger's
-  remaining time would have to be re-derived or measured again (`15 §S4b`).
 - **`visual` and `lighthouse` as required checks**, once they have run green on
   a few weeks of PRs; until then a red one is read, not obeyed (`docs/14`).
-- Zone-plan upgrade decision → branded Cloudflare error pages (`10 §8`).
 - **A strict per-IP API budget**, if the zone rule's ~6 calls a second ever
   proves too loose: a Durable Object counter per IP (or sharded), which counts
   exactly where the binding does not (`10 §6`). Billed per request, and a hop
@@ -1981,6 +2092,19 @@ merged tree is identical to the branch head the preview ran.
   current until a resume makes it fail again. Pre-existing; found in v2.0.4's
   review.
 
+### Frozen — features, not planned in maintenance mode
+
+- **Loudness normalisation — S6 failed.** A later spike on one of `15 §S6`'s
+  remedies: slice-and-accumulate at 48 kHz, WebCodecs `AudioDecoder`, or tags
+  only — the last an owner decision, since it leaves untagged files alone.
+- **A seek control would leave S4b's PASS.** Chrome places a VBR MP3 by its
+  Xing table and `currentTime` stays up to a second off the audio; the trigger's
+  remaining time would have to be re-derived or measured again (`15 §S4b`).
+- Zone-plan upgrade decision → branded Cloudflare error pages (`10 §8`).
+- **Why S5's main thread was prompt** when S2's was minutes late (`15 §S5`).
+  Nothing shipped depends on the answer — the notification fires from the
+  worker — but `04 §2`'s re-scoped promise rests on S2's numbers.
+
 ## Standing rules
 
 - Placeholder policy (spec): landing may ship with placeholder hero media; every
@@ -1988,3 +2112,5 @@ merged tree is identical to the branch head the preview ran.
   before v1.0 is announced publicly.
 - Any scope addition mid-phase goes to the backlog unless it unblocks the phase's
   exit criteria.
+- **Since v2.3, `MAINTENANCE.md` decides what is taken** — and a change to it
+  is recorded here and announced in Discussions.

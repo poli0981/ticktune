@@ -3,14 +3,29 @@
 > A full-screen countdown with your own music — a desktop web app.
 > **Live at [ticktune.net](https://ticktune.net)** · GPL-3.0-only · Vietnamese, English and Japanese
 
+[![Status: maintenance mode](https://img.shields.io/badge/status-maintenance%20mode-yellow.svg)](MAINTENANCE.md)
+[![Release](https://img.shields.io/github/v/release/poli0981/ticktune?label=release)](https://github.com/poli0981/ticktune/releases/latest)
+[![License: GPL-3.0-only](https://img.shields.io/badge/license-GPL--3.0--only-blue.svg)](LICENSE)
 [![CI](https://github.com/poli0981/ticktune/actions/workflows/ci.yml/badge.svg)](https://github.com/poli0981/ticktune/actions/workflows/ci.yml)
 [![E2E](https://github.com/poli0981/ticktune/actions/workflows/e2e.yml/badge.svg)](https://github.com/poli0981/ticktune/actions/workflows/e2e.yml)
+[![Qodana](https://github.com/poli0981/ticktune/actions/workflows/qodana.yml/badge.svg)](https://github.com/poli0981/ticktune/actions/workflows/qodana.yml)
+[![Quality gate](https://sonarcloud.io/api/project_badges/measure?project=poli0981_ticktune&metric=alert_status)](https://sonarcloud.io/summary/new_code?id=poli0981_ticktune)
+[![Coverage](https://sonarcloud.io/api/project_badges/measure?project=poli0981_ticktune&metric=coverage)](https://sonarcloud.io/summary/new_code?id=poli0981_ticktune)
+[![Accessibility: WCAG 2.2 AA target](https://img.shields.io/badge/a11y-WCAG%202.2%20AA%20target-informational.svg)](ACCESSIBILITY.md)
 
 Set a countdown, bring your own music — local files or YouTube links — and get a
 big seven-segment clock behind smoked glass, styled like a piece of broadcast
 studio hardware. When it reaches zero, a configurable End Behavior fires.
 
 Your files never leave your browser.
+
+## Project status
+
+**Maintenance mode** since v2.3.0 — see [`MAINTENANCE.md`](MAINTENANCE.md).
+Bug, UI/UX, accessibility and language fixes, dependency and security
+updates, platform upgrades and changes that are genuinely necessary still
+land; requests for new features are closed automatically. Ideas are welcome
+in [Discussions › Ideas](https://github.com/poli0981/ticktune/discussions/categories/ideas).
 
 ## Features
 
@@ -155,7 +170,7 @@ The `docs/` suite is authoritative; `CLAUDE.md` is its condensed contract.
 
 TickTune is built with **Claude Code**, Anthropic's coding assistant: the
 **Claude Opus 4.8** model for 0.2.0–1.0.0 (July 2026), **Claude Opus 5.5** from
-1.1.0 (October 2026). The developer directs and reviews every change, and each
+1.1.0 (October 2026), and **Claude Fable 5.2** for 2.2.1 (November 2026). The developer directs and reviews every change, and each
 commit made with the assistant carries a `Co-Authored-By` trailer, so the
 history shows which. [`CLAUDE.md`](CLAUDE.md) is the contract it works under. The
 app itself has no AI features and sends nothing to any AI service — the
@@ -164,7 +179,8 @@ app itself has no AI features and sends nothing to any AI service — the
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) first — especially the hard invariants in
-`CLAUDE.md`, which no change may break.
+`CLAUDE.md`, which no change may break. The project is in maintenance mode, so
+[MAINTENANCE.md](MAINTENANCE.md) says which changes are taken.
 
 ## Accessibility
 

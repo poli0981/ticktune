@@ -279,6 +279,10 @@ It is reviewed with every minor release, and at least once a year. A change that
 makes a sentence here untrue updates it in the same pull request. If ownership
 ever changes, this section will name the new owner.
 
+Since v2.3.0 the project is in maintenance mode ([MAINTENANCE.md](MAINTENANCE.md)).
+That does not change anything above: accessibility barriers are defects, and
+fixing them is one of the things maintenance mode exists to keep doing.
+
 ## Feedback
 
 Suggestions about this statement, or about how TickTune approaches

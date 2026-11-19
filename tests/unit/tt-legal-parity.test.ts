@@ -277,7 +277,14 @@ describe('Legal 2.1 discloses what v2.1 does', () => {
   const eula = { en: flat(EN_DIR, 'EULA.md'), vi: flat(VI_DIR, 'EULA.md') };
 
   it.each(['en', 'vi'] as const)('%s: the AI assistant, its provider and both models', (l) => {
-    for (const name of ['Claude Code', 'Anthropic, PBC', 'Claude Opus 4.8', 'Claude Opus 5.5']) {
+    for (const name of [
+      'Claude Code',
+      'Anthropic, PBC',
+      'Claude Opus 4.8',
+      'Claude Opus 5.5',
+      // v2.2.1's commits carry its trailer — a text edit, not a bump (CLAUDE.md).
+      'Claude Fable 5.2',
+    ]) {
       expect(disclaimer[l]).toContain(name);
     }
     expect(disclaimer[l]).toContain('Co-Authored-By');

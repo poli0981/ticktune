@@ -32,8 +32,8 @@ Version 2.1 · 2026-11-03 · English canonical; Vietnamese at
 7. **Built with AI assistance.** TickTune's code, tests, documentation and these
    legal texts were written with the help of an AI coding assistant: **Claude
    Code** by **Anthropic, PBC**, using the **Claude Opus 4.8** model for versions
-   0.2.0–1.0.0 (July 2026) and **Claude Opus 5.5** from version 1.1.0 (October
-   2026). The developer directed and reviewed every change and is responsible
+   0.2.0–1.0.0 (July 2026), **Claude Opus 5.5** from version 1.1.0 (October
+   2026), and **Claude Fable 5.2** for version 2.2.1 (November 2026). The developer directed and reviewed every change and is responsible
    for the result; each commit made with the assistant says so in a
    `Co-Authored-By` line in the public Git history. AI output can be wrong in
    ways that look right — one more reason the software comes "AS IS" (§5).
