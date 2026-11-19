@@ -18,6 +18,9 @@ Your files never leave your browser.
   local files, reorderable by drag or `Alt+↑/↓`, shuffle and repeat) and
   *YouTube* (up to 50 links, played through YouTube's own embedded player,
   with each link's length looked up so "Match queue length" works there too).
+  Links YouTube will not play here — embedding off, age-restricted, blocked
+  in your country, not out yet — are left out when you add them, and the
+  import message says why.
 - **Crossfade**: local tracks fade into each other over 0–5 s (2 s by default,
   0 for a straight cut), and a single track can loop by fading into itself.
   Skips and pauses ramp rather than cut, so they no longer click.
@@ -74,7 +77,9 @@ Missing metadata shows as `N/A` (text) or `–` (numbers), never as a blank.
 - **YouTube mode** loads YouTube's player from `youtube-nocookie.com`; link
   titles and lengths are looked up through this site's own `/api/yt/oembed`
   and `/api/yt/durations` routes, which forward only the video IDs — from the
-  server, with its own key — and cache each answer for a day. Pasted playlists
+  server, with its own key — and cache each answer for a day. To judge a
+  region-restricted video, the server compares its country list with the
+  country Cloudflare attaches to your request; that country goes no further. Pasted playlists
   (up to ten) go through `/api/yt/playlists`, which forwards only the playlist
   IDs and keeps what each holds for an hour.
 - **A finish notification** is created by the tab itself: no push service, no

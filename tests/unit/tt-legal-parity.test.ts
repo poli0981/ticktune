@@ -233,6 +233,19 @@ describe('Legal 2.0 discloses what v2.0 does', () => {
     expect(privacy[l]).toMatch(l === 'en' ? /per IP address/ : /theo địa chỉ IP/);
   });
 
+  it.each(['en', 'vi'] as const)(
+    '%s: the region check uses the country Cloudflare attaches, never stored (v2.3)',
+    (l) => {
+      // A text edit under 2.1, as v2.0.3's was (tt-legal-const.ts): the
+      // country was already attached and disclosed; v2.3 uses it to answer.
+      expect(privacy[l]).toMatch(
+        l === 'en'
+          ? /approximate country Cloudflare attaches to your request; that country is not sent to Google and is not stored/
+          : /quốc gia gần đúng mà Cloudflare gắn vào yêu cầu của bạn; quốc gia đó không được gửi tới Google và không được lưu/,
+      );
+    },
+  );
+
   it.each(['en', 'vi'] as const)('%s: playlists, by playlist ID, from our server (v2.1)', (l) => {
     // Legal 2.1 — a new data flow ships with its disclosure (docs/06 §9).
     expect(privacy[l]).toContain('/api/yt/playlists');

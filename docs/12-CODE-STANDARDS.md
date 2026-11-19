@@ -101,8 +101,12 @@ annotated with a comment justifying the ignore — never blanket-ignored.
 | TT-YT-013 | A paste named more than ten playlists — the ones after the tenth were not looked up (`06 §9`). v2.1 |
 | TT-YT-014 | A line in the Playlist kind named no playlist — TT-YT-002's "not a video link" would be the wrong sentence there (`06 §9`). v2.1 |
 | TT-YT-015 | A playlist longer than its first 50 videos — only those were read, which the 50-link shelf caps at anyway. Note, per list (`06 §9`). v2.1 |
-| TT-YT-100 | Video unavailable (deleted/private) |
-| TT-YT-101 / 150 | Embedding blocked (embed-off / age / region) |
+| TT-YT-100 | Video unavailable (deleted/private) — from oEmbed's 403/404, or since v2.3 the Data API's `uploadStatus`/`privacyStatus` |
+| TT-YT-101 | Embedding disabled by the owner — oEmbed's 401, or since v2.3 the Data API's `embeddable: false`. Left out at import |
+| TT-YT-102 | Age-restricted — the Data API's `contentRating.ytRating`; embeds refuse it, and oEmbed answers 200. Left out at import (`06 §3`). v2.3 |
+| TT-YT-103 | Blocked in the visitor's country — the Data API's `regionRestriction`, judged against the country Cloudflare attaches to the request, which is compared and never stored. Left out at import (`06 §3`). v2.3 |
+| TT-YT-104 | Not out yet — an upcoming premiere or stream (`liveBroadcastContent: upcoming`), or an upload still processing. Left out at import (`06 §3`). v2.3 |
+| TT-YT-150 | The player refused a video (`onError` 101/150) — embed-off, age or region, indistinguishable there; skipped after 5 s. Since v2.3 mostly what the Data API could not see (`06 §4`) |
 | TT-SYS-201 | Wall-clock drift > 2 s re-anchored |
 | TT-SYS-202 | Wake Lock unavailable/denied |
 | TT-SYS-203 | Zero crossed during sleep — late finish fired |

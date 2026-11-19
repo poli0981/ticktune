@@ -233,19 +233,25 @@ cause there would put a confident wrong sentence in front of the user.
   to the limit. (That limit was unconfirmed when this was written, and in fact
   absent until v2.0.3 — `10 §6`.)
 
-### Durations — YouTube Data API v3 (v2.0)
+### Durations and availability — YouTube Data API v3 (v2.0, v2.3)
 
 ```
 GET /api/yt/durations?ids=<id>,<id>,…        (1–50 ids, each ^[A-Za-z0-9_-]{11}$, deduped)
-  → per id: caches.default first (key versioned, like oEmbed's)
+  → per id: caches.default first (key versioned, like oEmbed's — v2 since v2.3)
   → misses, in ONE call: https://www.googleapis.com/youtube/v3/videos
-        ?part=contentDetails&id=<misses>&fields=items(id,contentDetails/duration)
+        ?part=contentDetails,status,snippet&id=<misses>
+        &fields=items(id,contentDetails(duration,regionRestriction,contentRating/ytRating),
+                      status(uploadStatus,privacyStatus,embeddable),snippet/liveBroadcastContent)
         header x-goog-api-key: <YT_DATA_API_KEY>   ← a Worker secret, never in a URL
         header Referer: https://ticktune.net/      ← what the key is restricted to
-  → 200 {durations: {id: ms | null}}
+  → 200 {durations: {id: ms | null}, unplayable: {id: cause}}   cache-control: private
         ms   ← contentDetails.duration (ISO 8601, src/lib/tt-iso-duration.ts)
         null ← P0D (live, unaired) or an id Google did not return (private, gone)
-        each answer cached: a length 24 h, a null 15 min
+        cause (v2.3) ← src/lib/tt-yt-availability.ts, from the facts below and
+             request.cf.country — embed_off · age_restricted · region_blocked ·
+             not_yet · private · not_found; an id Google did not return gets none
+        each entry cached as {ms, f: facts} — never the country: a length 24 h,
+             a null or a "not out yet" 15 min
   → over the per-IP /api/* budget      → 429 {error:"rate_limited"}  (first, as for oEmbed)
   → no key on this deployment          → 503 {error:"not_configured"}  (Google never called)
   → over the per-IP budget (20/min)    → 429 {error:"rate_limited"}
@@ -277,6 +283,54 @@ cost of a convenience. The words are for Workers Logs (`10 §10`), where "why is
 Match disabled for links?" gets answered. Answers land through
 `session.patchTrack`, which fills blanks only (a length the player backfilled
 first wins) and ignores a row the user removed meanwhile.
+
+**Availability (v2.3) — what oEmbed could not say.** S1 measured oEmbed answering
+**200 with a full title** for an age-restricted or a region-blocked video, and the
+player calling both `onError 150` (`§4`), so until v2.3 such a link reached the
+queue — and a fitted countdown — and failed only on play. The same `videos.list`
+call now asks for `status`, `contentRating`, `regionRestriction` and
+`liveBroadcastContent`, still one quota unit whatever the parts, and the
+Worker answers each video's reason, if it has one:
+
+| Data API says | Cause | Import code |
+|---------------|-------|-------------|
+| `uploadStatus` deleted / failed / rejected | `not_found` | TT-YT-100 |
+| `privacyStatus` private | `private` | TT-YT-100 |
+| `embeddable: false` | `embed_off` | TT-YT-101 |
+| `contentRating.ytRating: ytAgeRestricted` — embeds refuse it | `age_restricted` | TT-YT-102 |
+| `regionRestriction` excludes the visitor's country | `region_blocked` | TT-YT-103 |
+| `liveBroadcastContent: upcoming`, or `uploadStatus: uploaded` | `not_yet` | TT-YT-104 |
+
+One reason per video, the most permanent first. **Only positive evidence counts**:
+an id Google did not return gets no reason, because oEmbed already rejects
+private and deleted links and a guess here could only reject a good one; a
+live stream (`live`) plays and stays; a region list with a malformed entry is
+dropped whole, because an empty `allowed` means *blocked everywhere*.
+
+**The region verdict is per visitor; the cache is not.** The Worker caches the
+*facts* — the region lists raw — and computes the verdict for each request from
+the country Cloudflare attaches to it (`request.cf.country`). The country is
+compared and goes nowhere else: not to Google, not into the cache, not into a
+log line of ours (the Privacy Policy `§3`). `XX` (unknown), `T1` (Tor) or none
+means no region verdict at all — nobody is refused on a country we do not
+know. Because the answer now depends on who asked, the response is
+`cache-control: private`; the per-video entries stay `public` in the Worker's
+own cache, which `cache.put` requires. The cache key went to `v2` with the new
+entry shape, so a video cached before v2.3 is asked once more.
+
+**The import asks, once, before anything lands** (`§5` steps 3b and 6). Until
+v2.3 the session asked for lengths after the rows had landed, "so the Add
+button never waits on Google". A verdict that arrived after landing would
+have had to take rows back out — after a Start, through a fitted run — so the
+call is now part of the import: sent before the oEmbed checks, read after
+them, so it adds no wait unless Google is slower than every oEmbed check
+together, and bounded by the Worker's 8 s. It asks for the accepted links and
+for the shelf's older links still without a length, so the session asks
+nothing more and a paste stays at 1 + 50 + 1 calls. **Unanswered**, the import
+keeps everything oEmbed accepted, exactly as before v2.3, logs TT-YT-008 once
+and does not ask again in the same moment; the TT-YT-150 card is still there
+for whatever fails on play. The pending re-check after Start (`§8`) asks
+oEmbed only, as before.
 
 **The key** is restricted in Google Cloud to the YouTube Data API v3 and to the
 website `https://ticktune.net/*`; Google checks that against the Referer the
@@ -318,11 +372,21 @@ premise:
 Three of those — deleted, private, embed-off — were previously only discoverable
 at play time. They are now caught before Start, which is the real win from S1.
 
+**Since v2.3 the Data API classifies too** (`§3` Availability), for what oEmbed
+answers 200 to:
+
+| Signal (`/api/yt/durations`) | Meaning | Action | Log |
+|------------------------------|---------|--------|-----|
+| `age_restricted` | Age-restricted — embeds refuse it | rejected at import | TT-YT-102 |
+| `region_blocked` | Blocked in the visitor's country | rejected at import | TT-YT-103 |
+| `not_yet` | An upcoming premiere or stream, or still processing | rejected at import | TT-YT-104 |
+| `embed_off` / `private` / `not_found` | As the oEmbed rows above, when oEmbed answered 200 | rejected at import | TT-YT-101 / TT-YT-100 |
+
 ### Play time — what oEmbed cannot see
 
 | Signal | Meaning | Overlay | Action | Log |
 |--------|---------|---------|--------|-----|
-| `onError 150` after a **200** oEmbed | **Age-restricted or region-blocked — genuinely indistinguishable.** Both return 200 with full title and channel, then refuse to play | `yt.err.blocked`, subtext naming both as possible causes | skip after 5 s | TT-YT-150 |
+| `onError 150` after a **200** oEmbed | **Age-restricted or region-blocked — indistinguishable to oEmbed and the player.** Both return 200 with full title and channel, then refuse to play. Since v2.3 the Data API leaves both out at import (above), so the card is for what it could not see — a rights claim, a members-only video — or for an import whose Data API call went unanswered | `yt.err.blocked`, subtext naming both as possible causes | skip after 5 s | TT-YT-150 |
 | `onError 100` | Removed/private **mid-session** | `yt.err.gone` | skip after 5 s | TT-YT-100 |
 | `onError 2` | Bad parameter | `yt.err.invalid` | skip after 5 s | TT-YT-002 |
 | `onError 5` | HTML5 player failure | `yt.err.player` | skip after 5 s | TT-YT-005 |
@@ -347,7 +411,9 @@ on `100` firing**.
 
 The age-vs-region ambiguity is **not** a gap to close later — it is the measured
 result. The subtext naming both causes, which this table already required, turns
-out to be the only honest wording available.
+out to be the only honest wording available. (v2.3 did not close it in the
+player either: the Data API answers *before* play, so those links never reach
+the card; one that does is still ambiguous.)
 
 Each overlay: icon, title, one-line cause, countdown-to-skip, "Skip now" button.
 
@@ -367,6 +433,8 @@ that is the same for both.
    eleven letters passed the regex and went to oEmbed as one
 2. Dedupe by videoId (default skip + toast)          dup  → TT-IMP-005
 3. Cap: the links shelf would exceed 50 (02 §3.5)    fail → TT-YT-003
+3b. (v2.3) Availability: ONE /api/yt/durations call for the accepted links and
+   the shelf's links still without a length — sent now, read at step 6 (§3)
 4. oEmbed pre-check via /api/yt/oembed
    ok       → TtTrack{status:'ok', title, artist=channel, thumbnailUrl}
    400      → rejected, malformed id                  log  → TT-YT-002
@@ -374,9 +442,13 @@ that is the same for both.
    403/404  → rejected, private or gone               log  → TT-YT-100
    429/502  → TtTrack{status:'pending'} kept          log  → TT-YT-001
    anything else → rejected, cause unknown            log  → TT-YT-004
-5. Lengths for every link still without one, ONE call (§3 Durations)
-   ok       → durationMs filled (patchTrack: blanks only)
-   failure  → durationMs stays null, "–" until backfill (§2)   log → TT-YT-008
+5. Push the kept tracks
+6. (v2.3) Read step 3b's answer, before anything lands
+   a reason → rejected, its pending note dropped too  log → TT-YT-100/101/102/103/104
+   a length → durationMs filled on the new rows; the older rows' through
+              patchTrack (blanks only)
+   no answer → everything kept; durationMs null, "–" until backfill (§2)
+              log → TT-YT-008, once, and no second call
 ```
 
 No per-track or total duration limits in this mode (spec) — so the queue
@@ -463,7 +535,8 @@ supports:
 
 | Evidence | Verdict |
 |----------|---------|
-| A track imported, **or** the edge named a refusal (TT-YT-100/101/004) | **online** — a cause is only nameable if our own endpoint produced it |
+| A track imported, **or** the edge named a refusal (TT-YT-100/101/004; 010 for a playlist; 102–104 since v2.3) | **online** — a cause is only nameable if our own endpoint produced it |
+| (v2.3) The import's availability call was answered | **online**, whatever the oEmbed checks met — that answer came from our Worker |
 | Every attempt returned TT-YT-001 (transient) | **offline** |
 | Nothing touched the network — all malformed, all duplicates, all over-cap | **no verdict.** Not the same as offline; treating it as offline would raise the banner on a good connection |
 
@@ -569,7 +642,10 @@ past the client's 10 s.
 
 An entry is playable when it is public or unlisted and carries a publish date;
 deleted and private entries have none. The client's oEmbed check still runs on
-every video, so this filter only saves slots.
+every video, so this filter only saves slots. Since v2.3 the expanded videos also
+go through the import's availability check (`§3`), so an age-restricted,
+region-blocked or not-yet-aired entry is left out with its reason, as a pasted
+link is.
 
 **Causes come from Google's reason, never from the status** (`ytListCause`,
 `src/lib/tt-yt-list.ts`). A spent quota and a private list are both 403. Read by
@@ -616,8 +692,8 @@ as unreachable, as `lookup` does.
 **Not measured:**
 
 - how deleted and private entries report themselves inside a list. The filter
-  reads both the privacy status and the publish date, and the oEmbed check
-  catches whatever it misses;
+  reads both the privacy status and the publish date, and the oEmbed check —
+  and since v2.3 the availability check — catches whatever it misses;
 - whether a YouTube Music `RDCLAK…` album list is readable. It is refused on
   its `RD` prefix like a Mix.
 

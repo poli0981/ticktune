@@ -79,6 +79,10 @@ describe('ytCauseIsTransient — docs/06 §5', () => {
       'private',
       'not_found',
       'unavailable',
+      // v2.3, the Data API's — properties of the video just the same.
+      'age_restricted',
+      'region_blocked',
+      'not_yet',
     ] as const) {
       expect(ytCauseIsTransient(cause)).toBe(false);
     }
@@ -149,6 +153,9 @@ describe('isYtCause — a word read back from the Worker (docs/06 §9, v2.1)', (
       'upstream_unreachable',
       'rate_limited',
       'unavailable',
+      'age_restricted',
+      'region_blocked',
+      'not_yet',
     ]) {
       expect(isYtCause(word)).toBe(true);
     }

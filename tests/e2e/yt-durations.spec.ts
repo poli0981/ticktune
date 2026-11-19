@@ -1,6 +1,6 @@
 import { test, expect } from './_fixtures';
 import { dismissUnloadDialogs } from './_helpers';
-import { gotoYouTubeApp, mockDurations, stageLinks } from './_helpers-yt';
+import { gotoYouTubeApp, mockDurations, stageLinks, ytCalls } from './_helpers-yt';
 
 /**
  * Link lengths at import — docs/06 §3 (v2.0), docs/03 §3.
@@ -74,5 +74,76 @@ test.describe('YouTube lengths from the Data API — docs/06 §3', () => {
 
     await expect.poll(() => asked.length).toBe(1);
     await expect(page.getByTestId('tt-match-length')).toBeDisabled();
+  });
+});
+
+/**
+ * Links that cannot play here — docs/06 §3 (v2.3).
+ *
+ * oEmbed answers 200 for an age-restricted or region-blocked video, so until
+ * v2.3 such a link reached the queue — and the fitted length — and failed only
+ * on play, behind the TT-YT-150 card. The import's one Data API call now names
+ * the reason first, and the link never lands. Every spec here fails on v2.2.1:
+ * both rows land there.
+ */
+test.describe('links that cannot play here are left out — docs/06 §3 (v2.3)', () => {
+  test.skip(({ isMobile }) => !!isMobile, 'desktop projects only');
+
+  test('a region-blocked link never reaches the queue or the fit, and the rest runs', async ({
+    page,
+  }) => {
+    dismissUnloadDialogs(page);
+    const asked = await mockDurations(
+      page,
+      { [ONE]: 213_000, [TWO]: 187_000 },
+      { [TWO]: 'region_blocked' },
+    );
+    await gotoYouTubeApp(page);
+    await stageLinks(page, [ONE, TWO], 1);
+
+    await expect(page.getByTestId('tt-queue-row')).toContainText(`Video ${ONE}`);
+    const toast = page.getByTestId('tt-toast');
+    await expect(toast).toContainText('TT-YT-103');
+    await expect(toast).toContainText('Không xem được ở quốc gia của bạn');
+
+    // Its length is not in the fit: Match takes ONE's 3 min 33 s alone.
+    await page.getByTestId('tt-match-length').click();
+    await expect(page.getByLabel('phút', { exact: true })).toHaveValue('3');
+    await expect(page.getByLabel('giây', { exact: true })).toHaveValue('33');
+    // One call for the paste — its answer filled the lengths too.
+    expect(asked).toEqual([[ONE, TWO]]);
+
+    await page.getByRole('button', { name: 'Bắt đầu' }).click();
+    await expect
+      .poll(() => ytCalls(page))
+      .toEqual(expect.arrayContaining([`loadVideoById:${ONE}`]));
+  });
+
+  for (const [cause, code, words] of [
+    ['age_restricted', 'TT-YT-102', 'Giới hạn độ tuổi'],
+    ['not_yet', 'TT-YT-104', 'Chưa ra mắt'],
+    ['embed_off', 'TT-YT-101', 'Chủ video không cho phép nhúng'],
+  ] as const) {
+    test(`${cause} is left out with ${code}`, async ({ page }) => {
+      dismissUnloadDialogs(page);
+      await mockDurations(page, { [ONE]: 213_000, [TWO]: 60_000 }, { [TWO]: cause });
+      await gotoYouTubeApp(page);
+      await stageLinks(page, [ONE, TWO], 1);
+
+      const toast = page.getByTestId('tt-toast');
+      await expect(toast).toContainText(code);
+      await expect(toast).toContainText(words);
+    });
+  }
+
+  test('no answer leaves nothing out, and is not asked twice', async ({ page }) => {
+    dismissUnloadDialogs(page);
+    const asked = await mockDurations(page, 'not_configured');
+    await gotoYouTubeApp(page);
+    await stageLinks(page, [ONE, TWO], 2);
+
+    await expect.poll(() => asked.length).toBe(1);
+    await page.waitForTimeout(500);
+    expect(asked).toHaveLength(1);
   });
 });

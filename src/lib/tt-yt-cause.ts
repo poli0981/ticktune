@@ -5,8 +5,10 @@
  * vocabulary two very different programs must agree on. `worker/index.ts` runs
  * on workerd and decides the cause; the app runs in the browser and renders it.
  * A copy on each side is a copy that drifts, and the whole value here is that
- * both ends name the same **seven** things — the union below, which grew past
- * the "five" this sentence claimed until 2026-07-23 without anyone updating it.
+ * both ends name the same things — the union below, which grew past the "five"
+ * this sentence claimed until 2026-07-23 without anyone updating it, and past
+ * seven in v2.3, when the Data API's availability answer (`tt-yt-availability.ts`)
+ * added three.
  *
  * ## Why the status and not the body
  *
@@ -35,9 +37,11 @@
  * ## What is deliberately NOT distinguishable
  *
  * Age-restricted and region-blocked both return **200 with full title and
- * channel**, then refuse to play. There is no signal that separates them, so
- * `blocked` names both and the overlay says so. That is the measured result,
- * not a gap left for later.
+ * channel**, then refuse to play. Nothing in oEmbed or the player separates
+ * them, so the overlay's `blocked` names both — the measured result. Since
+ * v2.3 the import asks the Data API as well, which does separate them
+ * (`age_restricted`, `region_blocked`), so the overlay is now for what the
+ * Data API could not see or was not asked.
  */
 
 export type TtYtCause =
@@ -62,7 +66,13 @@ export type TtYtCause =
    */
   | 'rate_limited'
   /** Any other non-2xx. Honest fallback rather than a guess. */
-  | 'unavailable';
+  | 'unavailable'
+  /** v2.3, from the Data API — `contentRating.ytRating` is `ytAgeRestricted`; embeds refuse it. */
+  | 'age_restricted'
+  /** v2.3, from the Data API — `regionRestriction` excludes the visitor's country. */
+  | 'region_blocked'
+  /** v2.3, from the Data API — an upcoming premiere or stream, or an upload still processing. */
+  | 'not_yet';
 
 const CAUSES: ReadonlySet<string> = new Set<TtYtCause>([
   'invalid_id',
@@ -72,6 +82,9 @@ const CAUSES: ReadonlySet<string> = new Set<TtYtCause>([
   'upstream_unreachable',
   'rate_limited',
   'unavailable',
+  'age_restricted',
+  'region_blocked',
+  'not_yet',
 ]);
 
 /**

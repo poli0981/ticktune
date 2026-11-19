@@ -5,9 +5,11 @@ import {
   reachedEdge,
   readDurations,
   readPlaylists,
+  readUnplayable,
   ytDurationTargets,
 } from '../../src/app/engine/youtube/tt-yt-import';
 import type { TtYtList, TtYtLookup, TtYtPorts } from '../../src/app/engine/youtube/types';
+import type { TtYtUnplayable } from '../../src/lib/tt-yt-availability';
 import type { TtImportResult, TtTrack } from '../../src/app/engine/importer/types';
 
 /**
@@ -224,7 +226,8 @@ describe('lines that are not links', () => {
 
   it('an empty paste is not an error', async () => {
     const r = await importLinks({ ...base, text: '\n  \n' }, always(OK));
-    expect(r).toEqual({ added: [], skipped: [], notes: [] });
+    // `lengths: null` — nothing was accepted, so nothing was asked (v2.3).
+    expect(r).toEqual({ added: [], skipped: [], notes: [], lengths: null });
   });
 });
 
@@ -542,5 +545,231 @@ describe('reachedEdge counts a playlist verdict as an answer', () => {
       notes: [],
     };
     expect(reachedEdge(r)).toBe(true);
+  });
+});
+
+describe('availability from the Data API — docs/06 §3 (v2.3)', () => {
+  const V1 = 'aaaaaaaaaaa';
+  const V2 = 'bbbbbbbbbbb';
+  const V3 = 'ccccccccccc';
+  const shelved = (videoId: string, durationMs: number | null): TtTrack => ({
+    id: `t-${videoId}`,
+    source: 'youtube',
+    status: 'ok',
+    title: '',
+    artist: '',
+    durationMs,
+    videoId,
+    addedAt: 0,
+  });
+
+  interface Answer {
+    durations?: Record<string, number>;
+    unplayable?: Record<string, TtYtUnplayable>;
+  }
+
+  function availPorts(
+    answer: Answer | null,
+    lookup: TtYtPorts['lookup'] = () => Promise.resolve(OK),
+  ): TtYtPorts & { asked: string[][] } {
+    const asked: string[][] = [];
+    return {
+      ...makePorts(lookup),
+      asked,
+      availability: (ids) => {
+        asked.push([...ids]);
+        return Promise.resolve(
+          answer === null
+            ? null
+            : {
+                durations: new Map(Object.entries(answer.durations ?? {})),
+                unplayable: new Map(Object.entries(answer.unplayable ?? {})),
+              },
+        );
+      },
+    };
+  }
+
+  it.each([
+    ['embed_off', 'TT-YT-101'],
+    ['private', 'TT-YT-100'],
+    ['not_found', 'TT-YT-100'],
+    ['age_restricted', 'TT-YT-102'],
+    ['region_blocked', 'TT-YT-103'],
+    ['not_yet', 'TT-YT-104'],
+  ] as const)('leaves out a link that cannot play here: %s → %s', async (cause, code) => {
+    const r = await importLinks(
+      { ...base, text: `${V1}\n${V2}` },
+      availPorts({ unplayable: { [V1]: cause } }),
+    );
+
+    expect(r.added.map((t) => t.videoId)).toEqual([V2]);
+    expect(r.skipped).toEqual([{ code, fileName: V1 }]);
+  });
+
+  it('fills the lengths before the rows land, and hands the session the whole answer', async () => {
+    const r = await importLinks(
+      { ...base, text: `${V1}\n${V2}` },
+      availPorts({ durations: { [V1]: 213_000 } }),
+    );
+
+    expect(r.added.map((t) => t.durationMs)).toEqual([213_000, null]);
+    expect(r.lengths).toEqual(new Map([[V1, 213_000]]));
+  });
+
+  it('asks ONCE — for the accepted links and the shelf links still without a length', async () => {
+    // The shelf's own blanks ride along, so the session has nothing left to
+    // ask: a paste stays at 1 + 50 + 1 calls.
+    const queue = [shelved(V3, null), shelved('ddddddddddd', 60_000)];
+    const ports = availPorts({});
+    await importLinks({ queue, allowDuplicates: false, text: `${V1}\n${V2}` }, ports);
+
+    expect(ports.asked).toEqual([[V1, V2, V3]]);
+  });
+
+  it('sends the call before the oEmbed checks, and reads it after them', async () => {
+    const events: string[] = [];
+    let answer: (a: null) => void = () => {};
+    const ports: TtYtPorts = {
+      ...makePorts((id) => {
+        events.push(`oembed ${id}`);
+        return Promise.resolve(OK);
+      }),
+      availability: () => {
+        events.push('availability');
+        return new Promise((r) => (answer = r));
+      },
+    };
+    const pending = importLinks({ ...base, text: `${V1}\n${V2}` }, ports);
+    await vi.waitFor(() => expect(events).toHaveLength(3));
+    expect(events).toEqual(['availability', `oembed ${V1}`, `oembed ${V2}`]);
+
+    answer(null);
+    expect((await pending).added).toHaveLength(2);
+  });
+
+  it('asks nothing when nothing was accepted', async () => {
+    const full = Array.from({ length: 50 }, (_, i) =>
+      shelved(`have${String(i).padStart(7, '0')}`, null),
+    );
+    const ports = availPorts({});
+    const r = await importLinks({ queue: full, allowDuplicates: false, text: V1 }, ports);
+
+    expect(ports.asked).toEqual([]);
+    expect(r.lengths).toBeNull();
+  });
+
+  it('unanswered: keeps everything oEmbed accepted, exactly as before v2.3', async () => {
+    const r = await importLinks({ ...base, text: `${V1}\n${V2}` }, availPorts(null));
+
+    expect(r.added.map((t) => t.videoId)).toEqual([V1, V2]);
+    expect(r.skipped).toEqual([]);
+    expect(r.lengths).toBe('unanswered');
+  });
+
+  it('a port without the call changes nothing, and says it asked nothing', async () => {
+    const r = await importLinks({ ...base, text: V1 }, always(OK));
+
+    expect(r.added).toHaveLength(1);
+    expect(r.lengths).toBeNull();
+  });
+
+  it('a pending link that cannot play leaves, and takes its retry note with it', async () => {
+    const r = await importLinks(
+      { ...base, text: `${V1}\n${V2}` },
+      availPorts({ unplayable: { [V1]: 'region_blocked' } }, () =>
+        Promise.resolve({ ok: false, cause: 'upstream_unreachable' }),
+      ),
+    );
+
+    expect(r.added.map((t) => [t.videoId, t.status])).toEqual([[V2, 'pending']]);
+    expect(r.notes).toEqual([{ code: 'TT-YT-001', fileName: V2 }]);
+    expect(r.skipped).toEqual([{ code: 'TT-YT-103', fileName: V1 }]);
+  });
+
+  it("oEmbed's own refusal stands — one row per link, never two", async () => {
+    const r = await importLinks(
+      { ...base, text: V1 },
+      availPorts({ unplayable: { [V1]: 'embed_off' } }, () =>
+        Promise.resolve({ ok: false, cause: 'embed_off' }),
+      ),
+    );
+
+    expect(r.skipped).toEqual([{ code: 'TT-YT-101', fileName: V1 }]);
+  });
+
+  it('every copy of a link pasted twice leaves (allowDuplicates)', async () => {
+    const r = await importLinks(
+      { ...base, allowDuplicates: true, text: `${V1}\n${V1}\n${V2}` },
+      availPorts({ unplayable: { [V1]: 'age_restricted' } }),
+    );
+
+    expect(r.added.map((t) => t.videoId)).toEqual([V2]);
+    expect(r.skipped.map((s) => s.code)).toEqual(['TT-YT-102', 'TT-YT-102']);
+  });
+
+  it('the cap comes first — a link left out is not refilled from the overflow', async () => {
+    const queue = Array.from({ length: 49 }, (_, i) =>
+      shelved(`have${String(i).padStart(7, '0')}`, 60_000),
+    );
+    const r = await importLinks(
+      { queue, allowDuplicates: false, text: `${V1}\n${V2}` },
+      availPorts({ unplayable: { [V1]: 'region_blocked' } }),
+    );
+
+    expect(r.added).toEqual([]);
+    expect(r.skipped).toEqual([
+      { code: 'TT-YT-003', fileName: V2 },
+      { code: 'TT-YT-103', fileName: V1 },
+    ]);
+  });
+
+  it("a playlist's videos go through the same check", async () => {
+    const LIST = 'PLaaaaaaaaaaaaaaaa';
+    const ports: TtYtPorts = {
+      ...availPorts({ unplayable: { [V1]: 'age_restricted' } }),
+      lookupPlaylists: () =>
+        Promise.resolve({
+          reached: true,
+          lists: new Map<string, TtYtList>([
+            [LIST, { ok: true, ids: [V1, V2], skipped: 0, total: 2 }],
+          ]),
+        }),
+    };
+    const { result } = await importPlaylists({ ...base, text: LIST }, ports);
+
+    expect(result.added.map((t) => t.videoId)).toEqual([V2]);
+    expect(result.skipped).toEqual([{ code: 'TT-YT-102', fileName: V1 }]);
+  });
+
+  it('reachedEdge: an answered call is proof on its own, an unanswered one is not', () => {
+    const notes = [{ code: 'TT-YT-001' as const, fileName: V1 }];
+    expect(reachedEdge({ added: [], skipped: [], notes, lengths: new Map() })).toBe(true);
+    expect(reachedEdge({ added: [], skipped: [], notes, lengths: 'unanswered' })).toBe(false);
+  });
+
+  it.each(['TT-YT-102', 'TT-YT-103', 'TT-YT-104'] as const)(
+    'reachedEdge: %s is a reason our edge relayed',
+    (code) => {
+      expect(reachedEdge({ added: [], skipped: [{ code, fileName: V1 }], notes: [] })).toBe(true);
+    },
+  );
+});
+
+describe('readUnplayable — the Worker’s answer, believed only as far as it goes', () => {
+  const V1 = 'aaaaaaaaaaa';
+  const V2 = 'bbbbbbbbbbb';
+
+  it('takes asked ids and registered reasons only', () => {
+    const body = {
+      unplayable: { [V1]: 'region_blocked', [V2]: 'something_new', other: 'not_yet' },
+    };
+    expect(readUnplayable(body, [V1, V2])).toEqual(new Map([[V1, 'region_blocked']]));
+  });
+
+  it('an answer without the field — an older Worker — leaves out nothing', () => {
+    expect(readUnplayable({ durations: {} }, [V1]).size).toBe(0);
+    expect(readUnplayable(null, [V1]).size).toBe(0);
+    expect(readUnplayable({ unplayable: 'x' }, [V1]).size).toBe(0);
   });
 });

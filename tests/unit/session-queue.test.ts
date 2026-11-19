@@ -4,6 +4,7 @@ import { nextInOrder } from '../../src/app/engine/queue/tt-play-order';
 // Type-only, so these do NOT pin a module instance: each test re-imports the
 // stores after `vi.resetModules()` to get its own copy of the singletons.
 import type * as YtImportMod from '../../src/app/engine/youtube/tt-yt-import';
+import type { TtYtImportResult } from '../../src/app/engine/youtube/types';
 import type * as PlaybackMod from '../../src/app/state/playback.svelte';
 import type * as SessionMod from '../../src/app/state/session.svelte';
 import type * as SettingsMod from '../../src/app/state/settings.svelte';
@@ -1307,5 +1308,85 @@ describe('imports are single-flight from the FIRST await — docs/02 §4', () =>
     expect(importFiles).toHaveBeenCalledTimes(1);
     expect(session.queue.map((t) => t.id)).toEqual(['dropped']);
     expect(session.importing).toBe(false);
+  });
+});
+
+describe('link lengths from the import itself — docs/06 §3 (v2.3)', () => {
+  const link = (id: string, videoId: string, over: Partial<TtTrack> = {}) =>
+    track(id, { source: 'youtube', videoId, durationMs: null, ...over });
+  const OLD = 'jNQXAC9IVRw';
+  const NEW = 'dQw4w9WgXcQ';
+
+  it("fills the shelf from the import's own answer, older links included, and asks nothing more", async () => {
+    session.setMode('youtube');
+    const first: TtYtImportResult = { ...result([link('old', OLD)]), lengths: 'unanswered' };
+    importLinks.mockResolvedValueOnce(first);
+    await session.importLinks('one link');
+
+    // The second import's call asked for the older link's blank too
+    // (`ytDurationTargets`); the session fills both from that one answer.
+    const second: TtYtImportResult = {
+      ...result([link('new', NEW, { durationMs: 213_000 })]),
+      lengths: new Map([
+        [OLD, 19_000],
+        [NEW, 213_000],
+      ]),
+    };
+    importLinks.mockResolvedValueOnce(second);
+    await session.importLinks('another link');
+
+    expect(session.queue.map((t) => t.durationMs)).toEqual([19_000, 213_000]);
+    // A paste stays at 1 + 50 + 1 calls: no second lengths request.
+    expect(lookupDurations).not.toHaveBeenCalled();
+  });
+
+  it('blanks only — a length the player backfilled first is kept', async () => {
+    session.setMode('youtube');
+    const r: TtYtImportResult = {
+      ...result([link('a', NEW, { durationMs: 212_500 })]),
+      lengths: new Map([[NEW, 213_000]]),
+    };
+    importLinks.mockResolvedValueOnce(r);
+    await session.importLinks('one link');
+
+    expect(session.queue[0]?.durationMs).toBe(212_500);
+  });
+
+  it('an unanswered call is logged once, and not asked again in the same moment', async () => {
+    const { ttLog } = await import('../../src/app/engine/log/tt-log');
+    session.setMode('youtube');
+    const r: TtYtImportResult = { ...result([link('a', NEW)]), lengths: 'unanswered' };
+    importLinks.mockResolvedValueOnce(r);
+    await session.importLinks('one link');
+
+    expect(lookupDurations).not.toHaveBeenCalled();
+    expect(ttLog.entries().filter((e) => e.code === 'TT-YT-008')).toHaveLength(1);
+    expect(session.queue[0]?.durationMs).toBeNull();
+  });
+
+  it('an answered call is proof the edge was reached, whatever oEmbed met', async () => {
+    session.setMode('youtube');
+    // Every oEmbed check failed transiently and the call went unanswered too:
+    // that reads offline (docs/06 §8).
+    const offline: TtYtImportResult = {
+      added: [link('a', NEW, { status: 'pending' })],
+      skipped: [],
+      notes: [{ code: 'TT-YT-001', fileName: NEW }],
+      lengths: 'unanswered',
+    };
+    importLinks.mockResolvedValueOnce(offline);
+    await session.importLinks('one link');
+    expect(session.online).toBe(false);
+
+    // The same oEmbed failure, but our Worker answered the availability call.
+    const answered: TtYtImportResult = {
+      added: [link('b', OLD, { status: 'pending' })],
+      skipped: [],
+      notes: [{ code: 'TT-YT-001', fileName: OLD }],
+      lengths: new Map(),
+    };
+    importLinks.mockResolvedValueOnce(answered);
+    await session.importLinks('another link');
+    expect(session.online).toBe(true);
   });
 });

@@ -217,7 +217,10 @@
       "TT-YT-014": "Dòng này không có playlist",
       "TT-YT-015": "Playlist dài — chỉ đọc 50 video đầu tiên",
       "TT-YT-100": "Video đã xoá hoặc ở chế độ riêng tư",
-      "TT-YT-101": "Chủ video không cho phép nhúng"
+      "TT-YT-101": "Chủ video không cho phép nhúng",
+      "TT-YT-102": "Giới hạn độ tuổi — YouTube chỉ cho phát trên trang của họ",
+      "TT-YT-103": "Không xem được ở quốc gia của bạn",
+      "TT-YT-104": "Chưa ra mắt — buổi công chiếu, buổi phát trực tiếp đã lên lịch, hoặc video đang xử lý"
     }
   },
   "finished": {

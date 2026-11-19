@@ -1,4 +1,6 @@
+import type { TtYtUnplayable } from '../../../lib/tt-yt-availability';
 import type { TtYtCause } from '../../../lib/tt-yt-cause';
+import type { TtImportResult } from '../importer/types';
 
 /**
  * YouTube engine types — docs/06 §5.
@@ -40,6 +42,30 @@ export interface TtYtListLookup {
   lists: Map<string, TtYtList> | null;
 }
 
+/**
+ * docs/06 §3 (v2.3) — one `/api/yt/durations` answer: the lengths Google knows,
+ * and the videos that cannot play for this visitor, each with its reason.
+ */
+export interface TtYtAvailability {
+  durations: Map<string, number>;
+  unplayable: Map<string, TtYtUnplayable>;
+}
+
+/**
+ * A YouTube import's result: the shared shape, plus what its one availability
+ * call (v2.3) came back with:
+ *
+ * - the lengths it learned — for the shelf's older links as well as the new
+ *   ones, so the session fills them without asking again;
+ * - `'unanswered'` — it asked and got nothing; asking again in the same
+ *   moment would only spend a call, so the session logs TT-YT-008 instead;
+ * - `null` — nothing was asked (nothing accepted, or a port without
+ *   `availability`); the session asks the way it did before v2.3.
+ */
+export interface TtYtImportResult extends TtImportResult {
+  lengths: Map<string, number> | 'unanswered' | null;
+}
+
 export interface TtYtPorts {
   newId: () => string;
   now: () => number;
@@ -61,6 +87,13 @@ export interface TtYtPorts {
    * is reported unavailable and nothing is added.
    */
   lookupPlaylists?: (ids: readonly string[]) => Promise<TtYtListLookup>;
+  /**
+   * docs/06 §3 (v2.3) — lengths and availability for up to 50 videos in one
+   * call. Never rejects; null means "not answered" whatever the reason, and the
+   * import then keeps every link oEmbed accepted, as before v2.3. Optional, like
+   * `lookupPlaylists`.
+   */
+  availability?: (ids: readonly string[]) => Promise<TtYtAvailability | null>;
   /** docs/02 §4 — same progress contract the local importer uses. */
   onProgress?: (done: number, total: number) => void;
 }

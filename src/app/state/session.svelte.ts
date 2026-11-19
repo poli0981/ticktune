@@ -19,6 +19,7 @@ import {
 } from '../engine/queue/tt-play-order';
 import { ytCauseIsTransient } from '../../lib/tt-yt-cause';
 import { browserYtPorts, lookupDurations } from '../engine/youtube/tt-yt-driver';
+import type { TtYtImportResult } from '../engine/youtube/types';
 import {
   importLinks,
   importPlaylists,
@@ -630,13 +631,13 @@ class SessionStore {
   }
 
   /**
-   * The tail both link imports share: log, shelve, look the lengths up, and
+   * The tail both link imports share: log, shelve, fill the lengths, and
    * update docs/06 §8's verdict.
    *
    * @param batchReached what the playlist batch proved about our edge, for when
    *   no video lookup did — null for a paste of links, which has no batch.
    */
-  #land(result: TtImportResult, batchReached: boolean | null): void {
+  #land(result: TtYtImportResult, batchReached: boolean | null): void {
     for (const s of result.skipped) ttLog.warn(s.code, '');
     /*
      * Notes carry their track id; skips cannot, because a skipped link never
@@ -661,7 +662,16 @@ class SessionStore {
     }
     this.#syncOrder();
     this.#lastImport = result;
-    if (result.added.length > 0) void this.#fillDurations();
+    /*
+     * v2.3: the import's own availability call already asked for every
+     * length the shelf lacks, the older links' included. Answered, its
+     * lengths are filled here; unanswered, asking again in the same moment
+     * would only spend a call — a paste stays at 1 + 50 + 1. The session asks
+     * on its own only when the import did not (a port without the call).
+     */
+    if (result.lengths instanceof Map) this.#fillLengths(result.lengths);
+    else if (result.lengths === 'unanswered') ttLog.info('TT-YT-008', '');
+    else if (result.added.length > 0) void this.#fillDurations();
 
     // docs/06 §8 — `navigator.onLine` is the hint, THIS is the authority. It
     // is the only signal that survives a machine whose interface is up but
@@ -943,6 +953,11 @@ class SessionStore {
       ttLog.info('TT-YT-008', '');
       return;
     }
+    this.#fillLengths(lengths);
+  }
+
+  /** Every shelved link whose length is now known — blanks only (`patchTrack`). */
+  #fillLengths(lengths: ReadonlyMap<string, number>): void {
     for (const t of this.#shelves.youtube) {
       const ms = t.videoId === undefined ? undefined : lengths.get(t.videoId);
       if (ms !== undefined) this.patchTrack(t.id, { durationMs: ms });

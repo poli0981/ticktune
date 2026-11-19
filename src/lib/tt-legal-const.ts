@@ -64,6 +64,15 @@
  * - the EULA's `§1` names the button as it is ("Agree and continue"), and the
  *   gate's new **Decline and go back**, which stores nothing;
  * - Third-Party Notices gained the YouTube Data API row Legal 2.0 never added.
+ *
+ * 📝 **v2.3 edited the Privacy Policy's `§3` and `§5` and did NOT bump**, by
+ * the v2.0.3 precedent. `/api/yt/durations` now also asks whether each video
+ * can play here, and judges the region against the country Cloudflare
+ * attaches to the request — the country `§6` already disclosed as attached
+ * and logged. Same action (adding links), same request, the country
+ * compared and never sent to Google or stored: the text was made true in the
+ * same PR and nobody's position changed. Both documents' tables record it.
+ * The owner chose this over a bump (2026-11-19).
  */
 export const TT_LEGAL_VERSION = '2.1';
 
