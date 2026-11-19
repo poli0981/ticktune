@@ -1,30 +1,30 @@
 # 11 — Dependencies & Versions
 
-Suite 2.0 · **Versions as of v2.1.1 (2026-11-03), resolved from `pnpm-lock.yaml`.**
+Suite 2.0 · **Versions as of 2026-11-19 (after v2.2.1), resolved from `pnpm-lock.yaml`.**
 Spec requirement: latest-or-LTS everywhere, no components with known critical
 CVEs. Dependabot moves these weekly, so treat a version here as a floor and the
 lockfile as the truth.
 
 ## 1. Runtime / toolchain
 
-| Component | Version (v2.2.1) | Channel | Notes |
+| Component | Version (2026-11-19) | Channel | Notes |
 |-----------|---------------------|---------|-------|
-| Node.js | **26.x (Active LTS)** | LTS | LTS since 2026-10-28; v2.1 moved every pin to it — `.nvmrc` 26 (every job, Workers Builds), `engines` `>=26 <27`, `@types/node` 26. The `ci-node26` job that ran ahead of the date on every v2.0 PR went with the switch, as redundant. Node 24 stays in Maintenance LTS until 2028-04-30, but nothing here runs on it any more. |
+| Node.js | **26.x (Active LTS)** | LTS | 26.13.1 (2026-11-10) is a security release; CI picks it up through `.nvmrc` `26` with no change here. LTS since 2026-10-28; v2.1 moved every pin to it — `.nvmrc` 26 (every job, Workers Builds), `engines` `>=26 <27`, `@types/node` 26. The `ci-node26` job that ran ahead of the date on every v2.0 PR went with the switch, as redundant. Node 24 stays in Maintenance LTS until 2028-04-30, but nothing here runs on it any more. |
 | pnpm | 11.15.1 | latest | Portfolio used 10.x this month; 11 is current major — adopt for new repo, migration is trivial. |
-| Wrangler | **4.158.0** | latest | `compatibility_date: 2026-07-01`. Its `miniflare` resolves `sharp@0.35.5`, past the four libvips CVEs in `sharp <0.35.0` (GHSA-f88m-g3jw-g9cj) that first forced a Wrangler bump (4.112 → 4.114, see `§5`), and since 4.156.0 asks for `undici 7.30.1` itself — the override 4.152.0 needed is gone (`§5`) |
+| Wrangler | **4.162.0** | latest | `compatibility_date: 2026-07-01`. Its `miniflare` resolves `sharp@0.35.5`, past the four libvips CVEs in `sharp <0.35.0` (GHSA-f88m-g3jw-g9cj) that first forced a Wrangler bump (4.112 → 4.114, see `§5`), and since 4.156.0 asks for `undici 7.30.1` itself — the override 4.152.0 needed is gone (`§5`) |
 
 ## 2. Application dependencies
 
 | Package | Version | License | Role |
 |---------|---------|---------|------|
-| astro | 7.4.7 | MIT | Static framework; Rolldown toolchain — compatibility already validated in the SoftHarbor spike |
+| astro | 7.4.12 | MIT | Static framework; Rolldown toolchain — compatibility already validated in the SoftHarbor spike |
 | svelte | 5.57.3 | MIT | App island, runes |
-| @astrojs/svelte | 9.1.2 | MIT | Integration |
+| @astrojs/svelte | 9.1.6 | MIT | Integration |
 | tailwindcss / @tailwindcss/vite | 4.3.5 | MIT | Styling, `@theme` tokens |
 | motion | — | MIT | **Not installed.** The vetted choice over GSAP (licence, D7) if imperative animation is ever needed; every animation shipped through v1.1 is CSS keyframes and transitions |
-| music-metadata | 12.3.5 | MIT | `parseBlob` tag/cover extraction. **Production dependency**, dynamically imported at first import action so it stays off the boot chunk (`13 §5` budget) |
+| music-metadata | 12.5.0 | MIT | `parseBlob` tag/cover extraction. **Production dependency**, dynamically imported at first import action so it stays off the boot chunk (`13 §5` budget) |
 | dexie | 4.4.7 | Apache-2.0 | Settings persistence (Apache-2.0 → GPL-3.0 compatible, one-way) |
-| i18next | 26.7.2 | MIT | App runtime i18n — installed in P5 slice 1, when the dictionaries were wired (`08 §2`) |
+| i18next | 27.1.1 | MIT | App runtime i18n — installed in P5 slice 1, when the dictionaries were wired (`08 §2`). The 27 major (Dependabot #124, 2026-11-19) needed no change, checked against its breaking list: `fallbackLng` was already explicit (`'en'`), no dictionary holds an empty string (27 makes `''` fall back), `escapeValue` is off so the `/` escaping change cannot show, the codes are `vi`/`en`/`ja` only, and the store never uses the dotted `addResource` forms 27 removed. Its `strictInterpolationChecks` types do not apply: the store's `t()` takes `TtKey` and passes variables through untyped |
 | @fontsource/be-vietnam-pro | 5.3.0 | OFL-1.1 (pkg MIT) | UI font, VI diacritics. **Installed in P6 slice A** — see the note below |
 | @fontsource/jetbrains-mono | 5.3.0 | OFL-1.1 (pkg MIT) | Mono/meta font. **Installed in P6 slice A** |
 | @fontsource/chakra-petch | 5.3.0 | OFL-1.1 (pkg MIT) | Display font for the v1.1 "Rack Unit" redesign (labels, headings, keycaps); full Vietnamese subset checked before adoption. CSS-imported, so it is in `knip.json` `ignoreDependencies` and `make-notices.ts` `CSS_ONLY` like the other two |
@@ -36,25 +36,25 @@ lockfile as the truth.
 | Package | Version | Role |
 |---------|---------|------|
 | typescript | **`~6.0`** (resolved 6.0.3) — TS 7 still rejected, **see §4** | Types |
-| eslint · @eslint/js · typescript-eslint | 10.14.0 · 10.0.1 · 8.72.1 | Lint (flat config) |
+| eslint · @eslint/js · typescript-eslint | 10.15.0 · 10.0.1 · 8.73.0 | Lint (flat config) |
 | eslint-plugin-svelte · svelte-eslint-parser | 3.24.1 · 1.10.1 | Svelte rules |
 | globals | 17.14.0 | ESLint environment globals |
-| prettier | 3.9.10 | Format. **Plugins must be `prettier-plugin-svelte@^4` and `prettier-plugin-tailwindcss@^0.8`** — the 3.x/0.6.x pair crashes on every `.svelte` file with `TypeError: getVisitorKeys is not a function` (the Tailwind plugin wraps the Svelte one and the older pair mis-negotiates prettier 3.9's embedded-language API). Also `prettier-plugin-astro` for `.astro`. |
-| knip | 6.44.2 | Dead/unused code gate (spec requirement) |
+| prettier | 3.10.1 | Format. **Plugins must be `prettier-plugin-svelte@^4` and `prettier-plugin-tailwindcss@^0.8`** — the 3.x/0.6.x pair crashes on every `.svelte` file with `TypeError: getVisitorKeys is not a function` (the Tailwind plugin wraps the Svelte one and the older pair mis-negotiates prettier 3.9's embedded-language API). Also `prettier-plugin-astro` for `.astro`. |
+| knip | 6.45.1 | Dead/unused code gate (spec requirement) |
 | svelte-check · @astrojs/check | 4.7.8 · 0.9.12 | Template type-checking (`pnpm check`) |
 | @sveltejs/vite-plugin-svelte | 7.3.1 | Svelte in Vitest |
 | vitest | 5.1.0 | Unit/component runner. The 4 → 5 major (2026-10-26) needed no change: 1,030 tests green, and the coverage report lists the same 53 files under both — 5's `coverage.include` matching is relative to the root now, and `src/**/*.ts` already was. `clearMocks` defaults to `true` in 5, which can only make an assertion stricter; none failed |
 | @testing-library/svelte | 5.4.2 | Component tests. ⚠️ Requires `resolve.conditions: ['browser']` in `vitest.config.ts` — without it `import { mount } from 'svelte'` resolves to Svelte 5's **server** build and every component test dies with `mount(...) is not available on the server`. Measured 2026-07-21 against the P1 config, before the tier had any tests in it |
 | happy-dom | 21.0.4 | Test DOM |
-| @playwright/test | 1.65.0 | E2E, and the visual and render-cost suites. The visual baselines are made only in `mcr.microsoft.com/playwright:v1.65.0-noble`, pinned by digest in `quality.yml` and `scripts/visual-docker.ts` — a Playwright bump moves the image and regenerates every baseline in the same PR (`13 §3`) |
+| @playwright/test | 1.65.1 | E2E, and the visual and render-cost suites. The visual baselines are made only in `mcr.microsoft.com/playwright:v1.65.1-noble`, pinned by digest in `quality.yml` and `scripts/visual-docker.ts` — a Playwright bump moves the image and regenerates every baseline in the same PR (`13 §3`) |
 | @axe-core/playwright | 4.14.0 | The a11y scan (`13 §6`) |
 | @vitest/coverage-v8 | 5.1.0 | Coverage provider — the docs/13 §1 threshold is enforced, so it must exist |
-| @lhci/cli | 0.16.0 | Lighthouse CI (v2.0, `13 §5`), on Lighthouse 13 since v2.2.1. Apache-2.0, dev-only, never distributed — no notice row (`§5`). Reports go to a workflow artifact, never to Google's public storage |
+| @lhci/cli | 0.16.1 | Lighthouse CI (v2.0, `13 §5`), on Lighthouse 13 since v2.2.1. Apache-2.0, dev-only, never distributed — no notice row (`§5`). Reports go to a workflow artifact, never to Google's public storage |
 | @types/node | 26.x | Node types, held to the supported major (26 since v2.1) — Dependabot ignores its majors (`14 §1`), so 27 is not proposed before Node 27 is the floor |
 | ffmpeg-static | 5.3.0 | **Dev-only asset generation** (`scripts/make-fixtures.ts`, `scripts/make-demo.ts`). Never imported by shipped code and never distributed, so no notice obligation follows (`§5`). Its postinstall downloads an **unchecksummed** prebuilt ffmpeg (GPL), so `pnpm-workspace.yaml` sets `allowBuilds: ffmpeg-static: false` — the binary is fetched on demand by `scripts/ensure-ffmpeg.ts` on a developer machine, never on a CI runner (`14 §2`). |
 | @cloudflare/workers-types | 5.x | Worker globals. Kept in a separate program (`tsconfig.worker.json`) because it conflicts with the DOM lib |
-| @astrojs/sitemap | 3.7.4 | **Dev-only, no notice row** (`§5`) — MIT, runs at build and emits static XML; nothing of it reaches the bundle, exactly like Astro/Vite/Tailwind. Added in P6 slice A because the sitemap is derived from the routes actually built: a hand-authored one is a second source of truth that rots the first time someone adds a page. Its `i18n` option is **not** used — it assumes locales are path prefixes (`/vi/`) and Vietnamese lives at the root, so hreflang stays in the page (`08 §1`) |
-| @astrojs/markdown-satteri | **pinned `0.4.7`** | **Dev-only, no notice row** (`§5`) — MIT, the Markdown processor; it runs at build and emits static HTML. Added in P6 slice B only so `astro.config.mjs` can `import { satteri }` and pass `mdastPlugins` (the legal `.md` cross-link rewrite, `08 §1.1`). ⚠️ **Pin it to exactly the version Astro depends on**, not a range: it is already in the tree as Astro's own dependency, and an exact match dedupes to one copy while a looser range would resolve a second Markdown processor beside the one actually rendering. Astro 7 made Sätteri the default and `markdown.remarkPlugins` now needs `@astrojs/markdown-remark` instead — switching the whole pipeline back to unified to rewrite two links is the wrong trade |
+| @astrojs/sitemap | 3.7.5 | **Dev-only, no notice row** (`§5`) — MIT, runs at build and emits static XML; nothing of it reaches the bundle, exactly like Astro/Vite/Tailwind. Added in P6 slice A because the sitemap is derived from the routes actually built: a hand-authored one is a second source of truth that rots the first time someone adds a page. Its `i18n` option is **not** used — it assumes locales are path prefixes (`/vi/`) and Vietnamese lives at the root, so hreflang stays in the page (`08 §1`) |
+| @astrojs/markdown-satteri | **pinned `0.4.10`** | **Dev-only, no notice row** (`§5`) — MIT, the Markdown processor; it runs at build and emits static HTML. Added in P6 slice B only so `astro.config.mjs` can `import { satteri }` and pass `mdastPlugins` (the legal `.md` cross-link rewrite, `08 §1.1`). ⚠️ **Pin it to exactly the version Astro depends on**, not a range: it is already in the tree as Astro's own dependency, and an exact match dedupes to one copy while a looser range would resolve a second Markdown processor beside the one actually rendering. Astro 7 made Sätteri the default and `markdown.remarkPlugins` now needs `@astrojs/markdown-remark` instead — switching the whole pipeline back to unified to rewrite two links is the wrong trade |
 
 ### The fonts were named for four phases before they were installed
 
@@ -121,7 +121,9 @@ widens its peer range — both must land, since either alone still breaks
 2026-11-03: svelte-check 4.7.8 still peers `typescript: ^5.0.0 || ^6.0.0` and
 typescript-eslint 8.72.1 `>=4.8.4 <6.1.0`, against typescript 7.0.2. Nor by
 2026-11-10: svelte-check 4.7.8 and @astrojs/check 0.9.12 are unchanged, and
-typescript-eslint 8.72.2 keeps `<6.1.0`.
+typescript-eslint 8.72.2 keeps `<6.1.0`. Nor by 2026-11-19, with TypeScript 7.0.2
+`latest` on npm: svelte-check 4.7.8 and @astrojs/check 0.9.12 still peer
+`^5.0.0 || ^6.0.0`, and typescript-eslint 8.73.0 keeps `>=4.8.4 <6.1.0`.
 
 ## 5. CVE & update process
 
@@ -213,19 +215,46 @@ typescript-eslint 8.72.2 keeps `<6.1.0`.
   not load `@astrojs/check`. Astro 7.4.6 turned that from a silent pass into
   exit 1. The bumps were redone by hand on a lockfile that keeps 1.11.3.
 
-  **`deepmerge ≤ 4.3.1` stays** (GHSA-gcqx-w48m-w2h4, low: prototype poisoning
-  in `mergeObject()`). It is `@sveltejs/vite-plugin-svelte`'s, which merges its
-  own build configuration with it — never user input, never in the bundle — and
-  npm's newest release is 4.3.1, the last vulnerable one: there is nothing to
-  move to. Dependabot alert #70 stays open, so it is seen when a fix ships.
+  **2026-11-19 — the same beta turned #123 red, so it is now an override.**
+  The cause is a peer range, not a bump: `@napi-rs/wasm-runtime` names
+  `@emnapi/runtime ^1.7.1 || 2.0.0-beta.2`, so a fresh resolution picks the
+  beta while an incremental install keeps the 1.x already in the lockfile.
+  `'@emnapi/runtime': ^1.11.3` in `pnpm-workspace.yaml` makes every resolver
+  agree; it is a guard, not a security fix, and goes when the 2.x line is
+  stable and `@astrojs/astro2tsx` loads with it. #123's thirteen bumps were
+  redone by hand on top (Astro 7.4.12, music-metadata 12.5.0, Playwright 1.65.1
+  with its visual image, `@lhci/cli` 0.16.1 among them), and i18next 27 (#124)
+  and the Sonar action (#122) merged as Dependabot opened them.
 
-  **`minimatch < 11.0.1` stays** (GHSA-g3hv-75wg-m249, moderate: denial of
-  service through globparts amplification). eslint 10.14.0 and
-  `@eslint/config-array` ask for `^10.2.6`, and the fix exists only in 11.x, so
-  the only remedy is an override across a major in the module ESLint calls on
-  every file it lints. What minimatch parses here is our own ESLint config's
-  globs, dev-only, so there is no input to amplify. Neither advisory fails
-  `audit.yml` (prod at high, everything at critical).
+  ⚠️ **The hand-made lockfile then failed `build`, the reverse of the beta.**
+  music-metadata 12.5.0 imports `TokenWriter` from `strtok3` (its new FLAC
+  writer) but still declares `strtok3 ^10.6.3`, and only a later 10.x exports
+  it. An incremental install keeps the 10.6.3 already locked — `astro build`:
+  "Missing export" — where Dependabot's fresh one had 10.8.0. `pnpm update
+  strtok3` moved it inside the declared range, so there is no override. The
+  bundle is unchanged in size (boot 127.8 KB gz); the generated notices gain
+  `@astrojs/svelte-renderer` (MIT), which `@astrojs/svelte` 9.1.5 split out of
+  itself — 21 components, the curated `@astrojs/svelte` row covering it.
+
+  **`basic-ftp` again: GHSA-5pm8-86m8-9m6r** (moderate: an MLSD listing with a
+  `__proto__` fact throws inside `Client.list()`), patched in 6.2.4. The
+  override's floor rose from `^6.2.1` to `^6.2.4`; the lockfile resolves 6.2.6.
+  Same reasoning as its first advisory — Lighthouse CI never configures an
+  `ftp:` PAC URL — and the same dev-only tree.
+
+  ✅ **`deepmerge ≤ 4.3.1` — the advisory was withdrawn** (GHSA-gcqx-w48m-w2h4,
+  withdrawn 2026-11-16). It had stayed, with no override, because npm's newest
+  release, 4.3.1, was the last one it named and there was nothing to move to;
+  the copy is still `@sveltejs/vite-plugin-svelte`'s, merging its own build
+  configuration. Nothing changed here — the finding went away upstream.
+
+  ✅ **`minimatch < 11.0.1` — cleared upstream, as the advice above prefers**
+  (GHSA-g3hv-75wg-m249, moderate, `>= 7.0.0 < 11.0.1`). It stayed because
+  eslint 10.14.0's `@eslint/config-array` asked for `^10.2.6` and the fix
+  existed only in 11.x. eslint 10.15.0 brings `@eslint/config-array` 0.23.6,
+  which asks for 11: the lockfile resolves 11.0.5, plus 3.1.5 under
+  `@lhci/cli → rimraf 3`, outside the advisory's range. With these, `pnpm
+  audit` over the whole tree reports **no known vulnerabilities**.
 
   **`extract-zip ≤ 2.0.1` stayed until v2.2.1**, when `@lhci/cli` 0.16.0 took
   it out of the tree (GHSA-7pqw-9j4j-h8q3, GHSA-jmr9-qjv8-65gv:

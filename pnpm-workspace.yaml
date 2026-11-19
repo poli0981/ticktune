@@ -25,21 +25,28 @@ allowBuilds:
 #            patched in 6.2.1. get-uri reaches FTP only for an `ftp:` PAC URL,
 #            which Lighthouse CI here never configures. @lhci/cli 0.16.0 still
 #            asks for proxy-agent 6, whose get-uri asks for basic-ftp 5.
+#            Raised to ^6.2.4 in 2026-11 for GHSA-5pm8-86m8-9m6r (moderate: an
+#            MLSD listing with a `__proto__` fact throws in Client.list()).
+#
+# A guard, not a security fix:
+#   @emnapi/runtime
+#            @napi-rs/wasm-runtime names `^1.7.1 || 2.0.0-beta.2` as its peer, so
+#            a FRESH resolution — Dependabot's — picks the beta, and with it
+#            @astrojs/astro2tsx cannot start: `astro check` exits 1 ("this.bridge.
+#            setLastError is not a function"). It turned two group PRs red (#119,
+#            #123) while a local install kept 1.11.3. Drop this once the 2.x line
+#            is stable and astro2tsx is known to load with it.
 #
 # @lhci/cli 0.16.0 (Lighthouse 13, 2026-11-10) retired the other four — `tmp`,
 # `uuid`, `js-yaml@3>argparse` and `chromium-bidi>zod` — and took extract-zip
 # out of the tree: with the overrides removed, `pnpm audit` names none of them
 # (docs/11 §5).
-# No override, and docs/11 §5 records why each stays:
-#   deepmerge (GHSA-gcqx-w48m-w2h4, low) — through @sveltejs/vite-plugin-svelte,
-#            which merges its own build config with it; npm's newest is 4.3.1,
-#            the last vulnerable one, so there is nothing to move to.
-#   minimatch (GHSA-g3hv-75wg-m249, moderate) — through eslint and
-#            @eslint/config-array, which ask for `^10.2.6` while the fix exists
-#            only in 11.0.1+; an override would cross the major ESLint calls on
-#            every lint, and the patterns it parses are our own config's globs.
+# The two advisories that stood here with no override are gone (docs/11 §5):
+# deepmerge's was withdrawn (2026-11-16), and eslint 10.15.0 moved
+# @eslint/config-array to minimatch 11, past GHSA-g3hv-75wg-m249.
 #
 # Wrangler's `miniflare>undici ^7.30.1` override went in v2.1: Wrangler 4.156.0
 # ships a miniflare that asks for undici 7.30.1 itself, as its note asked.
 overrides:
-  'get-uri>basic-ftp': ^6.2.1
+  '@emnapi/runtime': ^1.11.3
+  'get-uri>basic-ftp': ^6.2.4
