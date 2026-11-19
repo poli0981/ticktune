@@ -1,0 +1,77 @@
+name: Wording is wrong or awkward
+description: Vietnamese, English or Japanese text that is incorrect, unnatural, misleading, or wrong for a region.
+title: "[i18n]: "
+labels: ["i18n"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Native speakers are the only people who can catch this. English is the
+        reference dictionary, Vietnamese is the default UI and is reviewed by
+        the maintainer, and Japanese is best-effort — so reports in Japanese
+        are especially welcome. The legal texts are Vietnamese and English
+        only.
+
+        You do **not** need to open a pull request or install anything — just
+        tell us the wording.
+
+        *Bạn thấy câu chữ tiếng Việt sai, gượng, không hợp cách nói vùng miền
+        hay có lỗi chính tả dễ gây hiểu nhầm? Cứ báo ở đây.*
+
+  - type: dropdown
+    id: locale
+    attributes:
+      label: Language
+      options:
+        - Tiếng Việt (vi)
+        - English (en)
+        - 日本語 (ja)
+    validations:
+      required: true
+
+  - type: input
+    id: location
+    attributes:
+      label: Where does the text appear?
+      description: >-
+        A screen and a description is plenty — "Setup, under the YouTube box"
+        or "the import message after adding links". If you know the key in
+        `src/app/i18n/*.json`, even better.
+      placeholder: Settings ⚙, the Audio group — or toast.import.TT-YT-103
+    validations:
+      required: true
+
+  - type: textarea
+    id: current
+    attributes:
+      label: Current text
+      description: Copy it exactly as it appears.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Suggested text
+    validations:
+      required: true
+
+  - type: textarea
+    id: why
+    attributes:
+      label: Why is the current wording wrong?
+      description: >-
+        Grammar, register, an unnatural loanword, a regional usage, a term
+        inconsistent with the rest of the UI — whatever it is. This is the part
+        that makes the change reviewable by someone who does not speak the
+        language.
+    validations:
+      required: false
+
+  - type: markdown
+    attributes:
+      value: |
+        **One constraint worth knowing:** placeholders like `{{n}}` or
+        `{{name}}` must appear in the translation exactly as they do in English
+        — same names, same count. A test enforces it, so a suggestion that
+        drops one cannot be merged as-is.
