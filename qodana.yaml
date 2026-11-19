@@ -52,3 +52,10 @@ exclude:
   # `@app/*` and `@lib/*` aliases in tsconfig.json have no users, so rewriting
   # an import to one would start a second style, not finish one. 17 findings.
   - name: ES6PreferShortImport
+
+# Clean since v2.3.0 (2026-11-19, docs/14 §1): any new finding turns this
+# workflow red, so it is fixed — or switched off above with its reason — never
+# left standing to be ignored. Still not a required check.
+failureConditions:
+  severityThresholds:
+    any: 0

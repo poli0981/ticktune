@@ -21,6 +21,7 @@ inheritance bug, and the habit costs nothing.
 | `deploy.yml` | push tag `v*` **only** | verify (signature, ancestry, gates) → deploy → GitHub Release (`§5`) |
 | `quality.yml` | PR to main | `lighthouse` (Lighthouse CI on the static pages) and `visual` (screenshots in the pinned Playwright image) — v2.0, **not required** |
 | `qodana.yml` | PR + push main + weekly cron + manual | `scan` (Qodana for JS, JetBrains' WebStorm inspections, on the whole project) → `publish` (its SARIF to code scanning, category `qodana`) — 2026-11, **not required** |
+| `triage.yml` | new issue (`opened`, `labeled`) + new PR (`pull_request_target`, `opened`) | maintenance-mode triage (v2.3): `scripts/triage.ts` decides, `gh` acts — closes a feature request answering "Something new" and an outside `feat…` PR with the `maintenance-mode` label (`MAINTENANCE.md`) |
 
 **Build before test, and the order is load-bearing.** `tests/unit/tt-csp-assets.test.ts`
 and `tt-notices.test.ts` read `dist/`. Until v1.1 `ci.yml` ran the tests first,
@@ -101,6 +102,21 @@ whole: Automatic Analysis could import no coverage, so "Sonar way"'s
 
 **Snyk** reports a PR status check from its GitHub integration.
 
+**Triage** (v2.3) carries out `MAINTENANCE.md`. It is the one workflow that runs
+on `pull_request_target`, so on a fork's pull request it holds a write token, and
+it is built for that:
+- it checks out the **default branch**, never the pull request's head, and runs
+  nothing from the pull request;
+- `scripts/triage.ts` reads the event as the runner's file, and no title, body or
+  label is ever interpolated into a shell line;
+- the shell acts on constants the script wrote — an action, a number, a label from
+  a fixed list — and re-reads the issue's live state first.
+
+The decision is a pure function with 38 tests (`tests/unit/tt-triage.test.ts`),
+including the form's wording and the workflow's own lines. Ported from
+bookmarkmagic, where it has run since 2026-11-18. The owner's issues and
+pull requests, members, bots and anything labelled `roadmap` are exempt.
+
 **Qodana** (2026-11) is JetBrains' analysis, `qodana-js` — the JavaScript and
 TypeScript linter of the Ultimate licence `QODANA_TOKEN` carries, reporting to
 the Qodana Cloud project "ticktune". `qodana.yaml` holds the profile
@@ -122,7 +138,9 @@ components and pages are `svelte-check`'s, `astro check`'s,
 `eslint-plugin-svelte`'s and SonarQube Cloud's. The first run found 48
 findings in `.ts`: four real ones were fixed, two inspections that contradict
 the repository's own rules were switched off with their reasons, and the spike
-harnesses are left as they measured.
+harnesses are left as they measured. Since v2.3.0 `qodana.yaml` fails the run on
+**any** finding, so a new one is fixed or switched off with its reason — never
+left standing to be read past.
 
 **Dependabot**: `.github/dependabot.yml`, npm + github-actions, weekly, grouped
 minor/patch with a 3-day **cooldown** (pnpm 11's `minimumReleaseAge` otherwise
@@ -175,6 +193,7 @@ pack it. Reclaim with
 |----------------|-------------|
 | ci (`ci`, `sonar`) · e2e · audit · quality · qodana `scan` | `contents: read`, on each job; `{}` at the workflow level |
 | qodana → `publish` | `contents: read` + `security-events: **write**` — to upload the SARIF report; it installs and runs nothing |
+| triage | `contents: read` + `issues: **write**` + `pull-requests: **write**` — to comment, close and label; default branch checked out, nothing installed, no cache |
 | deploy → `verify`, `deploy` | `contents: read` (+ Cloudflare secrets in `deploy` only) |
 | deploy → `release` | `contents: **write**` — for `gh release create`, and it runs no build tooling |
 
