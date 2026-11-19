@@ -1,0 +1,30 @@
+# Qodana — docs/14 §1. Read by .github/workflows/qodana.yml.
+#
+# qodana-js is JetBrains' JavaScript/TypeScript linter (WebStorm's inspections);
+# it needs the Ultimate licence that QODANA_TOKEN carries. Native mode, no
+# Docker image: the workflow installs node_modules on the runner first, with
+# install scripts off, and runs `astro sync` so `.astro/` types resolve.
+version: '1.0'
+linter: qodana-js
+withinDocker: false
+
+profile:
+  name: qodana.recommended
+
+# What is not code, or not ours — the same set sonar-project.properties keeps
+# out of the analysis: build and coverage output, the local audio corpus,
+# static assets, prose, generated types and test fixtures and screenshots.
+exclude:
+  - name: All
+    paths:
+      - dist
+      - coverage
+      - test
+      - public
+      - docs
+      - legal
+      - src/assets
+      - .astro
+      - tests/e2e/fixtures
+      - tests/visual/__screenshots__
+      - pnpm-lock.yaml

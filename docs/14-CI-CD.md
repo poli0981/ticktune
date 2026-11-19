@@ -20,6 +20,7 @@ inheritance bug, and the habit costs nothing.
 | `audit.yml` | weekly cron + PR touching lockfile/manifests | `pnpm audit --prod --audit-level high`, then the whole tree at `critical` |
 | `deploy.yml` | push tag `v*` **only** | verify (signature, ancestry, gates) → deploy → GitHub Release (`§5`) |
 | `quality.yml` | PR to main | `lighthouse` (Lighthouse CI on the static pages) and `visual` (screenshots in the pinned Playwright image) — v2.0, **not required** |
+| `qodana.yml` | PR + push main + weekly cron + manual | `scan` (Qodana for JS, JetBrains' WebStorm inspections, on the whole project) → `publish` (its SARIF to code scanning, category `qodana`) — 2026-11, **not required** |
 
 **Build before test, and the order is load-bearing.** `tests/unit/tt-csp-assets.test.ts`
 and `tt-notices.test.ts` read `dist/`. Until v1.1 `ci.yml` ran the tests first,
@@ -57,8 +58,8 @@ first.
 only while that file existed.
 
 **SonarQube Cloud** has been **CI-based** since 2026-10-23: the `sonar` job in
-`ci.yml`, on the official `SonarSource/sonarqube-scan-action` (v8.4.0, running
-its own default SonarScanner CLI, 8.3.0.16463). Until v2.1 a `scannerVersion`
+`ci.yml`, on the official `SonarSource/sonarqube-scan-action` (v8.5.0 since #122, running
+its own default SonarScanner CLI, 8.4.0.16527). Until v2.1 a `scannerVersion`
 input pinned 8.2.0.6438 ahead of v8.3.0's default, with a note to delete it with
 the bump that caught up. Dependabot's #105 bumped the action alone and would have
 kept the pin as a downgrade, so the bump was taken by hand with the pin removed. Automatic Analysis is **off and must stay off** — SonarQube
@@ -99,6 +100,22 @@ whole: Automatic Analysis could import no coverage, so "Sonar way"'s
   clone every line would be new.
 
 **Snyk** reports a PR status check from its GitHub integration.
+
+**Qodana** (2026-11) is JetBrains' analysis, `qodana-js` — the JavaScript and
+TypeScript linter of the Ultimate licence `QODANA_TOKEN` carries, reporting to
+the Qodana Cloud project "ticktune". `qodana.yaml` holds the profile
+(`qodana.recommended`), the excluded paths — the set Sonar leaves out — and
+every inspection switched off, each with its reason. It runs natively on the
+runner (no Docker image), so `scan` installs the dependencies with
+`--ignore-scripts` and runs `astro sync` for `.astro/`'s types; `publish` holds
+the only write grant, `security-events`, and uploads the SARIF report to code
+scanning, where the findings sit beside CodeQL's. The action is pinned to
+v2026.2.2 rather than the moving `v2026.2` branch the vendor's snippet names,
+because its step holds the token; the whole project is scanned every time
+(`pr-mode: false`), and the job writes no PR comments or annotations, which
+would need the write permissions it does not have. Dependabot's and forks'
+pull requests skip it with a notice, as they skip `sonar`. **Not a required
+check**, like `quality.yml`.
 
 **Dependabot**: `.github/dependabot.yml`, npm + github-actions, weekly, grouped
 minor/patch with a 3-day **cooldown** (pnpm 11's `minimumReleaseAge` otherwise
@@ -149,7 +166,8 @@ pack it. Reclaim with
 
 | Workflow / job | permissions |
 |----------------|-------------|
-| ci (`ci`, `sonar`) · e2e · audit · quality | `contents: read`, on each job; `{}` at the workflow level |
+| ci (`ci`, `sonar`) · e2e · audit · quality · qodana `scan` | `contents: read`, on each job; `{}` at the workflow level |
+| qodana → `publish` | `contents: read` + `security-events: **write**` — to upload the SARIF report; it installs and runs nothing |
 | deploy → `verify`, `deploy` | `contents: read` (+ Cloudflare secrets in `deploy` only) |
 | deploy → `release` | `contents: **write**` — for `gh release create`, and it runs no build tooling |
 
@@ -171,11 +189,18 @@ GnuPG, a different keyring from the `gpg` on Git Bash's `PATH`.
 | `CLOUDFLARE_API_TOKEN` | Custom token: Account → Workers Scripts: Edit; Zone → Workers Routes: Edit (only) |
 | `CLOUDFLARE_ACCOUNT_ID` | Account id (not sensitive but kept as secret for uniformity) |
 | `SONAR_TOKEN` | SonarQube Cloud analysis token for `poli0981_ticktune` (since 2026-10-23) |
+| `QODANA_TOKEN` | Qodana Cloud project token for "ticktune" (since 2026-11-19); it carries the Ultimate licence `qodana-js` needs |
 
 The Cloudflare pair is used by `deploy.yml`'s `deploy` job only, and the
 `production` environment holds them. `SONAR_TOKEN` is a repository secret read
 by one step — `ci.yml`'s scan — never by a step that installs or runs the
 project's dependencies; Dependabot's store does not have it (`§1`).
+`QODANA_TOKEN` is read by one step too, `qodana.yml`'s scan. Its job is the one
+exception to "a token job installs nothing": qodana-js resolves types through
+`node_modules`, so the job installs with `--ignore-scripts` and runs
+`astro sync` before the scan. The token can only upload reports to one Qodana
+Cloud project, and the job's `GITHUB_TOKEN` is read-only; if a dependency is
+ever found compromised, rotate the token in qodana.cloud.
 
 **The Worker's own secrets are not GitHub secrets.** `YT_DATA_API_KEY` (v2.0,
 `10`, `06 §3`) lives on the Worker, so every version — previews included —
