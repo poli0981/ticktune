@@ -225,11 +225,14 @@ export async function mockOembed(
  *
  * @param table id → milliseconds (null for a video with no length), or a
  *   failure word, answered with the status the Worker would use.
+ * @param unplayable id → the reason it cannot play for this visitor (v2.3) —
+ *   answered for the asked ids only, as the Worker does.
  * @returns every `ids` list the app asked for, in order.
  */
 export async function mockDurations(
   page: Page,
   table: Record<string, number | null> | 'not_configured' | 'rate_limited',
+  unplayable: Record<string, string> = {},
 ): Promise<string[][]> {
   const asked: string[][] = [];
   await page.route('**/api/yt/durations*', (route) => {
@@ -243,10 +246,13 @@ export async function mockDurations(
       });
     }
     const durations = Object.fromEntries(ids.map((id) => [id, table[id] ?? null]));
+    const reasons = Object.fromEntries(
+      ids.filter((id) => id in unplayable).map((id) => [id, unplayable[id]]),
+    );
     return route.fulfill({
       status: 200,
       contentType: 'application/json; charset=utf-8',
-      body: JSON.stringify({ durations }),
+      body: JSON.stringify({ durations, unplayable: reasons }),
     });
   });
   return asked;

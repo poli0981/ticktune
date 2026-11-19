@@ -5,7 +5,8 @@
  *
  * - `/api/yt/oembed` — https://www.youtube.com/oembed sends no CORS headers.
  * - `/api/yt/durations` (v2.0) — the YouTube Data API needs a key, and a key in
- *   the page is a key anyone can take. It stays a Worker secret.
+ *   the page is a key anyone can take. It stays a Worker secret. Since v2.3 it
+ *   also says which videos cannot play for the visitor (`unplayable`).
  * - `/api/yt/playlists` (v2.1) — the same key, asking what a playlist holds
  *   (docs/06 §9).
  *
@@ -16,6 +17,15 @@
  * static assets.
  */
 
+import {
+  type TtYtFacts,
+  type TtYtUnplayable,
+  ytCountry,
+  ytFactsAreProvisional,
+  ytFactsFromCache,
+  ytFactsFromItem,
+  ytUnplayable,
+} from '../src/lib/tt-yt-availability';
 import { isoDurationMs } from '../src/lib/tt-iso-duration';
 import { ytCauseFromUpstream, ytCauseIsTransient, type TtYtCause } from '../src/lib/tt-yt-cause';
 import { YT_LIST_ID, ytListCause, ytListUnreadable } from '../src/lib/tt-yt-list';
@@ -84,12 +94,17 @@ const UPSTREAM_TIMEOUT_MS = 8_000;
  * free, CORS-enabled oEmbed proxy — billed per request on Workers Paid.
  * `wrangler dev` and the Version URLs serve pages and API from one origin too.
  */
-function json(body: unknown, status: number, ttlSeconds: number): Response {
+function json(
+  body: unknown,
+  status: number,
+  ttlSeconds: number,
+  scope: 'public' | 'private' = 'public',
+): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
-      'cache-control': `public, max-age=${ttlSeconds}`,
+      'cache-control': `${scope}, max-age=${ttlSeconds}`,
       // `_headers` covers static assets only; Worker responses need their own.
       'x-content-type-options': 'nosniff',
     },
@@ -205,11 +220,29 @@ const MAX_DURATION_IDS = 50;
  * 24 h for a length, 15 min for "none". YouTube's developer policies allow
  * keeping API data up to 30 days; a day keeps the quota near zero for a queue
  * someone re-imports. A video with no length — live, unaired, private, gone —
- * may gain one, so that answer is re-asked sooner.
+ * may gain one, so that answer is re-asked sooner, and so are facts that can
+ * change within the day (a premiere airs, processing ends).
  */
 const DURATION_TTL_S = 86_400;
 const NO_DURATION_TTL_S = 900;
-const DURATION_CACHE_VERSION = 'v1';
+/**
+ * v2 since v2.3: an entry holds `{ms, f}` — the length and the availability
+ * facts — where v1 held `{ms}` alone. A v1 entry is never read again, so a
+ * video cached before v2.3 is asked once more rather than answered without
+ * its facts.
+ */
+const DURATION_CACHE_VERSION = 'v2';
+
+/**
+ * What `videos.list` is asked for — one quota unit per call whatever the parts.
+ * `status` and `snippet/liveBroadcastContent` joined in v2.3 for the
+ * availability facts (`src/lib/tt-yt-availability.ts`); `fields` keeps the
+ * answer to exactly these.
+ */
+const DATA_API_PARTS = 'contentDetails,status,snippet';
+const DATA_API_FIELDS =
+  'items(id,contentDetails(duration,regionRestriction,contentRating/ytRating),' +
+  'status(uploadStatus,privacyStatus,embeddable),snippet/liveBroadcastContent)';
 
 /**
  * The key's website restriction is `https://ticktune.net/*` (docs/10 §3), and
@@ -230,36 +263,81 @@ function parseIds(param: string | null): string[] | null {
 const durationKey = (id: string) =>
   new Request(`https://tt-yt-duration.invalid/${DURATION_CACHE_VERSION}/${id}`);
 
+/** One cached video: its length and its facts. */
+interface TtVideoEntry {
+  ms: number | null;
+  f: TtYtFacts;
+}
+
+/** A cache hit, or null for a miss — and for an entry this Worker cannot read. */
+async function cachedEntry(cache: Cache, id: string): Promise<TtVideoEntry | null> {
+  const hit = await cache.match(durationKey(id));
+  if (!hit) return null;
+  try {
+    const body = (await hit.json()) as { ms?: unknown; f?: unknown };
+    if (typeof body.ms !== 'number' && body.ms !== null) return null;
+    return { ms: body.ms, f: ytFactsFromCache(body.f) };
+  } catch {
+    return null;
+  }
+}
+
 /**
- * docs/06 §3 — `{durations: {id: ms | null}}` for up to 50 ids, one Data API
- * call for whatever the cache does not hold.
+ * The answer: lengths for every id, and a reason for each video that cannot
+ * play for THIS visitor. `private`, because the region verdict depends on who
+ * asked — a shared cache must never hand one country's answer to another.
+ */
+function availabilityAnswer(entries: Map<string, TtVideoEntry>, country: string | null): Response {
+  const durations: Record<string, number | null> = {};
+  const unplayable: Record<string, TtYtUnplayable> = {};
+  for (const [id, entry] of entries) {
+    durations[id] = entry.ms;
+    const cause = ytUnplayable(entry.f, country);
+    if (cause !== null) unplayable[id] = cause;
+  }
+  return json({ durations, unplayable }, 200, NO_DURATION_TTL_S, 'private');
+}
+
+/**
+ * docs/06 §3 — `{durations: {id: ms | null}, unplayable: {id: cause}}` for up
+ * to 50 ids, one Data API call for whatever the cache does not hold.
+ *
+ * `unplayable` (v2.3) names only what Google's answer argues: embedding off,
+ * age-restricted, blocked in `country`, not out yet, private, gone. An id
+ * Google did not return gets no reason — oEmbed decides those, as before.
+ * `country` is Cloudflare's for this request; it is compared here and goes
+ * nowhere else — not to Google, not into the cache, not into a log line.
  *
  * Every failure is uncached and says so in one word; the app treats them all
- * alike — durations stay `–`, the player still backfills on play — so the
- * words are for Workers Logs, where "why is Match disabled for links" gets
- * answered.
+ * alike — durations stay `–`, the player still backfills on play, and nothing
+ * is left out — so the words are for Workers Logs, where "why is Match
+ * disabled for links" gets answered.
  */
-async function durations(ids: string[], env: Env, ctx: ExecutionContext): Promise<Response> {
+async function durations(
+  ids: string[],
+  country: string | null,
+  env: Env,
+  ctx: ExecutionContext,
+): Promise<Response> {
   const cache = caches.default;
-  const out: Record<string, number | null> = {};
+  const entries = new Map<string, TtVideoEntry>();
   const missing: string[] = [];
   await Promise.all(
     ids.map(async (id) => {
-      const hit = await cache.match(durationKey(id));
-      const ms = hit ? ((await hit.json()) as { ms?: unknown }).ms : undefined;
-      if (typeof ms === 'number' || ms === null) out[id] = ms;
-      else missing.push(id);
+      const entry = await cachedEntry(cache, id);
+      if (entry === null) missing.push(id);
+      else entries.set(id, entry);
     }),
   );
-  if (missing.length === 0) return json({ durations: out }, 200, NO_DURATION_TTL_S);
+  if (missing.length === 0) return availabilityAnswer(entries, country);
 
   const key = env.YT_DATA_API_KEY;
   if (key === undefined || key === '') return json({ error: 'not_configured' }, 503, 0);
 
   const upstream = new URL('https://www.googleapis.com/youtube/v3/videos');
-  upstream.searchParams.set('part', 'contentDetails');
+  upstream.searchParams.set('part', DATA_API_PARTS);
   upstream.searchParams.set('id', missing.join(','));
-  upstream.searchParams.set('fields', 'items(id,contentDetails/duration)');
+  upstream.searchParams.set('fields', DATA_API_FIELDS);
 
   let res: Response;
   try {
@@ -290,25 +368,24 @@ async function durations(ids: string[], env: Env, ctx: ExecutionContext): Promis
     return json({ error: 'upstream_unreachable' }, 502, 0);
   }
 
-  const found = new Map<string, number | null>();
+  const found = new Map<string, TtVideoEntry>();
   for (const item of items) {
     const it = item as { id?: unknown; contentDetails?: { duration?: unknown } } | null;
     if (typeof it?.id === 'string' && typeof it.contentDetails?.duration === 'string') {
-      found.set(it.id, isoDurationMs(it.contentDetails.duration));
+      found.set(it.id, { ms: isoDurationMs(it.contentDetails.duration), f: ytFactsFromItem(item) });
     }
   }
-  // An id Google did not return is private, deleted or never existed: no length.
+  // An id Google did not return is private, deleted or never existed: no
+  // length, and no facts — oEmbed is what rejects those links (docs/06 §4).
   for (const id of missing) {
-    const ms = found.get(id) ?? null;
-    out[id] = ms;
+    const entry = found.get(id) ?? { ms: null, f: {} };
+    entries.set(id, entry);
+    const short = entry.ms === null || ytFactsAreProvisional(entry.f);
     ctx.waitUntil(
-      cache.put(
-        durationKey(id),
-        json({ ms }, 200, ms === null ? NO_DURATION_TTL_S : DURATION_TTL_S),
-      ),
+      cache.put(durationKey(id), json(entry, 200, short ? NO_DURATION_TTL_S : DURATION_TTL_S)),
     );
   }
-  return json({ durations: out }, 200, NO_DURATION_TTL_S);
+  return availabilityAnswer(entries, country);
 }
 
 /** docs/06 §9 — the owner's number for a paste, v2.1. */
@@ -506,7 +583,9 @@ export default {
       if (await overBudget(env.YT_DURATIONS_LIMIT, request)) {
         return json({ error: 'rate_limited' }, 429, 0);
       }
-      return durations(ids, env, ctx);
+      // Cloudflare's country for this request, for the region verdict alone
+      // (docs/06 §3, the Privacy Policy §3): compared, never stored or sent on.
+      return durations(ids, ytCountry(request.cf?.country), env, ctx);
     }
 
     if (url.pathname === '/api/yt/playlists') {

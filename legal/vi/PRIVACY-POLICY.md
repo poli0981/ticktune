@@ -39,7 +39,7 @@ sửa hay xoá theo yêu cầu.
 | Mọi trang | Chính trang web, do Cloudflare phục vụ | Dữ liệu yêu cầu thông thường, như địa chỉ IP và trình duyệt của bạn |
 | Mọi trang | Beacon **Cloudflare Web Analytics** (`static.cloudflareinsights.com`, gửi về `cloudflareinsights.com`) | Địa chỉ trang, trang dẫn tới, trình duyệt và hệ điều hành của bạn, cùng thời gian tải trang |
 | Khi bạn thêm liên kết YouTube | `/api/yt/oembed` trên tên miền của chúng tôi | Chỉ mã video 11 ký tự |
-| Khi bạn thêm liên kết YouTube | `/api/yt/durations` trên tên miền của chúng tôi, nơi hỏi **YouTube Data API** thời lượng của các video | Chỉ các mã video. Yêu cầu tới Google đi từ máy chủ của chúng tôi bằng khoá của chúng tôi — không bao giờ từ trình duyệt của bạn — và không mang thông tin gì về bạn |
+| Khi bạn thêm liên kết YouTube | `/api/yt/durations` trên tên miền của chúng tôi, nơi hỏi **YouTube Data API** thời lượng của các video và liệu từng video có phát được khi nhúng hay không | Chỉ các mã video. Yêu cầu tới Google đi từ máy chủ của chúng tôi bằng khoá của chúng tôi — không bao giờ từ trình duyệt của bạn — và không mang thông tin gì về bạn. Để biết một video có bị chặn ở nơi bạn ở hay không, máy chủ của chúng tôi so các quốc gia Google ghi cho video đó với quốc gia gần đúng mà Cloudflare gắn vào yêu cầu của bạn; quốc gia đó không được gửi tới Google và không được lưu |
 | Khi bạn thêm playlist YouTube | `/api/yt/playlists` trên tên miền của chúng tôi, nơi hỏi **YouTube Data API** mỗi playlist có những video nào | Chỉ các mã playlist, tối đa mười. Như với thời lượng, yêu cầu tới Google đi từ máy chủ của chúng tôi bằng khoá của chúng tôi và không mang thông tin gì về bạn |
 | Chế độ YouTube | YouTube IFrame API (`www.youtube.com`), trình phát (`youtube-nocookie.com`) và ảnh thu nhỏ (`i.ytimg.com`) | Những gì trình phát của YouTube yêu cầu |
 
@@ -59,9 +59,11 @@ họ.
 ## 5. YouTube và Google
 
 Chế độ YouTube dùng Dịch vụ API của YouTube: trình phát nhúng, và YouTube Data
-API, nơi máy chủ của chúng tôi hỏi thời lượng của từng video bạn thêm — theo mã
-video — và các video của từng playlist bạn thêm — theo mã playlist — không kèm
-thông tin gì về bạn. Thời lượng được giữ tối đa 24 giờ cho mỗi video, còn nội dung
+API, nơi máy chủ của chúng tôi hỏi thời lượng của từng video bạn thêm và liệu nó
+có phát được ở đây hay không — có cho nhúng không, có giới hạn độ tuổi không, chỉ
+xem được ở những quốc gia nào, đã ra mắt chưa — theo mã video, và các video của
+từng playlist bạn thêm — theo mã playlist — không kèm thông tin gì về bạn. Thời
+lượng và các câu trả lời đó được giữ tối đa 24 giờ cho mỗi video, còn nội dung
 một playlist tối đa một giờ, để cùng một thứ không phải tra lại. Khi bạn tương tác
 với trình phát, Google có thể đặt cookie và xử lý dữ liệu như mô tả trong
 [Chính sách quyền riêng tư của Google](https://policies.google.com/privacy). Trình
@@ -108,6 +110,7 @@ kể sẽ khiến Cổng pháp lý hiện lại; mọi bản sửa đổi đều
 
 | Phiên bản | Ngày | Thay đổi |
 |-----------|------|----------|
+| 2.1 | 2026-11-19 | `/api/yt/durations` nay còn hỏi YouTube Data API liệu từng video có phát được ở đây không — có cho nhúng không, có giới hạn độ tuổi không, các quốc gia video bị giới hạn, đã ra mắt chưa — rồi so các quốc gia đó với quốc gia Cloudflare gắn vào yêu cầu của bạn; quốc gia đó không được gửi tới Google hay lưu lại (chỉ sửa văn bản; Cổng pháp lý không hiện lại) |
 | 2.1 | 2026-11-03 | Playlist YouTube qua YouTube Data API (chỉ mã playlist, từ máy chủ của chúng tôi; giữ tối đa một giờ). Nhật ký Worker cũng ghi các yêu cầu tới địa chỉ không tồn tại, kèm header — chính sách này từng nói việc tải trang không bao giờ tạo ra mục nhật ký. Không dịch vụ AI nào nhận được gì (việc phát triển có hỗ trợ của AI được công bố ở Tuyên bố miễn trừ §7) |
 | 2.0 | 2026-10-27 | Giới hạn tần suất theo IP nay đếm cả `/api/yt/oembed`, lượt tra cứu YouTube còn lại — cùng cách đếm, cùng cách giữ (chỉ sửa văn bản; Cổng pháp lý không hiện lại) |
 | 2.0 | 2026-10-21 | Thời lượng YouTube qua YouTube Data API; bộ nhớ đệm ngoại tuyến cho các tệp của chính ứng dụng; thông báo hết giờ (tuỳ chọn); xuất/nhập tệp cài đặt; giới hạn tần suất theo IP cho tra cứu thời lượng |

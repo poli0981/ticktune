@@ -92,7 +92,10 @@ export type TtImportCode =
   | 'TT-YT-014' // a line in the Playlist kind that names no playlist
   | 'TT-YT-015' // a playlist longer than its first 50 videos — only those were read
   | 'TT-YT-100' // deleted, never existed, or private
-  | 'TT-YT-101'; // embedding disabled by the owner
+  | 'TT-YT-101' // embedding disabled by the owner
+  | 'TT-YT-102' // age-restricted (Data API, v2.3) — embeds refuse it
+  | 'TT-YT-103' // blocked in the visitor's country (Data API, v2.3)
+  | 'TT-YT-104'; // not out yet — an upcoming premiere or stream, or still processing (v2.3)
 
 /**
  * Tags as the importer consumes them — deliberately NOT music-metadata's shape.

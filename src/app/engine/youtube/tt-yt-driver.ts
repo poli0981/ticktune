@@ -1,6 +1,6 @@
 import { ytCauseFromResponse } from '../../../lib/tt-yt-cause';
-import { readDurations, readPlaylists } from './tt-yt-import';
-import type { TtYtListLookup, TtYtLookup, TtYtMeta, TtYtPorts } from './types';
+import { readDurations, readPlaylists, readUnplayable } from './tt-yt-import';
+import type { TtYtAvailability, TtYtListLookup, TtYtLookup, TtYtMeta, TtYtPorts } from './types';
 
 /**
  * The browser half of the YouTube importer — docs/06 §5 step 4.
@@ -92,7 +92,15 @@ async function lookup(videoId: string): Promise<TtYtLookup> {
  * tell; the status is read before the body for the reason `lookup` gives.
  */
 export async function lookupDurations(ids: readonly string[]): Promise<Map<string, number> | null> {
-  if (ids.length === 0) return new Map();
+  return (await lookupAvailability(ids))?.durations ?? null;
+}
+
+/**
+ * docs/06 §3 (v2.3) — the same request, read whole: the lengths, and the
+ * videos that cannot play for this visitor. Never rejects; `null` as above.
+ */
+async function lookupAvailability(ids: readonly string[]): Promise<TtYtAvailability | null> {
+  if (ids.length === 0) return { durations: new Map(), unplayable: new Map() };
   let res: Response;
   try {
     res = await fetch(`/api/yt/durations?ids=${ids.map(encodeURIComponent).join(',')}`, {
@@ -104,7 +112,8 @@ export async function lookupDurations(ids: readonly string[]): Promise<Map<strin
   }
   if (!res.ok) return null;
   try {
-    return readDurations(await res.json(), ids);
+    const body: unknown = await res.json();
+    return { durations: readDurations(body, ids), unplayable: readUnplayable(body, ids) };
   } catch {
     return null;
   }
@@ -143,6 +152,7 @@ export function browserYtPorts(onProgress?: TtYtPorts['onProgress']): TtYtPorts 
     now: () => Date.now(),
     lookup,
     lookupPlaylists,
+    availability: lookupAvailability,
     ...(onProgress === undefined ? {} : { onProgress }),
   };
 }

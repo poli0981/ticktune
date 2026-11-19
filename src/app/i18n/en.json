@@ -217,7 +217,10 @@
       "TT-YT-014": "No playlist in this line",
       "TT-YT-015": "Long playlist — only its first 50 videos were read",
       "TT-YT-100": "Video deleted or private",
-      "TT-YT-101": "The owner does not allow embedding"
+      "TT-YT-101": "The owner does not allow embedding",
+      "TT-YT-102": "Age-restricted — YouTube plays it only on its own site",
+      "TT-YT-103": "Not available in your country",
+      "TT-YT-104": "Not out yet — a premiere, a scheduled stream, or still processing"
     }
   },
   "finished": {

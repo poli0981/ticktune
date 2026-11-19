@@ -1,8 +1,9 @@
+import { isYtUnplayable, type TtYtUnplayable } from '../../../lib/tt-yt-availability';
 import { isYtCause, ytCauseIsTransient, type TtYtCause } from '../../../lib/tt-yt-cause';
 import { TT_QUEUE_CAP, isPlayable } from '../importer/tt-queue-rules';
 import type { TtImportCode, TtImportResult, TtTrack } from '../importer/types';
 import { parsePlaylistIds, parseVideoIds } from './tt-yt-url';
-import type { TtYtList, TtYtListLookup, TtYtLookup, TtYtPorts } from './types';
+import type { TtYtImportResult, TtYtList, TtYtListLookup, TtYtLookup, TtYtPorts } from './types';
 
 /**
  * The YouTube import pipeline — docs/06 §5.
@@ -24,6 +25,10 @@ import type { TtYtList, TtYtListLookup, TtYtLookup, TtYtPorts } from './types';
  * place a real reason lives (`src/lib/tt-yt-cause.ts`). Getting a track this
  * far and *then* discovering it is unplayable would mean the countdown is
  * already running.
+ *
+ * The last three are the Data API's (v2.3, `src/lib/tt-yt-availability.ts`):
+ * the reasons oEmbed answers 200 for, which until then reached the shelf and
+ * failed only on play.
  */
 function codeForCause(cause: TtYtCause): TtImportCode {
   switch (cause) {
@@ -44,6 +49,12 @@ function codeForCause(cause: TtYtCause): TtImportCode {
       // Registered precisely so an unclassified failure does not borrow a
       // confident wrong label from one of the rows above.
       return 'TT-YT-004';
+    case 'age_restricted':
+      return 'TT-YT-102';
+    case 'region_blocked':
+      return 'TT-YT-103';
+    case 'not_yet':
+      return 'TT-YT-104';
   }
 }
 
@@ -67,11 +78,26 @@ function codeForCause(cause: TtYtCause): TtImportCode {
  *   never touches the network, and treating that as a verdict would raise the
  *   banner on a perfectly good connection.
  */
-export function reachedEdge(result: TtImportResult): boolean | null {
+export function reachedEdge(
+  result: TtImportResult & { lengths?: TtYtImportResult['lengths'] },
+): boolean | null {
+  // The availability call (v2.3) was answered by our Worker, or there would be
+  // no lengths: that alone is proof, whatever the oEmbed checks met.
+  if (result.lengths instanceof Map) return true;
+
   // A cause is only nameable if the edge produced it (`src/lib/tt-yt-cause.ts`),
   // so any of these IS proof we got through — even though the track was refused.
-  // TT-YT-010 is the playlist path's (docs/06 §9): Google's reason, relayed.
-  const ANSWERED: readonly TtImportCode[] = ['TT-YT-100', 'TT-YT-101', 'TT-YT-004', 'TT-YT-010'];
+  // TT-YT-010 is the playlist path's (docs/06 §9): Google's reason, relayed;
+  // 102–104 are the Data API's (v2.3).
+  const ANSWERED: readonly TtImportCode[] = [
+    'TT-YT-100',
+    'TT-YT-101',
+    'TT-YT-102',
+    'TT-YT-103',
+    'TT-YT-104',
+    'TT-YT-004',
+    'TT-YT-010',
+  ];
 
   const answered =
     result.added.some((t) => t.status === 'ok') ||
@@ -96,8 +122,8 @@ export interface TtYtImportInput {
 export async function importLinks(
   input: TtYtImportInput,
   ports: TtYtPorts,
-): Promise<TtImportResult> {
-  const out: TtImportResult = { added: [], skipped: [], notes: [] };
+): Promise<TtYtImportResult> {
+  const out: TtYtImportResult = { added: [], skipped: [], notes: [], lengths: null };
 
   // ── step 1: parse every line ──────────────────────────────────────────────
   const { ids, rejected } = parseVideoIds(input.text);
@@ -113,15 +139,16 @@ function capacityOf(queue: readonly TtTrack[]): number {
 }
 
 /**
- * Steps 2–5 for ids already parsed — a paste of links, or what a batch of
+ * Steps 2–6 for ids already parsed — a paste of links, or what a batch of
  * playlists expanded to (docs/06 §9). One core, so the dedupe, the 50-link
- * cap and the sequential oEmbed check cannot differ between the two.
+ * cap, the sequential oEmbed check and the availability check (v2.3) cannot
+ * differ between the two.
  */
 async function importVideoIds(
   ids: readonly string[],
   input: Pick<TtYtImportInput, 'queue' | 'allowDuplicates'>,
   ports: TtYtPorts,
-  out: TtImportResult,
+  out: TtYtImportResult,
 ): Promise<void> {
   const { queue, allowDuplicates } = input;
   const { added, skipped, notes } = out;
@@ -149,6 +176,19 @@ async function importVideoIds(
   const capacity = capacityOf(queue);
   const accepted = unique.slice(0, capacity);
   for (const over of unique.slice(capacity)) skipped.push({ code: 'TT-YT-003', fileName: over });
+
+  // ── step 3b: availability, alongside the oEmbed checks (v2.3) ────────────
+  // ONE Data API call (docs/06 §3) for the accepted links, plus the shelf's
+  // links still without a length — which the session used to look up after
+  // landing, so a paste stays at 1 + 50 + 1 calls. Sent now and read after
+  // the loop, so it adds no wait unless Google is slower than every oEmbed
+  // check together. At most 50 ids by construction: the accepted links fill
+  // only the free slots, and the rest are playable links already shelved.
+  const asked = [...new Set([...accepted, ...ytDurationTargets(queue)])].slice(
+    0,
+    TT_QUEUE_CAP.youtube,
+  );
+  const answer = accepted.length > 0 ? ports.availability?.(asked) : undefined;
 
   for (const [index, videoId] of accepted.entries()) {
     ports.onProgress?.(index, accepted.length);
@@ -182,6 +222,35 @@ async function importVideoIds(
   }
 
   ports.onProgress?.(accepted.length, accepted.length);
+
+  // ── step 6: leave out what cannot play here (v2.3) ──────────────────────
+  // Before anything lands, so a link that would only fail on play — behind
+  // the TT-YT-150 card, with the countdown running — never reaches the
+  // shelf, the fitted length or a run. Unanswered: everything oEmbed
+  // accepted stays, exactly as before v2.3, and the card is still there.
+  if (answer === undefined) return;
+  const known = await answer;
+  if (known === null) {
+    out.lengths = 'unanswered';
+    return;
+  }
+  out.lengths = known.durations;
+  const kept: TtTrack[] = [];
+  for (const t of added) {
+    const id = t.videoId ?? '';
+    const cause = known.unplayable.get(id);
+    if (cause !== undefined) {
+      skipped.push({ code: codeForCause(cause), fileName: id });
+      // A link kept `pending` carried a TT-YT-001 note promising a retry
+      // on Start; it is no longer kept, so the promise goes with it.
+      const note = notes.findIndex((n) => n.code === 'TT-YT-001' && n.fileName === id);
+      if (note !== -1) notes.splice(note, 1);
+      continue;
+    }
+    const ms = known.durations.get(id);
+    kept.push(ms === undefined ? t : { ...t, durationMs: ms });
+  }
+  added.splice(0, added.length, ...kept);
 }
 
 /**
@@ -199,8 +268,8 @@ async function importVideoIds(
 export async function importPlaylists(
   input: TtYtImportInput,
   ports: TtYtPorts,
-): Promise<{ result: TtImportResult; reached: boolean | null }> {
-  const out: TtImportResult = { added: [], skipped: [], notes: [] };
+): Promise<{ result: TtYtImportResult; reached: boolean | null }> {
+  const out: TtYtImportResult = { added: [], skipped: [], notes: [], lengths: null };
   const lines = parsePlaylistIds(input.text);
   for (const line of lines.rejected) out.skipped.push({ code: 'TT-YT-014', fileName: line });
   for (const id of lines.refused) out.skipped.push({ code: 'TT-YT-012', fileName: id });
@@ -249,8 +318,9 @@ export async function importPlaylists(
 
 /**
  * docs/06 §5 — `durationMs` starts null and renders as `–` meanwhile (hard
- * invariant 5). The Data API lookup after import fills it (docs/06 §3, v2.0);
- * the player's backfill after cue does when that is unavailable (§2).
+ * invariant 5). The import's Data API answer fills it before the row lands
+ * (docs/06 §3, v2.3); the player's backfill after cue does when that is
+ * unavailable (§2).
  *
  * `videoId`, `sourceUrl` and `thumbnailUrl` are **written here**, which is the
  * point: all three have been declared on `TtTrack` since the first revision
@@ -316,6 +386,31 @@ export function readDurations(body: unknown, asked: readonly string[]): Map<stri
   for (const id of asked) {
     const ms = (table as Record<string, unknown>)[id];
     if (typeof ms === 'number' && Number.isFinite(ms) && ms > 0) out.set(id, ms);
+  }
+  return out;
+}
+
+/**
+ * The Worker's availability answer (v2.3), believed only as far as it goes.
+ *
+ * Only ids that were ASKED, only the reasons `tt-yt-availability.ts` names.
+ * A word nobody registered argues nothing: the link is kept, and the
+ * player's card is still there for it — the cost of a wrong "keep" is a
+ * 5 s skip, of a wrong "leave out" a video the user cannot have.
+ */
+export function readUnplayable(
+  body: unknown,
+  asked: readonly string[],
+): Map<string, TtYtUnplayable> {
+  const out = new Map<string, TtYtUnplayable>();
+  const table =
+    body !== null && typeof body === 'object'
+      ? (body as { unplayable?: unknown }).unplayable
+      : null;
+  if (table === null || typeof table !== 'object') return out;
+  for (const id of asked) {
+    const cause = (table as Record<string, unknown>)[id];
+    if (isYtUnplayable(cause)) out.set(id, cause);
   }
   return out;
 }

@@ -634,7 +634,8 @@ through these concrete paths:
 |-------|----------------------|-----------|-----|
 | Local track fails to decode/play (corrupt, revoked URL) | stop → auto-advance to next | mark `status:'error'`, auto-remove | TT-PLY-101 |
 | ~~YouTube video deleted / made private mid-session (`onError` 100)~~ | **folded into the row below — see the note** | remove on next validation | TT-YT-100 |
-| YouTube **anything** unplayable at play time — deleted, private, embed-off, age-restricted, region-blocked | overlay (typed) → auto-skip after 5 s | — | TT-YT-150 |
+| YouTube unplayable, known at **import** — deleted, private, embed-off (oEmbed or the Data API); age-restricted, blocked in the visitor's country, not out yet (the Data API, v2.3) | left out before it lands; a toast row per reason | — | TT-YT-100 / 101 / 102 / 103 / 104 |
+| YouTube **anything** still unplayable at play time — what the import could not see (a rights claim, members-only), or an import whose Data API call went unanswered | overlay (typed) → auto-skip after 5 s | — | TT-YT-150 |
 | User deletes track via UI | stop if current → advance | remove | TT-USR-001 |
 | …or any of the above in a **fitted** run, Repeat off (`§5.2`, v2.1) | the countdown loses what the track had left | the countdown loses all of it | TT-PLY-107 |
 

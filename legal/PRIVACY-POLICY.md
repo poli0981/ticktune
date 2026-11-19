@@ -37,7 +37,7 @@ request.
 | Every page | The site itself, served by Cloudflare | Ordinary request data, such as your IP address and browser |
 | Every page | The **Cloudflare Web Analytics** beacon (`static.cloudflareinsights.com`, reporting to `cloudflareinsights.com`) | The page address, the referring page, your browser and operating system, and page-load timings |
 | You add YouTube links | `/api/yt/oembed` on our own domain | The 11-character video ID only |
-| You add YouTube links | `/api/yt/durations` on our own domain, which asks the **YouTube Data API** for the videos' lengths | The video IDs only. The request to Google comes from our server with our own key — never from your browser — and carries nothing about you |
+| You add YouTube links | `/api/yt/durations` on our own domain, which asks the **YouTube Data API** for the videos' lengths and whether each can play in an embed | The video IDs only. The request to Google comes from our server with our own key — never from your browser — and carries nothing about you. To tell whether a video is blocked where you are, our server compares the countries Google lists for it with the approximate country Cloudflare attaches to your request; that country is not sent to Google and is not stored |
 | You add YouTube playlists | `/api/yt/playlists` on our own domain, which asks the **YouTube Data API** which videos each playlist holds | The playlist IDs only, up to ten. As for lengths, the request to Google comes from our server with our own key and carries nothing about you |
 | YouTube mode | The YouTube IFrame API (`www.youtube.com`), the player (`youtube-nocookie.com`) and thumbnails (`i.ytimg.com`) | Whatever YouTube's player requests |
 
@@ -56,10 +56,12 @@ Cloudflare processes this data under its own privacy policy.
 ## 5. YouTube and Google
 
 YouTube mode uses YouTube API Services: the embedded player, and the YouTube
-Data API, which our server asks for the length of each video you add — by video
-ID — and for the videos of each playlist you add — by playlist ID — with no
-information about you. Lengths are kept for up to 24 hours per video, and what a
-playlist holds for up to an hour, so the same thing is not looked up again. Once
+Data API, which our server asks for the length of each video you add and whether
+it can play here — embedding allowed, age restriction, the countries it is
+limited to, whether it is out yet — by video ID, and for the videos of each
+playlist you add — by playlist ID — with no information about you. Lengths and
+those answers are kept for up to 24 hours per video, and what a playlist holds
+for up to an hour, so the same thing is not looked up again. Once
 you interact with the player, Google may set cookies and process data as described in the
 [Google Privacy Policy](https://policies.google.com/privacy). The player is
 created on the privacy-enhanced `youtube-nocookie.com` host.
@@ -103,6 +105,7 @@ changes bring the Legal Gate back; every revision is in the Git repository.
 
 | Version | Date | Change |
 |---------|------|--------|
+| 2.1 | 2026-11-19 | `/api/yt/durations` also asks the YouTube Data API whether each video can play here — embedding, age restriction, the countries it is limited to, whether it is out yet — and compares those countries with the country Cloudflare attaches to your request, which is not sent to Google or stored (text only; the gate is not shown again) |
 | 2.1 | 2026-11-03 | YouTube playlists through the YouTube Data API (playlist IDs only, from our server; kept up to an hour). Worker logs also record requests for addresses that do not exist, headers included — this policy said loading a page never created one. No AI service receives anything (AI-assisted development is disclosed in the Disclaimer §7) |
 | 2.0 | 2026-10-27 | The per-IP rate limit also counts `/api/yt/oembed`, the other YouTube lookup — the same count, kept the same way (text only; the gate is not shown again) |
 | 2.0 | 2026-10-21 | YouTube lengths via the YouTube Data API; offline cache of the app's own files; optional finish notifications; settings file export/import; per-IP rate limit on lengths |

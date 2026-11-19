@@ -292,6 +292,11 @@ YouTube mode still needs the network — the player is Google's — and says so
   logged. Both are disclosed in `legal/PRIVACY-POLICY.md`; changing the setting
   or the plan changes the policy (`wrangler.jsonc` says the same next to the
   setting).
+- **`request.cf.country` (v2.3)** is read by `/api/yt/durations` to judge a
+  video's `regionRestriction` for the visitor (`06 §3`). It is compared and
+  dropped: not sent to Google, not written into the per-video cache, not
+  logged by our code. The country in a Workers Logs entry is the one Cloudflare
+  records for every invocation, as before; the Privacy Policy `§3` says both.
 - **Cloudflare Web Analytics — ON since v1.1, via the manual snippet.** Decided
   2026-10-20: the beacon (`<script type="module" src="https://static.cloudflareinsights.com/beacon.min.js" data-cf-beacon='{"token": …}'>`)
   is in `src/layouts/TtBase.astro`, so it is on every page including `/app/`.
