@@ -33,8 +33,9 @@ cung cấp cho thuận tiện. Bản tóm tắt hiển thị tại Cổng pháp 
 7. **Được xây dựng với sự hỗ trợ của AI.** Mã nguồn, kiểm thử, tài liệu và chính
    các văn bản pháp lý này của TickTune được viết với sự hỗ trợ của một trợ lý lập
    trình AI: **Claude Code** của **Anthropic, PBC**, dùng mô hình **Claude Opus
-   4.8** cho các phiên bản 0.2.0–1.0.0 (tháng 7/2026) và **Claude Opus 5.5** từ
-   phiên bản 1.1.0 (tháng 10/2026). Nhà phát triển định hướng và xem xét mọi thay
+   4.8** cho các phiên bản 0.2.0–1.0.0 (tháng 7/2026), **Claude Opus 5.5** từ
+   phiên bản 1.1.0 (tháng 10/2026), và **Claude Fable 5.2** cho phiên bản 2.2.1
+   (tháng 11/2026). Nhà phát triển định hướng và xem xét mọi thay
    đổi và chịu trách nhiệm về kết quả; mỗi commit có sự tham gia của trợ lý đều ghi
    rõ điều đó bằng một dòng `Co-Authored-By` trong lịch sử Git công khai. Kết quả
    của AI có thể sai theo cách trông như đúng — thêm một lý do để phần mềm được

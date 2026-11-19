@@ -156,9 +156,13 @@ log call.
 
 ## 7. Commits & PRs
 
-Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `test:`, `spike:`).
-The PR checklist lives in `CONTRIBUTING.md` (there is no PR template): gates
-pass, i18n keys in **both** dictionaries, log codes registered, licence and
+Conventional Commits (`feat:`, `fix:`, `docs:`, `chore:`, `test:`, `spike:`,
+and `ci:` for workflow-only changes, which the history uses). Since v2.3.0 a
+`feat` title from outside the project is read as a feature request and closed by
+the triage workflow (`MAINTENANCE.md`, `14 §1`).
+The PR checklist lives in `CONTRIBUTING.md`, and `.github/pull_request_template.md`
+(v2.2) puts its short form and the accessibility questions in every PR: gates
+pass, i18n keys in **all three** dictionaries, log codes registered, licence and
 notices for a new dependency, CSP + Privacy Policy for a new origin,
 `TT_LEGAL_VERSION` for a legal change, docs updated if behaviour changed,
 screenshots for UI PRs.

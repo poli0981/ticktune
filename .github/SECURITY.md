@@ -6,6 +6,13 @@ Only the latest deployed release is supported. TickTune is a static client-side
 app plus one small edge endpoint, so "patched" means "redeployed" — hard-reload
 (`Ctrl+F5`) to pick up a fix.
 
+The project is in maintenance mode ([MAINTENANCE.md](../MAINTENANCE.md)), and
+security is the part of it that does not wait: an advisory rated **high or
+critical** against what ships — or a serious problem in the toolchain itself,
+Node.js, the Workers runtime or Wrangler — is fixed and released as soon as a
+fixed version exists. Until one does, `docs/11 §5` records the advisory and
+why it cannot reach a user.
+
 ## Reporting a vulnerability
 
 **Please do not open a public issue for a security problem.** Use either private

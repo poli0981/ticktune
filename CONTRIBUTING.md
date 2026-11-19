@@ -3,6 +3,24 @@
 Thanks for your interest! TickTune is GPL-3.0-only; by contributing you agree
 your contributions are licensed the same way.
 
+## Maintenance mode — what is taken
+
+Since v2.3.0 TickTune is **maintained, not extended**
+([MAINTENANCE.md](MAINTENANCE.md)). Pull requests and issues are welcome for:
+
+- bugs and UI/UX defects;
+- accessibility barriers ([ACCESSIBILITY.md](ACCESSIBILITY.md));
+- language fixes — Vietnamese, English or Japanese wording that is wrong, awkward
+  or misleading (the **Wording is wrong or awkward** form);
+- dependency, security and platform updates;
+- a change that is genuinely necessary, or one already in `docs/16`'s backlog.
+
+**New features are not taken.** A pull request from outside the project titled
+`feat…` is closed automatically, and so is a feature request that answers
+"Something new"; both are labelled `maintenance-mode`, and nothing is deleted.
+If you think a change is necessary, open an issue first and say why. Ideas are
+welcome in [Discussions › Ideas](https://github.com/poli0981/ticktune/discussions/categories/ideas).
+
 ## Setup
 
 ```bash
@@ -23,7 +41,8 @@ Enable the corpus guard once per clone: `git config core.hooksPath .githooks`.
 - Read `CLAUDE.md` (condensed contract) and the relevant `docs/` chapter —
   especially the **hard invariants** (privacy, YouTube ToS, limits, mobile
   gate). PRs that violate an invariant are closed regardless of quality.
-- For anything non-trivial, open an issue first to align on approach.
+- For anything non-trivial, open an issue first to align on approach — in
+  maintenance mode, that is what tells a fix from a feature.
 
 ## AI-assisted contributions
 
@@ -41,7 +60,9 @@ Welcome, on the terms this project holds itself to (the Disclaimer's §7):
 ## Workflow
 
 1. Branch from `main`: `feat/…`, `fix/…`, `docs/…`, `chore/…`, `spike/…`.
-2. Conventional Commits (`feat: add ring visualizer sensitivity`).
+2. Conventional Commits (`fix: keep the hint chip's text after a resize`).
+   A `feat:` title from outside the project is read as a feature request and
+   closed (MAINTENANCE.md); use `fix:` for a fix.
 3. Keep PRs focused; UI changes include a screenshot/clip.
 4. A change to how a screen looks updates its visual baselines in the same PR:
    `pnpm test:visual:docker --update` (Docker), then review the new PNGs in the
@@ -101,4 +122,6 @@ vulnerability reporting).
 
 ## Community
 
-Discussions happen on GitHub Issues. Be kind; EN and VI are both welcome.
+Ideas and questions go to [Discussions](https://github.com/poli0981/ticktune/discussions)
+(Ideas, Q&A); issues are for the reports above. Be kind; EN and VI are both
+welcome.
