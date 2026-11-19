@@ -11,9 +11,17 @@ withinDocker: false
 profile:
   name: qodana.recommended
 
+# Measured on the first run (2026-11-19): qodana-js bundles Vue.js but neither
+# Svelte nor Astro, so the 26 components and every page were indexed as plain
+# text and never inspected. Both plugins are JetBrains' own, from the
+# Marketplace.
+plugins:
+  - id: dev.blachut.svelte.lang
+  - id: org.jetbrains.plugins.astro
+
 # What is not code, or not ours — the same set sonar-project.properties keeps
 # out of the analysis: build and coverage output, the local audio corpus,
-# static assets, prose, generated types and test fixtures and screenshots.
+# static assets, prose, generated types, test fixtures and screenshots.
 exclude:
   - name: All
     paths:
@@ -28,3 +36,19 @@ exclude:
       - tests/e2e/fixtures
       - tests/visual/__screenshots__
       - pnpm-lock.yaml
+      # The spike harnesses stay exactly as they measured (docs/15): S4b's
+      # module shipped unchanged as tt-crossfade.ts, and the rest are records.
+      - src/spike
+  # Inspections switched off after the first run (2026-11-19), each because it
+  # contradicts a rule of this repository rather than finding a defect:
+  #
+  # Doc comments here are prose, written for the reader of the code; `@param`
+  # appears only where a parameter needs saying. "Every parameter described"
+  # is not the convention — 19 of the first run's 48 findings. (The one that
+  # named a parameter the function no longer has was a real defect, and fixed.)
+  - name: JSCommentMatchesSignature
+  # Relative imports are what all three programs resolve alike: the app, the
+  # Worker (tsconfig.worker.json has no path aliases) and the scripts. The
+  # `@app/*` and `@lib/*` aliases in tsconfig.json have no users, so rewriting
+  # an import to one would start a second style, not finish one. 17 findings.
+  - name: ES6PreferShortImport

@@ -71,7 +71,7 @@ export function isFittedCountdown(countdownMs: number, queue: readonly TtTrack[]
  * A cursor that is not in the order — it outlived its track — counts every
  * track as ahead, which is what `nextInOrder` does with it too.
  *
- * @param positionMs the engine's position in the current track; null when the
+ * @param args.positionMs the engine's position in the current track; null when the
  *   engine has not reported one yet, which only happens just after a load —
  *   at 0, so 0 is the honest reading.
  */

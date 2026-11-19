@@ -134,9 +134,8 @@ export async function importFiles(
     // counts cover URLs per track, and a URL registered under the wrong key
     // would never be revoked when the track is removed.
     const id = ports.newId();
-    const cover = raw?.coverArt
-      ? ports.makeCoverUrl(id, raw.coverArt.bytes, raw.coverArt.mime)
-      : null;
+    const art = raw?.coverArt;
+    const cover = art ? ports.makeCoverUrl(id, art.bytes, art.mime) : null;
 
     added.push({
       id,
