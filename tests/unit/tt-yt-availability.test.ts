@@ -194,7 +194,8 @@ describe('ytUnplayable — one reason for this visitor, or none', () => {
 describe('ytFactsAreProvisional — what may change within the day', () => {
   it('only "not out yet" is re-asked sooner', () => {
     expect(ytFactsAreProvisional({ notYet: true })).toBe(true);
-    for (const facts of [{}, { age: true }, { embedOff: true }, { allowed: ['US'] }]) {
+    const settled: TtYtFacts[] = [{}, { age: true }, { embedOff: true }, { allowed: ['US'] }];
+    for (const facts of settled) {
       expect(ytFactsAreProvisional(facts)).toBe(false);
     }
   });

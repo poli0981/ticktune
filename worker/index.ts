@@ -122,6 +122,31 @@ function json(
  */
 const CACHE_VERSION = 'v2';
 
+/**
+ * A response body as a JSON object, or null when it is not one — a challenge
+ * page, a captive portal, a literal `null`. Never throws: every caller maps
+ * "not what we asked for" to the same transient word, and the exceptions
+ * these parsers used to throw were only ever a jump to that `catch`
+ * (Qodana's ExceptionCaughtLocallyJS, 2026-11-19).
+ */
+async function jsonObject(res: Response): Promise<Record<string, unknown> | null> {
+  try {
+    const parsed: unknown = await res.json();
+    return parsed !== null && typeof parsed === 'object'
+      ? (parsed as Record<string, unknown>)
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+/** A Data API answer's `items` — absent reads as empty — or null when it is not a list. */
+function itemsOf(body: Record<string, unknown> | null): unknown[] | null {
+  if (body === null) return null;
+  const items = body.items ?? [];
+  return Array.isArray(items) ? (items as unknown[]) : null;
+}
+
 async function oembed(id: string, ctx: ExecutionContext): Promise<Response> {
   const cacheKey = new Request(`https://tt-oembed.invalid/${CACHE_VERSION}/${id}`);
   const cache = caches.default;
@@ -189,14 +214,8 @@ async function oembed(id: string, ctx: ExecutionContext): Promise<Response> {
    * client already treats such answers as transient; now they are reported as
    * one, uncached, so a retry is a real retry.
    */
-  let data: Record<string, unknown>;
-  try {
-    const parsed: unknown = await res.json();
-    if (parsed === null || typeof parsed !== 'object') throw new TypeError('not an object');
-    data = parsed as Record<string, unknown>;
-  } catch {
-    return json({ error: 'upstream_unreachable' }, 502, 0);
-  }
+  const data = await jsonObject(res);
+  if (data === null) return json({ error: 'upstream_unreachable' }, 502, 0);
 
   // Forward only what the app renders (docs/06 §5) — not the raw upstream body,
   // which also carries embeddable HTML we neither need nor want to pass through.
@@ -357,16 +376,8 @@ async function durations(
     return json({ error: refused ? 'upstream_refused' : 'upstream_unreachable' }, 503, 0);
   }
 
-  let items: unknown[];
-  try {
-    const parsed: unknown = await res.json();
-    if (parsed === null || typeof parsed !== 'object') throw new TypeError('not an object');
-    const list = (parsed as { items?: unknown }).items ?? [];
-    if (!Array.isArray(list)) throw new TypeError('items is not an array');
-    items = list as unknown[];
-  } catch {
-    return json({ error: 'upstream_unreachable' }, 502, 0);
-  }
+  const items = itemsOf(await jsonObject(res));
+  if (items === null) return json({ error: 'upstream_unreachable' }, 502, 0);
 
   const found = new Map<string, TtVideoEntry>();
   for (const item of items) {
@@ -462,42 +473,34 @@ async function fetchList(
     return cause === 'refused' ? { refused: reason ?? String(res.status) } : { error: cause };
   }
 
-  try {
-    const parsed = (await res.json()) as {
-      pageInfo?: { totalResults?: unknown };
-      items?: unknown;
+  const body = await jsonObject(res);
+  const items = itemsOf(body);
+  if (body === null || items === null) return { error: 'upstream_unreachable' };
+  const ids: string[] = [];
+  let skipped = 0;
+  for (const item of items) {
+    const it = item as {
+      contentDetails?: { videoId?: unknown; videoPublishedAt?: unknown };
+      status?: { privacyStatus?: unknown };
     } | null;
-    if (parsed === null || typeof parsed !== 'object') throw new TypeError('not an object');
-    const items = parsed.items ?? [];
-    if (!Array.isArray(items)) throw new TypeError('items is not an array');
-    const ids: string[] = [];
-    let skipped = 0;
-    for (const item of items as unknown[]) {
-      const it = item as {
-        contentDetails?: { videoId?: unknown; videoPublishedAt?: unknown };
-        status?: { privacyStatus?: unknown };
-      } | null;
-      const videoId = it?.contentDetails?.videoId;
-      const privacy = it?.status?.privacyStatus;
-      // A deleted or private entry stays in the list with no publish date;
-      // the oEmbed check would refuse it anyway, so it does not take a slot.
-      const playable =
-        typeof videoId === 'string' &&
-        VIDEO_ID.test(videoId) &&
-        typeof it?.contentDetails?.videoPublishedAt === 'string' &&
-        (privacy === 'public' || privacy === 'unlisted');
-      if (playable) ids.push(videoId);
-      else skipped += 1;
-    }
-    const total = parsed.pageInfo?.totalResults;
-    return {
-      ids,
-      skipped,
-      total: typeof total === 'number' && total > 0 ? total : ids.length + skipped,
-    };
-  } catch {
-    return { error: 'upstream_unreachable' };
+    const videoId = it?.contentDetails?.videoId;
+    const privacy = it?.status?.privacyStatus;
+    // A deleted or private entry stays in the list with no publish date;
+    // the oEmbed check would refuse it anyway, so it does not take a slot.
+    const playable =
+      typeof videoId === 'string' &&
+      VIDEO_ID.test(videoId) &&
+      typeof it?.contentDetails?.videoPublishedAt === 'string' &&
+      (privacy === 'public' || privacy === 'unlisted');
+    if (playable) ids.push(videoId);
+    else skipped += 1;
   }
+  const total = (body.pageInfo as { totalResults?: unknown } | null | undefined)?.totalResults;
+  return {
+    ids,
+    skipped,
+    total: typeof total === 'number' && total > 0 ? total : ids.length + skipped,
+  };
 }
 
 /**
