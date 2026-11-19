@@ -1,0 +1,96 @@
+# Maintenance-mode triage — MAINTENANCE.md, docs/14 §1.
+#
+# scripts/triage.ts decides (a pure, unit-tested function of the event); this
+# file only carries the decision out with the `gh` CLI the runner ships. No
+# third-party action holds the write token.
+#
+# Security, because `pull_request_target` runs with a write token even for a
+# pull request from a fork:
+#   - the checkout is the DEFAULT BRANCH (what pull_request_target checks out
+#     unless told otherwise) — never the pull request's head, and nothing from
+#     the pull request is executed;
+#   - the payload reaches the script as the runner's event FILE; no title, body
+#     or label is ever interpolated into a shell line with `${{ }}`;
+#   - the decision the shell reads back is constants: an action from a fixed
+#     set, an integer, a label from a fixed list, a comment the script wrote.
+name: Triage
+
+on:
+  issues:
+    types: [opened, labeled]
+  pull_request_target:
+    types: [opened]
+
+# Explicit, and granted per job rather than here (docs/14 §2,
+# SonarQube githubactions:S8264).
+permissions: {}
+
+# A new issue from the feature form fires `opened` and `labeled` together; one
+# at a time per number, and the second re-reads the live state before acting.
+concurrency:
+  group: triage-${{ github.event.issue.number || github.event.pull_request.number }}
+  cancel-in-progress: false
+
+jobs:
+  triage:
+    name: Maintenance-mode triage
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+    steps:
+      # The default branch, never the pull request's head. No `cache:` on
+      # setup-node — a cache written here could be read back by a job that
+      # trusts it — and nothing is installed: the script needs only Node.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Decide
+        run: node scripts/triage.ts > "$RUNNER_TEMP/decision.json"
+
+      - name: Act
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          decision="$RUNNER_TEMP/decision.json"
+          action=$(jq -r '.action' "$decision")
+          echo "triage: $action — $(jq -r '.reason' "$decision")"
+          [ "$action" = none ] && exit 0
+
+          kind=$(jq -r '.kind' "$decision")
+          number=$(jq -r '.number' "$decision")
+          label=$(jq -r '.label' "$decision")
+          case "$kind" in issue|pr) ;; *) echo "::error::unexpected kind"; exit 1 ;; esac
+          [[ "$number" =~ ^[0-9]+$ ]] || { echo "::error::unexpected number"; exit 1; }
+          case "$label" in maintenance-mode|needs-triage) ;; *) echo "::error::unexpected label"; exit 1 ;; esac
+
+          # Re-read the live state: the second of two events for one issue
+          # finds the first one's label and does nothing.
+          live=$(gh "$kind" view "$number" --json state,labels \
+            --jq '[.state] + [.labels[].name] | join(" ")')
+          case " $live " in
+            *" maintenance-mode "*|*" needs-triage "*|*" roadmap "*)
+              echo "already triaged: $live"; exit 0 ;;
+          esac
+          case "$live" in OPEN*) ;; *) echo "not open: $live"; exit 0 ;; esac
+
+          # Comment and close FIRST, label last: the label is what a re-run
+          # reads as "done", so it must not exist before the work it stands for.
+          if [ "$action" = close ]; then
+            jq -r '.comment' "$decision" > "$RUNNER_TEMP/comment.md"
+            gh "$kind" comment "$number" --body-file "$RUNNER_TEMP/comment.md"
+            if [ "$kind" = issue ]; then
+              gh issue close "$number" --reason "not planned"
+            else
+              gh pr close "$number"
+            fi
+          fi
+          gh "$kind" edit "$number" --add-label "$label"

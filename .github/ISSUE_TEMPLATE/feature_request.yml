@@ -1,0 +1,86 @@
+name: Suggest a feature
+description: TickTune is in maintenance mode — read what that means before asking for something new.
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **TickTune is in maintenance mode**
+        ([MAINTENANCE.md](https://github.com/poli0981/ticktune/blob/main/MAINTENANCE.md)).
+        A change is added only when it is genuinely needed — to fix a defect,
+        remove a barrier, or keep YouTube playback working — or when it is
+        already in the [backlog](https://github.com/poli0981/ticktune/blob/main/docs/16-ROADMAP.md).
+
+        **The first question below decides what happens to this issue.** A
+        request for something new is closed automatically and labelled
+        `maintenance-mode` — not deleted, and read; the
+        [Ideas discussions](https://github.com/poli0981/ticktune/discussions/categories/ideas)
+        are the place to talk one through. The other two answers keep the issue
+        open for the maintainer.
+
+        Out of scope permanently, whatever the mode: uploading your files
+        anywhere, hiding the YouTube player or extracting its audio, a mobile
+        layout, and tracking beyond the one disclosed page-view beacon.
+
+        *TickTune đang ở chế độ bảo trì — câu hỏi đầu tiên quyết định issue này
+        được giữ lại hay tự động đóng.*
+
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Which kind of change is this?
+      description: See MAINTENANCE.md. Please answer honestly — a mislabelled request is closed by hand.
+      options:
+        - Something already in the backlog (docs/16)
+        - Needed to fix a bug, a UI/UX defect or an accessibility barrier
+        - Something new — not in the backlog
+    validations:
+      required: true
+
+  - type: input
+    id: reference
+    attributes:
+      label: Which backlog item, or which defect?
+      description: >-
+        The line in docs/16, or the issue or behaviour it fixes. Leave empty
+        for something new.
+    validations:
+      required: false
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What are you trying to do?
+      description: >-
+        The situation, not the solution. "My countdown ends in the middle of a
+        song and the cut is jarring" tells us more than "add a fade-out option".
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: What would you like it to do?
+    validations:
+      required: true
+
+  - type: textarea
+    id: workaround
+    attributes:
+      label: How do you handle it today?
+      description: Including "I don't" — that is useful signal about severity.
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: confirmations
+    attributes:
+      label: Before submitting
+      options:
+        - label: >-
+            As far as I can tell, this would not upload my files anywhere, need
+            an account, or send data to a new service.
+          required: true
+        - label: I read MAINTENANCE.md and checked the backlog in docs/16.
+          required: true

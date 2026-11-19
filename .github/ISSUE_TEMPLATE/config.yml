@@ -1,0 +1,29 @@
+# Issue chooser — MAINTENANCE.md, docs/14 §1.
+#
+# Blank issues are off: in maintenance mode every issue arrives through a form
+# that says what kind it is — a bug, a barrier, a wording fix, or a feature
+# request whose first answer the triage workflow reads.
+blank_issues_enabled: false
+
+contact_links:
+  - name: An idea, to talk through first
+    url: https://github.com/poli0981/ticktune/discussions/categories/ideas
+    about: >-
+      TickTune is in maintenance mode (MAINTENANCE.md). A new idea is welcome
+      here, where it can be discussed without an issue that has to be accepted
+      or refused.
+
+  - name: A question
+    url: https://github.com/poli0981/ticktune/discussions/categories/q-a
+    about: How something works, or whether it is meant to.
+
+  - name: Security vulnerability
+    url: https://github.com/poli0981/ticktune/security/advisories/new
+    about: Report privately, never as a public issue. See SECURITY.md (or security@poli0981.dev).
+
+  - name: Accessibility barrier, by email
+    url: mailto:accessibility@poli0981.dev
+    about: >-
+      The "Accessibility barrier" form above is the quickest route; email works
+      too, and you never need to tell us about a disability. See
+      ACCESSIBILITY.md.
